@@ -97,6 +97,9 @@ function isoDateLocalYearsAgo(years: number): string {
 // =============================================================================
 
 test.describe("Transactions — happy path", () => {
+  // Serial: shared worker user + local banking stack flake when many PF pages load at once.
+  test.describe.configure({ mode: "serial" });
+
   test("TX-H-01: creates a POSTED expense — appears in table and increases totalExpenses", { tag: ["@smoke", "@critical", "@balance"] }, async ({
     page,
     pfUser,
@@ -569,14 +572,12 @@ test.describe("Transactions — happy path", () => {
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
-    // Summary enters a skeleton state after account selection; wait before clicking chips.
+    await navigateFinanceTransactionsToMonth(pfPage, localCalendarYearMonth());
     await pfPage.summary.waitForMetricsReady();
+    await pfPage.transactionTable.waitForLoad();
 
-    const categoryChip = page
-      .getByTestId("month-summary-section")
-      .getByText(category.name, { exact: true });
-    await expect(categoryChip).toBeVisible();
-    await categoryChip.click();
+    await pfPage.summary.filterByCategoryName(category.name, category.id);
+    await pfPage.transactionTable.waitForLoad();
 
     await pfPage.transactionTable.expectTransactionVisible(descWith);
     await pfPage.transactionTable.expectTransactionHidden(descWithout);
@@ -783,13 +784,12 @@ test.describe("Transactions — happy path", () => {
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+    await navigateFinanceTransactionsToMonth(pfPage, localCalendarYearMonth());
     await pfPage.summary.waitForMetricsReady();
+    await pfPage.transactionTable.waitForLoad();
 
-    const tagChip = page
-      .getByTestId("month-summary-section")
-      .getByText(`#${tag}`, { exact: true });
-    await expect(tagChip).toBeVisible();
-    await tagChip.click();
+    await pfPage.summary.filterByTag(tag);
+    await pfPage.transactionTable.waitForLoad();
 
     await pfPage.transactionTable.expectTransactionVisible(descTagged);
     await pfPage.transactionTable.expectTransactionHidden(descUntagged);
@@ -805,9 +805,9 @@ test.describe("Transactions — happy path", () => {
     pfUser,
     bankAccount,
   }) => {
-    // Seed 25 transactions to exceed the default page size (typically 20)
+    // Seed 30 transactions to exceed the default page size (`first: 20` on the page query)
     const transactions = await Promise.all(
-      Array.from({ length: 25 }, (_, i) =>
+      Array.from({ length: 30 }, (_, i) =>
         createTransaction(
           {
             financialAccountId: bankAccount.id,
@@ -826,22 +826,26 @@ test.describe("Transactions — happy path", () => {
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+    await navigateFinanceTransactionsToMonth(pfPage, localCalendarYearMonth());
     // waitForLoad ensures the first page has rendered before we snapshot the count.
-    // Without it, getRowCount() races the loading state and returns 0 — then
-    // the scroll poll trivially passes when the first page appears, not the second.
     await pfPage.transactionTable.waitForLoad();
 
-    const firstPageCount = await pfPage.transactionTable.getRowCount();
+    const countH15Rows = () =>
+      pfPage.transactionTable.getRowByDescription(/Paginação H15 item \d+/).count();
 
-    // Trigger infinite scroll / next-page load
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    // Poll until more rows appear — networkidle is unreliable with SPAs that have WebSockets/polling.
     await expect
-      .poll(
-        async () => pfPage.transactionTable.getRowCount(),
-        { timeout: 15_000, intervals: [500, 1000, 1000] },
-      )
+      .poll(countH15Rows, { timeout: 15_000, intervals: [300, 500, 1000] })
+      .toBe(20);
+
+    const firstPageCount = await countH15Rows();
+
+    // IntersectionObserver watches `transaction-table-load-more`, not window scroll.
+    await pfPage.transactionTable.scrollToLoadMore();
+
+    await expect
+      .poll(countH15Rows, { timeout: 15_000, intervals: [500, 1000, 1000] })
       .toBeGreaterThan(firstPageCount);
+    await expect.poll(countH15Rows, { timeout: 15_000 }).toBe(30);
 
     // Cleanup
     await Promise.all(

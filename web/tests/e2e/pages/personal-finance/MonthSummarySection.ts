@@ -9,6 +9,10 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { parseCurrencyBr } from '../../helpers/currency-dom';
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export class MonthSummarySection {
   private readonly root: Locator;
 
@@ -81,6 +85,48 @@ export class MonthSummarySection {
       .getByTestId('month-summary-opening-balance')
       .textContent();
     return parseCurrencyBr(text ?? '0');
+  }
+
+  /**
+   * Activates a category filter from the month-summary breakdown and waits for the
+   * filtered `transactions` query to finish (chip click alone is not enough for table assertions).
+   */
+  async filterByCategoryName(categoryName: string, categoryId?: string): Promise<void> {
+    const transactionsResponse = this.page.waitForResponse(
+      (response) => {
+        const req = response.request();
+        if (req.method() !== 'POST' || !/graphql/i.test(req.url())) return false;
+        const body = req.postData() ?? '';
+        if (!body.includes('transactions') || !response.ok()) return false;
+        return categoryId ? body.includes(categoryId) : true;
+      },
+      { timeout: 30_000 },
+    );
+
+    const chip = this.page.getByRole('button', {
+      name: new RegExp(`categoria:\\s*${escapeRegex(categoryName)}`, 'i'),
+    });
+    await expect(chip).toBeVisible({ timeout: 15_000 });
+    await chip.click();
+    await transactionsResponse;
+  }
+
+  /** Activates a tag filter chip (`#tag`) and waits for the filtered transactions query. */
+  async filterByTag(tag: string): Promise<void> {
+    const transactionsResponse = this.page.waitForResponse(
+      (response) => {
+        const req = response.request();
+        if (req.method() !== 'POST' || !/graphql/i.test(req.url())) return false;
+        const body = req.postData() ?? '';
+        return body.includes('transactions') && body.includes(tag) && response.ok();
+      },
+      { timeout: 30_000 },
+    );
+
+    const chip = this.root.getByText(`#${tag}`, { exact: true });
+    await expect(chip).toBeVisible({ timeout: 15_000 });
+    await chip.click();
+    await transactionsResponse;
   }
 
   /** Snapshot of all summary values. */

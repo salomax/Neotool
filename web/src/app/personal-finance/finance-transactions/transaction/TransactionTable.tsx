@@ -459,7 +459,11 @@ export function TransactionTable({
       />
 
       {hasMore && (
-        <Box ref={loaderRef} sx={{ display: 'flex', justifyContent: 'center', p: 2, minHeight: 50 }} />
+        <Box
+          ref={loaderRef}
+          data-testid="transaction-table-load-more"
+          sx={{ display: 'flex', justifyContent: 'center', p: 2, minHeight: 50 }}
+        />
       )}
 
       {!loading && transactions.length === 0 && (

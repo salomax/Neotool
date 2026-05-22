@@ -28,14 +28,52 @@ export class TransactionTablePage {
     return this.table.getByRole("row").count();
   }
 
+  /** Counts data rows only (excludes table head / date-group header rows). */
+  async getTransactionDataRowCount(): Promise<number> {
+    return this.table
+      .locator('[data-testid^="transaction-row-"]:not([data-testid*="balance-adjustment"])')
+      .count();
+  }
+
+  /**
+   * Scrolls the infinite-scroll sentinel into view and waits for the next `transactions` page.
+   * Window scroll alone does not trigger load-more — the UI uses IntersectionObserver on the sentinel.
+   */
+  async scrollToLoadMore(): Promise<void> {
+    const sentinel = this.table.getByTestId("transaction-table-load-more");
+    await expect(sentinel).toBeVisible({ timeout: 10_000 });
+
+    const loadMoreResponse = this.page.waitForResponse(
+      (response) => {
+        const req = response.request();
+        if (req.method() !== "POST" || !/graphql/i.test(req.url())) return false;
+        const body = req.postData() ?? "";
+        return (
+          body.includes("transactions") &&
+          body.includes('"after"') &&
+          response.ok()
+        );
+      },
+      { timeout: 30_000 },
+    );
+
+    await sentinel.scrollIntoViewIfNeeded();
+    await loadMoreResponse;
+  }
+
   /** Returns the Locator for a transaction row by its description text. */
   getRowByDescription(description: string): Locator {
     return this.table.getByRole("row").filter({ hasText: description });
   }
 
   /** Asserts that a transaction with the given description is visible. */
-  async expectTransactionVisible(description: string): Promise<void> {
-    await expect(this.getRowByDescription(description)).toBeVisible();
+  async expectTransactionVisible(
+    description: string,
+    options?: { timeout?: number },
+  ): Promise<void> {
+    await expect(this.getRowByDescription(description)).toBeVisible({
+      timeout: options?.timeout ?? 15_000,
+    });
   }
 
   /** Asserts that a transaction with the given description is NOT visible. */
