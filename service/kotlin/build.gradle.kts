@@ -152,6 +152,7 @@ subprojects {
                             "*mapper.*",
                             "*Kt",
                             "io.github.salomax.neotool.comms.events.*",
+                            "*DataLoader*",
                         )
                         if (project.path != ":banking") {
                             classExclusions += "*domain.*"

@@ -95,3 +95,14 @@ tasks.register<Test>("testIntegration") {
         }
     }
 }
+
+kover {
+    reports {
+        filters {
+            excludes {
+                classes("io.github.salomax.neotool.financialdata.rest.internal.*")
+                classes("io.github.salomax.neotool.financialdata.repo.*RepositoryImpl")
+            }
+        }
+    }
+}
