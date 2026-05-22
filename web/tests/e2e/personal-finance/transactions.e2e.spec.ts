@@ -21,8 +21,9 @@
  *     follow this; `dateInMonth` / `today()` helpers are local-calendar based.
  *   - Month scope & initial balance date: see `helpers/finance-transactions-e2e.ts` and
  *     `getTransactions` / `getMonthSummary` JSDoc in `banking-graphql.ts`. Default `bankAccount` uses
- *     `initialBalanceDate = today` — any API tx **before** that date fails validation; any
- *     `getMonthSummary` for a month with **no** snapshots while earliest activity is **later** needs
+ *     `initialBalanceDate = first day of current month` — any API tx **before** that date fails
+ *     validation; UI create defaults to day 1 of the selected month — use `fillAndSave` / `setDateToday`.
+ *     Any `getMonthSummary` for a month with **no** snapshots while earliest activity is **later** needs
  *     either a backend that materializes empty months or ledger seeding in that month (TX-H-16,
  *     TX-A-03/A-10 patterns: set `initialBalanceDate` on/before the target month).
  *   - Cross-month moves (GraphQL date edit): current month **closing** often **unchanged** when a
@@ -415,11 +416,14 @@ test.describe("Transactions — happy path", () => {
       postedExpense.description,
     );
 
-    await pfPage.summary.waitForMetricsReady();
+    const expectedClosing =
+      summaryBefore.closingBalance + postedExpense.amount;
+    await pfPage.summary.waitForClosingBalance(expectedClosing);
     const summaryAfter = await pfPage.summary.getAll();
     // Expense of 100 removed → closingBalance increases by 100
-    expect(summaryAfter.closingBalance).toBeCloseTo(
-      summaryBefore.closingBalance + postedExpense.amount,
+    expect(summaryAfter.closingBalance).toBeCloseTo(expectedClosing, 2);
+    expect(summaryAfter.totalExpenses).toBeCloseTo(
+      summaryBefore.totalExpenses - postedExpense.amount,
       2,
     );
   });
@@ -439,6 +443,7 @@ test.describe("Transactions — happy path", () => {
     const desc = uniqueDesc("Mercado H10");
     await form.fillDescription(desc);
     await form.fillAmount(150);
+    await form.setDateToday();
     await form.selectAnyCategory();
     await form.save();
     await form.waitForClose();
@@ -478,6 +483,7 @@ test.describe("Transactions — happy path", () => {
     const tag = `viagem-${Date.now()}`;
     await form.fillDescription(desc);
     await form.fillAmount(800);
+    await form.setDateToday();
     await form.addTag(tag);
     await form.save();
     await form.waitForClose();
@@ -1048,8 +1054,8 @@ test.describe("Transactions — alternative paths", () => {
     const firstDay = formatLocalIsoDate(
       new Date(now.getFullYear(), now.getMonth(), 1),
     );
-    // Default `bankAccount` uses initialBalanceDate = today; a tx on the 1st would be invalid
-    // when today is later in the month (API: date must be on/after initial balance date).
+    // Default `bankAccount` uses initialBalanceDate = first day of month; explicit firstDay here
+    // documents the boundary (API: date must be on/after initial balance date).
     const bankAccount = await createFinancialAccount(
       {
         name: uniqueDesc("Conta A03 primeiro dia"),
@@ -1509,6 +1515,7 @@ test.describe("Transactions — negative paths", () => {
     // Verify that if save IS enabled, the stored amount is positive.
     const isSaveEnabled = await form.isSaveEnabled();
     if (isSaveEnabled) {
+      await form.setDateToday();
       await form.save();
       await form.waitForClose();
       const ym = localCalendarYearMonth();

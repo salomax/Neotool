@@ -49,6 +49,7 @@ test.describe("Merchants", () => {
       })
       .toBe(true);
 
+    await form.setDateToday();
     await form.save();
     await form.waitForClose();
     await financePage.transactionTable.expectTransactionVisible(txDescription);

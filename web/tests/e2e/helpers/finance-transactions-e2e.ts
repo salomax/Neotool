@@ -6,7 +6,7 @@
  * rows in another month; use `navigateFinanceTransactionsToMonth` before table assertions.
  *
  * Related conventions (see `transactions.e2e.spec.ts` file header):
- * - Default `bankAccount.initialBalanceDate` is today — past-dated API txs need a custom account.
+ * - Default `bankAccount.initialBalanceDate` is the first day of the current month — past-month API txs need a custom account.
  * - For calendar-**future** months, `getTransactions({ year, month })` is the robust way to assert
  *   POSTED rows; `monthSummary.totalExpenses` depends on banking version for future months.
  * - UI month summary: call `MonthSummarySection.waitForMetricsReady()` before baseline `getAll()`.

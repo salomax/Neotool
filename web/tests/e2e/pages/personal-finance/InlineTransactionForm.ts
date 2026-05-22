@@ -18,6 +18,7 @@
 
 import { Page, Locator, expect } from "@playwright/test";
 import { CreditDebitType } from "../../helpers/banking-schema-enums";
+import { today } from "../../helpers/banking-graphql";
 
 /** GraphQL credit/debit plus UI-only TRANSFER shortcut. */
 export type CreditDebitTypeOption = CreditDebitType | "TRANSFER";
@@ -92,6 +93,11 @@ export class InlineTransactionForm {
     await input.click();
     await input.fill(dateStr);
     await input.press("Tab");
+  }
+
+  /** Sets the transaction date to today (local calendar), on or after typical initial balance dates. */
+  async setDateToday(): Promise<void> {
+    await this.setDate(InlineTransactionForm.formatDateBr(today()));
   }
 
   /**
@@ -169,9 +175,8 @@ export class InlineTransactionForm {
     }
     await this.fillDescription(params.description);
     await this.fillAmount(params.amount);
-    if (params.date) {
-      await this.setDate(InlineTransactionForm.formatDateBr(params.date));
-    }
+    const isoDate = params.date ?? today();
+    await this.setDate(InlineTransactionForm.formatDateBr(isoDate));
     const responsePromise = this.page.waitForResponse(
       (response) => {
         const req = response.request();

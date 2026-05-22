@@ -62,23 +62,54 @@ export class FinanceTransactionsPage {
   /**
    * Selects an account in the selector. Prefer passing `accountId` when the user has multiple
    * accounts — label-only clicks can hit the wrong node; `data-account-id` is unambiguous.
+   *
+   * When the user has a single account, {@link FinancialAccountSelector} auto-selects it and does
+   * not open the popover — this method verifies the trigger label instead of waiting on the popover.
    */
   async selectAccount(accountName: string, accountId?: string): Promise<void> {
-    await this.page.getByTestId('account-selector').click();
+    const selector = this.page.getByTestId('account-selector');
+    await selector.waitFor({ state: 'visible', timeout: 10_000 });
+
+    const labelShowsAccount = async (): Promise<boolean> =>
+      ((await selector.textContent()) ?? '').includes(accountName);
+
+    if (await labelShowsAccount()) {
+      await Promise.all([
+        this.summary.waitForMetricsReady(),
+        this.transactionTable.waitForLoad(),
+      ]);
+      return;
+    }
+
+    await selector.click();
     const popover = this.page.getByTestId('account-selector-popover');
-    await popover.waitFor({ state: 'visible', timeout: 10_000 });
-    const row = accountId
-      ? popover.locator(`[data-account-id="${accountId}"]`).filter({ hasText: accountName }).first()
-      : popover.getByText(accountName, { exact: true }).locator('xpath=ancestor::*[@role="button"][1]');
-    await row.waitFor({ state: 'visible', timeout: 10_000 });
-    await row.scrollIntoViewIfNeeded();
-    await row.click({ force: true });
+
     await expect
       .poll(
-        async () =>
-          ((await this.page.getByTestId('account-selector').textContent()) ?? '').includes(accountName),
-        { timeout: 15_000 },
+        async () => {
+          if (await labelShowsAccount()) return true;
+          return (await popover.isVisible().catch(() => false)) ? true : false;
+        },
+        { timeout: 10_000 },
       )
+      .toBe(true);
+
+    if (!(await labelShowsAccount())) {
+      const row = accountId
+        ? popover.locator(`[data-account-id="${accountId}"]`).filter({ hasText: accountName }).first()
+        : popover
+            .getByText(accountName, { exact: true })
+            .locator('xpath=ancestor::*[@role="button"][1]');
+      await row.waitFor({ state: 'visible', timeout: 10_000 });
+      await row.scrollIntoViewIfNeeded();
+      await row.click({ force: true });
+      if (await popover.isVisible().catch(() => false)) {
+        await this.page.keyboard.press('Escape').catch(() => {});
+      }
+    }
+
+    await expect
+      .poll(async () => labelShowsAccount(), { timeout: 15_000 })
       .toBe(true);
     await Promise.all([
       this.summary.waitForMetricsReady(),
@@ -212,11 +243,32 @@ export class FinanceTransactionsPage {
 
   /** Asserts that the account with the given name is visible in the selector. */
   async expectAccountInSelector(accountName: string): Promise<void> {
-    await this.page.getByTestId('account-selector').click();
+    const selector = this.page.getByTestId('account-selector');
+    await selector.waitFor({ state: 'visible', timeout: 10_000 });
+
+    if ((await selector.textContent())?.includes(accountName)) {
+      return;
+    }
+
+    await selector.click();
     const popover = this.page.getByTestId('account-selector-popover');
-    await popover.waitFor({ state: 'visible', timeout: 10_000 });
-    await expect(popover.getByText(accountName, { exact: true })).toBeVisible({ timeout: 5000 });
-    await this.page.keyboard.press('Escape');
+    const popoverOpened = await popover
+      .waitFor({ state: 'visible', timeout: 2_000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (popoverOpened) {
+      await expect(popover.getByText(accountName, { exact: true })).toBeVisible({ timeout: 5000 });
+      await this.page.keyboard.press('Escape');
+      return;
+    }
+
+    await expect
+      .poll(
+        async () => ((await selector.textContent()) ?? '').includes(accountName),
+        { timeout: 15_000 },
+      )
+      .toBe(true);
   }
 
   /** Asserts that the account is NOT present in the selector (e.g. after soft-delete). */

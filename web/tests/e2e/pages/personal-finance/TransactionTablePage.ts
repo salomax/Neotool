@@ -48,6 +48,25 @@ export class TransactionTablePage {
    * Expects a confirmation dialog and confirms it.
    */
   async deleteTransaction(description: string): Promise<void> {
+    const deleteResponse = this.page.waitForResponse(
+      (response) => {
+        const req = response.request();
+        if (req.method() !== "POST" || !/graphql/i.test(req.url())) return false;
+        const body = req.postData() ?? "";
+        return body.includes("deleteTransaction") && response.ok();
+      },
+      { timeout: 30_000 },
+    );
+    const summaryResponse = this.page.waitForResponse(
+      (response) => {
+        const req = response.request();
+        if (req.method() !== "POST" || !/graphql/i.test(req.url())) return false;
+        const body = req.postData() ?? "";
+        return body.includes("monthSummary") && response.ok();
+      },
+      { timeout: 30_000 },
+    );
+
     await this.openRowActions(description);
     await this.page.getByTestId("transaction-action-delete").click();
 
@@ -57,6 +76,7 @@ export class TransactionTablePage {
     await dialog
       .getByRole("button", { name: /confirmar|confirm|excluir|delete/i })
       .click();
+    await Promise.all([deleteResponse, summaryResponse]);
     await dialog.waitFor({ state: "hidden" });
   }
 

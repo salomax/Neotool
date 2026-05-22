@@ -9,10 +9,11 @@
  * - twoTenants creates two isolated users for cross-tenant security tests.
  *
  * Initial balance date:
- * - `bankAccount` sets `initialBalanceDate` to **today** (via banking-graphql). GraphQL
- *   `createTransaction` rejects dates before that. Tests that post to **last month** or **day 1
- *   of this month** when today is later must use `createFinancialAccount({ …, initialBalanceDate })`
- *   on or before those dates (see `transactions.e2e.spec.ts` header and monthly-summary helpers).
+ * - `bankAccount` sets `initialBalanceDate` to **the first day of the current month** so it is on
+ *   or before the inline form default (day 1 of the selected month). GraphQL `createTransaction`
+ *   rejects dates before that. Tests that post to **last month** must use
+ *   `createFinancialAccount({ …, initialBalanceDate })` on or before those dates (see
+ *   `transactions.e2e.spec.ts` header and monthly-summary helpers).
  */
 
 /* eslint-disable react-hooks/rules-of-hooks */
@@ -26,6 +27,7 @@ import {
   deleteTransaction,
   FinancialAccount,
   Transaction,
+  firstDayOfMonth,
   today,
   TransactionStatus,
   TransactionType,
@@ -136,8 +138,8 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
   /**
    * BANK / CONTA_CORRENTE account with R$ 1.000 initial balance.
    * Created fresh per test so tests don't share transaction state.
-   * `initialBalanceDate` defaults to today (see banking-graphql) — use a custom account for UI/API
-   * tests that need transaction dates before today.
+   * `initialBalanceDate` is the first day of the current month — use a custom account for UI/API
+   * tests that need an initial balance after day 1 or in a prior month.
    */
   bankAccount: async ({ pfUser }, use) => {
     const account = await createFinancialAccount(
@@ -146,6 +148,7 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
         type: 'BANK',
         subtype: 'CONTA_CORRENTE',
         initialBalance: 1000.0,
+        initialBalanceDate: firstDayOfMonth(),
       },
       pfUser.token
     );

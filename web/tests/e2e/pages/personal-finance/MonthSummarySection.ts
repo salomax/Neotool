@@ -35,6 +35,22 @@ export class MonthSummarySection {
     ).toHaveCount(0, { timeout: 30000 });
   }
 
+  /**
+   * After mutations, Apollo often refetches with `cache-and-network` while keeping the previous
+   * summary on screen (no Skeleton). Poll until the displayed closing balance matches.
+   */
+  async waitForClosingBalance(expected: number, precision = 2): Promise<void> {
+    await expect
+      .poll(
+        async () => {
+          await this.waitForMetricsReady();
+          return this.getClosingBalance();
+        },
+        { timeout: 30_000 },
+      )
+      .toBeCloseTo(expected, precision);
+  }
+
   /** Returns the totalIncome value as a number (strips currency formatting). */
   async getTotalIncome(): Promise<number> {
     const text = await this.page

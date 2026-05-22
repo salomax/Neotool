@@ -23,7 +23,7 @@
  *     navigation carousel, category breakdown) use the full browser stack.
  *   - If combining with `getTransactions`, pass explicit `year`/`month` for non-current months
  *     (defaults to current month — see `banking-graphql` JSDoc and `helpers/finance-transactions-e2e.ts`).
- *   - Default `bankAccount` uses `initialBalanceDate = today`. Any test that `createTransaction`s
+ *   - Default `bankAccount` uses `initialBalanceDate = first day of current month`. Any test that `createTransaction`s
  *     into **last month** (`dateInMonth(-1, …)`) must use {@link financialAccountWithPastMonthOpening}
  *     (or equivalent) so the API accepts the date.
  *   - Calendar-future `monthSummary` header vs POSTED: see `transactions.e2e.spec.ts` header;
@@ -77,7 +77,7 @@ function nextYM(): { year: number; month: number } {
 }
 
 /**
- * `bankAccount` fixture initial balance is dated **today**, so POSTED txs in {@link prevYM} would
+ * Default `bankAccount` initial balance is dated **first day of current month**, so POSTED txs in {@link prevYM} would
  * violate `TRANSACTION_BEFORE_INITIAL_BALANCE`. This account seeds opening balance on day 1 of
  * the previous calendar month instead.
  */
@@ -431,7 +431,7 @@ test.describe('Monthly Summary — alternative paths', () => {
     pfUser,
     bankAccount,
   }) => {
-    // bankAccount fixture: initialBalance 1000 → POSTED BALANCE_ADJUSTMENT on initialBalanceDate (today).
+    // bankAccount fixture: initialBalance 1000 → POSTED BALANCE_ADJUSTMENT on initialBalanceDate (day 1 of month).
     // Per 04-monthly-summaries.md / SnapshotComputationService: genesis openingBalance is 0; the
     // adjustment flows through credit/debit totals into closingBalance (not into totalIncome/totalExpenses).
     const { year, month } = currentYM();
