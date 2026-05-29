@@ -124,7 +124,13 @@ export class FinanceTransactionsPage {
     for (let attempt = 0; attempt < 3; attempt++) {
       await this.page.getByTestId('account-selector').click();
       const popover = this.page.getByTestId('account-selector-popover');
-      await popover.waitFor({ state: 'visible', timeout: 10_000 });
+      const popoverOpened = await popover
+        .waitFor({ state: 'visible', timeout: 3_000 })
+        .then(() => true)
+        .catch(() => false);
+      if (!popoverOpened) {
+        continue;
+      }
       const accountRow = accountId
         ? popover.locator(`[data-account-id="${accountId}"]`).first()
         : popover
@@ -149,7 +155,10 @@ export class FinanceTransactionsPage {
       await this.createAccountDrawer.waitForClose().catch(() => {});
     }
 
-    throw new Error(`Could not open edit account drawer for "${accountName}" in edit mode`);
+    throw new Error(
+      `Could not open edit account drawer for "${accountName}". ` +
+        'The selector popover might be unavailable when only one account is visible in scope.',
+    );
   }
 
   /**
@@ -289,7 +298,19 @@ export class FinanceTransactionsPage {
 
     await selector.click();
     const popover = this.page.getByTestId('account-selector-popover');
-    await popover.waitFor({ state: 'visible', timeout: 10_000 });
+    const popoverOpened = await popover
+      .waitFor({ state: 'visible', timeout: 3_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!popoverOpened) {
+      await expect
+        .poll(
+          async () => !(((await selector.textContent()) ?? '').includes(accountName)),
+          { timeout: 15_000 },
+        )
+        .toBe(true);
+      return;
+    }
     await expect(popover.getByText(accountName, { exact: true })).toHaveCount(0);
     await this.page.keyboard.press('Escape');
   }

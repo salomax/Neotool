@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/investments';
-import { formatLocalIsoDate } from '../helpers/banking-graphql';
+import { isoDaysAgo } from '../helpers/fixed-income-e2e';
 import {
   AssetType,
   createInvestmentAsset,
@@ -13,36 +13,19 @@ import {
   recordInvestmentTransaction,
   updateInvestmentTransaction,
 } from '../helpers/investment-graphql';
+import { waitForRecalculation as waitForRecalculationIdle } from '../helpers/investment-e2e';
 import { signIntoPage } from '../helpers/navigation';
 import { InvestmentsPage } from '../pages/personal-finance/InvestmentsPage';
 
 test.describe.configure({ mode: 'serial' });
 test.describe.configure({ timeout: 180000 });
 
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() - days);
-  return formatLocalIsoDate(d);
-}
-
 function uniqueName(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 async function waitForRecalculation(token: string, financialAccountId?: string): Promise<void> {
-  await expect
-    .poll(
-      async () => {
-        const summary = await getInvestmentPortfolioSummary(token, {
-          financialAccountId,
-          period: PerformancePeriod.Ytd,
-        });
-        return summary.recalculationStatus.isCalculating;
-      },
-      { timeout: 45000 },
-    )
-    .toBe(false);
+  await waitForRecalculationIdle(token, financialAccountId, { period: PerformancePeriod.Ytd });
 }
 
 function expectNear(actual: number, expected: number, precision = 2): void {

@@ -5,7 +5,9 @@
  * month** (server). Use `yearMonthFromIso` + explicit `getTransactions` options when asserting
  * rows in another month; use `navigateFinanceTransactionsToMonth` before table assertions.
  *
- * Related conventions (see `transactions.e2e.spec.ts` file header):
+ * Related conventions: `tests/e2e/CONVENTIONS.md` and `transactions.e2e.spec.ts` file header.
+ *
+ * Previously documented only in `transactions.e2e.spec.ts`:
  * - Default `bankAccount.initialBalanceDate` is the first day of the current month — past-month API txs need a custom account.
  * - For calendar-**future** months, `getTransactions({ year, month })` is the robust way to assert
  *   POSTED rows; `monthSummary.totalExpenses` depends on banking version for future months.
@@ -22,6 +24,45 @@ export function yearMonthFromIso(iso: string): { year: number; month: number } {
 /** Local calendar year and month (1–12), defaulting to “today”. */
 export function localCalendarYearMonth(d = new Date()): { year: number; month: number } {
   return { year: d.getFullYear(), month: d.getMonth() + 1 };
+}
+
+/** Statement month for `valid-transactions.csv` / `valid-transactions.ofx` fixtures. */
+export const IMPORT_FIXTURE_YEAR = 2026;
+export const IMPORT_FIXTURE_MONTH = 3;
+
+export function importFixtureTransactionQuery(first = 50): {
+  year: number;
+  month: number;
+  first: number;
+} {
+  return { year: IMPORT_FIXTURE_YEAR, month: IMPORT_FIXTURE_MONTH, first };
+}
+
+export function transactionsQueryFromIso(
+  isoDate: string,
+  first = 50,
+): { year: number; month: number; first: number } {
+  const { year, month } = yearMonthFromIso(isoDate);
+  return { year, month, first };
+}
+
+/**
+ * NFC-e receipts are dated in the receipt month; `getTransactions` defaults to the current month.
+ */
+export function nfceTxQuery(options?: {
+  dateFrom?: string | null;
+  /** Used when `dateFrom` is missing (default: April 2026 fixture). */
+  defaultDate?: Date;
+  first?: number;
+}): { first: number; year: number; month: number } {
+  const receiptMonth = options?.dateFrom
+    ? new Date(options.dateFrom)
+    : (options?.defaultDate ?? new Date(2026, 3, 1));
+  return {
+    first: options?.first ?? 100,
+    year: receiptMonth.getFullYear(),
+    month: receiptMonth.getMonth() + 1,
+  };
 }
 
 /**

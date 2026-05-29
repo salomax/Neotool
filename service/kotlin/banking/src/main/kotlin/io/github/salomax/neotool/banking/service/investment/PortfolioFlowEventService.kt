@@ -94,8 +94,7 @@ open class PortfolioFlowEventService(
         triggeredBy: String,
     ): PortfolioRecalculationJob {
         val now = Instant.now()
-        // If a PENDING job already exists for this account, we merge into it (earliest recalculateFrom, etc.)
-        // instead of enqueueing a second job for the same account.
+        // If a PENDING job already exists for this account, merge into it (take earliest recalculateFrom).
         val existing = portfolioRecalculationJobRepository.findPendingByAccount(accountId)
 
         val job =
@@ -109,12 +108,26 @@ open class PortfolioFlowEventService(
                     ),
                 )
             } else {
+                // No PENDING job exists. If a PROCESSING job is already in-flight it may be
+                // rewriting quotas starting from an earlier date than the new event's tradeDate.
+                // After that job completes, the new PENDING job must re-run at least from the
+                // same start so that any quotas deleted by the in-flight job are rebuilt with
+                // the latest flow-event state.  Using only the new event's date would create a
+                // gap where the in-flight job's (now stale) quota writes aren't overwritten.
+                val processing = portfolioRecalculationJobRepository.findProcessingByAccount(accountId)
+                val effectiveFrom =
+                    if (processing != null) {
+                        minOf(recalculateFrom, processing.recalculateFrom)
+                    } else {
+                        recalculateFrom
+                    }
+
                 portfolioRecalculationJobRepository.save(
                     PortfolioRecalculationJob(
                         financialAccountId = financialAccountId,
                         accountId = accountId,
                         status = PortfolioRecalculationStatus.PENDING,
-                        recalculateFrom = recalculateFrom,
+                        recalculateFrom = effectiveFrom,
                         triggeredBy = triggeredBy.take(TRIGGERED_BY_MAX_LENGTH),
                         createdAt = now,
                         updatedAt = now,

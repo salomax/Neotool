@@ -10,8 +10,6 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException
 import io.micronaut.serde.annotation.Serdeable
 import io.opentelemetry.api.trace.Span
 import jakarta.inject.Singleton
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import mu.KotlinLogging
 
 /**
@@ -64,15 +62,13 @@ open class GraphQLServiceClient(
         delegatedBy: String? = null,
     ): GraphQLResponse =
         withCurrentTraceHeaders { traceHeaders ->
-            withContext(Dispatchers.IO) {
-                executeGraphQL(
-                    query = query,
-                    variables = variables,
-                    targetAudience = targetAudience,
-                    delegatedBy = delegatedBy,
-                    traceHeaders = traceHeaders,
-                )
-            }
+            executeGraphQL(
+                query = query,
+                variables = variables,
+                targetAudience = targetAudience,
+                delegatedBy = delegatedBy,
+                traceHeaders = traceHeaders,
+            )
         }
 
     /**
@@ -90,15 +86,13 @@ open class GraphQLServiceClient(
         delegatedBy: String? = null,
     ): GraphQLResponse =
         withCurrentTraceHeaders { traceHeaders ->
-            withContext(Dispatchers.IO) {
-                executeGraphQL(
-                    query = mutation,
-                    variables = variables,
-                    targetAudience = targetAudience,
-                    delegatedBy = delegatedBy,
-                    traceHeaders = traceHeaders,
-                )
-            }
+            executeGraphQL(
+                query = mutation,
+                variables = variables,
+                targetAudience = targetAudience,
+                delegatedBy = delegatedBy,
+                traceHeaders = traceHeaders,
+            )
         }
 
     /**

@@ -1053,3 +1053,85 @@ export async function getPendingActions(
 
   return result.data?.pendingActions ?? [];
 }
+
+// ── TWR Debug ─────────────────────────────────────────────────────────────────
+
+export interface TwrDailyStep {
+  date: string;
+  previousValue: number;
+  currentValue: number;
+  netFlow: number;
+  dailyReturn: number;
+  cumulativeFactor: number;
+}
+
+export interface TwrFlowEvent {
+  date: string;
+  eventType: string;
+  grossAmount: number;
+  canonicalNetFlow: number;
+}
+
+export interface PortfolioTwrDebug {
+  startDate: string | null;
+  endDate: string | null;
+  twr: number | null;
+  series: { date: string; totalValue: number }[];
+  flowEvents: TwrFlowEvent[];
+  dailySteps: TwrDailyStep[];
+}
+
+/**
+ * Fetches the TWR debug breakdown for a financial account.
+ * Useful for diagnosing assertion failures in E2E tests — shows the daily quota series,
+ * flow events, and step-by-step TWR computation.
+ */
+export async function getPortfolioTwrDebug(
+  token: string,
+  options: { financialAccountId?: string; period?: PerformancePeriod } = {},
+): Promise<PortfolioTwrDebug> {
+  const query = `
+    query PortfolioTwrDebug($financialAccountId: ID, $period: PerformancePeriod) {
+      portfolioTwrDebug(financialAccountId: $financialAccountId, period: $period) {
+        startDate
+        endDate
+        twr
+        series {
+          date
+          totalValue
+        }
+        flowEvents {
+          date
+          eventType
+          grossAmount
+          canonicalNetFlow
+        }
+        dailySteps {
+          date
+          previousValue
+          currentValue
+          netFlow
+          dailyReturn
+          cumulativeFactor
+        }
+      }
+    }
+  `;
+
+  const result = await executeGraphQL<{ portfolioTwrDebug: PortfolioTwrDebug }>(
+    query,
+    {
+      financialAccountId: options.financialAccountId,
+      period: options.period ?? PerformancePeriod.All,
+    },
+    token,
+  );
+
+  if (result.errors || !result.data?.portfolioTwrDebug) {
+    throw new Error(
+      `getPortfolioTwrDebug failed: ${result.errors?.[0]?.message ?? 'Unknown error'}`,
+    );
+  }
+
+  return result.data.portfolioTwrDebug;
+}

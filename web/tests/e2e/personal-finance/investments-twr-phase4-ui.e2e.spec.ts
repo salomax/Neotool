@@ -4,7 +4,6 @@ import { test, expect } from '../fixtures/investments';
 import {
   createFinancialAccount,
   getFinancialAccounts,
-  formatLocalIsoDate,
 } from '../helpers/banking-graphql';
 import {
   AssetType,
@@ -24,39 +23,22 @@ import {
   recordInvestmentTransaction,
 } from '../helpers/investment-graphql';
 import { parseCurrencyBr } from '../helpers/currency-dom';
+import { createUser, signInWithSession } from '../helpers/graphql';
 import { signIntoPage } from '../helpers/navigation';
+import { buildAuthStorageState } from '../helpers/storage-state';
 import { InvestmentsPage } from '../pages/personal-finance/InvestmentsPage';
+import {
+  clearInvestmentGridClassSelection,
+  waitForRecalculation,
+} from '../helpers/investment-e2e';
+import { couponDaySoon, isoDaysAgo, isoDaysFromNow, todayIso } from '../helpers/fixed-income-e2e';
+import { E2E_PENDING_ACTION_POLL_MS } from '../helpers/timeouts';
 
 test.describe.configure({ mode: 'serial' });
 test.describe.configure({ timeout: 240000 });
 
 function uniqueName(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-function todayIso(): string {
-  const now = new Date();
-  now.setHours(12, 0, 0, 0);
-  return formatLocalIsoDate(now);
-}
-
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() - days);
-  return formatLocalIsoDate(d);
-}
-
-function isoDaysFromNow(days: number): string {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() + days);
-  return formatLocalIsoDate(d);
-}
-
-function couponDaySoon(): number {
-  const today = new Date().getDate();
-  return Math.min(today + 2, 28);
 }
 
 type CreateFinancialAccountPayload = Record<string, unknown>;
@@ -259,23 +241,28 @@ async function openGridClassDetailPanel(
   page: import('@playwright/test').Page,
   classKey: 'fixed-income' | 'funds' | 'stocks' | 'reits' | 'crypto' | 'cash',
 ): Promise<void> {
-  // Class detail view replaces the card matrix; open another class from the grid overview first.
+  const classTab = page.locator(`#investment-grid-class-tab-${classKey}`);
+  if (await classTab.isVisible().catch(() => false)) {
+    await classTab.click();
+    await expect(page.getByTestId('investment-grid-record-cta')).toBeVisible({ timeout: 30_000 });
+    return;
+  }
+
   const gridOverviewTab = page.locator('#investment-grid-class-tab-grid');
   if (await gridOverviewTab.isVisible().catch(() => false)) {
     await gridOverviewTab.click();
   }
+
   const card = page.getByTestId(`investment-grid-card-${classKey}`);
-  await expect(card).toBeVisible({ timeout: 30000 });
+  await expect(card).toBeVisible({ timeout: 30_000 });
   await card.scrollIntoViewIfNeeded();
-  const detailButton = card
-    .getByRole('button', { name: /(?:Abrir detalhes de|Open details for)/i })
-    .first();
-  if (await detailButton.isVisible().catch(() => false)) {
-    await detailButton.click({ force: true });
-  } else {
-    await card.click({ force: true });
-  }
-  await expect(page.getByTestId('investment-table')).toBeVisible();
+  const detailOpener = card.getByRole('button', {
+    name: /(?:Abrir detalhes de|Open details for)/i,
+  });
+  await expect(detailOpener).toBeVisible({ timeout: 10_000 });
+  await detailOpener.click();
+
+  await expect(page.getByTestId('investment-grid-record-cta')).toBeVisible({ timeout: 30_000 });
 }
 
 async function readCurrencyByTestId(
@@ -284,21 +271,6 @@ async function readCurrencyByTestId(
 ): Promise<number> {
   const text = (await page.getByTestId(testId).textContent()) ?? '0';
   return parseCurrencyBr(text);
-}
-
-async function waitForRecalculation(token: string, financialAccountId?: string): Promise<void> {
-  await expect
-    .poll(
-      async () => {
-        const summary = await getInvestmentPortfolioSummary(token, {
-          financialAccountId,
-          period: PerformancePeriod.All,
-        });
-        return summary.recalculationStatus.isCalculating;
-      },
-      { timeout: 60000 },
-    )
-    .toBe(false);
 }
 
 function parseBadgeCount(text: string | null): number {
@@ -310,27 +282,65 @@ function parseBadgeCount(text: string | null): number {
   return Number.isFinite(value) ? value : 0;
 }
 
+function holdingRow(page: import('@playwright/test').Page, assetName: string) {
+  return page.getByRole('row').filter({ hasText: assetName }).first();
+}
+
+async function expectHoldingRowTradeActions(
+  page: import('@playwright/test').Page,
+  assetName: string,
+): Promise<void> {
+  const row = holdingRow(page, assetName);
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await row.hover();
+  const quickActions = row.locator('.holding-row-quick-actions');
+  await expect(quickActions).toBeVisible();
+  await expect(
+    quickActions.getByRole('button', {
+      name: /Adicionar transação|Add transaction|Registrar compra|Buy/i,
+    }),
+  ).toBeVisible();
+  await expect(
+    quickActions.getByRole('button', {
+      name: /Registrar venda|Sell transaction|Sell/i,
+    }),
+  ).toBeVisible();
+}
+
 async function openHoldingActionsMenu(
   page: import('@playwright/test').Page,
   assetName: string,
 ): Promise<void> {
-  const row = page.getByRole('row').filter({ hasText: assetName }).first();
-  await expect(row).toBeVisible();
+  const row = holdingRow(page, assetName);
+  await expect(row).toBeVisible({ timeout: 30_000 });
   await row.getByRole('button', { name: /Ações do ativo|Holding actions/i }).click();
 }
 
 test.describe('Investments TWR phase 4 UI enablement', () => {
   test('INV-TWR-P4-UI-01: user with no investment accounts sees empty state CTA and opens investment account drawer', async ({
-    page,
+    browser,
   }) => {
-    await openInvestmentsPage(page);
+    const password = 'TestPassword123!';
+    const email = `p4-empty-${Date.now()}-${randomBytes(3).toString('hex')}@test.neotool.com`;
+    await createUser(email, password, 'P4 Empty Investments User');
+    const session = await signInWithSession(email, password, true);
+    const context = await browser.newContext({
+      storageState: buildAuthStorageState(session),
+    });
+    const page = await context.newPage();
+    try {
+      const investmentsPage = new InvestmentsPage(page);
+      await investmentsPage.goto();
 
-    await expect(page.getByTestId('create-investment-account-empty-btn')).toBeVisible();
-    await expect(page.getByTestId('account-selector')).toHaveCount(0);
-    await expect(page.getByTestId('investment-summary-section')).toHaveCount(0);
+      await expect(page.getByTestId('create-investment-account-empty-btn')).toBeVisible();
+      await expect(page.getByTestId('account-selector')).toHaveCount(0);
+      await expect(page.getByTestId('investment-summary-section')).toHaveCount(0);
 
-    await page.getByTestId('create-investment-account-empty-btn').click();
-    await expect(page.locator('form#create-investment-account-form')).toBeVisible();
+      await page.getByTestId('create-investment-account-empty-btn').click();
+      await expect(page.locator('form#create-investment-account-form')).toBeVisible();
+    } finally {
+      await context.close();
+    }
   });
 
   test('INV-TWR-P4-UI-02: sidebar selector includes INVESTMENT + BENEFIT accounts and excludes BANK accounts', async ({
@@ -527,15 +537,15 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
         assetId: couponAsset.id,
         direction: InvestmentTransactionDirection.Inflow,
         type: InvestmentTransactionType.Purchase,
-        tradeDate: isoDaysAgo(60),
-        settlementDate: isoDaysAgo(60),
+        tradeDate: isoDaysAgo(28),
+        settlementDate: isoDaysAgo(28),
         quantity: 1,
         unitPrice: 5000,
         grossValue: 5000,
         netValue: 5000,
         indexer: Indexer.Ipca,
         fixedAnnualRate: 0.055,
-        issueDate: isoDaysAgo(60),
+        issueDate: isoDaysAgo(28),
         maturityDate: isoDaysFromNow(500),
         couponFrequency: CouponFrequency.Monthly,
         couponDayOfMonth: couponDaySoon(),
@@ -546,22 +556,28 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     await waitForRecalculation(pfUser.token, brokerageAccount.id);
 
     await expect
-      .poll(async () => {
-        const pending = await getPendingActions(pfUser.token, PendingActionStatus.Pending);
-        const hasMaturity = pending.some((row) => row.relatedHolding?.asset?.name === maturedName);
-        const hasCoupon = pending.some((row) => row.relatedHolding?.asset?.name === couponName);
-        return hasMaturity && hasCoupon;
-      })
+      .poll(
+        async () => {
+          const pending = await getPendingActions(pfUser.token, PendingActionStatus.Pending);
+          const scoped = pending.filter(
+            (row) => row.relatedHolding?.financialAccountId === brokerageAccount.id,
+          );
+          const hasMaturity = scoped.some((row) => row.relatedHolding?.asset?.name === maturedName);
+          const hasCoupon = scoped.some((row) => row.relatedHolding?.asset?.name === couponName);
+          return hasMaturity && hasCoupon;
+        },
+        { timeout: E2E_PENDING_ACTION_POLL_MS },
+      )
       .toBe(true);
 
     await openInvestmentsPendingActions(page);
 
     const maturedRow = page.getByTestId('pending-action-row').filter({ hasText: maturedName }).first();
     const couponRow = page.getByTestId('pending-action-row').filter({ hasText: couponName }).first();
-    await expect(maturedRow).toBeVisible();
-    await expect(couponRow).toBeVisible();
-    await expect(page.getByTestId('pending-action-register-maturity')).toHaveCount(1);
-    await expect(page.getByTestId('pending-action-register-coupon')).toHaveCount(1);
+    await expect(maturedRow).toBeVisible({ timeout: E2E_PENDING_ACTION_POLL_MS });
+    await expect(couponRow).toBeVisible({ timeout: E2E_PENDING_ACTION_POLL_MS });
+    await expect(maturedRow.getByTestId('pending-action-register-maturity')).toBeVisible();
+    await expect(couponRow.getByTestId('pending-action-register-coupon')).toBeVisible();
   });
 
   test('INV-TWR-P4-UI-06: clicking INVESTMENT_MATURED pending action opens MaturityConfirmDrawer prefilled', async ({
@@ -694,10 +710,13 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     await waitForRecalculation(pfUser.token, brokerageAccount.id);
 
     await expect
-      .poll(async () => {
-        const pending = await getPendingActions(pfUser.token, PendingActionStatus.Pending);
-        return pending.some((row) => row.relatedHolding?.asset?.name === futureMaturityName);
-      })
+      .poll(
+        async () => {
+          const pending = await getPendingActions(pfUser.token, PendingActionStatus.Pending);
+          return pending.some((row) => row.relatedHolding?.asset?.name === futureMaturityName);
+        },
+        { timeout: E2E_PENDING_ACTION_POLL_MS },
+      )
       .toBe(false);
 
     await openInvestmentsPendingActions(page);
@@ -1668,9 +1687,14 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     await investmentsPage.selectAccount(brokerageAccount.name, brokerageAccount.id);
 
     await openStocksDetailPanel(page);
+    await expect
+      .poll(
+        async () => (await page.getByRole('row').filter({ hasText: stockName }).count()) > 0,
+        { timeout: 60_000 },
+      )
+      .toBe(true);
+    await expectHoldingRowTradeActions(page, stockName);
     await openHoldingActionsMenu(page, stockName);
-    await expect(page.getByRole('menuitem', { name: /Comprar|Buy/i })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: /Vender|Sell/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Provento/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Split|Desdobramento/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Bonifica|Bonus/i })).toBeVisible();
@@ -1680,27 +1704,24 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     await page.keyboard.press('Escape');
 
     await openGridClassDetailPanel(page, 'crypto');
+    await expectHoldingRowTradeActions(page, cryptoName);
     await openHoldingActionsMenu(page, cryptoName);
-    await expect(page.getByRole('menuitem', { name: /Comprar|Buy/i })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: /Vender|Sell/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Transferir custódia|Transfer custody/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Provento/i })).toHaveCount(0);
     await expect(page.getByRole('menuitem', { name: /Registrar aluguel|Record stock lending/i })).toHaveCount(0);
     await page.keyboard.press('Escape');
 
     await openGridClassDetailPanel(page, 'funds');
+    await expectHoldingRowTradeActions(page, fundName);
     await openHoldingActionsMenu(page, fundName);
-    await expect(page.getByRole('menuitem', { name: /Aplicar|Apply/i })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: /Resgatar|Redeem/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /come-cotas/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Transferir custódia|Transfer custody/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Registrar aluguel|Record stock lending/i })).toHaveCount(0);
     await page.keyboard.press('Escape');
 
     await openGridClassDetailPanel(page, 'fixed-income');
+    await expectHoldingRowTradeActions(page, debentureName);
     await openHoldingActionsMenu(page, debentureName);
-    await expect(page.getByRole('menuitem', { name: /Aplicar|Apply/i })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: /Resgatar|Redeem/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Registrar amortização|Record amortization/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Transferir custódia|Transfer custody/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Registrar aluguel|Record stock lending/i })).toHaveCount(0);
@@ -1714,6 +1735,7 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
   }) => {
     void secondaryBrokerageAccount;
     const investmentsPage = await openInvestmentsPage(page);
+    await clearInvestmentGridClassSelection(page);
 
     await investmentsPage.selectConsolidatedView();
     // Record CTA is only rendered in class detail view (tabs panel), not on the grid matrix.
@@ -1726,8 +1748,10 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     await expect(page.locator('#investment-grid-record-popover')).toHaveCount(0);
 
     await investmentsPage.selectAccount(brokerageAccount.name, brokerageAccount.id);
-    await expect(registerCta).toBeEnabled();
-    await registerCta.click();
+    await openGridClassDetailPanel(page, 'cash');
+    const scopedRegisterCta = page.getByTestId('investment-grid-record-cta');
+    await expect(scopedRegisterCta).toBeEnabled();
+    await scopedRegisterCta.click();
     await expect(page.locator('#investment-grid-record-popover')).toBeVisible();
   });
 
@@ -1867,13 +1891,16 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     await waitForRecalculation(pfUser.token, brokerageAccount.id);
 
     await expect
-      .poll(async () => {
-        const pending = await getPendingActions(pfUser.token, PendingActionStatus.Pending);
-        const hasMaturity = pending.some((row) => row.relatedHolding?.asset?.name === maturedName);
-        const hasCouponA = pending.some((row) => row.relatedHolding?.asset?.name === couponNameA);
-        const hasCouponB = pending.some((row) => row.relatedHolding?.asset?.name === couponNameB);
-        return hasMaturity && hasCouponA && hasCouponB;
-      })
+      .poll(
+        async () => {
+          const pending = await getPendingActions(pfUser.token, PendingActionStatus.Pending);
+          const hasMaturity = pending.some((row) => row.relatedHolding?.asset?.name === maturedName);
+          const hasCouponA = pending.some((row) => row.relatedHolding?.asset?.name === couponNameA);
+          const hasCouponB = pending.some((row) => row.relatedHolding?.asset?.name === couponNameB);
+          return hasMaturity && hasCouponA && hasCouponB;
+        },
+        { timeout: E2E_PENDING_ACTION_POLL_MS },
+      )
       .toBe(true);
 
     await openInvestmentsPage(page);
@@ -1931,25 +1958,22 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
 
     const fundRow = page.getByRole('row').filter({ hasText: fundName }).first();
     await expect(fundRow).toBeVisible();
+    await expect
+      .poll(async () => /R\$\s*1[.,]000/.test((await fundRow.textContent()) ?? ''))
+      .toBe(true);
+
     await fundRow.click();
 
-    await expect(page.getByTestId('investment-holding-detail-drawer')).toBeVisible();
-    const pricingMode = page.getByTestId('fund-detail-pricing-mode');
-    const latestNav = page.getByTestId('fund-detail-latest-nav');
-
-    await expect(pricingMode).toBeVisible();
-    await expect(pricingMode).toContainText(/Cota CVM|CVM NAV|Valor manual|Manual value/i);
-
-    await expect(latestNav).toBeVisible();
-    await expect
-      .poll(async () => {
-        const text = (await latestNav.textContent()) ?? '';
-        return /R\$|\$/.test(text) && /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(text);
-      }, { timeout: 60000 })
-      .toBe(true);
+    const drawer = page.getByTestId('investment-holding-detail-drawer');
+    await expect(drawer).toBeVisible({ timeout: 30_000 });
+    await expect(drawer.getByText(/Valor da cota|Quota value/i).first()).toBeVisible();
+    await expect(drawer.getByText(/R\$\s*10[,.]00/).first()).toBeVisible();
+    await expect(drawer.getByText(/\(\d{1,2}\/\d{1,2}\/\d{2,4}\)/).first()).toBeVisible();
+    await expect(drawer.getByText(/Linha do tempo|Timeline/i).first()).toBeVisible();
+    await expect(drawer.getByText(/Aplicação|Purchase/i).first()).toBeVisible();
   });
 
-  test('INV-TWR-P4-UI-28: crypto record drawer keeps D+0 (no settlement field) and currently reuses equity autocomplete/fees UI', async ({
+  test('INV-TWR-P4-UI-28: crypto record flow uses crypto gate and keeps D+0 (no settlement field)', async ({
     page,
     brokerageAccount,
   }) => {
@@ -1963,8 +1987,32 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     const firstInvestmentButton = cryptoCard
       .getByRole('button', { name: /Incluir primeiro investimento|First investment/i })
       .first();
+    const cryptoGateDialog = page.getByRole('dialog').filter({ hasText: /Escolher cripto|Select crypto/i }).first();
+    const cryptoForm = page.locator('form#record-crypto-form');
+
+    const waitCryptoEntry = async (): Promise<boolean> => {
+      return expect
+        .poll(
+          async () =>
+            (await cryptoGateDialog.isVisible().catch(() => false)) ||
+            (await cryptoForm.isVisible().catch(() => false)),
+          { timeout: 10_000 },
+        )
+        .toBe(true)
+        .then(() => true)
+        .catch(() => false);
+    };
+
     if (await firstInvestmentButton.isVisible().catch(() => false)) {
       await firstInvestmentButton.click({ force: true });
+      if (!(await waitCryptoEntry())) {
+        await openGridClassDetailPanel(page, 'crypto');
+        const registerCta = page.getByTestId('investment-grid-record-cta');
+        await expect(registerCta).toBeEnabled();
+        await registerCta.click();
+        await expect(page.locator('#investment-grid-record-popover')).toBeVisible();
+        await page.getByTestId('investment-grid-record-option-crypto').click();
+      }
     } else {
       await openGridClassDetailPanel(page, 'crypto');
       const registerCta = page.getByTestId('investment-grid-record-cta');
@@ -1974,10 +2022,16 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
       await page.getByTestId('investment-grid-record-option-crypto').click();
     }
 
-    await expect(page.locator('form#record-equity-form')).toBeVisible();
-    await expect(page.getByTestId('record-equity-autocomplete')).toBeVisible();
+    if (await cryptoGateDialog.isVisible().catch(() => false)) {
+      await cryptoGateDialog.getByLabel(/Nome do ativo|Asset name/i).fill(uniqueName('Crypto P4 UI 28'));
+      await cryptoGateDialog.getByLabel(/Ticker \/ símbolo|Ticker \/ symbol/i).fill('BTC');
+      await cryptoGateDialog.getByRole('button', { name: /Continuar|Continue/i }).click();
+    }
+
+    await expect(cryptoForm).toBeVisible();
     await expect(page.locator('input[name="settlementDate"]')).toHaveCount(0);
-    await expect(page.getByTestId('record-equity-fees-total')).toBeVisible();
+    await expect(page.getByTestId('record-equity-autocomplete')).toHaveCount(0);
+    await expect(page.getByTestId('record-equity-fees-total')).toHaveCount(0);
     await expect(page.locator('input[name="assetName"]')).toHaveCount(0);
     await expect(page.locator('input[name="ticker"]')).toHaveCount(0);
   });

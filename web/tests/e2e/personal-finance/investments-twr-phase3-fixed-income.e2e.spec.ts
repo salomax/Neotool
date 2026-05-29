@@ -1,5 +1,4 @@
 import { test, expect } from '../fixtures/investments';
-import { formatLocalIsoDate } from '../helpers/banking-graphql';
 import {
   AssetType,
   CouponFrequency,
@@ -21,6 +20,10 @@ import {
   recordInvestmentTransaction,
   ValuationSource,
 } from '../helpers/investment-graphql';
+import { waitForRecalculation } from '../helpers/investment-e2e';
+import { couponDaySoon, isoDaysAgo, isoDaysFromNow } from '../helpers/fixed-income-e2e';
+import { E2E_PENDING_ACTION_POLL_MS } from '../helpers/timeouts';
+
 import { signIntoPage } from '../helpers/navigation';
 import { InvestmentsPage } from '../pages/personal-finance/InvestmentsPage';
 
@@ -31,42 +34,8 @@ function uniqueName(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() - days);
-  return formatLocalIsoDate(d);
-}
-
-function isoDaysFromNow(days: number): string {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() + days);
-  return formatLocalIsoDate(d);
-}
-
 function expectNear(actual: number, expected: number, precision = 6): void {
   expect(actual).toBeCloseTo(expected, precision);
-}
-
-function couponDaySoon(): number {
-  const today = new Date().getDate();
-  return Math.min(today + 2, 28);
-}
-
-async function waitForRecalculation(token: string, financialAccountId?: string): Promise<void> {
-  await expect
-    .poll(
-      async () => {
-        const summary = await getInvestmentPortfolioSummary(token, {
-          financialAccountId,
-          period: PerformancePeriod.All,
-        });
-        return summary.recalculationStatus.isCalculating;
-      },
-      { timeout: 60000 },
-    )
-    .toBe(false);
 }
 
 async function openInvestmentsPage(
@@ -1169,51 +1138,65 @@ test.describe('Investments TWR phase 3A fixed income', () => {
     await selectByTestIdOption(page, 'record-coupon-frequency', /Semestral|Semiannual/i);
     await expect(couponDayInput).toHaveCount(0);
 
-    await page.getByTestId('record-fixed-income-cancel-btn').click();
+    await page
+      .locator('form#record-fixed-income-form')
+      .getByRole('button', { name: /cancelar|cancel/i })
+      .click();
     await expect(page.locator('form#record-fixed-income-form')).toHaveCount(0);
 
-    const treasury = await createInvestmentAsset(
+    const debenture = await createInvestmentAsset(
       {
-        name: uniqueName('Tesouro IPCA cupom semestral'),
-        assetType: AssetType.Treasury,
-        issuerName: 'Tesouro Nacional',
+        name: uniqueName('Debenture coupon FI07'),
+        assetType: AssetType.Debentures,
+        issuerName: 'Emissor Debenture E2E',
       },
       pfUser.token,
     );
 
+    const couponDay = couponDaySoon();
+    const purchaseDate = isoDaysAgo(28);
     await recordInvestmentTransaction(
       {
         financialAccountId: brokerageAccount.id,
-        assetId: treasury.id,
+        assetId: debenture.id,
         direction: InvestmentTransactionDirection.Inflow,
         type: InvestmentTransactionType.Purchase,
-        tradeDate: isoDaysAgo(90),
-        settlementDate: isoDaysAgo(90),
+        tradeDate: purchaseDate,
+        settlementDate: purchaseDate,
         quantity: 1,
         unitPrice: 1000,
         grossValue: 1000,
         netValue: 1000,
         indexer: Indexer.Ipca,
         fixedAnnualRate: 0.06,
-        issueDate: isoDaysAgo(90),
+        issueDate: purchaseDate,
         maturityDate: isoDaysFromNow(900),
-        couponFrequency: CouponFrequency.SemiAnnual,
+        couponFrequency: CouponFrequency.Monthly,
+        couponDayOfMonth: couponDay,
       },
       pfUser.token,
     );
 
     await waitForRecalculation(pfUser.token, brokerageAccount.id);
 
-    const holding = await findHolding(pfUser.token, brokerageAccount.id, treasury.id);
+    const holding = await findHolding(pfUser.token, brokerageAccount.id, debenture.id);
     expect(holding).not.toBeNull();
-    const couponPending = await findVisiblePendingAction(
-      pfUser.token,
-      holding!.id,
-      PendingActionType.CouponPaymentDue,
-    );
-    expect(couponPending).not.toBeNull();
+    let couponPending: Awaited<ReturnType<typeof findVisiblePendingAction>> = null;
+    await expect
+      .poll(
+        async () => {
+          couponPending = await findVisiblePendingAction(
+            pfUser.token,
+            holding!.id,
+            PendingActionType.CouponPaymentDue,
+          );
+          return couponPending != null;
+        },
+        { timeout: E2E_PENDING_ACTION_POLL_MS },
+      )
+      .toBe(true);
     const payload = couponPending!.payload as { couponFrequency?: string; couponDate?: string };
-    expect(payload.couponFrequency).toBe('SEMI_ANNUAL');
+    expect(payload.couponFrequency).toBe('MONTHLY');
     expect(typeof payload.couponDate).toBe('string');
   });
 
@@ -1225,7 +1208,9 @@ test.describe('Investments TWR phase 3A fixed income', () => {
     await investmentsPage.selectAccount(brokerageAccount.name, brokerageAccount.id);
     await openFixedIncomeRecordDrawer(page);
 
-    await page.getByTestId('record-fixed-income-submit-btn').click();
+    const submit = page.getByTestId('record-fixed-income-submit-btn');
+    await expect(submit).toBeEnabled({ timeout: 15_000 });
+    await submit.click();
 
     await expect(page.getByText(/Nome do ativo é obrigatório|Asset name is required/i)).toBeVisible();
     await expect(page.getByText(/Tipo de ativo é obrigatório|Asset type is required/i)).toBeVisible();

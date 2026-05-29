@@ -65,6 +65,13 @@ open class DefaultPortfolioRecalculationJobRepository(
         ).firstOrNull()
             ?.let(InvestmentPortfolioRecalculationJobMapper::toDomain)
 
+    override fun findProcessingByAccount(accountId: UUID): PortfolioRecalculationJob? =
+        entityRepository.findByAccountAndStatuses(
+            accountId = accountId,
+            statuses = listOf(PortfolioRecalculationStatus.PROCESSING),
+        ).firstOrNull()
+            ?.let(InvestmentPortfolioRecalculationJobMapper::toDomain)
+
     override fun findActiveByAccount(accountId: UUID): PortfolioRecalculationJob? =
         entityRepository.findByAccountAndStatuses(
             accountId = accountId,

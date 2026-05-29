@@ -8,6 +8,11 @@ import {
   TransactionStatus,
 } from "../helpers/banking-graphql";
 import { executeGraphQL } from "../helpers/graphql";
+import { nfceTxQuery } from "../helpers/finance-transactions-e2e";
+import {
+  E2E_HEAVY_DESCRIBE_TIMEOUT_MS,
+  E2E_PENDING_ACTION_POLL_MS,
+} from "../helpers/timeouts";
 
 const DEFAULT_NFCE_QR_URL =
   "https://www.nfce.fazenda.sp.gov.br/qrcode?p=35260447508411273985651030000996671971986307|3|1";
@@ -37,7 +42,7 @@ const test = basePfTest.extend({
   },
 });
 
-test.describe.configure({ mode: "serial", timeout: 120_000 });
+test.describe.configure({ mode: "serial", timeout: E2E_HEAVY_DESCRIBE_TIMEOUT_MS });
 
 interface ImportNfceResult {
   id: string;
@@ -45,6 +50,8 @@ interface ImportNfceResult {
   importedCount: number | null;
   skippedCount: number | null;
   completedAt: string | null;
+  dateFrom: string | null;
+  dateTo: string | null;
 }
 
 async function importNfceViaGraphql(
@@ -66,6 +73,8 @@ async function importNfceViaGraphql(
             importedCount
             skippedCount
             completedAt
+            dateFrom
+            dateTo
           }
         }
       }
@@ -114,14 +123,29 @@ test.describe("Transaction Import NFC-e — happy/alternative/edge/negative", ()
     pfUser,
     bankAccount,
   }) => {
-    const txsBefore = await getTransactions(bankAccount.id, pfUser.token, { first: 100 });
+    const existing = await getTransactions(bankAccount.id, pfUser.token, { first: 100, year: 2026, month: 4 });
+    await Promise.all(
+      existing.map((tx) => deleteTransaction(tx.id, pfUser.token).catch(() => {})),
+    );
+
+    const txsBefore = await getTransactions(bankAccount.id, pfUser.token, { first: 100, year: 2026, month: 4 });
     const result = await importNfceViaGraphql(bankAccount.id, E2E_NFCE_QR_URL!, pfUser.token);
     expect(result.status).toBe("COMPLETED");
-    expect((result.importedCount ?? 0) + (result.skippedCount ?? 0)).toBeGreaterThan(0);
+    expect(result.importedCount ?? 0).toBeGreaterThanOrEqual(1);
 
-    const txsAfter = await getTransactions(bankAccount.id, pfUser.token, { first: 100 });
-    const newTxs = txsAfter.filter((t) => !txsBefore.some((b) => b.id === t.id));
-    expect(newTxs.length).toBe(1);
+    const txQuery = nfceTxQuery({ dateFrom: result.dateFrom });
+
+    let newTxs: Awaited<ReturnType<typeof getTransactions>> = [];
+    await expect
+      .poll(
+        async () => {
+          const txsAfter = await getTransactions(bankAccount.id, pfUser.token, txQuery);
+          newTxs = txsAfter.filter((t) => !txsBefore.some((b) => b.id === t.id));
+          return newTxs.length;
+        },
+        { timeout: E2E_PENDING_ACTION_POLL_MS },
+      )
+      .toBe(1);
 
     await Promise.all(newTxs.map((tx) => deleteTransaction(tx.id, pfUser.token).catch(() => {})));
   });
@@ -134,7 +158,7 @@ test.describe("Transaction Import NFC-e — happy/alternative/edge/negative", ()
     const second = await importNfceViaGraphql(bankAccount.id, E2E_NFCE_QR_URL!, pfUser.token);
     expect(second.id).toBe(first.id);
 
-    const txs = await getTransactions(bankAccount.id, pfUser.token, { first: 100 });
+    const txs = await getTransactions(bankAccount.id, pfUser.token, nfceTxQuery({ dateFrom: first.dateFrom }));
     await Promise.all(txs.map((tx) => deleteTransaction(tx.id, pfUser.token).catch(() => {})));
   });
 
@@ -142,24 +166,42 @@ test.describe("Transaction Import NFC-e — happy/alternative/edge/negative", ()
     pfUser,
     bankAccount,
   }) => {
-    const txsBeforeFirst = await getTransactions(bankAccount.id, pfUser.token, { first: 100 });
+    const txQuery = nfceTxQuery();
+
+    const txsBeforeFirst = await getTransactions(bankAccount.id, pfUser.token, txQuery);
     const first = await importNfceViaGraphql(bankAccount.id, E2E_NFCE_QR_URL!, pfUser.token);
     expect(first.status).toBe("COMPLETED");
 
-    const txsAfterFirst = await getTransactions(bankAccount.id, pfUser.token, { first: 100 });
-    const firstNewTxs = txsAfterFirst.filter((t) => !txsBeforeFirst.some((b) => b.id === t.id));
-    expect(firstNewTxs.length).toBe(1);
+    let firstNewTxs: Awaited<ReturnType<typeof getTransactions>> = [];
+    await expect
+      .poll(
+        async () => {
+          const txsAfterFirst = await getTransactions(bankAccount.id, pfUser.token, txQuery);
+          firstNewTxs = txsAfterFirst.filter((t) => !txsBeforeFirst.some((b) => b.id === t.id));
+          return firstNewTxs.length;
+        },
+        { timeout: E2E_PENDING_ACTION_POLL_MS },
+      )
+      .toBe(1);
 
     await deleteTransaction(firstNewTxs[0]!.id, pfUser.token);
 
-    const txsBeforeSecond = await getTransactions(bankAccount.id, pfUser.token, { first: 100 });
+    const txsBeforeSecond = await getTransactions(bankAccount.id, pfUser.token, txQuery);
     const second = await importNfceViaGraphql(bankAccount.id, E2E_NFCE_QR_URL!, pfUser.token);
     expect(second.status).toBe("COMPLETED");
     expect(second.importedCount ?? 0).toBeGreaterThanOrEqual(1);
 
-    const txsAfterSecond = await getTransactions(bankAccount.id, pfUser.token, { first: 100 });
-    const secondNewTxs = txsAfterSecond.filter((t) => !txsBeforeSecond.some((b) => b.id === t.id));
-    expect(secondNewTxs.length).toBe(1);
+    let secondNewTxs: Awaited<ReturnType<typeof getTransactions>> = [];
+    await expect
+      .poll(
+        async () => {
+          const txsAfterSecond = await getTransactions(bankAccount.id, pfUser.token, txQuery);
+          secondNewTxs = txsAfterSecond.filter((t) => !txsBeforeSecond.some((b) => b.id === t.id));
+          return secondNewTxs.length;
+        },
+        { timeout: E2E_PENDING_ACTION_POLL_MS },
+      )
+      .toBe(1);
 
     const imports = await listTransactionImports(bankAccount.id, pfUser.token);
     const nfceImports = imports.filter((imp) => imp.source === "NFC_E");
@@ -174,13 +216,23 @@ test.describe("Transaction Import NFC-e — happy/alternative/edge/negative", ()
   }) => {
     const first = await importNfceViaGraphql(bankAccount.id, E2E_NFCE_QR_URL!, pfUser.token);
     expect(first.status).toBe("COMPLETED");
-    const txs = await getTransactions(bankAccount.id, pfUser.token, { first: 100 });
-    expect(txs.length).toBeGreaterThan(0);
+    const txQuery = nfceTxQuery({ dateFrom: first.dateFrom });
+
+    let txs: Awaited<ReturnType<typeof getTransactions>> = [];
+    await expect
+      .poll(
+        async () => {
+          txs = await getTransactions(bankAccount.id, pfUser.token, txQuery);
+          return txs.length;
+        },
+        { timeout: E2E_PENDING_ACTION_POLL_MS },
+      )
+      .toBeGreaterThan(0);
 
     const second = await importNfceViaGraphql(bankAccount.id, E2E_NFCE_QR_URL!, pfUser.token);
     expect(second.id).toBe(first.id);
 
-    const after = await getTransactions(bankAccount.id, pfUser.token, { first: 100 });
+    const after = await getTransactions(bankAccount.id, pfUser.token, txQuery);
     expect(after.length).toBe(txs.length);
 
     await Promise.all(after.map((tx) => deleteTransaction(tx.id, pfUser.token).catch(() => {})));
@@ -193,7 +245,17 @@ test.describe("Transaction Import NFC-e — happy/alternative/edge/negative", ()
     const first = await importNfceViaGraphql(bankAccount.id, E2E_NFCE_QR_URL!, pfUser.token);
     expect(first.status).toBe("COMPLETED");
 
-    const imported = await getTransactions(bankAccount.id, pfUser.token, { first: 100 });
+    const txQuery = nfceTxQuery({ dateFrom: first.dateFrom });
+    let imported: Awaited<ReturnType<typeof getTransactions>> = [];
+    await expect
+      .poll(
+        async () => {
+          imported = await getTransactions(bankAccount.id, pfUser.token, txQuery);
+          return imported.length;
+        },
+        { timeout: E2E_PENDING_ACTION_POLL_MS },
+      )
+      .toBeGreaterThan(0);
     const importedTx = imported[0];
     expect(importedTx).toBeDefined();
     await deleteTransaction(importedTx!.id, pfUser.token);

@@ -1451,6 +1451,8 @@ test.describe("Transactions — alternative paths", () => {
 // =============================================================================
 
 test.describe("Transactions — negative paths", () => {
+  test.describe.configure({ mode: "serial" });
+
   test("TX-N-01: submit without description — shows required error on description", async ({
     page,
     pfUser,

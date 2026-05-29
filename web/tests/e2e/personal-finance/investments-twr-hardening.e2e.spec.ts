@@ -1,11 +1,13 @@
 import { test, expect } from '../fixtures/investments';
-import { createFinancialAccount, formatLocalIsoDate } from '../helpers/banking-graphql';
+import { createFinancialAccount } from '../helpers/banking-graphql';
+import { isoDaysAgo } from '../helpers/fixed-income-e2e';
 import {
   AssetType,
   createInvestmentAsset,
   getInvestmentHoldings,
   getInvestmentPortfolioSummary,
   getInvestmentTransactions,
+  getPortfolioTwrDebug,
   HoldingPricingMode,
   InvestmentTransactionDirection,
   InvestmentTransactionType,
@@ -14,6 +16,29 @@ import {
   recordInvestmentTransaction,
   updateInvestmentTransaction,
 } from '../helpers/investment-graphql';
+import { waitForRecalculation } from '../helpers/investment-e2e';
+import { E2E_RECALC_TIMEOUT_MS } from '../helpers/timeouts';
+
+async function waitForPortfolioTwr(
+  token: string,
+  financialAccountId: string,
+): Promise<number> {
+  let twr: number | null = null;
+  await expect
+    .poll(
+      async () => {
+        const summary = await getInvestmentPortfolioSummary(token, {
+          financialAccountId,
+          period: PerformancePeriod.All,
+        });
+        twr = summary.performance.twr;
+        return twr != null;
+      },
+      { timeout: E2E_RECALC_TIMEOUT_MS },
+    )
+    .toBe(true);
+  return twr!;
+}
 
 test.describe.configure({ mode: 'serial' });
 test.describe.configure({ timeout: 300000 });
@@ -22,34 +47,12 @@ function uniqueName(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() - days);
-  return formatLocalIsoDate(d);
-}
-
 function expectNear(actual: number, expected: number, precision = 6): void {
   expect(actual).toBeCloseTo(expected, precision);
 }
 
 function expectAbsDiffWithin(actual: number, expected: number, epsilon: number): void {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(epsilon);
-}
-
-async function waitForRecalculation(token: string, financialAccountId?: string): Promise<void> {
-  await expect
-    .poll(
-      async () => {
-        const summary = await getInvestmentPortfolioSummary(token, {
-          financialAccountId,
-          period: PerformancePeriod.All,
-        });
-        return summary.recalculationStatus.isCalculating;
-      },
-      { timeout: 60000 },
-    )
-    .toBe(false);
 }
 
 async function findHolding(token: string, financialAccountId: string, assetId: string) {
@@ -231,6 +234,9 @@ test.describe('Investments TWR hardening', () => {
     await waitForRecalculation(pfUser.token, accountLarge.id);
     await waitForRecalculation(pfUser.token, accountSmall.id);
 
+    const largeTwr = await waitForPortfolioTwr(pfUser.token, accountLarge.id);
+    const smallTwr = await waitForPortfolioTwr(pfUser.token, accountSmall.id);
+
     const largeSummary = await getInvestmentPortfolioSummary(pfUser.token, {
       financialAccountId: accountLarge.id,
       period: PerformancePeriod.All,
@@ -240,10 +246,7 @@ test.describe('Investments TWR hardening', () => {
       period: PerformancePeriod.All,
     });
 
-    expect(largeSummary.performance.twr).not.toBeNull();
-    expect(smallSummary.performance.twr).not.toBeNull();
-
-    expectNear(largeSummary.performance.twr ?? 0, smallSummary.performance.twr ?? 0, 8);
+    expectNear(largeTwr, smallTwr, 8);
     expectNear(largeSummary.grossGainPercent, smallSummary.grossGainPercent, 8);
     expectNear(largeSummary.totalCostBasis / smallSummary.totalCostBasis, 4, 8);
     expectNear(largeSummary.totalGrossValue / smallSummary.totalGrossValue, 4, 8);
@@ -438,10 +441,30 @@ test.describe('Investments TWR hardening', () => {
       .sort((a, b) => a.tradeDate.localeCompare(b.tradeDate));
     expect(purchases.length).toBeGreaterThanOrEqual(8);
 
-    const before = await getInvestmentPortfolioSummary(pfUser.token, {
+    // Double-read `before` to catch any lingering recalculation instability.
+    // A divergence here (> 5e-6) means the backend state is still settling and
+    // we emit a TWR debug snapshot so failures are fully diagnosable.
+    const beforeA = await getInvestmentPortfolioSummary(pfUser.token, {
       financialAccountId: account.id,
       period: PerformancePeriod.All,
     });
+    const beforeB = await getInvestmentPortfolioSummary(pfUser.token, {
+      financialAccountId: account.id,
+      period: PerformancePeriod.All,
+    });
+    if (Math.abs((beforeA.performance.twr ?? 0) - (beforeB.performance.twr ?? 0)) > 0.000005) {
+      const debug = await getPortfolioTwrDebug(pfUser.token, {
+        financialAccountId: account.id,
+        period: PerformancePeriod.All,
+      }).catch(() => null);
+      console.error(
+        '[INV-TWR-HARD-04] before reads diverged — possible recalculation race:\n' +
+          `  beforeA.twr=${beforeA.performance.twr}  beforeB.twr=${beforeB.performance.twr}\n` +
+          `  twrDebug=${JSON.stringify(debug, null, 2)}`,
+      );
+    }
+    // Use the second (more recent) read as the stable baseline.
+    const before = beforeB;
 
     for (const tx of purchases.slice(0, 5)) {
       const updateInput: {
@@ -481,6 +504,21 @@ test.describe('Investments TWR hardening', () => {
       financialAccountId: account.id,
       period: PerformancePeriod.All,
     });
+
+    // On TWR mismatch emit a full debug breakdown — quota series, flow events, daily steps —
+    // so the next failure immediately reveals which day is missing its flow event.
+    const twrDiff = Math.abs((after.performance.twr ?? 0) - (before.performance.twr ?? 0));
+    if (twrDiff > 0.00002) {
+      const debugAfter = await getPortfolioTwrDebug(pfUser.token, {
+        financialAccountId: account.id,
+        period: PerformancePeriod.All,
+      }).catch(() => null);
+      console.error(
+        '[INV-TWR-HARD-04] TWR mismatch after no-op updates:\n' +
+          `  before.twr=${before.performance.twr}  after.twr=${after.performance.twr}  diff=${twrDiff}\n` +
+          `  twrDebug=${JSON.stringify(debugAfter, null, 2)}`,
+      );
+    }
 
     expectNear(after.totalCostBasis, before.totalCostBasis, 6);
     expectNear(after.totalGrossValue, before.totalGrossValue, 6);

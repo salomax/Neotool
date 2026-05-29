@@ -1,7 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
 import { test, expect } from '../fixtures/investments';
-import { formatLocalIsoDate } from '../helpers/banking-graphql';
 import {
   AssetType,
   createInvestmentAsset,
@@ -16,6 +15,9 @@ import {
   recordInvestmentTransaction,
   ValuationSource,
 } from '../helpers/investment-graphql';
+import { waitForRecalculation } from '../helpers/investment-e2e';
+import { isoDaysAgo } from '../helpers/fixed-income-e2e';
+
 
 test.describe.configure({ mode: 'serial' });
 test.describe.configure({ timeout: 300000 });
@@ -60,30 +62,8 @@ function uniqueValidCnpj(): string {
   return base + String(d1) + String(d2);
 }
 
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() - days);
-  return formatLocalIsoDate(d);
-}
-
 function expectNear(actual: number, expected: number, precision = 6): void {
   expect(actual).toBeCloseTo(expected, precision);
-}
-
-async function waitForRecalculation(token: string, financialAccountId?: string): Promise<void> {
-  await expect
-    .poll(
-      async () => {
-        const summary = await getInvestmentPortfolioSummary(token, {
-          financialAccountId,
-          period: PerformancePeriod.All,
-        });
-        return summary.recalculationStatus.isCalculating;
-      },
-      { timeout: 60000 },
-    )
-    .toBe(false);
 }
 
 async function findHolding(token: string, financialAccountId: string, assetId: string) {

@@ -27,8 +27,10 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? currentConfig.retries : 0,
   
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? currentConfig.workers : undefined,
+  /* Cap parallelism locally too — the banking stack cannot sustain one worker per CPU core. */
+  workers: process.env.PLAYWRIGHT_WORKERS
+    ? parseInt(process.env.PLAYWRIGHT_WORKERS, 10)
+    : currentConfig.workers,
   
   /* Test timeout */
   timeout: 60000,

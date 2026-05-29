@@ -72,6 +72,13 @@ async function expectPersistedAccount(
   return matchedAccount!;
 }
 
+async function createSupportAccountForEdit(pfPage: FinanceTransactionsPage, prefix: string): Promise<void> {
+  // Edit action is rendered inside the selector popover, which opens only with multiple accounts.
+  const supportDrawer = await pfPage.openCreateAccountDrawer('BANK');
+  await supportDrawer.createBankAccount({ name: uniqueName(prefix) });
+  await supportDrawer.waitForClose();
+}
+
 // =============================================================================
 // HAPPY PATH
 // =============================================================================
@@ -157,6 +164,7 @@ test.describe('Financial Accounts — happy path', () => {
 
   test('FA-H-06: edits account name', async ({ page, pfUser, bankAccount }) => {
     const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio H06');
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
     const drawer = await pfPage.openEditAccountDrawer(bankAccount.name);
 
@@ -189,6 +197,7 @@ test.describe('Financial Accounts — happy path', () => {
 
     await pfPage.expectAccountInSelector(name);
     const created = await expectPersistedAccount(pfUser.token, (account) => account.name === name);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio H08');
 
     const editDrawer = await pfPage.openEditAccountDrawer(name, created.id);
     await editDrawer.removeAccount();
@@ -246,10 +255,11 @@ test.describe('Financial Accounts — alternative paths', () => {
     await drawer.fillName(uniqueName('Conta Zero A01'));
     await drawer.fillInitialBalance(0);
     await drawer.fillInitialBalanceDate(todayBr());
-    await drawer.attemptSubmit();
 
+    const submitButton = page.getByTestId('account-form-submit');
+    await expect(submitButton).toBeVisible();
+    await expect(submitButton).toBeDisabled();
     await drawer.expectStillOpen();
-    await drawer.expectFieldError('initial-balance-input');
   });
 
   test('FA-A-02: creates account with negative initial balance (debt tracking)', async ({
@@ -276,9 +286,9 @@ test.describe('Financial Accounts — alternative paths', () => {
           );
           return summary.closingBalance;
         },
-        { timeout: 15000 },
+        { timeout: 60_000 },
       )
-      .toBe(-500);
+      .toBeCloseTo(-500, 2);
   });
 
   test('FA-A-03: two accounts of different types visible simultaneously', async ({
@@ -349,6 +359,8 @@ test.describe('Financial Accounts — alternative paths', () => {
     creditCardAccount,
   }) => {
     const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio A07');
+
     await pfPage.selectAccount(creditCardAccount.name, creditCardAccount.id);
 
     const drawer = await pfPage.openEditAccountDrawer(creditCardAccount.name);
@@ -540,6 +552,7 @@ test.describe('Financial Accounts — negative paths', () => {
     bankAccount,
   }) => {
     const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio N10');
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     const drawer = await pfPage.openEditAccountDrawer(bankAccount.name);
@@ -595,6 +608,7 @@ test.describe('Financial Accounts — negative paths', () => {
     );
 
     const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio N13');
     await pfPage.selectAccount(account.name, account.id);
     const drawer = await pfPage.openEditAccountDrawer(account.name);
 

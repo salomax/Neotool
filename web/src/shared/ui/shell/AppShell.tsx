@@ -28,6 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <PageTitleProvider>
       <BreadcrumbLabelProvider>
       <Box
+        data-testid="app-layout"
         sx={{
           display: "flex",
           height: "100vh",

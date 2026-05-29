@@ -399,8 +399,8 @@ test.describe('Monthly Summary — alternative paths', () => {
     // TRANSFER excluded from income/expenses — totals unchanged
     expect(after.totalExpenses).toBeCloseTo(baseline.totalExpenses, 2);
     expect(after.totalIncome).toBeCloseTo(baseline.totalIncome, 2);
-    // But closingBalance IS affected (transfers move money)
-    expect(after.closingBalance).toBeCloseTo(baseline.closingBalance - 1000, 2);
+    // TRANSFER is also excluded from closingBalance (internal reallocation, not cash flow)
+    expect(after.closingBalance).toBeCloseTo(baseline.closingBalance, 2);
 
     await deleteTransaction(tx.id, pfUser.token);
   });

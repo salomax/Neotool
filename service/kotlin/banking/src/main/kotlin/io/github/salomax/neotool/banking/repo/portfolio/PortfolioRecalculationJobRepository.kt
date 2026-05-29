@@ -32,6 +32,14 @@ interface PortfolioRecalculationJobRepository {
 
     fun findPendingByAccount(accountId: UUID): PortfolioRecalculationJob?
 
+    /**
+     * Returns the single PROCESSING job for [accountId], or null if none.
+     * Used by [io.github.salomax.neotool.banking.service.investment.PortfolioFlowEventService.requestRecalculation]
+     * to widen a new PENDING job's start date so it covers at least the same range that is
+     * currently being re-computed.
+     */
+    fun findProcessingByAccount(accountId: UUID): PortfolioRecalculationJob?
+
     fun findActiveByAccount(accountId: UUID): PortfolioRecalculationJob?
 
     fun findLatestByAccount(accountId: UUID): PortfolioRecalculationJob?

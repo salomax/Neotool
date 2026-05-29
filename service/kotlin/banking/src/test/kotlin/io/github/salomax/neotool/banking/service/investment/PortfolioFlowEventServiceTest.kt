@@ -53,6 +53,7 @@ class PortfolioFlowEventServiceTest {
             ),
         ).thenReturn(quota(financialAccountId, eventDate.minusDays(1), "1.25000000"))
         whenever(portfolioRecalculationJobRepository.findPendingByAccount(accountId)).thenReturn(null)
+        whenever(portfolioRecalculationJobRepository.findProcessingByAccount(accountId)).thenReturn(null)
         whenever(portfolioFlowEventRepository.save(any())).thenAnswer { it.arguments.first() }
         whenever(portfolioRecalculationJobRepository.save(any())).thenAnswer { inv ->
             val job = inv.arguments[0] as PortfolioRecalculationJob
@@ -108,6 +109,123 @@ class PortfolioFlowEventServiceTest {
         assertThat(updated.triggeredBy).isEqualTo("new-trigger")
         verify(portfolioRecalculationJobRepository, never()).save(any())
         verify(recalculationRequestedEventPublisher).publishEvent(any())
+    }
+
+    // ── requestRecalculation: PROCESSING job interaction ─────────────────────
+
+    /**
+     * Regression for the "merge only PENDING" race.
+     *
+     * Scenario: a PROCESSING job is already rewriting quotas from [processingStart].
+     * A new event arrives for a later [eventDate].  The new PENDING job must start
+     * from [processingStart], not [eventDate], so that when the PROCESSING job
+     * finishes (potentially writing stale quota rows for the later date range), the
+     * PENDING job re-runs the entire affected window and overwrites those stale rows.
+     */
+    @Test
+    fun `new PENDING job uses PROCESSING job start when it is earlier than the requested date`() {
+        val financialAccountId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+        val processingStart = LocalDate.of(2026, 3, 9)   // 80d ago — the in-flight job's window
+        val eventDate = LocalDate.of(2026, 4, 18)        // 40d ago — the triggering trade date
+
+        val processingJob =
+            PortfolioRecalculationJob(
+                id = UUID.randomUUID(),
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                status = PortfolioRecalculationStatus.PROCESSING,
+                recalculateFrom = processingStart,
+                triggeredBy = "processing-job",
+                createdAt = Instant.parse("2026-03-09T10:00:00Z"),
+                updatedAt = Instant.parse("2026-03-09T10:00:00Z"),
+            )
+
+        whenever(portfolioRecalculationJobRepository.findPendingByAccount(accountId)).thenReturn(null)
+        whenever(portfolioRecalculationJobRepository.findProcessingByAccount(accountId)).thenReturn(processingJob)
+        whenever(portfolioRecalculationJobRepository.save(any())).thenAnswer { inv ->
+            val job = inv.arguments[0] as PortfolioRecalculationJob
+            job.copy(id = UUID.randomUUID())
+        }
+
+        val result =
+            service.requestRecalculation(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                recalculateFrom = eventDate,
+                triggeredBy = "trigger:event",
+            )
+
+        // The new PENDING job must cover the PROCESSING job's start date, not just eventDate.
+        assertThat(result.recalculateFrom).isEqualTo(processingStart)
+        assertThat(result.status).isEqualTo(PortfolioRecalculationStatus.PENDING)
+        verify(portfolioRecalculationJobRepository, never()).update(any())
+        verify(recalculationRequestedEventPublisher).publishEvent(any())
+    }
+
+    @Test
+    fun `new PENDING job uses requested date when PROCESSING job starts later`() {
+        val financialAccountId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+        // PROCESSING job covers a narrow recent window — the new event is older.
+        val processingStart = LocalDate.of(2026, 5, 8)   // 20d ago
+        val eventDate = LocalDate.of(2026, 3, 9)          // 80d ago — older, so use eventDate
+
+        val processingJob =
+            PortfolioRecalculationJob(
+                id = UUID.randomUUID(),
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                status = PortfolioRecalculationStatus.PROCESSING,
+                recalculateFrom = processingStart,
+                triggeredBy = "processing-job",
+                createdAt = Instant.parse("2026-05-08T10:00:00Z"),
+                updatedAt = Instant.parse("2026-05-08T10:00:00Z"),
+            )
+
+        whenever(portfolioRecalculationJobRepository.findPendingByAccount(accountId)).thenReturn(null)
+        whenever(portfolioRecalculationJobRepository.findProcessingByAccount(accountId)).thenReturn(processingJob)
+        whenever(portfolioRecalculationJobRepository.save(any())).thenAnswer { inv ->
+            val job = inv.arguments[0] as PortfolioRecalculationJob
+            job.copy(id = UUID.randomUUID())
+        }
+
+        val result =
+            service.requestRecalculation(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                recalculateFrom = eventDate,
+                triggeredBy = "trigger:event",
+            )
+
+        // eventDate is earlier than processingStart, so use eventDate.
+        assertThat(result.recalculateFrom).isEqualTo(eventDate)
+        assertThat(result.status).isEqualTo(PortfolioRecalculationStatus.PENDING)
+    }
+
+    @Test
+    fun `new PENDING job uses requested date when no PROCESSING job exists`() {
+        val financialAccountId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+        val eventDate = LocalDate.of(2026, 4, 18)
+
+        whenever(portfolioRecalculationJobRepository.findPendingByAccount(accountId)).thenReturn(null)
+        whenever(portfolioRecalculationJobRepository.findProcessingByAccount(accountId)).thenReturn(null)
+        whenever(portfolioRecalculationJobRepository.save(any())).thenAnswer { inv ->
+            val job = inv.arguments[0] as PortfolioRecalculationJob
+            job.copy(id = UUID.randomUUID())
+        }
+
+        val result =
+            service.requestRecalculation(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                recalculateFrom = eventDate,
+                triggeredBy = "trigger:event",
+            )
+
+        assertThat(result.recalculateFrom).isEqualTo(eventDate)
+        assertThat(result.status).isEqualTo(PortfolioRecalculationStatus.PENDING)
     }
 
     @Test

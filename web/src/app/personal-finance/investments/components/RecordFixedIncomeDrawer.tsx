@@ -861,6 +861,7 @@ export function RecordFixedIncomeDrawer({
                 cancelDisabled={isSubmitting}
                 submitDisabled={isSubmitting || !resolvedFinancialAccountId}
                 submitting={isSubmitting}
+                submitTestId="record-fixed-income-submit-btn"
               />
             </FormStack>
           </form>

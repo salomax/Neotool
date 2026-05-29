@@ -116,7 +116,9 @@ terraform.rc
 
 # IDE settings
 .vscode/
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 .cursor/
 
 # Drafting ideas

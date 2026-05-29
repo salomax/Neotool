@@ -39,8 +39,12 @@
  *   Parallelism: `playwright.config` uses `fullyParallel: true`. Import tests hit long-running jobs and
  *   the same worker-scoped `pfUser` as other PF specs; running them serially avoids cross-test contention
  *   when executing `tests/e2e/personal-finance/` as a folder.
+ *
+ *   Shared helpers/timeouts: `tests/e2e/CONVENTIONS.md`, `finance-transactions-e2e.ts`, `timeouts.ts`.
  */
 
+import fs from "fs";
+import os from "os";
 import path from "path";
 import { test as basePfTest, expect } from "../fixtures/personal-finance";
 import { FinanceTransactionsPage } from "../pages/personal-finance/FinanceTransactionsPage";
@@ -51,7 +55,10 @@ import {
   getMonthSummary,
   getTransactions,
 } from "../helpers/banking-graphql";
+import { executeGraphQL } from "../helpers/graphql";
 import { signIntoPage } from "../helpers/navigation";
+import { importFixtureTransactionQuery } from "../helpers/finance-transactions-e2e";
+import { E2E_HEAVY_DESCRIBE_TIMEOUT_MS, E2E_IMPORT_JOB_TIMEOUT_MS } from "../helpers/timeouts";
 
 function uniqueBankAccountName(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -87,19 +94,103 @@ const OFX_VALID = path.join(FILES_DIR, "valid-transactions.ofx");
 const CSV_MALFORMED = path.join(FILES_DIR, "malformed.csv");
 const CSV_EMPTY = path.join(FILES_DIR, "empty.csv");
 
-/** Statement month for rows in valid-transactions.csv / valid-transactions.ofx (and matching in-file OFX payloads). */
-function importFixtureTransactionQuery(first = 50): {
-  year: number;
-  month: number;
-  first: number;
-} {
-  return { year: 2026, month: 3, first };
+/** Clone the OFX fixture with unique FITIDs so file-hash dedupe does not block serial reruns. */
+function buildUniqueOfxFixture(): string {
+  const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  let content = fs.readFileSync(OFX_VALID, "utf8");
+  content = content.replace(/<FITID>[^<]+<\/FITID>/g, (line) => {
+    const id = line.match(/FITID>([^<]+)/)?.[1] ?? "TX";
+    return `<FITID>${id}-${suffix}</FITID>`;
+  });
+  content = content.replace(/<TRNUID>[^<]+<\/TRNUID>/, `<TRNUID>${suffix}</TRNUID>`);
+  const tmpPath = path.join(os.tmpdir(), `e2e-import-${suffix}.ofx`);
+  fs.writeFileSync(tmpPath, content);
+  return tmpPath;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** OFX / duplicate-review / SSE can exceed 30s on CI; keep below default test timeout budget. */
-const IMPORT_TIMEOUT = 60_000;
+const IMPORT_TIMEOUT = E2E_IMPORT_JOB_TIMEOUT_MS;
+
+type ImportJobSnapshot = {
+  id: string;
+  status: string;
+  importedCount: number | null;
+};
+
+async function importTransactionsFileViaGraphql(
+  financialAccountId: string,
+  token: string,
+  filePath: string,
+): Promise<ImportJobSnapshot> {
+  const fileBytes = fs.readFileSync(filePath);
+  const result = await executeGraphQL<{
+    importTransactionsFile: { import: ImportJobSnapshot };
+  }>(
+    `
+      mutation ImportTransactionsFile($input: ImportTransactionsFileInput!) {
+        importTransactionsFile(input: $input) {
+          import {
+            id
+            status
+            importedCount
+          }
+        }
+      }
+    `,
+    {
+      input: {
+        financialAccountId,
+        fileName: path.basename(filePath),
+        fileBase64: fileBytes.toString("base64"),
+      },
+    },
+    token,
+  );
+
+  expect(result.errors).toBeUndefined();
+  const job = result.data?.importTransactionsFile.import;
+  expect(job?.id).toBeTruthy();
+  return job!;
+}
+
+async function waitForImportJobTerminal(
+  importId: string,
+  token: string,
+  timeoutMs = E2E_HEAVY_DESCRIBE_TIMEOUT_MS,
+): Promise<ImportJobSnapshot> {
+  let latest: ImportJobSnapshot | undefined;
+  await expect
+    .poll(
+      async () => {
+        const result = await executeGraphQL<{
+          transactionImport: ImportJobSnapshot | null;
+        }>(
+          `
+            query TransactionImport($id: ID!) {
+              transactionImport(id: $id) {
+                id
+                status
+                importedCount
+              }
+            }
+          `,
+          { id: importId },
+          token,
+        );
+        expect(result.errors).toBeUndefined();
+        latest = result.data?.transactionImport ?? undefined;
+        return (
+          latest != null &&
+          ["COMPLETED", "FAILED", "REVIEW_REQUIRED"].includes(latest.status)
+        );
+      },
+      { timeout: timeoutMs },
+    )
+    .toBe(true);
+  return latest!;
+}
 
 async function waitForImportDrawerClosed(
   page: import("@playwright/test").Page,
@@ -176,9 +267,22 @@ async function uploadFile(
   page: import("@playwright/test").Page,
   filePath: string,
 ) {
-  const fileInput = page.getByTestId("import-transactions-file-input");
+  const dlg = importDialogLocator(page);
+  const fileName = path.basename(filePath);
+  const fileInput = dlg.getByTestId("import-transactions-file-input");
   await fileInput.setInputFiles(filePath);
-  await page.getByTestId("import-transactions-submit-button").click();
+  await expect(dlg.getByText(fileName)).toBeVisible({ timeout: 15_000 });
+  const submit = dlg.getByTestId("import-transactions-submit-button");
+  await expect(submit).toBeEnabled({ timeout: 15_000 });
+  await submit.click();
+  await expect
+    .poll(
+      async () =>
+        (await dlg.locator(".MuiLinearProgress-root").isVisible().catch(() => false)) ||
+        (await isImportDrawerTerminal(page)),
+      { timeout: 30_000 },
+    )
+    .toBe(true);
 }
 
 async function uploadFilePayload(
@@ -197,23 +301,42 @@ async function uploadFilePayload(
 /**
  * Waits for the import job to finish processing (terminal drawer UI).
  */
-async function waitForImportComplete(page: import("@playwright/test").Page) {
+async function isImportDrawerTerminal(page: import("@playwright/test").Page): Promise<boolean> {
   const importDialog = importDialogLocator(page);
-  await expect
-    .poll(
-      async () => {
-        // Still on the async processing step — same drawer has no upload controls but is NOT terminal yet.
-        if (await importDialog.locator(".MuiLinearProgress-root").isVisible().catch(() => false)) {
-          return false;
-        }
+  if (await importDialog.locator(".MuiLinearProgress-root").isVisible().catch(() => false)) {
+    return false;
+  }
 
-        // Result, error, duplicate review, or review actions — never infer "done" from missing upload controls alone
-        // (that matches error/review transitions and produced false positives under parallel load).
-        return await importTerminalLocator(page).first().isVisible().catch(() => false);
-      },
-      { timeout: IMPORT_TIMEOUT },
-    )
-    .toBe(true);
+  const checks = [
+    importDialog.getByTestId("import-result-summary"),
+    importDialog.getByTestId("import-error-message"),
+    importDialog.getByTestId("import-duplicate-review"),
+    importDialog.getByRole("heading", { name: /falha na importação|import failed|failure/i }),
+    importDialog.getByRole("button", {
+      name: /manter existente|manter ambas|usar nova|keep existing|keep both|use new/i,
+      disabled: false,
+    }),
+    importDialog.getByRole("button", {
+      name: /concluir revisão|finish review|finalizar|finish|usar nova|use new/i,
+      disabled: false,
+    }),
+    importDialog.getByRole("heading", { name: /precisam de revisão|need review/i }),
+    importDialog.getByText(/^(Resolvido|Resolved)$/i).first(),
+  ];
+
+  for (const locator of checks) {
+    if (await locator.first().isVisible().catch(() => false)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function waitForImportComplete(
+  page: import("@playwright/test").Page,
+  timeoutMs: number = IMPORT_TIMEOUT,
+) {
+  await expect.poll(async () => isImportDrawerTerminal(page), { timeout: timeoutMs }).toBe(true);
 }
 
 async function closeImportDrawer(page: import("@playwright/test").Page) {
@@ -300,11 +423,13 @@ async function importStatementFileExpectAccountGrowth(
   pfToken: string,
   filePath: string,
   countBefore: number,
+  importTimeoutMs: number = IMPORT_TIMEOUT,
 ): Promise<void> {
   const dlg = importDialogLocator(page);
+  await uploadFile(page, filePath);
+
   for (let attempt = 0; attempt < 3; attempt++) {
-    await uploadFile(page, filePath);
-    await waitForImportComplete(page);
+    await waitForImportComplete(page, importTimeoutMs);
 
     await expect
       .poll(
@@ -315,13 +440,26 @@ async function importStatementFileExpectAccountGrowth(
           (await importTerminalLocator(page).first().isVisible().catch(() => false)) ||
           (await getTransactions(financialAccountId, pfToken, importFixtureTransactionQuery(50))).length >
             countBefore,
-        { timeout: IMPORT_TIMEOUT },
+        { timeout: importTimeoutMs },
       )
       .toBe(true);
 
     const importError = dlg.getByTestId("import-error-message");
     if (await importError.isVisible().catch(() => false)) {
       const msg = (await importError.innerText().catch(() => "")).trim();
+      const inFlightDuplicate =
+        /já foi importado|already been imported|being processed/i.test(msg);
+      if (inFlightDuplicate) {
+        await expect
+          .poll(
+            async () =>
+              (await getTransactions(financialAccountId, pfToken, importFixtureTransactionQuery(50)))
+                .length > countBefore,
+            { timeout: importTimeoutMs },
+          )
+          .toBe(true);
+        break;
+      }
       if (attempt >= 2) {
         throw new Error(`Import failed after retries: ${msg}`);
       }
@@ -345,7 +483,7 @@ async function importStatementFileExpectAccountGrowth(
       async () =>
         (await getTransactions(financialAccountId, pfToken, importFixtureTransactionQuery(50))).length >
         countBefore,
-      { timeout: IMPORT_TIMEOUT },
+      { timeout: importTimeoutMs },
     )
     .toBe(true);
 }
@@ -355,7 +493,7 @@ async function importStatementFileExpectAccountGrowth(
 // =============================================================================
 
 test.describe("Transaction Import — happy path", () => {
-  test.describe.configure({ timeout: 120_000 });
+  test.describe.configure({ timeout: E2E_HEAVY_DESCRIBE_TIMEOUT_MS });
   test("IM-H-01: valid CSV reaches result or duplicate-review step", { tag: ["@smoke", "@critical", "@slow"] }, async ({
     page,
     pfUser,
@@ -415,8 +553,15 @@ test.describe("Transaction Import — happy path", () => {
     const countBefore = txsBefore.length;
 
     const newTxs: Array<{ id: string }> = [];
+    const uniqueOfx = buildUniqueOfxFixture();
     try {
-      await importStatementFileExpectAccountGrowth(page, bankAccount.id, pfUser.token, CSV_VALID, countBefore);
+      await importStatementFileExpectAccountGrowth(
+        page,
+        bankAccount.id,
+        pfUser.token,
+        uniqueOfx,
+        countBefore,
+      );
 
       const txsAfter = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
       newTxs.push(
@@ -424,6 +569,7 @@ test.describe("Transaction Import — happy path", () => {
       );
       expect(newTxs.length).toBeGreaterThan(0);
     } finally {
+      fs.unlinkSync(uniqueOfx);
       await Promise.all(
         newTxs.map((tx) =>
           deleteTransaction(tx.id, pfUser.token).catch(() => {}),
@@ -610,7 +756,7 @@ test.describe("Transaction Import — happy path", () => {
 // =============================================================================
 
 test.describe("Transaction Import — alternative paths", () => {
-  test.describe.configure({ timeout: 120_000 });
+  test.describe.configure({ timeout: E2E_HEAVY_DESCRIBE_TIMEOUT_MS });
   test("IM-A-01: CSV spans multiple months — all months' summaries updated", async ({
     page,
     pfUser,
@@ -856,7 +1002,7 @@ test.describe("Transaction Import — alternative paths", () => {
 // =============================================================================
 
 test.describe("Transaction Import — negative paths", () => {
-  test.describe.configure({ timeout: 120_000 });
+  test.describe.configure({ timeout: E2E_HEAVY_DESCRIBE_TIMEOUT_MS });
   test("IM-N-01: uploading an unsupported file extension — error shown", async ({
     page,
     pfUser,

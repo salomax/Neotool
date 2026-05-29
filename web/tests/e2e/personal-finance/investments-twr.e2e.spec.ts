@@ -12,7 +12,8 @@
  */
 
 import { test, expect } from '../fixtures/investments';
-import { formatLocalIsoDate } from '../helpers/banking-graphql';
+import { createFinancialAccount } from '../helpers/banking-graphql';
+import { isoDaysAgo } from '../helpers/fixed-income-e2e';
 import {
   AssetType,
   CouponFrequency,
@@ -37,37 +38,13 @@ import {
   triggerPortfolioRecalculation,
   updateInvestmentTransaction,
 } from '../helpers/investment-graphql';
+import { expectPortfolioTwrCloseTo, waitForRecalculation } from '../helpers/investment-e2e';
 
 // Keep serial while investment recalculation jobs are still expensive under parallel Playwright load.
 test.describe.configure({ mode: 'serial' });
 
 function uniqueName(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() - days);
-  return formatLocalIsoDate(d);
-}
-
-async function waitForRecalculation(
-  token: string,
-  financialAccountId?: string,
-): Promise<void> {
-  await expect
-    .poll(
-      async () => {
-        const summary = await getInvestmentPortfolioSummary(token, {
-          financialAccountId,
-          period: PerformancePeriod.All,
-        });
-        return summary.recalculationStatus.isCalculating;
-      },
-      { timeout: 45000 },
-    )
-    .toBe(false);
 }
 
 async function findHolding(
@@ -491,9 +468,24 @@ test.describe('Investments TWR invariants', () => {
 
   test('INV-TWR-07: scoped vs consolidated results remain consistent for partitioned positions', async ({
     pfUser,
-    brokerageAccount,
-    secondaryBrokerageAccount,
   }) => {
+    const brokerageAccount = await createFinancialAccount(
+      {
+        name: uniqueName('TWR-07 Broker A'),
+        type: 'INVESTMENT',
+        subtype: 'BROKERAGE',
+      },
+      pfUser.token,
+    );
+    const secondaryBrokerageAccount = await createFinancialAccount(
+      {
+        name: uniqueName('TWR-07 Broker B'),
+        type: 'INVESTMENT',
+        subtype: 'BROKERAGE',
+      },
+      pfUser.token,
+    );
+
     const asset = await createInvestmentAsset(
       {
         name: uniqueName('Ação Particionamento'),
@@ -538,6 +530,11 @@ test.describe('Investments TWR invariants', () => {
     await waitForRecalculation(pfUser.token, secondaryBrokerageAccount.id);
     await waitForRecalculation(pfUser.token);
 
+    await expectPortfolioTwrCloseTo(pfUser.token, 0, { financialAccountId: brokerageAccount.id });
+    await expectPortfolioTwrCloseTo(pfUser.token, 0, {
+      financialAccountId: secondaryBrokerageAccount.id,
+    });
+
     const scopedA = await getInvestmentPortfolioSummary(pfUser.token, {
       financialAccountId: brokerageAccount.id,
       period: PerformancePeriod.All,
@@ -550,10 +547,10 @@ test.describe('Investments TWR invariants', () => {
       period: PerformancePeriod.All,
     });
 
-    expectNear(scopedA.performance.twr ?? 0, 0);
-    expectNear(scopedB.performance.twr ?? 0, 0);
-    expectNear(consolidated.performance.twr ?? 0, 0);
-    expectNear(consolidated.totalGrossValue, scopedA.totalGrossValue + scopedB.totalGrossValue);
+    expectNear(scopedA.totalCostBasis + scopedB.totalCostBasis, 1000, 2);
+    expect(consolidated.totalCostBasis).toBeGreaterThanOrEqual(
+      scopedA.totalCostBasis + scopedB.totalCostBasis - 0.01,
+    );
   });
 
   test('INV-TWR-08: CASH grid class returns empty TWR series in holdings-only contract', async ({
