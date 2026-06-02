@@ -21,7 +21,12 @@ import {
   ValuationSource,
 } from '../helpers/investment-graphql';
 import { waitForRecalculation } from '../helpers/investment-e2e';
-import { couponDaySoon, isoDaysAgo, isoDaysFromNow } from '../helpers/fixed-income-e2e';
+import {
+  couponDaySoon,
+  couponPendingPurchaseDate,
+  isoDaysAgo,
+  isoDaysFromNow,
+} from '../helpers/fixed-income-e2e';
 import { E2E_PENDING_ACTION_POLL_MS } from '../helpers/timeouts';
 
 import { signIntoPage } from '../helpers/navigation';
@@ -1154,7 +1159,7 @@ test.describe('Investments TWR phase 3A fixed income', () => {
     );
 
     const couponDay = couponDaySoon();
-    const purchaseDate = isoDaysAgo(28);
+    const purchaseDate = couponPendingPurchaseDate();
     await recordInvestmentTransaction(
       {
         financialAccountId: brokerageAccount.id,

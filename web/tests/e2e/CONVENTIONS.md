@@ -40,7 +40,7 @@ Always pass the same period you used when creating data.
 ## Test data vs domain rules
 
 - Validate asset type × coupon frequency × issuer before recording (e.g. Treasury ≠ monthly coupon).
-- Time-gated UI: use `couponDaySoon()` from `fixed-income-e2e.ts` for monthly coupons.
+- Time-gated UI: use `couponDaySoon()` + `couponPendingPurchaseDate()` from `fixed-income-e2e.ts` for monthly coupon pending actions (do not use ~28-day purchases — they fall outside the 7-day visibility window).
 - Split scenarios when one instrument cannot satisfy all legs (treasury form UI vs debenture pending action).
 
 ## Assertions

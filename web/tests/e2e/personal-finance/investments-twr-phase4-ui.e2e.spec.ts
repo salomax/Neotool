@@ -31,7 +31,13 @@ import {
   clearInvestmentGridClassSelection,
   waitForRecalculation,
 } from '../helpers/investment-e2e';
-import { couponDaySoon, isoDaysAgo, isoDaysFromNow, todayIso } from '../helpers/fixed-income-e2e';
+import {
+  couponDaySoon,
+  couponPendingPurchaseDate,
+  isoDaysAgo,
+  isoDaysFromNow,
+  todayIso,
+} from '../helpers/fixed-income-e2e';
 import { E2E_PENDING_ACTION_POLL_MS } from '../helpers/timeouts';
 
 test.describe.configure({ mode: 'serial' });
@@ -531,21 +537,22 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
       },
       pfUser.token,
     );
+    const couponPurchaseDate = couponPendingPurchaseDate();
     await recordInvestmentTransaction(
       {
         financialAccountId: brokerageAccount.id,
         assetId: couponAsset.id,
         direction: InvestmentTransactionDirection.Inflow,
         type: InvestmentTransactionType.Purchase,
-        tradeDate: isoDaysAgo(28),
-        settlementDate: isoDaysAgo(28),
+        tradeDate: couponPurchaseDate,
+        settlementDate: couponPurchaseDate,
         quantity: 1,
         unitPrice: 5000,
         grossValue: 5000,
         netValue: 5000,
         indexer: Indexer.Ipca,
         fixedAnnualRate: 0.055,
-        issueDate: isoDaysAgo(28),
+        issueDate: couponPurchaseDate,
         maturityDate: isoDaysFromNow(500),
         couponFrequency: CouponFrequency.Monthly,
         couponDayOfMonth: couponDaySoon(),
