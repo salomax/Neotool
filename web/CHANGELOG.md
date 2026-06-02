@@ -1,3 +1,13 @@
+## 0.7.2 (2026-06-02)
+
+### 🚀 Features
+
+- **landing:** enhance LandingHero component with theme-aware styles ([3dfe25b7](https://github.com/invistus/invistus/commit/3dfe25b7))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.1 (2026-06-02)
 
 ### 🚀 Features
