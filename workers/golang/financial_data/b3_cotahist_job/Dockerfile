@@ -3,7 +3,7 @@
 # Requires headless Chromium (go-rod) to download files from B3's Cloudflare CDN.
 
 # ── Stage 1: Builder ──────────────────────────────────────────────────────────
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates tzdata
 
