@@ -1,13 +1,13 @@
 "use client";
 
-import { Box, Typography, Container, styled } from "@/shared/ui/mui-imports";
+import { Box, Typography, Container, useTheme, alpha } from "@/shared/ui/mui-imports";
 import { Theme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import { Wordmark } from "@/shared/ui/brand";
 import { useTranslation } from "@/shared/i18n";
 import { landingTranslations } from "../i18n";
 import { LANDING_PAGE_CONTENT_SX } from "./landingPageLayout";
-
-const BRAND_NAVY = "#0F223F";
+import { BRAND_NAVY } from "./brandColors";
 
 const VIDEO_WEBM = "/videos/invistus_home.webm";
 const VIDEO_MP4 = "/videos/invistus_home.mp4";
@@ -20,17 +20,30 @@ const VIDEO_MASK = {
   desktop: "linear-gradient(to right, transparent 0%, #000 22%)",
 } as const;
 
-const HeroSection = styled(Box)(({ theme }: { theme: Theme }) => ({
-  backgroundColor: theme.palette.mode === "dark" ? "#0f172a" : "#f5f6f8",
-  backgroundImage:
-    theme.palette.mode === "dark"
-      ? "radial-gradient(circle at 20% 50%, #1e293b 0%, transparent 55%), radial-gradient(circle at 10% 90%, #064e3b 0%, transparent 40%)"
-      : "radial-gradient(circle at 20% 50%, #eceef2 0%, transparent 60%), radial-gradient(circle at 10% 90%, #f0f1f3 0%, transparent 45%)",
-  position: "relative",
-  overflow: "hidden",
-}));
+function heroSectionSx(theme: Theme) {
+  const isDark = theme.palette.mode === "dark";
+
+  if (isDark) {
+    return {
+      backgroundColor: theme.palette.background.paper,
+      backgroundImage: `radial-gradient(circle at 20% 50%, ${theme.palette.background.default} 0%, transparent 55%), radial-gradient(circle at 10% 10%, ${alpha(theme.palette.primary.main, 0.35)} 0%, transparent 40%)`,
+      position: "relative" as const,
+      overflow: "hidden" as const,
+    };
+  }
+
+  return {
+    backgroundColor: theme.palette.background.default,
+    backgroundImage: `radial-gradient(circle at 20% 50%, ${alpha(theme.palette.divider, 0.85)} 0%, transparent 60%), radial-gradient(circle at 10% 10%, ${alpha(theme.palette.divider, 0.55)} 0%, transparent 45%)`,
+    position: "relative" as const,
+    overflow: "hidden" as const,
+  };
+}
 
 function LandingHeroVideo() {
+  const { t } = useTranslation(landingTranslations);
+  const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+
   return (
     <Box
       sx={{
@@ -44,39 +57,43 @@ function LandingHeroVideo() {
         zIndex: 0,
       }}
     >
-      <Box
-        component="video"
-        autoPlay
-        muted
-        loop
-        playsInline
-        aria-label="Invistus home"
-        sx={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          display: "block",
-          maskImage: {
-            xs: VIDEO_MASK.mobile,
-            lg: VIDEO_MASK.desktop,
-          },
-          WebkitMaskImage: {
-            xs: VIDEO_MASK.mobile,
-            lg: VIDEO_MASK.desktop,
-          },
-        }}
-      >
-        <source src={VIDEO_WEBM} type="video/webm" />
-        <source src={VIDEO_MP4} type="video/mp4" />
-      </Box>
+      {!prefersReducedMotion && (
+        <Box
+          component="video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          aria-label={t("hero.videoLabel")}
+          sx={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+            maskImage: {
+              xs: VIDEO_MASK.mobile,
+              lg: VIDEO_MASK.desktop,
+            },
+            WebkitMaskImage: {
+              xs: VIDEO_MASK.mobile,
+              lg: VIDEO_MASK.desktop,
+            },
+          }}
+        >
+          <source src={VIDEO_WEBM} type="video/webm" />
+          <source src={VIDEO_MP4} type="video/mp4" />
+        </Box>
+      )}
     </Box>
   );
 }
 
 function LandingHeroCopy() {
   const { t } = useTranslation(landingTranslations);
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
 
   return (
     <Container
@@ -95,7 +112,7 @@ function LandingHeroCopy() {
     >
       <Wordmark
         sx={{ ml: "2px", width: { xs: 173, lg: 346 } }}
-        variant="blue"
+        variant={isDark ? "white" : "blue"}
         size="medium"
       />
 
@@ -108,21 +125,29 @@ function LandingHeroCopy() {
             fontSize: { xs: "2rem", lg: "4.5rem" },
             lineHeight: 1.1,
             mb: 3,
-            color: BRAND_NAVY,
+            color: isDark ? "primary.main" : BRAND_NAVY,
           }}
         >
-          <Box component="span" sx={{ ml: "-6px", whiteSpace: "nowrap" }}>
+          <Box
+            component="span"
+            sx={{
+              // Optical align with wordmark left edge
+              ml: "-6px",
+              whiteSpace: "nowrap",
+              color: isDark ? "text.primary" : "inherit",
+            }}
+          >
             {t("hero.titlePrefix")}
           </Box>
           <br />
-          <Box component="span" sx={{ color: "primary.main", whiteSpace: "nowrap" }}>
+          <Box component="span" sx={{ whiteSpace: "nowrap" }}>
             {t("hero.titleHighlight")}
           </Box>
         </Typography>
         <Typography
           variant="h5"
           sx={{
-            color: "text.secondary",
+            color: isDark ? "text.primary" : "text.secondary",
             maxWidth: 500,
             lineHeight: 1.6,
             fontWeight: 400,
@@ -140,11 +165,11 @@ function LandingHeroCopy() {
  */
 export function LandingHero() {
   return (
-    <HeroSection>
+    <Box sx={(theme) => heroSectionSx(theme)}>
       <Box sx={{ position: "relative", minHeight: { xs: "auto", lg: 560 } }}>
         <LandingHeroVideo />
         <LandingHeroCopy />
       </Box>
-    </HeroSection>
+    </Box>
   );
 }
