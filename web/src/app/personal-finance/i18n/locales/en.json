@@ -31,6 +31,47 @@
       "recordFund": "Record fund",
       "recordEquity": "Record stock / FII"
     },
+    "import": {
+      "pageButton": "Import positions (B3)",
+      "drawer": {
+        "titleUpload": "Import positions (B3)",
+        "titlePreview": "Review positions",
+        "titleResult": "Import completed",
+        "titleError": "Import error",
+        "uploadHint": "Drag or select the .xlsx file exported from B3.",
+        "dragDrop": "Drag the .xlsx file or click to select",
+        "dragDropSubtitle": "Only .xlsx files, up to 10 MB",
+        "submitUpload": "Upload file",
+        "submittingUpload": "Uploading...",
+        "onlyXlsx": "Unsupported format. Upload a .xlsx file exported from B3.",
+        "maxSize": "File is too large. Limit: 10 MB.",
+        "genericError": "Could not complete the import.",
+        "retry": "Try again",
+        "close": "Close",
+        "confirming": "Confirming import...",
+        "successMessage": "Import completed! {{count}} positions imported successfully.",
+        "accountSectionTitle": "Investment account by institution",
+        "accountAmbiguousHint": "Multiple matching accounts. Select the correct account.",
+        "columns": {
+          "status": "Status",
+          "product": "Product",
+          "indexer": "Indexer",
+          "issueDate": "Issue date",
+          "maturityDate": "Maturity",
+          "principal": "Principal",
+          "skip": "Skip"
+        },
+        "conflictTitle": "Conflict detected",
+        "conflictQuantity": "Quantity",
+        "conflictCurrentValue": "Current value",
+        "conflictMaturity": "Maturity",
+        "conflictUpdate": "Update position",
+        "conflictKeep": "Keep existing",
+        "missingPrincipal": "missing principal",
+        "unresolvedConflicts": "unresolved conflicts",
+        "confirmPositions": "Confirm {{count}} positions"
+      }
+    },
     "grid": {
       "emptyDescription": "No position registered",
       "firstInvestmentCta": "+ Investment",
@@ -197,7 +238,6 @@
           "ALL": "Since inception"
         },
         "absolute": "Current value gain",
-        "noHistory": "Not enough history to calculate",
         "recalculating": "Recalculating performance history...",
         "recalculatingDetail": "Return and comparisons will update in a few moments."
       },
@@ -482,8 +522,8 @@
         "issuerRequired": "Please enter a broker or institution name"
       },
       "actions": {
-        "submit": "Create account",
-        "submitting": "Creating...",
+        "submit": "Save",
+        "submitting": "Saving...",
         "cancel": "Cancel"
       },
       "success": "Investment account created successfully"

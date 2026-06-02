@@ -7,9 +7,10 @@ import { Box, Divider } from '@mui/material';
 import { FormStack } from '@/shared/components/ui/forms/components';
 import { FormProvider, useController, useForm, useFormState, useWatch } from 'react-hook-form';
 import { z } from 'zod';
-import { CREATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
+import { CREATE_FINANCIAL_ACCOUNT, UPDATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
 import { FINANCIAL_ACCOUNTS, ISSUERS } from '@/lib/graphql/operations/banking/queries';
 import {
+  FinancialAccount,
   FinancialAccountSubtype,
   FinancialAccountType,
   Issuer,
@@ -27,11 +28,15 @@ import { IssuerSelect } from '../../finance-transactions/account/IssuerSelect';
 interface CreateInvestmentAccountDrawerProps {
   open: boolean;
   onClose: () => void;
+  accountToEdit?: FinancialAccount | null;
   onCreated?: (account: { id: string; name: string }) => void;
 }
 
 const InvestmentSubtypeValues = ['BROKERAGE', 'FIXED_INCOME', 'PENSION', 'CRYPTO', 'FGTS', 'INSS'] as const;
 type InvestmentSubtype = (typeof InvestmentSubtypeValues)[number];
+
+const isInvestmentSubtype = (value: string): value is InvestmentSubtype =>
+  (InvestmentSubtypeValues as readonly string[]).includes(value);
 
 type CreateInvestmentAccountFormData = {
   subtype: InvestmentSubtype;
@@ -43,10 +48,12 @@ type CreateInvestmentAccountFormData = {
 export function CreateInvestmentAccountDrawer({
   open,
   onClose,
+  accountToEdit,
   onCreated,
 }: CreateInvestmentAccountDrawerProps) {
   const { success } = useToast();
   const { t } = useTranslation(personalFinanceTranslations);
+  const isEditing = Boolean(accountToEdit?.id);
 
   const createAccountSchema = React.useMemo(
     () =>
@@ -107,8 +114,34 @@ export function CreateInvestmentAccountDrawer({
   useEffect(() => {
     if (!open) {
       reset();
+      lastAutoNameRef.current = null;
+      return;
     }
-  }, [open, reset]);
+
+    if (!accountToEdit?.id) {
+      reset({
+        subtype: 'BROKERAGE',
+        name: '',
+        issuerId: undefined,
+        issuerName: '',
+      });
+      lastAutoNameRef.current = null;
+      return;
+    }
+
+    const subtype = isInvestmentSubtype(accountToEdit.subtype)
+      ? accountToEdit.subtype
+      : 'BROKERAGE';
+    const issuerId = accountToEdit.issuer?.id ?? (accountToEdit.issuerName ? 'custom' : undefined);
+
+    reset({
+      subtype,
+      issuerId,
+      issuerName: accountToEdit.issuer?.name ?? accountToEdit.issuerName ?? '',
+      name: accountToEdit.name ?? '',
+    });
+    lastAutoNameRef.current = accountToEdit.name ?? null;
+  }, [accountToEdit, open, reset]);
 
   const issuerCategories = React.useMemo<IssuerCategory[]>(() => {
     if (watchedSubtype === 'CRYPTO') return [IssuerCategory.CryptoExchange];
@@ -221,6 +254,24 @@ export function CreateInvestmentAccountDrawer({
       onClose();
     },
   });
+
+  const [updateAccount, { loading: updating, error: updateError }] = useMutation<{
+    updateFinancialAccount: { id: string; name: string };
+  }>(UPDATE_FINANCIAL_ACCOUNT, {
+    refetchQueries: [{ query: FINANCIAL_ACCOUNTS }],
+    onCompleted: (data) => {
+      success(t('financeTransactions.editAccount.success'));
+      onCreated?.({
+        id: data.updateFinancialAccount.id,
+        name: data.updateFinancialAccount.name,
+      });
+      onClose();
+    },
+  });
+
+  const isSubmitting = creating || updating;
+  const mutationError = createError ?? updateError;
+
   const onSubmit = (data: CreateInvestmentAccountFormData) => {
     const name = data.name.trim();
     const issuerName = data.issuerName?.trim();
@@ -228,6 +279,26 @@ export function CreateInvestmentAccountDrawer({
       data.subtype === 'FGTS' || data.subtype === 'INSS'
         ? ('BENEFIT' as unknown as FinancialAccountType)
         : FinancialAccountType.Investment;
+    const issuerInput =
+      data.issuerId === 'custom' ? { issuerName } : { issuerId: data.issuerId };
+
+    if (isEditing && accountToEdit?.id) {
+      updateAccount({
+        variables: {
+          id: accountToEdit.id,
+          input: {
+            type,
+            subtype: data.subtype as unknown as FinancialAccountSubtype,
+            name: name || accountToEdit.name,
+            currencyCode: accountToEdit.currencyCode,
+            includeInNetWorth: accountToEdit.includeInNetWorth,
+            includeInDashboard: accountToEdit.includeInDashboard,
+            ...issuerInput,
+          },
+        },
+      });
+      return;
+    }
 
     createAccount({
       variables: {
@@ -238,7 +309,7 @@ export function CreateInvestmentAccountDrawer({
           currencyCode: 'BRL',
           includeInNetWorth: true,
           includeInDashboard: true,
-          ...(data.issuerId === 'custom' ? { issuerName } : { issuerId: data.issuerId }),
+          ...issuerInput,
         },
       },
     });
@@ -247,7 +318,7 @@ export function CreateInvestmentAccountDrawer({
   return (
     <Drawer open={open} onClose={onClose} anchor="right" size="md">
       <Drawer.Header
-        title={t('investments.createAccount.title')}
+        title={isEditing ? t('financeTransactions.editAccount.title') : t('investments.createAccount.title')}
       />
       <Drawer.Body>
         <FormProvider {...methods}>
@@ -255,7 +326,9 @@ export function CreateInvestmentAccountDrawer({
             <FormStack>
               <ErrorAlert
                 error={
-                  createError ? extractErrorMessage(createError, t('errors.default', { ns: 'common' })) : null
+                  mutationError
+                    ? extractErrorMessage(mutationError, t('errors.default', { ns: 'common' }))
+                    : null
                 }
               />
 
@@ -303,13 +376,13 @@ export function CreateInvestmentAccountDrawer({
 
               <Drawer.ActionButtons
                 cancelText={t('actions.cancel')}
-                submitText={t('investments.createAccount.actions.submit')}
-                submittingText={t('investments.createAccount.actions.submitting')}
+                submitText={t('actions.save')}
+                submittingText={t('financeTransactions.actions.saving')}
                 onCancel={onClose}
                 submitForm="create-investment-account-form"
-                cancelDisabled={creating}
-                submitDisabled={creating}
-                submitting={creating}
+                cancelDisabled={isSubmitting}
+                submitDisabled={isSubmitting}
+                submitting={isSubmitting}
               />
 
             </FormStack>

@@ -543,6 +543,83 @@ type BillImportReviewTransaction
   categorySource: CategorySource
 }
 
+type InvestmentImportJob
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  status: InvestmentImportJobStatus!
+  fileName: String
+  createdAt: DateTime!
+  reviewPayload: InvestmentImportReview
+  errorCode: String
+  errorParameters: JSON
+  errorMessage: String
+}
+
+enum InvestmentImportJobStatus
+  @join__type(graph: BANKING)
+{
+  AWAITING_REVIEW @join__enumValue(graph: BANKING)
+  IMPORTING @join__enumValue(graph: BANKING)
+  DONE @join__enumValue(graph: BANKING)
+  FAILED @join__enumValue(graph: BANKING)
+}
+
+type InvestmentImportReview
+  @join__type(graph: BANKING)
+{
+  source: String
+  institutions: [InvestmentImportReviewInstitution!]!
+}
+
+type InvestmentImportReviewInstitution
+  @join__type(graph: BANKING)
+{
+  reviewInstitutionId: String!
+  institutionName: String!
+  matchedFinancialAccountId: ID
+  matchAmbiguous: Boolean!
+  matchCandidates: [InvestmentImportAccountCandidate!]!
+  rows: [InvestmentImportReviewRow!]!
+}
+
+type InvestmentImportAccountCandidate
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID!
+  accountName: String!
+}
+
+type InvestmentImportReviewRow
+  @join__type(graph: BANKING)
+{
+  rowIndex: Int!
+  productName: String!
+  assetTypeCode: String!
+  issuerName: String
+  providerCode: String
+  indexerLabel: String
+  issueDate: String
+  maturityDate: String
+  quantity: Float
+  principal: Float
+  currentValue: Float
+  requiresPrincipal: Boolean!
+  conflictingHoldingId: ID
+  conflictDiff: InvestmentImportConflictDiff
+}
+
+type InvestmentImportConflictDiff
+  @join__type(graph: BANKING)
+{
+  existingQuantity: Float
+  fileQuantity: Float
+  existingCurrentValue: Float
+  fileCurrentValue: Float
+  existingMaturityDate: String
+  fileMaturityDate: String
+}
+
 """
 Lifecycle status of a credit card bill (fatura).
 OPEN    → closingDate >= today (bill still accepting charges).
@@ -2035,6 +2112,7 @@ enum ImportType
 {
   CREDIT_CARD_BILL @join__enumValue(graph: BANKING)
   BANK_STATEMENT @join__enumValue(graph: BANKING)
+  INVESTMENT_POSITION @join__enumValue(graph: BANKING)
 }
 
 """Fixed income indexer (referenciador). Only applicable to RF holdings."""
@@ -2848,6 +2926,8 @@ type Mutation
   cancelImportReview(jobId: ID!): Boolean! @join__field(graph: BANKING)
   submitBillImport(input: SubmitBillImportInput!): BillImportJob! @join__field(graph: BANKING)
   confirmBillImport(input: ConfirmBillImportInput!): BillImportJob! @join__field(graph: BANKING)
+  submitInvestmentImport(input: SubmitInvestmentImportInput!): InvestmentImportJob! @join__field(graph: BANKING)
+  confirmInvestmentImport(input: ConfirmInvestmentImportInput!): InvestmentImportJob! @join__field(graph: BANKING)
 
   """
   Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
@@ -3700,6 +3780,7 @@ type Query
   pendingReviewImports(financialAccountId: ID): [TransactionImport!]! @join__field(graph: BANKING)
   billImportJob(jobId: ID!): BillImportJob @join__field(graph: BANKING)
   billImportJobs(financialAccountId: ID): [BillImportJob!]! @join__field(graph: BANKING)
+  investmentImportJob(id: ID!): InvestmentImportJob @join__field(graph: BANKING)
 
   """
   All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
@@ -4212,6 +4293,44 @@ input SubmitBillImportInput
   fileName: String!
   fileBase64: String!
   password: String
+}
+
+input SubmitInvestmentImportInput
+  @join__type(graph: BANKING)
+{
+  fileName: String!
+  fileBase64: String!
+}
+
+input ConfirmInvestmentImportInput
+  @join__type(graph: BANKING)
+{
+  jobId: ID!
+  institutionMappings: [InstitutionAccountMappingInput!]!
+  rowPatches: [InvestmentImportRowPatchInput!]!
+}
+
+input InstitutionAccountMappingInput
+  @join__type(graph: BANKING)
+{
+  reviewInstitutionId: String!
+  financialAccountId: ID!
+}
+
+input InvestmentImportRowPatchInput
+  @join__type(graph: BANKING)
+{
+  rowIndex: Int!
+  principal: Float
+  conflictResolution: InvestmentConflictResolution
+  skip: Boolean
+}
+
+enum InvestmentConflictResolution
+  @join__type(graph: BANKING)
+{
+  UPDATE @join__enumValue(graph: BANKING)
+  KEEP_EXISTING @join__enumValue(graph: BANKING)
 }
 
 type Subscription

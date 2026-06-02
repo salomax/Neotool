@@ -200,6 +200,7 @@ export function FinancialAccountSelector({
   const hasMultipleAccounts = allAccounts.length > 1;
   const singleAccount = allAccounts.length === 1 ? allAccounts[0] : null;
   const canOpenSelector = hasMultipleAccounts;
+  const showSingleAccountEdit = !canOpenSelector && Boolean(onEditAccount) && Boolean(singleAccount);
   
   // Selected Account Logic
   const resolvedSelectedAccountId = selectedAccountId ?? (autoSelectSingleAccount ? singleAccount?.id : null) ?? null;
@@ -294,12 +295,18 @@ export function FinancialAccountSelector({
     : null;
   const showSelectedCardDetails = selectedAccount ? isCardAccount(selectedAccount) : false;
 
+  const handleEditSingleAccount = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const account = selectedAccount ?? singleAccount;
+    if (account) onEditAccount?.(account);
+  };
+
   return (
     <Box>
       <Paper
         elevation={0}
         variant="outlined"
-        onClick={handleClick}
         data-testid="account-selector"
         sx={{
           p: isSmall ? 1.25 : 2,
@@ -307,7 +314,7 @@ export function FinancialAccountSelector({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          cursor: canOpenSelector ? 'pointer' : 'default',
+          gap: 1,
           borderRadius: 2,
           bgcolor: open ? 'action.selected' : 'background.paper',
           borderColor: open ? 'primary.main' : 'divider',
@@ -320,7 +327,17 @@ export function FinancialAccountSelector({
           })
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box
+          onClick={canOpenSelector ? handleClick : undefined}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            cursor: canOpenSelector ? 'pointer' : 'default',
+          }}
+        >
           <IssuerAvatar
             logoUrl={selectedAccount?.issuer?.logoAsset?.publicUrl || undefined}
             fallbackBgColor={selectedAccount?.themeColor || 'primary.main'}
@@ -330,11 +347,11 @@ export function FinancialAccountSelector({
           >
             {selectedAccount ? renderAccountTypeIcon(selectedAccount.type) : renderConsolidatedViewIcon()}
           </IssuerAvatar>
-          <Box>
-            <Typography variant={isSmall ? 'body1' : 'subtitle1'} fontWeight="bold">
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant={isSmall ? 'body1' : 'subtitle1'} fontWeight="bold" noWrap>
               {selectedAccount ? selectedAccount.name : allAccountsText}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" noWrap>
               {selectedAccount 
                 ? (selectedAccount.issuer?.name || selectedAccount.issuerName) 
                 : consolidatedViewText}
@@ -351,8 +368,19 @@ export function FinancialAccountSelector({
             )}
           </Box>
         </Box>
-        <Stack direction="row" spacing={0.5} alignItems="center">
+        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
           {canOpenSelector && (open ? <ExpandLessIcon color="action" /> : <ExpandMoreIcon color="action" />)}
+          {showSingleAccountEdit && singleAccount && (
+            <IconButton
+              aria-label={t('financeTransactions.actions.edit')}
+              data-testid="btn-edit-account"
+              onClick={handleEditSingleAccount}
+              onMouseDown={(e) => e.stopPropagation()}
+              size="small"
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          )}
         </Stack>
       </Paper>
       

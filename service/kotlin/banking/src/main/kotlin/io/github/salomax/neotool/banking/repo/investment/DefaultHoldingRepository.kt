@@ -1,10 +1,13 @@
 package io.github.salomax.neotool.banking.repo.investment
 
 import io.github.salomax.neotool.banking.domain.investment.Holding
+import io.github.salomax.neotool.banking.domain.investment.AssetType
+import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.model.investment.HoldingMapper
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
 @Singleton
@@ -61,6 +64,21 @@ open class DefaultHoldingRepository(
             .findByFinancialAccountIdAndProviderInvestmentIdAndDeletedAtIsNull(
                 financialAccountId,
                 providerInvestmentId,
+            )
+            ?.let(HoldingMapper::toDomain)
+
+    override fun findByAssetTypeAndIssuerNameAndMaturityDate(
+        financialAccountId: UUID,
+        assetType: AssetType,
+        issuerName: String,
+        maturityDate: LocalDate,
+    ): Holding? =
+        entityRepository
+            .findByAssetTypeAndIssuerNameAndMaturityDate(
+                financialAccountId = financialAccountId,
+                assetType = assetType.name,
+                issuerName = issuerName,
+                maturityDate = maturityDate,
             )
             ?.let(HoldingMapper::toDomain)
 

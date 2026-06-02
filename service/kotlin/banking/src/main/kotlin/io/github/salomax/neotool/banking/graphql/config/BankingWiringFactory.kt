@@ -9,14 +9,7 @@ import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
-import io.github.salomax.neotool.banking.graphql.import.ImportResolver
-import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPeriod
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentResolver
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
-import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
-import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
-import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
+import io.github.salomax.neotool.banking.graphql.investmentimport.InvestmentImportResolver
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
 import io.github.salomax.neotool.banking.graphql.pendingaction.AccountPendingActionDTO
 import io.github.salomax.neotool.banking.graphql.pendingaction.PendingActionResolver
@@ -53,6 +46,7 @@ class BankingWiringFactory(
     private val investmentQueryService: InvestmentQueryService,
     private val importResolver: ImportResolver,
     private val billImportResolver: BillImportResolver,
+    private val investmentImportResolver: InvestmentImportResolver,
     private val attachmentResolver: AttachmentResolver,
     private val productResolver: ProductResolver,
     private val recurringPaymentResolver: RecurringPaymentResolver,
@@ -490,6 +484,17 @@ class BankingWiringFactory(
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
                         val financialAccountId = env.getArgument<String?>("financialAccountId")
                         billImportResolver.billImportJobs(financialAccountId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "investmentImportJob",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        investmentImportResolver.investmentImportJob(id, principal)
                     }
                 },
             )
@@ -1150,6 +1155,28 @@ class BankingWiringFactory(
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
                         billImportResolver.confirmBillImport(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "submitInvestmentImport",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        investmentImportResolver.submitInvestmentImport(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "confirmInvestmentImport",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        investmentImportResolver.confirmInvestmentImport(input, principal)
                     }
                 },
             )

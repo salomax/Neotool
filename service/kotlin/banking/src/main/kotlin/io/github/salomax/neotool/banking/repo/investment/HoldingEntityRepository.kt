@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.repo.investment
 
 import io.github.salomax.neotool.banking.model.investment.HoldingEntity
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
@@ -59,6 +60,26 @@ interface HoldingEntityRepository : JpaRepository<HoldingEntity, UUID> {
     fun findByFinancialAccountIdAndProviderInvestmentIdAndDeletedAtIsNull(
         financialAccountId: UUID,
         providerInvestmentId: String,
+    ): HoldingEntity?
+
+    @Query(
+        """
+        SELECT h.* FROM banking.investment_holdings h
+        INNER JOIN banking.investment_assets a ON a.id = h.asset_id
+        WHERE h.financial_account_id = :financialAccountId
+          AND h.deleted_at IS NULL
+          AND a.asset_type = :assetType
+          AND UPPER(COALESCE(a.issuer_name, '')) = UPPER(:issuerName)
+          AND h.maturity_date = :maturityDate
+        LIMIT 1
+        """,
+        nativeQuery = true,
+    )
+    fun findByAssetTypeAndIssuerNameAndMaturityDate(
+        financialAccountId: UUID,
+        assetType: String,
+        issuerName: String,
+        maturityDate: LocalDate,
     ): HoldingEntity?
 
     @Query(
