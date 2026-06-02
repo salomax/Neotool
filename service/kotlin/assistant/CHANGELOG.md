@@ -1,3 +1,7 @@
+## 0.4.2 (2026-06-02)
+
+This was a version bump only for assistant to align it with other projects, there were no code changes.
+
 ## 0.4.1 (2026-06-02)
 
 ### 🚀 Features

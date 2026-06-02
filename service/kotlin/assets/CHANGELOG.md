@@ -1,3 +1,7 @@
+## 0.3.5 (2026-06-02)
+
+This was a version bump only for assets to align it with other projects, there were no code changes.
+
 ## 0.3.4 (2026-06-02)
 
 ### 🚀 Features
