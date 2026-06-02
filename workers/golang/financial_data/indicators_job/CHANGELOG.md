@@ -1,3 +1,19 @@
+## 0.2.6 (2026-06-02)
+
+### 🚀 Features
+
+- **investments:** enhance investment transaction and asset management ([f5447361](https://github.com/invistus/invistus/commit/f5447361))
+- **graphql:** enhance investment portfolio management with cash tracking and manual registration ([f3da1d69](https://github.com/invistus/invistus/commit/f3da1d69))
+- **graphql:** enhance investment asset schema and market data handling ([29756c9b](https://github.com/invistus/invistus/commit/29756c9b))
+
+### 🩹 Fixes
+
+- Add support for COMEXSTAT CA certificate configuration ([36cd4a6b](https://github.com/invistus/invistus/commit/36cd4a6b))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.2.5 (2026-03-06)
 
 ### 🩹 Fixes

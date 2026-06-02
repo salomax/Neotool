@@ -1,3 +1,29 @@
+## 0.4.4 (2026-06-02)
+
+### 🚀 Features
+
+- **investments:** enhance investment transaction and asset management ([f5447361](https://github.com/invistus/invistus/commit/f5447361))
+- **user-profile:** enhance user account management features ([dab3883e](https://github.com/invistus/invistus/commit/dab3883e))
+- **graphql:** enhance investment performance tracking with new portfolio features ([ae308595](https://github.com/invistus/invistus/commit/ae308595))
+- **preferences:** introduce BankingUserPreferences and update related GraphQL schema ([d8c41f61](https://github.com/invistus/invistus/commit/d8c41f61))
+- **graphql:** update pending action types and schema definitions ([0cdf9134](https://github.com/invistus/invistus/commit/0cdf9134))
+- **graphql:** enhance transaction rules and user preferences management ([2be08257](https://github.com/invistus/invistus/commit/2be08257))
+- **investment:** add investment management features and GraphQL schema updates ([88101ae1](https://github.com/invistus/invistus/commit/88101ae1))
+- **investment:** add investment account creation and transaction management ([db946f89](https://github.com/invistus/invistus/commit/db946f89))
+- **banking:** enhance import functionality and update GraphQL schema ([d474b793](https://github.com/invistus/invistus/commit/d474b793))
+- **banking:** enhance import job functionality and error handling ([c12d818c](https://github.com/invistus/invistus/commit/c12d818c))
+- **banking:** add GraphQL mutations and queries for financial account and transaction management ([677a5561](https://github.com/invistus/invistus/commit/677a5561))
+- **banking:** enhance financial account management with new types and GraphQL integration ([8a43b5ae](https://github.com/invistus/invistus/commit/8a43b5ae))
+
+### 💅 Refactors
+
+- **validators:** improve code readability and formatting in validation classes ([a449269b](https://github.com/invistus/invistus/commit/a449269b))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+- Marcos Salomão @salomax
+
 ## 0.4.3 (2026-03-02)
 
 ### 💅 Refactors

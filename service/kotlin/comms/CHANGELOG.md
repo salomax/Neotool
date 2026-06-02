@@ -1,3 +1,13 @@
+## 0.5.2 (2026-06-02)
+
+### 🚀 Features
+
+- **graphql:** introduce pending actions and holding maturity confirmation ([597e493a](https://github.com/invistus/invistus/commit/597e493a))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.5.1 (2026-03-02)
 
 ### 💅 Refactors

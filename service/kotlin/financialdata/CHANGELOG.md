@@ -1,3 +1,31 @@
+## 0.5.0 (2026-06-02)
+
+### 🚀 Features
+
+- **financialdata:** enhance test coverage and add new resolvers for financial data ([f14f68c6](https://github.com/invistus/invistus/commit/f14f68c6))
+- **investments:** implement Portfolio TWR Debug query for detailed performance analysis ([5f09d419](https://github.com/invistus/invistus/commit/5f09d419))
+- **investments:** enhance investment transaction and asset management ([f5447361](https://github.com/invistus/invistus/commit/f5447361))
+- **graphql:** enhance investment performance tracking with new portfolio features ([ae308595](https://github.com/invistus/invistus/commit/ae308595))
+- **graphql:** enhance investment portfolio management with cash tracking and manual registration ([f3da1d69](https://github.com/invistus/invistus/commit/f3da1d69))
+- **graphql:** update pending action types and schema definitions ([0cdf9134](https://github.com/invistus/invistus/commit/0cdf9134))
+- **graphql:** introduce holding performance metrics and capabilities ([14d07265](https://github.com/invistus/invistus/commit/14d07265))
+- **graphql:** enhance investment asset schema and market data handling ([29756c9b](https://github.com/invistus/invistus/commit/29756c9b))
+- **banking:** enhance investment schema and services for fund holdings ([993aeb2f](https://github.com/invistus/invistus/commit/993aeb2f))
+- **graphql:** add transaction filtering options to queries ([03aee92b](https://github.com/invistus/invistus/commit/03aee92b))
+- **financialdata:** add B3 investment asset queries and data structures ([ea1125cd](https://github.com/invistus/invistus/commit/ea1125cd))
+- **investment:** add Investment Funds GraphQL queries and schema updates ([a4028d49](https://github.com/invistus/invistus/commit/a4028d49))
+- **investment:** add investment management features and GraphQL schema updates ([88101ae1](https://github.com/invistus/invistus/commit/88101ae1))
+
+### 💅 Refactors
+
+- **validators:** improve code readability and formatting in validation classes ([a449269b](https://github.com/invistus/invistus/commit/a449269b))
+- **database:** remove obsolete indicator-related files and migrations ([4bf55d44](https://github.com/invistus/invistus/commit/4bf55d44))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+- Marcos Salomão @salomax
+
 ## 0.4.0 (2026-03-03)
 
 ### 🚀 Features

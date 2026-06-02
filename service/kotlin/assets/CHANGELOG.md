@@ -1,3 +1,18 @@
+## 0.3.4 (2026-06-02)
+
+### 🚀 Features
+
+- **user-profile:** enhance user account management features ([dab3883e](https://github.com/invistus/invistus/commit/dab3883e))
+- **banking:** add benefit account types and attachment functionality ([b4b84324](https://github.com/invistus/invistus/commit/b4b84324))
+- **banking:** enhance category management and auto-categorization features ([6df7ed8e](https://github.com/invistus/invistus/commit/6df7ed8e))
+- **banking:** enhance import functionality and update GraphQL schema ([d474b793](https://github.com/invistus/invistus/commit/d474b793))
+- **banking:** enhance import job functionality and error handling ([c12d818c](https://github.com/invistus/invistus/commit/c12d818c))
+- **banking:** add GraphQL mutations and queries for financial account and transaction management ([677a5561](https://github.com/invistus/invistus/commit/677a5561))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.3.3 (2026-03-02)
 
 ### 💅 Refactors
