@@ -195,6 +195,9 @@ open class DefaultPortfolioQuotaRepository(
         endYear: Int,
         endMonth: Int,
     ): PortfolioValueWindow {
+        val rangeStart = LocalDate.of(startYear, startMonth, 1)
+        val rangeEnd = LocalDate.of(endYear, endMonth, 1).plusMonths(1).minusDays(1)
+
         val accountsFilter =
             if (financialAccountId != null) {
                 """
@@ -222,7 +225,7 @@ open class DefaultPortfolioQuotaRepository(
                 JOIN accounts a ON a.id = q.financial_account_id
                 WHERE q.dimension_type = 'PORTFOLIO'
                   AND q.dimension_key = ''
-                  AND q.quota_date < make_date(:startYear, :startMonth, 1)
+                  AND q.quota_date < :rangeStart
                 ORDER BY q.financial_account_id, q.quota_date DESC
             ),
             closing AS (
@@ -233,7 +236,7 @@ open class DefaultPortfolioQuotaRepository(
                 JOIN accounts a ON a.id = q.financial_account_id
                 WHERE q.dimension_type = 'PORTFOLIO'
                   AND q.dimension_key = ''
-                  AND q.quota_date <= make_date(:endYear, :endMonth, 1) + INTERVAL '1 month' - INTERVAL '1 day'
+                  AND q.quota_date <= :rangeEnd
                 ORDER BY q.financial_account_id, q.quota_date DESC
             )
             SELECT
@@ -248,10 +251,8 @@ open class DefaultPortfolioQuotaRepository(
         if (financialAccountId != null) {
             query.setParameter("financialAccountId", financialAccountId.toString())
         }
-        query.setParameter("startYear", startYear)
-        query.setParameter("startMonth", startMonth)
-        query.setParameter("endYear", endYear)
-        query.setParameter("endMonth", endMonth)
+        query.setParameter("rangeStart", rangeStart)
+        query.setParameter("rangeEnd", rangeEnd)
 
         @Suppress("UNCHECKED_CAST")
         val row = query.singleResult as Array<Any?>

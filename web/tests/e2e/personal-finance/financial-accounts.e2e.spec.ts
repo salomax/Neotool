@@ -198,6 +198,7 @@ test.describe('Financial Accounts — happy path', () => {
     await pfPage.expectAccountInSelector(name);
     const created = await expectPersistedAccount(pfUser.token, (account) => account.name === name);
     await createSupportAccountForEdit(pfPage, 'Conta apoio H08');
+    await pfPage.selectAccount(name, created.id);
 
     const editDrawer = await pfPage.openEditAccountDrawer(name, created.id);
     await editDrawer.removeAccount();

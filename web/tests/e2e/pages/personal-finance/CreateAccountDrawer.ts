@@ -30,6 +30,14 @@ export class CreateAccountDrawer {
     return this.drawer.locator('.MuiDrawer-paper').first();
   }
 
+  /** Visible drawer paper — avoids matching a closed nested CreateFinancialAccountDrawer. */
+  private visibleDrawerPanel(): Locator {
+    return this.page
+      .locator('[data-testid="create-account-drawer"]:visible')
+      .locator('.MuiDrawer-paper')
+      .first();
+  }
+
   private submitButton(): Locator {
     return this.drawerPanel().getByTestId('account-form-submit');
   }
@@ -39,7 +47,7 @@ export class CreateAccountDrawer {
       .locator('[data-testid="account-delete-dialog"]:visible')
       .last()
       .getByRole('button', {
-        name: /remover conta|remove account|excluir conta|delete account|excluir|delete/i,
+        name: /^remover$|^remove account$|remover conta|excluir conta|delete account|excluir|delete/i,
       })
       .first();
   }
@@ -64,6 +72,14 @@ export class CreateAccountDrawer {
         { timeout: 30000 },
       )
       .toBe(true);
+  }
+
+  /** Waits until the drawer is open in edit mode (remove button is edit-only). */
+  async waitForEditMode(): Promise<void> {
+    await this.visibleDrawerPanel().getByTestId('account-form-remove').waitFor({
+      state: 'visible',
+      timeout: 15_000,
+    });
   }
 
   async waitForClose(): Promise<void> {
@@ -307,14 +323,15 @@ export class CreateAccountDrawer {
   }
 
   async clickRemoveAccount(): Promise<void> {
-    await this.waitForOpen();
+    await this.waitForEditMode();
+    const panel = this.visibleDrawerPanel();
     const confirmButton = this.visibleDeleteConfirmButton();
 
     for (let attempt = 0; attempt < 4; attempt++) {
       if (await confirmButton.isVisible().catch(() => false)) return;
 
-      const removeButton = this.drawer.getByTestId('account-form-remove').first();
-      await expect(removeButton).toBeVisible({ timeout: 10000 });
+      const removeButton = panel.getByTestId('account-form-remove');
+      await expect(removeButton).toBeVisible();
       await expect(removeButton).toBeEnabled();
       await removeButton.scrollIntoViewIfNeeded();
 
@@ -329,13 +346,6 @@ export class CreateAccountDrawer {
           el.click();
         });
       }
-
-      const drawerStillOpen = await this.drawerPanel()
-        .getByTestId('account-form-submit')
-        .first()
-        .isVisible()
-        .catch(() => false);
-      if (!drawerStillOpen) return;
 
       const opened = await confirmButton.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
       if (opened) return;

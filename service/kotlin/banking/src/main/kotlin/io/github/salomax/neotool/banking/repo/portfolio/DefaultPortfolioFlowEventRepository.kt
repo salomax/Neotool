@@ -56,6 +56,9 @@ open class DefaultPortfolioFlowEventRepository(
         endYear: Int,
         endMonth: Int,
     ): ContributionTotals {
+        val rangeStart = LocalDate.of(startYear, startMonth, 1)
+        val rangeEnd = LocalDate.of(endYear, endMonth, 1).plusMonths(1).minusDays(1)
+
         val accountScopeFilter =
             if (financialAccountId != null) {
                 """
@@ -88,8 +91,8 @@ open class DefaultPortfolioFlowEventRepository(
             FROM banking.investment_portfolio_flow_event e
             WHERE $accountScopeFilter
               AND e.related_holding_id IS NOT NULL
-              AND e.event_date >= make_date(:startYear, :startMonth, 1)
-              AND e.event_date <= make_date(:endYear, :endMonth, 1) + INTERVAL '1 month' - INTERVAL '1 day'
+              AND e.event_date >= :rangeStart
+              AND e.event_date <= :rangeEnd
             """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
@@ -97,10 +100,8 @@ open class DefaultPortfolioFlowEventRepository(
         if (financialAccountId != null) {
             query.setParameter("financialAccountId", financialAccountId.toString())
         }
-        query.setParameter("startYear", startYear)
-        query.setParameter("startMonth", startMonth)
-        query.setParameter("endYear", endYear)
-        query.setParameter("endMonth", endMonth)
+        query.setParameter("rangeStart", rangeStart)
+        query.setParameter("rangeEnd", rangeEnd)
 
         @Suppress("UNCHECKED_CAST")
         val row = query.singleResult as Array<Any?>

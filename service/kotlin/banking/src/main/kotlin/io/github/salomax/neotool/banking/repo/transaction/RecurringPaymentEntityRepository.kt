@@ -27,7 +27,7 @@ interface RecurringPaymentEntityRepository : JpaRepository<RecurringPaymentEntit
             SELECT * FROM banking.recurring_payments
              WHERE status = 'ACTIVE'
                AND deleted_at IS NULL
-               AND next_due_date <= (:referenceDate + (remind_days_before * INTERVAL '1 day'))
+               AND next_due_date - remind_days_before <= :referenceDate
         """,
         nativeQuery = true,
     )

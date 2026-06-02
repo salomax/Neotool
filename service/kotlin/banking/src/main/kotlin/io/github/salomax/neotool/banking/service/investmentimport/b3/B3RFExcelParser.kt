@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.service.investmentimport.b3
 
+import jakarta.inject.Singleton
 import org.apache.poi.ss.usermodel.Cell
 import org.apache.poi.ss.usermodel.CellType
 import org.apache.poi.ss.usermodel.DataFormatter
@@ -13,6 +14,7 @@ import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+@Singleton
 class B3RFExcelParser {
     fun parse(
         fileBytes: ByteArray,

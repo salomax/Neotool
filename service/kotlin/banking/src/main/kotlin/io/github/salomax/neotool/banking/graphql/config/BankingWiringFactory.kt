@@ -9,7 +9,15 @@ import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
+import io.github.salomax.neotool.banking.graphql.import.ImportResolver
+import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPeriod
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentResolver
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
 import io.github.salomax.neotool.banking.graphql.investmentimport.InvestmentImportResolver
+import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
+import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
+import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
 import io.github.salomax.neotool.banking.graphql.pendingaction.AccountPendingActionDTO
 import io.github.salomax.neotool.banking.graphql.pendingaction.PendingActionResolver

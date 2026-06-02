@@ -138,16 +138,12 @@ export class FinanceTransactionsPage {
             .locator('xpath=ancestor::*[@role="button"][1]');
       await accountRow.waitFor({ state: 'visible' });
       await accountRow.getByLabel(/editar|edit/i).click();
-      await this.createAccountDrawer.waitForOpen();
 
-      const removeVisible = await this.page
-        .getByTestId('create-account-drawer')
-        .getByTestId('account-form-remove')
-        .first()
-        .waitFor({ state: 'visible', timeout: 3000 })
+      const editReady = await this.createAccountDrawer
+        .waitForEditMode()
         .then(() => true)
         .catch(() => false);
-      if (removeVisible) {
+      if (editReady) {
         return this.createAccountDrawer;
       }
 
