@@ -43,6 +43,9 @@
       "ratings-job",
       "institution-enhancement-consumer",
       "pdf-extractor",
+      "cvm-funds-job",
+      "b3-cotahist-job",
+      "asset-brand-job",
       "neotool-web"
     ],
     "projectsRelationship": "independent",
