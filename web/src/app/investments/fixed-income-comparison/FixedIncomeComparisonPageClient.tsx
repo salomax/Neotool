@@ -15,6 +15,10 @@ import { FixedIncomeMethodologyCard } from "@/features/investments/fixed-income-
 import { FixedIncomeComparisonEmptyState } from "@/features/investments/fixed-income-comparison/components/FixedIncomeComparisonEmptyState";
 import type { FixedIncomeComparisonQuery } from "@/features/investments/fixed-income-comparison/api/queries.generated";
 
+/**
+ * Fixed Income Comparison page. Future (T4.5.1): when navigating from a specific
+ * holding context (e.g. portfolio table row), pre-fill simulation fields from that holding.
+ */
 export default function FixedIncomeComparisonPageClient() {
   const { t } = useTranslation(investmentsTranslations);
 

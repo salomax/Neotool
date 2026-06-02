@@ -17,6 +17,8 @@ import io.github.salomax.neotool.security.model.account.AccountType
 import io.github.salomax.neotool.security.model.account.MembershipStatus
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.AccountRepository
+import io.github.salomax.neotool.security.repo.GroupMembershipRepository
+import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
@@ -53,6 +55,8 @@ class AuthenticationServiceTest {
     private lateinit var principalRepository: PrincipalRepository
     private lateinit var accountRepository: AccountRepository
     private lateinit var accountMembershipRepository: AccountMembershipRepository
+    private lateinit var groupRepository: GroupRepository
+    private lateinit var groupMembershipRepository: GroupMembershipRepository
     private lateinit var jwtTokenIssuer: JwtTokenIssuer
     private lateinit var jwtTokenValidator: JwtTokenValidator
     private lateinit var refreshTokenService: RefreshTokenService
@@ -67,6 +71,8 @@ class AuthenticationServiceTest {
         principalRepository = mock()
         accountRepository = mock()
         accountMembershipRepository = mock()
+        groupRepository = mock()
+        groupMembershipRepository = mock()
         jwtTokenIssuer = mock()
         jwtTokenValidator = mock()
         refreshTokenService = mock()
@@ -95,6 +101,8 @@ class AuthenticationServiceTest {
                 principalRepository,
                 accountRepository,
                 accountMembershipRepository,
+                groupRepository,
+                groupMembershipRepository,
                 jwtTokenIssuer,
                 jwtTokenValidator,
                 emailService,

@@ -4,6 +4,7 @@ type User @key(fields: "id") {
   email: String!
   displayName: String
   avatarUrl: String
+  avatarProvider: String
   enabled: Boolean!
   emailVerified: Boolean!
   emailVerifiedAt: String
@@ -14,6 +15,49 @@ type User @key(fields: "id") {
   permissions: [Permission!]!
 }
 
+enum Language {
+  ENGLISH
+  PORTUGUESE
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+type UserPreferences {
+  language: Language!
+  theme: Theme!
+  blurBalances: Boolean!
+  firstDayOfWeek: Int!
+  keepMeConnected: Boolean!
+}
+
+input UpdateUserPreferencesInput {
+  language: Language
+  theme: Theme
+  blurBalances: Boolean
+  firstDayOfWeek: Int
+  keepMeConnected: Boolean
+}
+
+type Account {
+  id: ID!
+  accountName: String!
+  accountType: String!
+  accountStatus: String!
+  isOwner: Boolean!
+}
+
+input UpdateAccountInput {
+  accountName: String!
+}
+
+input UpdateUserAvatarInput {
+  avatarUrl: String!
+}
+
 # Query type for security operations
 extend type Query {
   # Authentication queries
@@ -22,6 +66,11 @@ extend type Query {
 
   # Authorization queries
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult!
+  isUserActiveMemberOfAccount(userId: ID!, accountId: ID!): Boolean!
+
+  """Current user's preferences (defaults when no row exists)."""
+  userPreferences: UserPreferences!
+  myAccounts: [Account!]!
 
   # Authorization management queries
   user(id: ID!): User
@@ -44,6 +93,11 @@ extend type Mutation {
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload!
   verifyEmailWithToken(token: String!): VerifyEmailPayload!
   resendVerificationEmail: ResendVerificationEmailPayload!
+
+  updateUserPreferences(input: UpdateUserPreferencesInput!): UserPreferences!
+  updateUserAvatar(input: UpdateUserAvatarInput!): User!
+  removeUserAvatar: User!
+  updateAccount(accountId: ID!, input: UpdateAccountInput!): Account!
 
   # Authorization management mutations
   enableUser(userId: ID!): User!
@@ -285,4 +339,3 @@ input RoleOrderByInput {
   field: RoleOrderField!
   direction: OrderDirection!
 }
-

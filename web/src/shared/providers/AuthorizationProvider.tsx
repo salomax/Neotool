@@ -8,6 +8,7 @@ import {
   type CurrentUserQuery,
   type CurrentUserQueryVariables,
 } from "@/lib/graphql/operations/auth/queries.generated";
+import { updateAuthUser } from "@/shared/utils/auth";
 
 export type Role = {
   id: string;
@@ -44,7 +45,7 @@ type AuthorizationProviderProps = {
 };
 
 export const AuthorizationProvider: React.FC<AuthorizationProviderProps> = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, setUser } = useAuth();
   const [permissions, setPermissions] = React.useState<Set<string>>(new Set());
   const [roles, setRoles] = React.useState<Role[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -69,6 +70,28 @@ export const AuthorizationProvider: React.FC<AuthorizationProviderProps> = ({ ch
 
     // If we have query data, use it (it has roles and permissions)
     if (data?.currentUser) {
+      const nextAvatarUrl = data.currentUser.avatarUrl ?? null;
+      const nextAvatarProvider = data.currentUser.avatarProvider ?? null;
+      const nextDisplayName = data.currentUser.displayName ?? null;
+      const nextEmail = data.currentUser.email;
+      const shouldSyncUser =
+        (user.avatarUrl ?? null) !== nextAvatarUrl ||
+        (user.avatarProvider ?? null) !== nextAvatarProvider ||
+        (user.displayName ?? null) !== nextDisplayName ||
+        user.email !== nextEmail;
+
+      if (shouldSyncUser) {
+        const mergedUser = {
+          ...user,
+          email: nextEmail,
+          displayName: nextDisplayName,
+          avatarUrl: nextAvatarUrl,
+          avatarProvider: nextAvatarProvider,
+        };
+        setUser(mergedUser);
+        updateAuthUser(mergedUser);
+      }
+
       const userPermissions = data.currentUser.permissions || [];
       const userRoles = data.currentUser.roles || [];
 
@@ -92,7 +115,7 @@ export const AuthorizationProvider: React.FC<AuthorizationProviderProps> = ({ ch
 
     // If no data available yet, keep loading
     setLoading(queryLoading);
-  }, [data, user, isAuthenticated, queryLoading]);
+  }, [data, user, isAuthenticated, queryLoading, setUser]);
 
   // Refresh authorization by refetching current user
   const refreshAuthorization = React.useCallback(async () => {

@@ -1,0 +1,47 @@
+package shared
+
+import (
+	"crypto/sha256"
+	"fmt"
+	"strings"
+)
+
+// ComputeHash returns the lowercase hex SHA-256 of data.
+func ComputeHash(data []byte) string {
+	h := sha256.Sum256(data)
+	return fmt.Sprintf("%x", h)
+}
+
+// ComputeFundHash produces a deterministic hash of a fund's mutable catalog fields.
+// Uses a pipe-delimited canonical string with fields in alphabetical key order.
+// This avoids the map/sort/json.Marshal allocations of the previous implementation
+// in the hot per-row loop (~500k rows per catalog import).
+//
+// Field order (alphabetical by key): classe|cnpj|is_active|manager|name|tipo_fundo
+func ComputeFundHash(cnpj, name, classe, tipoFundo, manager string, isActive bool) string {
+	canonical := fmt.Sprintf("%s|%s|%t|%s|%s|%s",
+		normStr(classe),
+		normStr(cnpj),
+		isActive,
+		normStr(manager),
+		normStr(name),
+		normStr(tipoFundo),
+	)
+	return ComputeHash([]byte(canonical))
+}
+
+// ComputeNavHash produces a deterministic hash for one NAV price row.
+// Re-downloading the same monthly file produces identical hashes → DB update skipped.
+func ComputeNavHash(cnpj, navDate string, navPerQuota float64) string {
+	canonical := fmt.Sprintf("%s|%s|%.8f", normStr(cnpj), navDate, navPerQuota)
+	return ComputeHash([]byte(canonical))
+}
+
+// normStr trims whitespace and normalises the string "null" → "".
+func normStr(s string) string {
+	s = strings.TrimSpace(s)
+	if strings.EqualFold(s, "null") {
+		return ""
+	}
+	return s
+}

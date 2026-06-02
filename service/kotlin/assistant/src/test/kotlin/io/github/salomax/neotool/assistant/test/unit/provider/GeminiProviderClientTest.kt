@@ -213,6 +213,49 @@ class GeminiProviderClientTest {
         }
     }
 
+    @Test
+    fun `complete maps delayed read timeout to TIMEOUT`() {
+        val responseBody =
+            """
+            {
+              "responseId": "gemini-timeout-1",
+              "candidates": [
+                {
+                  "finishReason": "STOP",
+                  "content": {
+                    "parts": [{ "text": "late response" }]
+                  }
+                }
+              ]
+            }
+            """.trimIndent()
+
+        withGeminiServer(statusCode = 200, responseBody = responseBody, responseDelayMs = 300L) { baseUrl, _ ->
+            val client =
+                GeminiProviderClient(
+                    config =
+                        GeminiProviderConfig(
+                            baseUrl = baseUrl,
+                            apiKey = "test-api-key",
+                            generateContentPath = "/v1beta/models/{model}:generateContent",
+                            requestTimeoutMs = 100,
+                            userAgent = "assistant-test/1.0",
+                        ),
+                    geminiMapper = mapper,
+                )
+            try {
+                assertThatThrownBy {
+                    runBlocking { client.complete(minimalRequest()) }
+                }
+                    .isInstanceOfSatisfying(ProviderClientException::class.java) { exception ->
+                        assertThat(exception.errorType).isEqualTo(ErrorType.TIMEOUT)
+                    }
+            } finally {
+                client.close()
+            }
+        }
+    }
+
     private fun newClient(baseUrl: String): GeminiProviderClient {
         return GeminiProviderClient(
             config =
@@ -240,13 +283,14 @@ class GeminiProviderClientTest {
     private fun withGeminiServer(
         statusCode: Int,
         responseBody: String,
+        responseDelayMs: Long = 0L,
         block: (baseUrl: String, captured: CapturedRequest) -> Unit,
     ) {
         val captured = CapturedRequest()
         val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
 
         server.createContext("/v1beta/models/gemini-2.5-flash:generateContent") { exchange ->
-            handle(exchange, statusCode, responseBody, captured)
+            handle(exchange, statusCode, responseBody, captured, responseDelayMs)
         }
 
         server.start()
@@ -264,9 +308,13 @@ class GeminiProviderClientTest {
         statusCode: Int,
         responseBody: String,
         captured: CapturedRequest,
+        responseDelayMs: Long,
     ) {
         captured.apiKeyHeader.set(exchange.requestHeaders.getFirst("x-goog-api-key"))
         captured.userAgent.set(exchange.requestHeaders.getFirst("User-Agent"))
+        if (responseDelayMs > 0) {
+            Thread.sleep(responseDelayMs)
+        }
 
         val responseBytes = responseBody.toByteArray(Charsets.UTF_8)
         exchange.responseHeaders.add("Content-Type", "application/json")

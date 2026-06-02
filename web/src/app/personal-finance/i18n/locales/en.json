@@ -1,10 +1,2231 @@
 {
   "title": "Personal Finance",
+  "investments": {
+    "sidebar": {
+      "allBrokers": "All brokers",
+      "consolidatedView": "CONSOLIDATED VIEW",
+      "summaryTitle": "CONSOLIDATED VIEW",
+      "totalLabel": "Total portfolio",
+      "metrics": {
+        "contributions": "Contributions",
+        "returns": "Returns"
+      },
+      "allocation": "ALLOCATION"
+    },
+    "emptyState": {
+      "title": "Your investment portfolio is empty",
+      "description": "Start organizing your assets to get a complete view of your returns and wealth growth. Track stocks, funds, treasury bonds and much more in one place.",
+      "primaryAction": "Create investment account",
+      "secondaryAction": "Register first asset"
+    },
+    "trackableAssets": {
+      "title": "ASSETS YOU CAN TRACK",
+      "crypto": "Crypto",
+      "reits": "REITs",
+      "stocks": "Stocks",
+      "fixedIncome": "Fixed income",
+      "funds": "Funds"
+    },
+    "actions": {
+      "recordHolding": "Investment",
+      "recordFund": "Record fund",
+      "recordEquity": "Record stock / FII"
+    },
+    "import": {
+      "pageButton": "Import positions (B3)",
+      "drawer": {
+        "titleUpload": "Import positions (B3)",
+        "titlePreview": "Review positions",
+        "titleResult": "Import completed",
+        "titleError": "Import error",
+        "uploadHint": "Drag or select the .xlsx file exported from B3.",
+        "dragDrop": "Drag the .xlsx file or click to select",
+        "dragDropSubtitle": "Only .xlsx files, up to 10 MB",
+        "submitUpload": "Upload file",
+        "submittingUpload": "Uploading...",
+        "onlyXlsx": "Unsupported format. Upload a .xlsx file exported from B3.",
+        "maxSize": "File is too large. Limit: 10 MB.",
+        "genericError": "Could not complete the import.",
+        "retry": "Try again",
+        "close": "Close",
+        "confirming": "Confirming import...",
+        "successMessage": "Import completed! {{count}} positions imported successfully.",
+        "accountSectionTitle": "Investment account by institution",
+        "accountAmbiguousHint": "Multiple matching accounts. Select the correct account.",
+        "columns": {
+          "status": "Status",
+          "product": "Product",
+          "indexer": "Indexer",
+          "issueDate": "Issue date",
+          "maturityDate": "Maturity",
+          "principal": "Principal",
+          "skip": "Skip"
+        },
+        "conflictTitle": "Conflict detected",
+        "conflictQuantity": "Quantity",
+        "conflictCurrentValue": "Current value",
+        "conflictMaturity": "Maturity",
+        "conflictUpdate": "Update position",
+        "conflictKeep": "Keep existing",
+        "missingPrincipal": "missing principal",
+        "unresolvedConflicts": "unresolved conflicts",
+        "confirmPositions": "Confirm {{count}} positions"
+      }
+    },
+    "grid": {
+      "emptyDescription": "No position registered",
+      "firstInvestmentCta": "+ Investment",
+      "addMovementCta": "+ Movement",
+      "movimentar": "Move cash",
+      "backToGrid": "Back to grid view",
+      "openClassDetail": "Open details for {{title}}",
+      "assetCount_one": "1 Asset",
+      "assetCount_other": "{{count}} Assets",
+      "classes": {
+        "cash": "Cash",
+        "fixedIncome": "Fixed income",
+        "funds": "Funds",
+        "stocks": "Stocks",
+        "reits": "REITs",
+        "crypto": "Crypto"
+      },
+      "actions": {
+        "contributeCash": "Contribute"
+      },
+      "loadError": {
+        "description": "We couldn't load your portfolio. Check your connection and try again."
+      },
+      "tabs": {
+        "ariaLabel": "Investment asset classes",
+        "grid": "Grid"
+      },
+      "recordPopover": {
+        "ariaLabel": "Select what to record"
+      }
+    },
+    "transactions": {
+      "buy": "Buy",
+      "sell": "Sell",
+      "apply": "Apply",
+      "redeem": "Redeem"
+    },
+    "newHoldingFlow": {
+      "selectFundTitle": "Choose fund",
+      "selectStockTitle": "Choose stock",
+      "selectReitTitle": "Choose REIT",
+      "selectCryptoTitle": "Choose crypto",
+      "selectFundSubtitle": "Search a CVM-listed fund or enter an unlisted fund, then continue to trade details.",
+      "selectEquitySubtitle": "Search by ticker or name, then continue to trade details.",
+      "selectCryptoSubtitle": "Enter the asset name, ticker, and optional network, then continue to trade details.",
+      "continue": "Continue",
+      "changeAsset": "Change",
+      "identityLabel": "Selected asset",
+      "recentSuggestions": "Last selected"
+    },
+    "updateHolding": {
+      "direction": {
+        "inflow": "Add",
+        "outflow": "Withdraw",
+        "inflowEquity": "Buy",
+        "outflowEquity": "Sell"
+      },
+      "titles": {
+        "buy": "Buy {{asset}}",
+        "sell": "Sell {{asset}}",
+        "contribute": "Add to {{asset}}",
+        "redeem": "Withdraw from {{asset}}",
+        "edit": "Edit transaction — {{asset}}"
+      },
+      "loadingTitle": "Loading holding",
+      "errorTitle": "Could not open holding",
+      "errorHoldingNotFound": "Holding not found.",
+      "success": "Operation recorded successfully.",
+      "successEdit": "Operation updated successfully.",
+      "contextSection": "Asset details",
+      "currentPosition": "Current position: {{qty}} {{unit}}",
+      "quantityExceeds": "Quantity is higher than the current position of {{qty}} {{unit}}",
+      "submitting": "Saving...",
+      "saveChanges": "Save changes",
+      "openDetailAriaLabel": "Open holding details",
+      "summary": {
+        "current": "Current position",
+        "afterOperation": "After this operation",
+        "value": "Value",
+        "quantity": "Quantity",
+        "netValue": "Net value"
+      },
+      "units": {
+        "securities": "securities",
+        "quotas": "quotas",
+        "stocks": "shares",
+        "units": "units"
+      },
+      "sections": {
+        "dates": "Dates",
+        "amounts": "Amounts",
+        "trade": "Quantities",
+        "pricing": "Pricing",
+        "taxes": "Taxes and fees",
+        "purchaseFees": "Purchase fees",
+        "saleFees": "Sale fees"
+      },
+      "context": {
+        "ticker": "Ticker",
+        "currentQuantity": "Current quantity",
+        "averageCost": "Average cost",
+        "indexer": "Indexer",
+        "maturityDate": "Maturity date",
+        "couponFrequency": "Coupon frequency",
+        "taxExempt": "Tax treatment",
+        "pricingMode": "Pricing mode"
+      },
+      "fields": {
+        "tradeDate": "Trade date",
+        "tradeDateInflow": "Contribution date",
+        "tradeDateOutflow": "Withdrawal date",
+        "tradeDateApply": "Application date",
+        "settlementDate": "Settlement date",
+        "grossValue": "Gross value",
+        "grossValueApplied": "Applied amount",
+        "grossValueRedeem": "Gross redemption value",
+        "netValue": "Net value",
+        "quantity": "Quantity",
+        "quantityOf": "Quantity of {{unit}}",
+        "unitPrice": "Unit price",
+        "salePrice": "Sale price",
+        "incomeTax": "Withheld income tax",
+        "iof": "IOF",
+        "brokerageFee": "Brokerage",
+        "settlementFee": "Settlement fee",
+        "otherFees": "Other fees",
+        "withholdingTax": "Withholding tax",
+        "valuedAt": "Valuation date"
+      },
+      "validation": {
+        "tradeDateRequired": "Enter the trade date",
+        "settlementDateRequired": "Enter the settlement date",
+        "grossValueRequired": "Enter the gross value",
+        "netValueRequired": "Enter the net value",
+        "unitPriceRequired": "Enter the unit price",
+        "quantityRequired": "Enter the quantity",
+        "integerQuantityRequired": "Quantity must be an integer",
+        "cryptoPrecision": "Quantity must have at most 8 decimal places",
+        "settlementOnOrAfterTrade": "The settlement date must be on or after the trade date.",
+        "settlementNotInFuture": "The settlement date cannot be after today.",
+        "settlementMaxOneYearFromTrade": "The settlement date must be at most 1 year after the trade date."
+      }
+    },
+    "record": {
+      "cash": "Cash in account"
+    },
+    "summary": {
+      "totalPortfolio": "Total portfolio",
+      "grossGain": "Accumulated gain",
+      "totalInvested": "Total invested",
+      "totalContributed": "Total contributed",
+      "cashBalance": "Available cash",
+      "estimated": "estimated",
+      "allocation": "Allocation",
+      "viewAllGroups": "View all groups",
+      "performance": {
+        "title": "Performance",
+        "portfolioReturn": "Portfolio return",
+        "period": {
+          "MTD": "This month",
+          "YTD": "This year",
+          "ONE_YEAR": "1 year",
+          "THREE_YEARS": "3 years",
+          "ALL": "Since inception"
+        },
+        "absolute": "Current value gain",
+        "recalculating": "Recalculating performance history...",
+        "recalculatingDetail": "Return and comparisons will update in a few moments."
+      },
+      "drawer": {
+        "title": "Asset groups"
+      },
+      "error": {
+        "title": "We couldn't calculate the summary",
+        "description": "Check your connection and try again.",
+        "retry": "Retry"
+      }
+    },
+    "cash": {
+      "cardTitle": "Available cash",
+      "cardPreviewCaption": "Recent movements",
+      "cardSecondaryLabel": "Context",
+      "viewAll": "View movements",
+      "negativeBalanceHint": "Cash balance is negative. Review entries and adjustments.",
+      "registerAsBalanceAdjustment": "Record as balance adjustment",
+      "balanceAdjustmentHint": "A balance adjustment corrects the current cash balance without creating a transfer between accounts. Use a normal movement for real deposits and withdrawals.",
+      "peerAccount": "Counterpart account (bank or brokerage)",
+      "peerAccountNone": "No linked account",
+      "peerAccountNoMatch": "No matching accounts",
+      "successPaired": "Transfer recorded on both accounts",
+      "drawer": {
+        "title": "Cash in account",
+        "selectAccount": {
+          "description": "Choose the investment account where this cash movement will be recorded.",
+          "emptyState": "No investment accounts available."
+        }
+      },
+      "movementTypeLabel": "Movement type",
+      "adjustmentDirectionLabel": "Adjustment direction",
+      "type": {
+        "deposit": "Deposit",
+        "withdrawal": "Withdrawal",
+        "adjustment": "Balance adjustment"
+      },
+      "adjustmentDirection": {
+        "credit": "Increase balance",
+        "debit": "Decrease balance"
+      },
+      "amount": "Amount",
+      "date": "Date",
+      "description": "Description",
+      "descriptionAdjustment": "Reason for adjustment",
+      "validation": {
+        "amountPositive": "Enter an amount greater than zero.",
+        "descriptionRequired": "Please describe the reason for this adjustment.",
+        "descriptionRequiredAdjustment": "Please describe the reason for this adjustment.",
+        "dateNotInFuture": "The date cannot be in the future."
+      },
+      "actions": {
+        "submit": "Save",
+        "submitting": "Saving..."
+      },
+      "success": "Cash movement saved",
+      "movements": {
+        "columns": {
+          "date": "Date",
+          "description": "Description",
+          "kind": "Type",
+          "financialAccount": "Brokerage",
+          "amount": "Amount"
+        },
+        "kind": {
+          "adjustment": "Balance adjustment",
+          "return": "Income / distribution",
+          "transferIn": "In (transfer)",
+          "transferOut": "Out (transfer)"
+        },
+        "empty": "No cash movements yet.",
+        "loadError": "Could not load movements.",
+        "loadMore": "Load more",
+        "linkedToAsset": "Asset linked to this movement",
+        "linkedAssetResolving": "Identifying asset…",
+        "linkedAssetUnknown": "Linked asset could not be identified.",
+        "detailTitle": "Movement details",
+        "editTitle": "Edit movement",
+        "deleteConfirmation": {
+          "title": "Delete this movement?",
+          "message": "This removes the entry on this investment account and any linked transfer leg. This cannot be undone."
+        },
+        "successUpdated": "Movement updated",
+        "successDeleted": "Movement deleted"
+      }
+    },
+    "pendingActions": {
+      "panelTitle": "Pending actions",
+      "registerMaturity": "Record maturity",
+      "registerCoupon": "Record coupon",
+      "markSeen": "Mark as seen",
+      "dismiss": "Dismiss",
+      "viewAccount": "View account",
+      "age": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "days": "{{count}} days"
+      },
+      "types": {
+        "INVESTMENT_MATURED": "Maturity",
+        "COUPON_PAYMENT_DUE": "Coupon",
+        "RECURRING_PAYMENT_DUE": "Recurring",
+        "BANK_ACCOUNT_NEGATIVE_BALANCE": "Negative balance"
+      },
+      "descriptions": {
+        "investmentMatured": "Investment matured — record the redemption.",
+        "maturityOn": "Matured on {{date}} — record the redemption.",
+        "couponDue": "Coupon payment pending.",
+        "couponOn": "Coupon on {{date}} — record the receipt.",
+        "recurringDueOn": "Due on {{date}}.",
+        "negativeBalance": "The account balance went negative after a transfer."
+      },
+      "couponDrawer": {
+        "irRateHint": "Estimated rate: {{rate}} (regressive table)",
+        "taxExempt": "Tax exempt"
+      },
+      "emptyTitle": "No pending actions",
+      "emptyDescription": "You're all caught up.",
+      "informational": "Informational",
+      "maturityDrawer": {
+        "closePositionTitle": "Close position",
+        "step1Title": "Confirm maturity",
+        "step2Title": "Credit to bank account",
+        "step2Hint": "Was the net amount credited to an account?",
+        "confirmContinue": "Close",
+        "registerCredit": "Record credit",
+        "skipCredit": "Skip",
+        "cancel": "Cancel",
+        "grossValue": "Gross value",
+        "netValue": "Net value",
+        "incomeTax": "Income tax",
+        "iof": "IOF",
+        "maturityDate": "Maturity date",
+        "closeReason": "Close reason",
+        "closeReasons": {
+          "Matured": "Matured",
+          "RedeemedEarly": "Redeemed early",
+          "Transferred": "Transferred",
+          "MATURED": "Matured",
+          "REDEEMED_EARLY": "Redeemed early",
+          "TRANSFERRED": "Transferred"
+        },
+        "bankAccount": "Bank account",
+        "missingHoldingAccount": "Investment account not found.",
+        "creditNetValueToAccount": "Credit amount to account",
+        "creditDestination": "Credit destination",
+        "creditDate": "Credit date",
+        "amountMustBePositive": "Amount must be greater than zero.",
+        "submitClose": "Close",
+        "back": "Back"
+      }
+    },
+    "withholdingTax": {
+      "drawerTitle": "Record come-cotas",
+      "submit": "Record come-cotas",
+      "form": {
+        "tradeDate": "Come-cotas date",
+        "irValue": "Withheld tax (BRL)",
+        "quotasDeducted": "Redeemed quotas",
+        "estimatedQuotasHint": "≈ {{value}} quotas will be redeemed by the fund"
+      },
+      "success": "Come-cotas recorded successfully",
+      "validation": {
+        "irPositive": "Tax amount must be positive",
+        "quotasPositive": "Redeemed quotas must be positive",
+        "quotasMax": "Redeemed quotas cannot exceed current holding quantity"
+      }
+    },
+    "amortization": {
+      "drawerTitle": "Record amortization",
+      "submit": "Record amortization",
+      "success": "Amortization recorded successfully",
+      "form": {
+        "tradeDate": "Payment date",
+        "grossValue": "Gross value",
+        "netValue": "Net value",
+        "incomeTax": "Withheld tax",
+        "iof": "IOF",
+        "destinationAccount": "Credit to account",
+        "noDestinationAccount": "Skip for now"
+      },
+      "validation": {
+        "grossPositive": "Gross value must be positive",
+        "netMin": "Net value must be >= 0",
+        "netMax": "Net value cannot exceed gross value"
+      }
+    },
+    "stockLending": {
+      "drawerTitle": "Record stock lending (BTC B3)",
+      "submit": "Record lending income",
+      "success": "Lending income recorded successfully",
+      "form": {
+        "tradeDate": "Payment date",
+        "grossValue": "Gross value",
+        "netValue": "Net value",
+        "incomeTax": "Withheld tax",
+        "destinationAccount": "Credit to account",
+        "noDestinationAccount": "Skip for now"
+      },
+      "validation": {
+        "grossPositive": "Gross value must be positive",
+        "netMin": "Net value must be >= 0",
+        "netMax": "Net value cannot exceed gross value"
+      }
+    },
+    "transferCustody": {
+      "drawerTitle": "Transfer custody",
+      "submit": "Transfer",
+      "success": "Transfer recorded successfully",
+      "form": {
+        "tradeDate": "Transfer date",
+        "destinationAccount": "Destination account",
+        "noDestinationAccountAvailable": "No other account available",
+        "fullTransferToggle": "Transfer full position",
+        "quantity": "Quantity to transfer",
+        "quantityHint": "Current position: {{quantity}} units"
+      },
+      "validation": {
+        "destinationRequired": "Select a destination account",
+        "quantityPositive": "Quantity must be positive",
+        "quantityMax": "Quantity exceeds current position"
+      }
+    },
+    "assetTypes": {
+      "STOCK": "Stocks",
+      "STOCK_RIGHTS": "Stock rights",
+      "BDR": "BDRs",
+      "REAL_ESTATE_FUND": "Real estate funds (FII)",
+      "AGRIBUSINESS_FUND": "Agribusiness funds (FIAGRO)",
+      "ETF": "Equity ETFs",
+      "ETF_FIXED_INCOME": "Fixed income ETFs",
+      "ETF_INTERNATIONAL": "International ETFs",
+      "CDB": "CDB",
+      "RDB": "RDB",
+      "LCI": "LCI",
+      "LCA": "LCA",
+      "LC": "LC",
+      "LF": "LF",
+      "LIG": "LIG",
+      "DEBENTURES": "Debentures",
+      "CRI": "CRI",
+      "CRA": "CRA",
+      "TREASURY": "Treasury Direct",
+      "MUTUAL_FUND": "Mutual fund",
+      "PGBL": "PGBL",
+      "VGBL": "VGBL",
+      "COE": "COE",
+      "CRYPTO": "Crypto",
+      "OPTION": "Options",
+      "DERIVATIVES": "Derivatives",
+      "OTHER": "Other"
+    },
+    "assetGroups": {
+      "fixedIncome": "Fixed income",
+      "variableIncome": "Variable income",
+      "mutualFunds": "Investment funds",
+      "pension": "Pension",
+      "structured": "Structured",
+      "others": "Others"
+    },
+    "createAccount": {
+      "title": "Create investment account",
+      "fields": {
+        "subtypeLabel": "Account type",
+        "issuerLabel": "Broker / Institution",
+        "issuerPlaceholder": "Search by name...",
+        "customIssuerLabel": "Institution name",
+        "accountNameLabel": "Account name",
+        "accountNamePlaceholder": "e.g. My XP Portfolio"
+      },
+      "subtypes": {
+        "BROKERAGE": "Brokerage",
+        "FIXED_INCOME": "Fixed Income",
+        "PENSION": "Pension",
+        "CRYPTO": "Crypto",
+        "FGTS": "FGTS",
+        "INSS": "INSS"
+      },
+      "validation": {
+        "subtypeRequired": "Account type is required",
+        "issuerRequired": "Please enter a broker or institution name"
+      },
+      "actions": {
+        "submit": "Save",
+        "submitting": "Saving...",
+        "cancel": "Cancel"
+      },
+      "success": "Investment account created successfully"
+    },
+    "table": {
+      "columns": {
+        "asset": "Asset",
+        "type": "Type",
+        "index": "Index",
+        "financialAccount": "Financial account",
+        "quantity": "Quantity",
+        "averagePrice": "Average price",
+        "latestPrice": "Latest price",
+        "priceD1": "Price D+1",
+        "currentValue": "Current value",
+        "indexer": "Indexer",
+        "fundQuantity": "Fund units",
+        "grossValue": "Gross value",
+        "maturityDate": "Maturity",
+        "gain": "Gain/Loss"
+      },
+      "searchPlaceholder": "Search holdings...",
+      "actions": {
+        "clearSearchAriaLabel": "Clear search"
+      },
+      "cashInAccount": "Cash in account",
+      "noMatches": "No holdings match your search.",
+      "valuationTooltip": {
+        "CALCULATED": "Value calculated from indicators and fixed income rules.",
+        "ESTIMATED": "Estimated value. Reference: {{date}}.",
+        "MANUAL": "User-entered current value. Reference: {{date}}.",
+        "MARKET_DATA": "Value priced from CVM NAV. IR, IOF, and come-cotas are estimated. Reference: {{date}}.",
+        "UNAVAILABLE": "Value unavailable."
+      },
+      "valueSource": {
+        "MANUAL": "Manual value",
+        "MARKET_DATA": "CVM NAV",
+        "PROVIDER": "Integration"
+      },
+      "valueOrigin": {
+        "ariaLabel": "Value origin",
+        "labels": {
+          "calculado_app": "The value may be approximate",
+          "estimado_app": "The value may be approximate",
+          "mercado_app": "The value may be approximate",
+          "manual": "Entered manually",
+          "sincronizado_provider": "Synced with provider",
+          "importado": "Imported",
+          "externo": "External",
+          "indisponivel": "Unavailable"
+        },
+        "descriptions": {
+          "calculado_app": "Value calculated by the app based on the investment terms.",
+          "estimado_app": "Estimated value calculated by the app based on the investment terms and economic indicators.",
+          "mercado_app": "Value calculated by the app based on market data.",
+          "manual": "Value entered manually.",
+          "sincronizado_provider": "Value sent by the institution or connected provider.",
+          "importado": "Value imported from a file.",
+          "externo": "Value sent by an external source.",
+          "indisponivel": "We couldn't determine the current value of this investment."
+        }
+      },
+      "latestPriceInfo": {
+        "ariaLabel": "Latest price date",
+        "title": "Price as of {{date}}"
+      },
+      "expiredBadge": "Expired",
+      "maturityPendingBadge": "Maturity pending",
+      "expiredNudge": "This asset expired on {{maturityDate}}. Update or remove it.",
+      "groupTotalEstimated": "Part of this total uses estimated valuation or tax data.",
+      "total": "Total",
+      "groupSummary_one": "{{count}} asset · {{total}}",
+      "groupSummary_other": "{{count}} assets · {{total}}",
+      "rowActions": {
+        "ariaLabel": "Holding actions",
+        "viewDetails": "View details",
+        "viewEvents": "View events",
+        "viewCurrentPosition": "View",
+        "editMovement": "Edit transactions",
+        "recordWithholdingTax": "Record come-cotas",
+        "recordAmortization": "Record amortization",
+        "recordStockLending": "Record stock lending",
+        "transferCustody": "Transfer custody",
+        "edit": "Edit",
+        "remove": "Remove"
+      },
+      "groups": {
+        "variableIncome": "Variable income",
+        "variableIncomeB3": "Variable income (B3)",
+        "fixedIncome": "Fixed income",
+        "bankFixedIncome": "Fixed income",
+        "creditFixedIncome": "Credit fixed income",
+        "treasuryDirect": "Treasury Direct",
+        "mutualFunds": "Investment funds",
+        "pension": "Pension",
+        "structured": "Structured",
+        "others": "Others",
+        "cash": "Cash"
+      },
+      "emptyState": "No holdings recorded in this account",
+      "recordFirstHolding": "Record first holding",
+      "error": "Failed to load investments"
+    },
+    "eventSelector": {
+      "title": "Select event",
+      "empty": {
+        "title": "No recorded events",
+        "description": "No events were found for this position."
+      },
+      "notEditable": "Synced — not editable"
+    },
+    "transactionTypes": {
+      "AMORTIZATION": "Amortization",
+      "APPLICATION": "Application",
+      "BALANCE_ADJUSTMENT": "Balance adjustment",
+      "BONUS": "Bonus",
+      "BONUS_SHARES": "Bonus shares",
+      "CANCELLATION": "Cancellation",
+      "CUSTODY_TRANSFER": "Custody transfer",
+      "DIVIDEND": "Dividend",
+      "FINE": "Fine",
+      "INCOME": "Income",
+      "INPLIT": "Reverse split",
+      "INTEREST_ON_EQUITY": "Interest on equity",
+      "INTEREST_PAYMENT": "Interest / Coupon",
+      "JCP": "Interest on equity",
+      "MATURITY": "Maturity",
+      "OWNERSHIP_TRANSFER": "Ownership transfer",
+      "PRIZE": "Prize",
+      "PURCHASE": "Purchase",
+      "QUOTA_TRANSFER": "Unit transfer",
+      "REDEMPTION": "Redemption",
+      "SALE": "Sale",
+      "SPLIT": "Split",
+      "STOCK_LENDING": "Stock lending",
+      "STOCK_SPLIT": "Stock split",
+      "SUBSCRIPTION": "Subscription",
+      "SUBSCRIPTION_RIGHT": "Subscription right",
+      "TRANSFER": "Transfer",
+      "WITHHOLDING_TAX": "Withholding tax"
+    },
+    "detailDrawer": {
+      "title": "Investment details",
+      "comingSoonTitle": "Details coming soon",
+      "comingSoonDescription": "Full details for this investment type will be added in the next steps.",
+      "errorTitle": "We couldn't load this asset",
+      "emptyTitle": "Asset unavailable",
+      "emptyDescription": "We couldn't load the details for this position.",
+      "netValue": "Net total",
+      "common": {
+        "notAvailable": "—"
+      },
+      "fund": {
+        "pricingModeLabel": "Pricing mode",
+        "latestNavLabel": "Latest NAV",
+        "referenceDate": "Ref.: {{date}}"
+      },
+      "priceReference": {
+        "labelWithDate": "{{label}} ({{date}})",
+        "descriptors": {
+          "unitPrice": "Unit price",
+          "cryptoPrice": "Crypto price",
+          "fiiQuotaPrice": "FII quota price",
+          "quotaValue": "Quota value"
+        }
+      },
+      "indexers": {
+        "Cdi": "CDI",
+        "Di": "DI",
+        "Ipca": "IPCA+",
+        "IgpM": "IGP-M",
+        "IgpDi": "IGP-DI",
+        "Inpc": "INPC",
+        "Tr": "TR",
+        "Selic": "SELIC",
+        "PreFixado": "Fixed rate",
+        "Outros": "Other",
+        "withPercentage": "{{label}} {{percentage}}%",
+        "fixedAnnualRate": "{{rate}}% p.a."
+      },
+      "grid": {
+        "quantityUnits": "Units",
+        "quantityQuotas": "Quotas",
+        "quantitySecurities": "Securities",
+        "principal": "Principal",
+        "grossTotal": "Gross total",
+        "netTotal": "Net total",
+        "grossEarnings": "Gross earnings",
+        "totalReturn": "Total return",
+        "totalGain": "Total gain",
+        "couponsReceivedNet": "Coupons received (net)",
+        "dividendsReceived": "Income received",
+        "incomeTax": "Income tax",
+        "iof": "IOF",
+        "netEarnings": "Net earnings"
+      },
+      "metrics": {
+        "principal": "Invested principal",
+        "currentCostBasis": "Current cost basis",
+        "grossValue": "Gross value",
+        "netValue": "Net value",
+        "incomeTax": "Income tax",
+        "iof": "IOF",
+        "grossGain": "Gross gain",
+        "grossGainPercent": "Gross return"
+      },
+      "performance": {
+        "xirr": "Annualized IRR",
+        "since": "Since"
+      },
+      "actions": {
+        "moreActions": "More actions"
+      },
+      "transactions": {
+        "tabs": {
+          "summary": "Summary",
+          "transactions": "Transactions"
+        },
+        "add": "New transaction",
+        "emptyTitle": "No transactions yet",
+        "emptyDescription": "Record the first transaction for this holding.",
+        "tableAriaLabel": "Transactions for this holding",
+        "columns": {
+          "date": "Date",
+          "direction": "Movement",
+          "quantity": "Quantity",
+          "unitPrice": "Unit price",
+          "value": "Value",
+          "actions": "Actions"
+        },
+        "editTransaction": "Edit transaction",
+        "deleteTransaction": "Delete transaction"
+      },
+      "chart": {
+        "title": "Investment progression",
+        "emptyTitle": "No history available",
+        "emptyDescription": "There are not enough points yet to build this position's progression.",
+        "principalLabel": "Invested principal",
+        "grossLabel": "Gross value",
+        "netLabel": "Net value",
+        "couponTotalWealthNote": "For coupon bonds, this chart includes position value plus net coupons already received.",
+        "period": {
+          "1M": "1M",
+          "3M": "3M",
+          "6M": "6M",
+          "1A": "1Y",
+          "2A": "2Y",
+          "ALL": "All"
+        },
+        "modes": {
+          "actual": "Current",
+          "projected": "Include projection until maturity"
+        },
+        "partialMonthChip": "Partial through {{throughDate}}"
+      },
+      "dates": {
+        "elapsedTitle": "Time elapsed",
+        "elapsedValue_one": "1 month passed",
+        "elapsedValue_other": "{{count}} months passed",
+        "remainingTitle": "Time remaining",
+        "remainingValue_one": "1 month left",
+        "remainingValue_other": "{{count}} months left"
+      },
+      "taxExempt": {
+        "yes": "Tax exempt",
+        "no": "Taxable"
+      },
+      "status": {
+        "expired": "Expired"
+      },
+      "terms": {
+        "title": "Investment terms",
+        "issueDate": "Issue date",
+        "gracePeriodDate": "Grace period",
+        "maturityDate": "Maturity",
+        "indexer": "Indexer"
+      },
+      "timeline": {
+        "title": "Timeline",
+        "emptyTitle": "No transactions yet",
+        "emptyDescription": "No events were found for this position.",
+        "inflowLabel": "Inflow",
+        "outflowLabel": "Outflow",
+        "tradeDate": "Trade date: {{date}}",
+        "settlementDate": "Settlement: {{date}}",
+        "netAmount": "Net: {{value}}",
+        "incomeTax": "Income tax: {{value}}",
+        "iof": "IOF: {{value}}",
+        "notEditableTooltip": "Synced automatically — this transaction cannot be edited",
+        "deleteSuccess": "Transaction deleted successfully",
+        "deleteError": "Could not delete the transaction. Please try again.",
+        "deleteConfirmTitle": "Delete transaction?",
+        "deleteConfirmWarning": "This will recalculate the asset's average cost and timeline history."
+      },
+      "couponSchedule": {
+        "sectionTitle": "Interest Payment (Coupon)",
+        "statusPaid": "Paid",
+        "statusExpected": "Expected",
+        "statusOverdue": "Unregistered",
+        "showHistory": "Show history ({{count}})",
+        "hideHistory": "Hide history",
+        "register": "Record",
+        "showMore": "Show more",
+        "showLess": "Show less",
+        "updateSuccess": "Coupon payment updated",
+        "deleteSuccess": "Coupon payment deleted",
+        "deleteConfirmation": {
+          "title": "Delete coupon payment?",
+          "message": "This action cannot be undone."
+        },
+        "showAll": "Show all"
+      },
+      "transactionTypes": {
+        "AMORTIZATION": "Amortization",
+        "BONUS_SHARES": "Bonus shares",
+        "CUSTODY_TRANSFER": "Custody transfer",
+        "DIVIDEND": "Dividend",
+        "INTEREST_PAYMENT": "Interest payment",
+        "INTEREST_ON_EQUITY": "Interest on equity",
+        "MATURITY": "Maturity",
+        "OWNERSHIP_TRANSFER": "Ownership transfer",
+        "PRIZE": "Prize",
+        "PURCHASE": "Purchase",
+        "QUOTA_TRANSFER": "Unit transfer",
+        "SALE": "Sale",
+        "STOCK_LENDING": "Stock lending",
+        "STOCK_SPLIT": "Stock split",
+        "SUBSCRIPTION": "Subscription",
+        "WITHHOLDING_TAX": "Withholding tax"
+      }
+    },
+    "deleteConfirmation": {
+      "title": "Delete holding",
+      "message": "Are you sure you want to delete this entry? This action cannot be undone."
+    },
+    "editDialog": {
+      "title": "Edit entry",
+      "fields": {
+        "tradeDate": "Date",
+        "quantity": "Quantity",
+        "unitPrice": "Unit price",
+        "grossValue": "Gross value"
+      }
+    },
+    "redemption": {
+      "title": "Record redemption",
+      "trigger": "Record redemption",
+      "success": "Redemption recorded successfully",
+      "sections": {
+        "type": "Transaction type",
+        "scope": "Redemption",
+        "values": "Received amounts"
+      },
+      "types": {
+        "sale": "Early redemption",
+        "maturity": "Maturity"
+      },
+      "scope": {
+        "full": "Full",
+        "partial": "Partial"
+      },
+      "fields": {
+        "quantity": "Redeemed quantity",
+        "quantityHelper": "Max: {{max}}",
+        "detailTaxes": "Break down taxes",
+        "grossValue": "Gross amount received",
+        "incomeTax": "Withheld income tax",
+        "incomeTaxOptional": "Withheld income tax (optional)",
+        "iof": "IOF",
+        "iofOptional": "IOF (optional)",
+        "netValueInfo": "Net amount: {{value}}",
+        "tradeDate": "Redemption date"
+      },
+      "taxExemptInfo": "This asset is tax-exempt for individuals.",
+      "actions": {
+        "submit": "Record redemption",
+        "submitting": "Recording..."
+      },
+      "validation": {
+        "quantityRequired": "Enter quantity",
+        "quantityPositive": "Quantity must be positive",
+        "quantityExceedsHolding": "Maximum available quantity: {{max}}",
+        "grossValueRequired": "Enter gross amount received",
+        "grossValuePositive": "Gross amount must be positive",
+        "tradeDateRequired": "Enter redemption date"
+      }
+    },
+    "corporateEvents": {
+      "section": "Events",
+      "drawerTitle": "Record corporate event",
+      "provento": "Record income event",
+      "split": "Record split / reverse split",
+      "bonus": "Record bonus shares",
+      "subscription": "Record subscription",
+      "splitType": {
+        "split": "Split",
+        "reverseSplit": "Reverse split"
+      },
+      "form": {
+        "paymentDate": "Date",
+        "proventoType": "Income type",
+        "valuePerUnit": "Gross value per unit",
+        "quantity": "Quantity",
+        "grossTotal": "Gross total",
+        "irWithheld": "Withholding tax",
+        "destinationAccount": "Destination account",
+        "ratioNumerator": "Ratio (numerator)",
+        "ratioDenominator": "Ratio (denominator)",
+        "resultQuantity": "Resulting quantity",
+        "bonusPercent": "Bonus percentage",
+        "issuePrice": "Issue price per bonus share",
+        "bonusQuantity": "Bonus quantity",
+        "exerciseDate": "Exercise date",
+        "exercisePrice": "Exercise price per share",
+        "subscribedQuantity": "Subscribed quantity"
+      },
+      "validation": {
+        "required": "Required field",
+        "positiveValue": "Please enter a value greater than zero"
+      },
+      "success": "Corporate event recorded successfully"
+    },
+    "recordHolding": {
+      "title": "Record Fixed Income Holding",
+      "selectAccount": {
+        "description": "Select an investment account to record the holding.",
+        "emptyState": "No investment accounts available."
+      },
+      "sections": {
+        "assetInfo": "Asset details",
+        "applicationDetails": "Application details"
+      },
+      "fields": {
+        "assetName": "Asset name",
+        "assetType": "Type",
+        "issuerName": "Issuer",
+        "indexer": "Indexer",
+        "indexerPercentage": "Indexer %",
+        "fixedAnnualRate": "Rate (% p.a.)",
+        "preFixedRate": "Rate (% p.a.)",
+        "quantity": "Quantity",
+        "grossValue": "Invested amount (BRL)",
+        "tradeDate": "Application date",
+        "settlementDate": "Settlement date",
+        "maturityDate": "Maturity date",
+        "couponFrequency": "Interest payment",
+        "couponDayOfMonth": "Interest payment day",
+        "isTaxExempt": "Tax-exempt (LCI, LCA, CRI, CRA)"
+      },
+      "couponFrequencyOptions": {
+        "AT_MATURITY": "At maturity",
+        "MONTHLY": "Monthly",
+        "QUARTERLY": "Quarterly",
+        "SEMI_ANNUAL": "Semiannual",
+        "ANNUAL": "Annual"
+      },
+      "values": {
+        "unitPriceInfo": "Unit price: {{unitPrice}}"
+      },
+      "assetTypes": {
+        "CDB": "CDB",
+        "RDB": "RDB",
+        "LCI": "LCI",
+        "LCA": "LCA",
+        "LC": "LC",
+        "LF": "LF",
+        "LIG": "LIG",
+        "DEBENTURES": "Debentures",
+        "CRI": "CRI",
+        "CRA": "CRA",
+        "TREASURY": "Treasury Direct"
+      },
+      "indexers": {
+        "CDI": "CDI",
+        "DI": "DI",
+        "IPCA": "IPCA+",
+        "IGP_M": "IGP-M+",
+        "SELIC": "SELIC",
+        "PRE_FIXADO": "Pre-fixed",
+        "OUTROS": "Other"
+      },
+      "validation": {
+        "assetNameRequired": "Asset name is required",
+        "assetTypeRequired": "Asset type is required",
+        "issuerRequired": "Issuer is required",
+        "indexerRequired": "Indexer is required",
+        "indexerPercentageRequired": "Indexer % is required",
+        "fixedAnnualRateRequired": "Rate is required",
+        "preFixedRateRequired": "Rate is required",
+        "quantityNonNegative": "Quantity must be 0 or greater",
+        "grossValueRequired": "Invested amount is required",
+        "grossValuePositive": "Amount must be greater than zero",
+        "tradeDateRequired": "Application date is required",
+        "tradeDateNotInFuture": "Application date cannot be in the future",
+        "maturityDateRequired": "Maturity date is required",
+        "maturityAfterTrade": "Maturity must be after the application date",
+        "maturityDateTooFar": "Maturity date must be within the next {{years}} years",
+        "couponDayOfMonthRange": "Payment day must be between 1 and 31",
+        "couponDayOfMonthRequired": "Enter the day of month for interest payments"
+      },
+      "actions": {
+        "submit": "Record",
+        "submitting": "Recording..."
+      },
+      "success": "Holding recorded successfully"
+    },
+    "funds": {
+      "assetTypes": {
+        "FIXED_INCOME_FUND": "Fixed income",
+        "EQUITY_FUND": "Equity",
+        "MULTI_MARKET_FUND": "Multi-market",
+        "FOREX_FUND": "FX",
+        "MUTUAL_FUND": "Mixed",
+        "PGBL": "PGBL",
+        "VGBL": "VGBL"
+      }
+    },
+    "recordFund": {
+      "title": "Record fund",
+      "selectAccount": {
+        "description": "Select an investment account to record the fund.",
+        "emptyState": "No investment accounts available."
+      },
+      "sections": {
+        "fund": "Fund",
+        "listing": "How is this fund registered?",
+        "manualFund": "Manual fund",
+        "applicationData": "Application data",
+        "values": "Values",
+        "currentValue": "Current value",
+        "applicationDetails": "Application details"
+      },
+      "modes": {
+        "cvmListed": "Listed in CVM",
+        "notListed": "Not listed yet"
+      },
+      "flows": {
+        "byAmount": "By invested amount",
+        "byQuantity": "By fund units"
+      },
+      "fields": {
+        "fund": "Fund",
+        "manualFundName": "Fund name",
+        "manualFundCnpj": "Fund CNPJ",
+        "manualFundCnpjHelper": "If provided, it must be a valid CNPJ to support future manual linking.",
+        "manualAssetType": "Fund type",
+        "quantity": "Fund units",
+        "unitPrice": "Unit price (BRL)",
+        "tradeDate": "Application date",
+        "settlementDate": "Settlement date",
+        "grossValue": "Amount to invest",
+        "manualCurrentGrossValue": "Current value",
+        "manualValuedAt": "Current value date"
+      },
+      "assetTypes": {
+        "MUTUAL_FUND": "Fund",
+        "PGBL": "PGBL",
+        "VGBL": "VGBL"
+      },
+      "values": {
+        "byAmount": {
+          "navLabel": "Unit price on the selected date:",
+          "unitPriceLabel": "Unit price used:",
+          "estimatedShares": "~ {{shares}} units"
+        },
+        "byQuantity": {
+          "totalEstimatedLabel": "Estimated total"
+        }
+      },
+      "validation": {
+        "fundRequired": "Please select a fund",
+        "manualFundNameRequired": "Fund name is required",
+        "quantityRequired": "Quantity is required",
+        "quantityPositive": "Quantity must be greater than zero",
+        "unitPriceRequired": "Unit price is required",
+        "unitPricePositive": "Unit price must be greater than zero",
+        "tradeDateRequired": "Application date is required",
+        "grossValueRequired": "Amount to invest is required",
+        "grossValuePositive": "Amount to invest must be greater than zero",
+        "manualCurrentGrossValueRequired": "Current value is required for manual funds",
+        "manualValuedAtRequired": "Current value date is required for manual funds"
+      },
+      "actions": {
+        "manualEntryHelp": "Didn't find the fund?",
+        "manualEntryCta": "+ Register manually",
+        "submit": "Record",
+        "submitting": "Recording..."
+      },
+      "success": "Fund recorded successfully"
+    },
+    "recordEquity": {
+      "titles": {
+        "stock": "Record stock",
+        "fii": "Record FII",
+        "mixed": "Record stock / FII"
+      },
+      "selectAccount": {
+        "description": "Select an investment account to record the asset.",
+        "emptyState": "No investment accounts available."
+      },
+      "sections": {
+        "values": "Values",
+        "fees": "Fees & costs"
+      },
+      "flows": {
+        "byQuantity": "By quantity",
+        "byAmount": "By total amount"
+      },
+      "fields": {
+        "asset": "Asset (ticker)",
+        "quantityStock": "Number of shares",
+        "quantityFii": "Number of units (quotas)",
+        "quantityMixed": "Quantity (shares or quotas)",
+        "unitPrice": "Unit price (BRL)",
+        "tradeDate": "Trade date",
+        "settlementDate": "Settlement date",
+        "grossValue": "Total amount"
+      },
+      "values": {
+        "byQuantity": {
+          "totalLabel": "Total trade value"
+        },
+        "byAmount": {
+          "estimatedStock": "~ Estimated shares",
+          "estimatedFii": "~ Estimated quotas",
+          "estimatedMixed": "~ Estimated shares or quotas",
+          "unitStock": "shares",
+          "unitFii": "quotas",
+          "unitMixed": "shares or quotas"
+        }
+      },
+      "validation": {
+        "assetRequired": "Please select an asset",
+        "quantityRequired": "Quantity is required",
+        "quantityPositive": "Quantity must be greater than zero",
+        "unitPriceRequired": "Unit price is required",
+        "unitPricePositive": "Unit price must be greater than zero",
+        "tradeDateRequired": "Trade date is required",
+        "settlementDateRequired": "Settlement date is required",
+        "grossValueRequired": "Total amount is required",
+        "grossValuePositive": "Total amount must be greater than zero"
+      },
+      "actions": {
+        "submit": "Record",
+        "submitting": "Recording..."
+      },
+      "fees": {
+        "modes": {
+          "summary": "Summary",
+          "detailed": "Detailed"
+        },
+        "totalFees": "Total fees",
+        "brokerage": "Brokerage",
+        "settlement": "Settlement/clearing",
+        "other": "Other"
+      },
+      "footer": {
+        "grossValue": "Trade value",
+        "fees": "Fees & costs",
+        "total": "Total"
+      },
+      "success": "Asset recorded successfully"
+    },
+    "recordCrypto": {
+      "fields": {
+        "name": "Asset name",
+        "ticker": "Ticker / symbol",
+        "network": "Network (optional)"
+      },
+      "validation": {
+        "nameRequired": "Enter the asset name",
+        "tickerRequired": "Enter the ticker"
+      }
+    },
+    "b3AssetTypes": {
+      "EQUITY": "Stock",
+      "FII": "FII",
+      "OPTION_CALL": "Call Option",
+      "OPTION_PUT": "Put Option"
+    }
+  },
+  "categories": {
+    "title": "Account categories",
+    "description": "Create and edit categories to classify your transactions.",
+    "newCategory": "New category",
+    "emptyState": "No categories yet. Click New category to get started.",
+    "applicableTo": {
+      "EXPENSE": "Expense",
+      "INCOME": "Income",
+      "ANY": "Any",
+      "TRANSFER": "Transfer"
+    },
+    "form": {
+      "editTitle": "Edit category",
+      "name": "Name",
+      "namePlaceholder": "e.g. Groceries",
+      "type": "Type",
+      "parent": "Parent category",
+      "parentNone": "None (root)",
+      "icon": "Icon",
+      "color": "Color"
+    },
+    "deleteConfirm": {
+      "title": "Delete category",
+      "message": "Transactions using this category will keep the assignment. The category will only stop appearing for new entries. Continue?"
+    },
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "dashboard": {
+    "controls": {
+      "customize": "Customize",
+      "resetLayout": "Reset layout",
+      "done": "Done"
+    },
+    "timeRange": {
+      "ariaLabel": "Time range",
+      "options": {
+        "currentMonth": "Current month",
+        "3m": "Last 3 months",
+        "6m": "Last 6 months",
+        "1y": "Last year",
+        "3y": "Last 3 years",
+        "all": "All time",
+        "90d": "Last 90 days",
+        "ytd": "Year to date",
+        "custom": "Custom"
+      }
+    },
+    "actions": {
+      "title": "Quick actions",
+      "financeMovements": {
+        "title": "Finance Transactions",
+        "description": "For quick income and expense tracking."
+      },
+      "investmentsPortfolio": {
+        "title": "Investment Portfolio",
+        "description": "For consolidated asset management."
+      },
+      "pricesConsumption": {
+        "title": "Prices & consumption",
+        "description": "Track product prices and spending over time."
+      },
+      "recurringPayments": {
+        "title": "Recurring transactions",
+        "description": "Bill and subscription reminders"
+      }
+    },
+    "widgets": {
+      "addDrawer": {
+        "title": "Add Widget"
+      },
+      "registry": {
+        "periodSummary": {
+          "title": "Summary",
+          "description": "Cash flow, net worth, and investments in the selected period."
+        },
+        "cashFlow": {
+          "title": "Cash Flow",
+          "description": "Income and expenses comparison by month."
+        },
+        "netWorth": {
+          "title": "Net Worth Trend",
+          "description": "Accumulated banking balance month by month."
+        },
+        "categoryDonut": {
+          "title": "Categories",
+          "description": "Distribution of expenses and income by category."
+        },
+        "investmentAllocation": {
+          "title": "Investment Allocation",
+          "description": "Current portfolio distribution by asset group."
+        },
+        "investmentTreemap": {
+          "title": "Investment Treemap",
+          "description": "Portfolio composition by asset group in a proportional treemap."
+        },
+        "upcomingRecurring": {
+          "title": "Upcoming transactions",
+          "description": "Recurring transactions due soon"
+        }
+      },
+      "menu": {
+        "refresh": "Refresh",
+        "settings": "Settings",
+        "hide": "Hide widget"
+      },
+      "kpi": {
+        "net": "Net"
+      },
+      "periodSummary": {
+        "totalNetWorth": "Total Net Worth",
+        "totalIncome": "Income",
+        "totalExpenses": "Expenses",
+        "net": "Net",
+        "closingCashBalance": "Cash Balance",
+        "totalInvested": "Total Invested",
+        "totalReturn": "Portfolio Return",
+        "totalReturnShort": "Return",
+        "monthlyAverage": "Monthly average: {{value}}",
+        "monthlyAveragePerMonth": "Avg {{value}}/month",
+        "monthlyAverageShort": "Avg",
+        "perMonthSuffix": "/month",
+        "savingsCapacityLabel": "Saving capacity",
+        "savingsRateLabel": "Savings rate",
+        "savingsRate": "Savings rate: {{value}}",
+        "returnPct": "Return: {{value}}",
+        "periodMonths": "{{count}} months in range",
+        "netWorthBreakdown": "Cash {{cash}} + Portfolio {{portfolio}}"
+      },
+      "cashFlow": {
+        "noData": "No data for this period",
+        "netSeries": "Net"
+      },
+      "netWorth": {
+        "bankingBalance": "Banking Balance",
+        "portfolioValue": "Investment Portfolio",
+        "totalNetWorth": "Total Net Worth",
+        "estimatedNote": "Estimated value",
+        "noData": "No data for the selected period."
+      },
+      "investmentAllocation": {
+        "totalPortfolio": "Portfolio value",
+        "legendCount_one": "1 asset",
+        "legendCount_other": "{{count}} assets",
+        "noData": "No investment allocation available.",
+        "error": "Failed to load investment allocation."
+      },
+      "investmentTreemap": {
+        "totalPortfolio": "Portfolio value",
+        "allocation": "Allocation",
+        "groupAllocation": "% of group",
+        "amount": "Amount",
+        "account": "Account",
+        "assets": "Assets",
+        "backToPortfolio": "Back to portfolio",
+        "portfolioBreadcrumb": "Portfolio",
+        "legendCount_one": "1 asset",
+        "legendCount_other": "{{count}} assets",
+        "noData": "No investment positions available.",
+        "noHoldingsInGroup": "No assets in this class.",
+        "cashGroupNote": "Cash represents the balance in the custodian account.",
+        "error": "Failed to load investment treemap."
+      }
+    }
+  },
+  "attachments": {
+    "label": "Attachments",
+    "defaultLabel": "Attachment",
+    "uploading": "Uploading…",
+    "attachFile": "Attach file",
+    "addFile": "Add file (max. {{max}})",
+    "download": "Download",
+    "remove": "Remove",
+    "errors": {
+      "tooLarge": "File too large. Max {{maxSize}}.",
+      "initFailed": "Couldn't start the upload.",
+      "uploadFailed": "Upload failed: {{status}}",
+      "generic": "Error uploading file."
+    }
+  },
   "financeTransactions": {
     "title": "Finance Transactions",
-    "description": "Track your income and expenses."
+    "quickAdd": "Transaction",
+    "credit": "Credit",
+    "debit": "Debit",
+    "transfer": "Transfer",
+    "internalTransferIn": "Internal transfer (In)",
+    "internalTransferOut": "Internal transfer (Out)",
+    "amount": "Amount",
+    "description": "Description",
+    "date": "Date",
+    "account": "Account",
+    "category": "Category",
+    "value": "Value",
+    "tags": "Tags",
+    "merchant": "Merchant",
+    "noMerchant": "No merchant",
+    "merchantPicker": {
+      "searchPlaceholder": "Search merchant...",
+      "noResults": "No merchants found",
+      "createMerchant": "Create merchant",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Netflix",
+      "websiteLabel": "Website",
+      "websitePlaceholder": "netflix.com",
+      "logoPreview": "Logo preview",
+      "noWebsite": "No website",
+      "created": "Merchant created: {{name}}",
+      "loadMore": "Load more",
+      "resultCount": "Showing {{shown}} of {{total}}"
+    },
+    "issuer": "Institution",
+    "financialAccount": "Financial Account",
+    "validation": {
+      "dateTooOld": "Date must be within the last {{years}} years",
+      "dateNotInFuture": "Date cannot be in the future.",
+      "required": "This field is required"
+    },
+    "dateGroup": {
+      "today": "Today, {{date}}",
+      "tomorrow": "Tomorrow, {{date}}"
+    },
+    "installmentPurchasesDueThisMonthHeader": "Installment purchases due this month",
+    "billSummary": {
+      "billValue": "Bill Amount",
+      "closingDate": "Closing Date",
+      "dueDate": "Due Date",
+      "availableLimit": "Available Limit",
+      "status": "Status",
+      "payBill": "Pay Bill",
+      "overdueMessage": "This bill is overdue.",
+      "billStatus": {
+        "OPEN": "Open",
+        "CLOSED": "Closed",
+        "PAID": "Paid",
+        "OVERDUE": "Overdue"
+      }
+    },
+    "payBillDialog": {
+      "title": "Pay Bill",
+      "amount": "Payment Amount",
+      "sourceAccount": "Debit Account (optional)",
+      "noSourceAccount": "None",
+      "invalidAmount": "Enter a valid amount greater than zero."
+    },
+    "backToCurrentMonth": "Back to current month",
+    "actions": {
+      "newAccountOrCard": "New account or card",
+      "addAccount": "Add account",
+      "addCard": "Add card",
+      "deleteAccount": "Remove account",
+      "deleteAccountConfirm": "Are you sure? This action cannot be undone.",
+      "automation": "Automation",
+      "reviewItems": "Review items",
+      "edit": "Edit",
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "back": "Back",
+      "close": "Close",
+      "delete": "Delete"
+    },
+    "errors": {
+      "accountHasTransactions": "This account has transactions. Remove transactions before deleting the account.",
+      "accountHasOpenBills": "This account has open bills. Settle the bills before deleting the account."
+    },
+    "unmappedItems": {
+      "title": "Unmapped items",
+      "empty": "There are no pending items to normalize in this account.",
+      "currentGroup": "Raw description",
+      "count": "{{count}} item(s)",
+      "sample": {
+        "title": "Recent samples",
+        "noExtraData": "No NCM or EAN available"
+      },
+      "searchTitle": "Map to an existing variant",
+      "searchLabel": "Search variant",
+      "searchEmpty": "No catalog variant matches this search.",
+      "createTitle": "Create product and variant",
+      "form": {
+        "productName": "Canonical product",
+        "variantName": "Variant name",
+        "category": "Category",
+        "defaultUnit": "Default unit",
+        "brand": "Brand",
+        "ean": "EAN",
+        "quantityValue": "Quantity",
+        "quantityUnit": "Package unit"
+      },
+      "actions": {
+        "map": "Map",
+        "createAndMap": "Create and map"
+      },
+      "feedback": {
+        "mapped": "Item mapped successfully.",
+        "createdAndMapped": "Product created and item mapped successfully.",
+        "mapError": "Could not map the item right now.",
+        "createError": "Could not create the product and map the item.",
+        "loadError": "Could not load pending items.",
+        "validation": "Provide at least the product and variant name."
+      }
+    },
+    "transactionRules": {
+      "tabs": {
+        "manual": "Custom Rules",
+        "automatic": "Automatic Rules"
+      },
+      "helpBanner": {
+        "title": "Learn how rules work",
+        "actionLabel": "See how automation organizes your transactions"
+      },
+      "helpDrawer": {
+        "title": "Learn how rules work",
+        "intro": "Rules help organize your finances automatically. They match transaction descriptions and assign new values to make tracking easier.",
+        "items": {
+          "item1": "When a transaction’s description matches the text defined in the rule, the app automatically applies a new description, a category, tags, and a merchant.",
+          "item2": "The app checks for a custom rule first (created by you), then an automatic one (created by the app). If multiple rules match, the one with the highest priority is applied.",
+          "item3": "For manual transactions, category and tags are only assigned if you left them blank when creating the entry."
+        }
+      },
+      "searchPlaceholder": "Search by pattern…",
+      "actions": {
+        "newRule": "New Rule",
+        "clearSearchAriaLabel": "Clear search",
+        "disableAutomaticRule": "Disable automatic rule",
+        "enableAutomaticRule": "Enable automatic rule"
+      },
+      "errors": {
+        "load": "Error loading rules.",
+        "delete": "Could not delete the rule.",
+        "toggleSystemRule": "Could not update automatic rule status."
+      },
+      "toast": {
+        "deleted": "Rule deleted.",
+        "updated": "Automatic rule updated."
+      },
+      "status": {
+        "disabled": "Disabled"
+      },
+      "loadingMore": "Loading more...",
+      "emptyState": {
+        "manual": "No custom rules created yet.",
+        "automatic": "No automatic rules yet."
+      },
+      "deleteDialog": {
+        "title": "Delete rule?",
+        "description": "This action cannot be undone."
+      },
+      "columns": {
+        "context": "Context",
+        "rule": "Rule",
+        "matchingText": "Matching text",
+        "newDescription": "New description",
+        "category": "Category",
+        "tags": "Tags",
+        "merchant": "Merchant",
+        "priority": "Priority"
+      }
+    },
+    "categoryPicker": {
+      "searchPlaceholder": "Search category...",
+      "noCategory": "No category",
+      "noResults": "No categories found",
+      "newCategory": "New category",
+      "backAriaLabel": "Back",
+      "deleteAriaLabel": "Delete category",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Groceries",
+      "created": "\"{{name}}\" created",
+      "deleteTitle": "Delete '{{name}}'?",
+      "deleteDescription": "Transactions using this category will keep the assignment in history. This action cannot be undone.",
+      "deleteChildrenTitle": "The following subcategories will also be deleted:"
+    },
+    "similarEditPrompt": {
+      "title": "Apply to similar transactions?",
+      "titleFutureOnly": "Create a rule for future imports?",
+      "description": "We found similar items. Choose how you want to proceed.",
+      "applyToExistingTitle_one": "Update {{count}} transaction",
+      "applyToExistingTitle_other": "Update {{count}} transactions",
+      "applyToExistingDescription": "Apply the changes to items with the same original description.",
+      "applyToFutureTitle": "Create automation rule",
+      "applyToFutureDescription": "Always apply this description for similar future imports.",
+      "confirmFull": "Apply Changes",
+      "confirm": "Apply",
+      "cancel": "No thanks",
+      "success_one": "Applied the change to {{count}} similar transaction.",
+      "success_other": "Applied the change to {{count}} similar transactions."
+    },
+    "selector": {
+      "allAccounts": "All accounts",
+      "consolidatedView": "Consolidated view",
+      "unknownIssuer": "Unknown Institution",
+      "searchPlaceholder": "Search accounts...",
+      "noAccountsFound": "No accounts found"
+    },
+    "multipleCards": "Multiple cards",
+    "emptyState": {
+      "title": "Ready to get started?",
+      "description": "Centralize your financial life. Add your bank accounts and cards to get a complete view of your spending, investments, and goals."
+    },
+    "createAccount": {
+      "title": "Add financial account",
+      "step1": {
+        "title": "Choose the type of account you want to create in Invistus to start monitoring your wealth.",
+        "bankAccount": {
+          "label": "Bank Account",
+          "subtitle": "Manage your balances, automatic statements and track cash flow in real-time."
+        },
+        "card": {
+          "label": "Credit Card",
+          "subtitle": "Manage invoices, available limits and categorize your recurring expenses easily."
+        },
+        "action": "Create new"
+      },
+      "step2": {
+        "backToSelection": "Back to selection",
+        "fields": {
+          "issuer": "Institution",
+          "issuerPlaceholder": "Search for bank or card issuer",
+          "noIssuersFound": "No issuers found",
+          "customIssuer": "Other / Custom",
+          "institutionName": "Institution name",
+          "accountName": "Account name",
+          "currency": "Currency",
+          "initialBalance": "Initial balance",
+          "initialBalanceDate": "Initial balance date",
+          "themeColor": "Theme color",
+          "includeInNetWorth": "Include in net worth",
+          "includeInDashboard": "Include in dashboard",
+          "subtype": "Type",
+          "branchCode": "Branch code",
+          "accountNumber": "Account number",
+          "checkDigit": "Digit",
+          "network": "Network",
+          "level": "Level",
+          "maskedNumber": "Last 4 digits",
+          "multiCard": "Multiple / virtual cards",
+          "creditLimit": "Credit limit",
+          "closingDay": "Closing day",
+          "dueDay": "Due day"
+        },
+        "success": "Account added successfully",
+        "validation": {
+          "accountNameRequired": "Account name is required",
+          "subtypeRequired": "Account type is required",
+          "initialBalanceDateRequired": "Initial balance date is required when initial balance is provided",
+          "initialBalanceNonZero": "Initial balance must be non-zero",
+          "accountNameMaxLength": "Account name must be at most {{max}} characters",
+          "issuerRequired": "Issuer is required",
+          "closingDayRequired": "Closing day is required",
+          "dueDayRequired": "Due day is required",
+          "closingDayInvalid": "Invalid closing day (1-31)",
+          "dueDayInvalid": "Invalid due day (1-31)",
+          "maskedNumberInvalid": "Last 4 digits must be exactly 4 numbers or empty",
+          "invalidCurrencyFormat": "Invalid currency format (max 2 decimals)"
+        },
+        "defaults": {
+          "creditCardType": "Credit",
+          "noLastFour": "no last 4"
+        },
+        "enums": {
+          "bankSubtype": {
+            "CONTA_CORRENTE": "Checking",
+            "CONTA_POUPANCA": "Savings",
+            "CONTA_SALARIO": "Salary Account",
+            "CONTA_DIGITAL": "Digital Wallet",
+            "CONTA_CONJUNTA": "Joint Account"
+          },
+          "cardSubtype": {
+            "CREDIT_CARD": "Credit",
+            "CHARGE_CARD": "Charge",
+            "PREPAID_CARD": "Prepaid",
+            "VOUCHER_CARD": "Voucher"
+          },
+          "cardNetwork": {
+            "VISA": "Visa",
+            "MASTERCARD": "Mastercard",
+            "ELO": "Elo",
+            "AMERICAN_EXPRESS": "Amex",
+            "HIPERCARD": "Hipercard",
+            "DINERS_CLUB": "Diners Club",
+            "BANDEIRA_PROPRIA": "Private Label",
+            "OUTRAS": "Other"
+          },
+          "cardLevel": {
+            "STANDARD": "Standard",
+            "GOLD": "Gold",
+            "PLATINUM": "Platinum",
+            "INFINITE": "Infinite",
+            "BLACK": "Black"
+          }
+        }
+      }
+    },
+    "editAccount": {
+      "title": "Edit financial account",
+      "success": "Account updated successfully"
+    },
+    "import": {
+      "title": "Import Transactions",
+      "button": "Import",
+      "menu": {
+        "file": "Bank statement",
+        "cardBill": "Card bill"
+      },
+      "accountStep": {
+        "title": "Select account to import into",
+        "noAccounts": "No accounts found. Create an account to continue.",
+        "createAccount": "Create new account",
+        "createAccountOrCard": "Create new account or card"
+      },
+      "sourceStep": {
+        "title": "Select format",
+        "ofx": "OFX file",
+        "csvNubank": "CSV Nubank"
+      },
+      "uploadStep": {
+        "title": "Select file",
+        "recommendation": "For the best experience, prioritize using OFX files. They provide standardized and more detailed data compared to CSV or XLSX.",
+        "fileSelected": "File selected:",
+        "dragDrop": "Drag and drop your file here or click to browse",
+        "acceptedTypes": ".ofx, .csv, .xlsx, .xls, .pdf",
+        "fileTooLarge": "File must be {{maxMb}} MB or smaller",
+        "unsupportedType": "Please select an OFX, CSV, XLS/XLSX, or PDF file",
+        "selectAccount": "Select an account first"
+      },
+      "processingStep": {
+        "title": "Importing...",
+        "status": "Status: {{status}}",
+        "imported": "{{count}} imported"
+      },
+      "resultStep": {
+        "title": "Import complete",
+        "summary": "{{imported}} transactions imported, {{skipped}} skipped (duplicates)",
+        "close": "Close"
+      },
+      "errorStep": {
+        "title": "Import failed",
+        "message": "Something went wrong. Please try again.",
+        "retry": "Retry"
+      },
+      "status": {
+        "PENDING": "Pending",
+        "PROCESSING": "Processing",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "REVIEW_REQUIRED": "Review required"
+      }
+    },
+    "billImport": {
+      "uploadStep": {
+        "prompt": "Select the statement file.",
+        "recommendation": "For best results, prioritize OFX files. They provide standardized and richer data compared to PDF or CSV.",
+        "dragDrop": "Drag the file or click to select",
+        "acceptedHint": "OFX · PDF · XLS/XLSX · CSV — up to {{maxMb}} MB",
+        "encryptedDetected": "This PDF is encrypted. Enter the statement password to continue.",
+        "passwordLabel": "PDF password",
+        "passwordRequired": "This PDF requires a password.",
+        "passwordInvalid": "The password is invalid. Please try again.",
+        "submit": "Process statement",
+        "submitting": "Uploading..."
+      },
+      "processingStep": {
+        "title": "Processing statement...",
+        "description": "We are extracting transactions from the file. This may take a few seconds.",
+        "status": "Status: {{status}}"
+      },
+      "status": {
+        "PENDING": "Pending",
+        "EXTRACTING": "Extracting",
+        "LLM_PROCESSING": "Analyzing",
+        "EXTRACTED": "Extracted",
+        "IMPORTING": "Importing",
+        "AWAITING_REVIEW": "Awaiting review",
+        "DONE": "Done",
+        "FAILED": "Failed"
+      },
+      "cardMatchingStep": {
+        "description": "Associate each card found in the statement with an existing account.",
+        "flatAssignmentBanner": "We imported the bill transactions, but the file did not include the card reference. Define the cards in this bill and assign the transactions before continuing.",
+        "flatSteps": {
+          "issuerTitle": "Define card",
+          "issuerLabel": "Issuer name (bank)",
+          "issuerSelectedTitle": "{{issuer}} selected",
+          "loadingCards": "Loading cards...",
+          "issuerHasCardsMessage": "We found {{count}} registered card(s) for this issuer. You can use them in the step below.",
+          "issuerNoCardsMessage": "We did not find registered cards for this issuer. Create a new one in the step below.",
+          "selectIssuerFirst": "Select the issuer to continue.",
+          "newCardDetailsTitle": "New card details",
+          "cardAssignmentTitle": "Associate cards",
+          "cardAssignmentMessage": "Select an existing card to use while assigning transactions.",
+          "assignTransactionsTitle": "Assign transactions",
+          "assignTransactionsInfoTitle": "How to assign",
+          "assignTransactionsHint": "Select the transactions, enter the card last 4 digits (or leave it empty to apply “No last 4”), and click Apply.",
+          "assignTransactionsRequirementHint": "You must apply it to at least 1 transaction to enable “Review transactions”."
+        },
+        "cardDataSectionTitle": "Card details",
+        "availableTransactionsSectionTitle": "Available transactions",
+        "assignmentProgressShort": "{{assigned}} of {{total}} assigned",
+        "lastFourChip": "Last 4 {{lastFour}}",
+        "selectedCount": "{{count}} selected",
+        "floatingLastFourLabel": "Last 4 digits",
+        "floatingApply": "Apply",
+        "customIssuer": "Other issuer",
+        "customIssuerName": "Issuer name",
+        "templateIssuerHint": "Select the issuer shared by this bill.",
+        "optionalField": "Optional",
+        "descriptionBase": "Base description",
+        "descriptionBaseHint": "If you provide a description, it will be used as the base name when creating cards.",
+        "defaultBaseName": "Card",
+        "previewLabel": "Name preview: {{name}}",
+        "unassignedLastFour": "No last 4",
+        "noLastFourPlaceholder": "No last 4",
+        "ambiguousExistingCard": "There is more than one registered card ending in {{lastFourDigits}}. Adjust the issuer or use the full form.",
+        "templateInvalid": "Fill in the shared card details before creating accounts.",
+        "templateLastFourRequired": "Enter the card's last four digits or use the option to create it without them.",
+        "templateCreateFailed": "We could not create the cards with the provided details.",
+        "status": {
+          "associated": "Associated",
+          "pending": "Pending"
+        },
+        "ambiguousWarning": "Multiple cards ending in {{lastFourDigits}} were found. Please select the correct one.",
+        "unnamedCard": "Card {{index}}",
+        "duplicateLastFour": "These last four digits are already being used by another card in this bill.",
+        "cardAccountLabel": "Card account",
+        "cardAccountPlaceholder": "Select...",
+        "createNewCard": "Create new card",
+        "txSummary": "{{count}} transaction(s) · total {{total}}",
+        "selectAll": "Select all",
+        "reviewTransactions": "Review transactions"
+      },
+      "txReviewStep": {
+        "description": "Review the transactions before confirming. Uncheck items you don't want to import.",
+        "setupRequired": "To confirm, finish setting up the cards in the previous step.",
+        "billDatesTitle": "Bill dates",
+        "billDatesDescription": "Check the closing date and enter the due date when the file does not provide it.",
+        "closingDateLabel": "Closing date",
+        "closingDateHint": "We use this date to resolve the correct bill cycle.",
+        "dueDateLabel": "Due date",
+        "dueDateHint": "Due date must be on or after the closing date.",
+        "paymentChip": "Payment",
+        "suggestedBadge": "Suggested",
+        "confirming": "Confirming...",
+        "confirmButton": "Confirm {{count}} transaction(s)"
+      },
+      "resultStep": {
+        "success": "Statement imported successfully! {{included}} of {{total}} transactions imported."
+      },
+      "common": {
+        "back": "Back",
+        "close": "Close"
+      },
+      "steps": {
+        "uploadTitle": "Import statement",
+        "processingTitle": "Processing...",
+        "cardMatchingTitle": "Associate cards",
+        "assignmentTitle": "Assign transactions",
+        "txReviewTitle": "Review transactions",
+        "resultTitle": "Import complete",
+        "errorTitle": "Import error"
+      },
+      "errorStep": {
+        "title": "Import error",
+        "retry": "Try again",
+        "passwordInvalid": "The PDF password is incorrect. Check it and try again.",
+        "generic": "There was an import error and we could not process it right now. Please try again later.",
+        "processingUnavailable": "We could not process this statement right now. Please try again later."
+      }
+    },
+    "duplicateReview": {
+      "header": "{{count}} transactions need review",
+      "header_one": "{{count}} transaction needs review",
+      "header_other": "{{count}} transactions need review",
+      "newLabel": "New (imported)",
+      "newLabelNfce": "NFC-e",
+      "existingLabel": "Existing",
+      "keepBoth": "Keep both",
+      "useIncoming": "Use new",
+      "useIncomingLink": "Link NFC-e",
+      "keepExisting": "Keep existing",
+      "useIncomingWarning": "Existing will be replaced",
+      "useIncomingLinkWarning": "The existing transaction will be enriched with NFC-e data",
+      "finishReview": "Finish review",
+      "resolved": "Resolved",
+      "bannerAction": "Review"
+    },
+    "nfce": {
+      "drawerTitle": "Import NFC-e",
+      "button": "Scan NFC-e",
+      "uploadTab": "Upload image",
+      "urlTab": "Enter URL",
+      "uploadHint": "Drag or click to select a photo of the NFC-e QR code",
+      "urlPlaceholder": "Paste NFC-e URL here",
+      "qrNotFound": "QR code not found in the image. Try a clearer photo.",
+      "invalidUrl": "URL not recognized as a valid NFC-e",
+      "processing": "Fetching from NFC-e provider…",
+      "submit": "Import",
+      "success": "NFC-e imported successfully",
+      "reviewRequired": "We found a similar manual transaction. Review it to link the NFC-e.",
+      "alreadyImported": "This invoice was already imported and has a linked transaction",
+      "sefazUnavailable": "Provider unavailable, please try again",
+      "error": "Failed to import NFC-e"
+    },
+    "nfceDocument": {
+      "drawerTitle": "Electronic Invoice",
+      "issuerSection": "Issuer",
+      "itemsSection": "Items",
+      "itemsCount_one": "{{count}} item",
+      "itemsCount_other": "{{count}} items",
+      "totalsSection": "Totals",
+      "cnpj": "CNPJ",
+      "legalName": "Legal name",
+      "tradeName": "Trade name",
+      "stateRegistration": "State registration",
+      "address": "Address",
+      "postalCode": "Postal code",
+      "emissionDate": "Emission date",
+      "totalValue": "Total",
+      "totalTax": "Taxes",
+      "taxLoadLabel": "Tax load",
+      "buyerCpf": "Buyer CPF",
+      "accessKey": "Access key",
+      "copyAccessKey": "Copy key",
+      "accessKeyCopied": "Key copied",
+      "viewOnSefaz": "View on SEFAZ",
+      "noDocument": "No fiscal document linked to this transaction",
+      "perUnit": "per {{unit}}",
+      "municipalityCode": "IBGE municipality",
+      "countryCode": "Country",
+      "canonicalProduct": "Product",
+      "issuerProductCode": "Issuer code",
+      "quantity": "Quantity",
+      "unitPrice": "Unit price",
+      "discount": "Discount",
+      "effectivePrice": "Effective price"
+    },
+    "transactionTable": {
+      "ariaLabel": "Transactions table",
+      "categoryUpdated": "Category updated",
+      "columns": {
+        "description": "Description",
+        "category": "Category",
+        "type": "Type",
+        "amount": "Amount",
+        "currency": "Currency"
+      },
+      "emptyState": "No transactions found",
+      "attachments": {
+        "ariaLabel": "View attachments"
+      },
+      "tags": {
+        "moreAriaLabel": "View {{count}} more tags"
+      },
+      "installments": {
+        "progressAriaLabel": "Installment {{current}} of {{total}}"
+      },
+      "rowActions": {
+        "ariaLabel": "Transaction actions",
+        "viewNfce": "View NFC-e",
+        "markAsTransfer": "Mark as internal transfer",
+        "markAsTransferSuccess": "Transaction marked as internal transfer",
+        "markAsTransferError": "Could not mark as internal transfer",
+        "markAsTransferMissingCategory": "Default transfer category was not found. Reload the page or try again.",
+        "edit": "Edit",
+        "viewAppliedRules": "View applied rules",
+        "createRuleFromDescription": "Create rule from description",
+        "remove": "Remove",
+        "createRecurringPayment": "Create recurring transaction"
+      },
+      "appliedRules": {
+        "title": "Applied rules",
+        "description": "These rules contributed to this transaction's categorization and enrichment, in the order they were evaluated.",
+        "empty": "No applied rules were found for this transaction.",
+        "loadError": "Could not load the applied rules.",
+        "ruleNumber": "Rule {{index}}",
+        "appliedAt": "Applied on {{datetime}}",
+        "position": "Position {{position}}",
+        "priority": "Priority {{priority}}",
+        "ownership": {
+          "manual": "Custom",
+          "automatic": "Automatic"
+        },
+        "applicableTo": {
+          "ANY": "Any",
+          "INCOME": "Income",
+          "EXPENSE": "Expense",
+          "TRANSFER": "Transfer"
+        },
+        "patternType": {
+          "CONTAINS": "IF IT CONTAINS THE TEXT",
+          "STARTS_WITH": "IF IT STARTS WITH",
+          "EXACT": "IF IT IS EXACTLY",
+          "REGEX": "IF IT MATCHES THE PATTERN"
+        },
+        "editRule": "Edit rule",
+        "removed": "Rule unavailable",
+        "removedDescription": "One of the rules applied to this transaction is no longer available.",
+        "missingValue": "Unavailable",
+        "summary": {
+          "date": "Date",
+          "amount": "Amount"
+        },
+        "fields": {
+          "category": "Category",
+          "merchant": "Merchant",
+          "description": "Description",
+          "tags": "Tags"
+        }
+      }
+    },
+    "applyRuleToHistoryPrompt": {
+      "title": "Apply rule to history?",
+      "description": "This rule matches {{count}} existing transaction(s). Apply it now?",
+      "confirm": "Apply to history",
+      "cancel": "Not now",
+      "toastSuccess": "Rule applied to {{count}} transaction(s).",
+      "toastError": "Could not apply the rule to history"
+    },
+    "monthSummary": {
+      "income": "Income",
+      "expenses": "Expenses",
+      "balance": "Current Balance",
+      "breakdownType": "Type",
+      "total": "of total",
+      "a11y": {
+        "filterByMetric": "Filter transactions by",
+        "filterByCategory": "Filter transactions by category",
+        "filterByTag": "Filter transactions by tag"
+      },
+      "expensesByCategory": "Expenses by Category",
+      "incomeByCategory": "Income by Category",
+      "tagsSummary": "Tags",
+      "seeAll": "See all",
+      "uncategorized": "Uncategorized",
+      "noCategorizedExpenses": "No categorized expenses this month",
+      "noCategorizedIncome": "No categorized income this month",
+      "noTaggedTransactions": "No tagged transactions this month",
+      "totalExpenses": "Total expenses",
+      "filteringByCategory": "Category: {{name}}",
+      "filteringByTag": "Tag: #{{name}}",
+      "filteringByCredit": "Credit (income) only",
+      "filteringByDebit": "Debit (expenses) only",
+      "clearCategoryFilter": "Clear category filter",
+      "clearTagFilter": "Clear tag filter",
+      "clearCreditDebitTypeFilter": "Clear credit/debit filter",
+      "transfersTitle": "Transfers between own accounts",
+      "transfersIn": "Received",
+      "transfersOut": "Sent",
+      "filteringByTransfer": "Internal transfers only",
+      "clearTransferFilter": "Clear transfer filter",
+      "unavailableTitle": "Could not load this month's summary",
+      "unavailableDescription": "This information is temporarily unavailable. Please try again in a moment.",
+      "retry": "Try again"
+    },
+    "monthYearCarousel": {
+      "prevAriaLabel": "Previous month",
+      "nextAriaLabel": "Next month"
+    },
+    "billCarousel": {
+      "title": "Bill {{month}}",
+      "closes": "closes {{day}}",
+      "prevAriaLabel": "Previous bill",
+      "nextAriaLabel": "Next bill",
+      "statusOpen": "OPEN",
+      "statusClosed": "CLOSED",
+      "statusPaid": "PAID",
+      "statusOverdue": "OVERDUE"
+    },
+    "deleteConfirmation": {
+      "title": "Delete transaction",
+      "message": "Are you sure you want to delete this transaction? This action cannot be undone."
+    }
   },
   "actions": {
-    "accessModule": "Access module"
+    "accessModule": "Access module",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save"
+  },
+  "transactionType": {
+    "BALANCE_ADJUSTMENT": "Balance Adjustment",
+    "BOLETO": "Boleto",
+    "CARD": "Card",
+    "CASHBACK": "Cashback",
+    "DEPOSIT": "Deposit",
+    "DOC": "DOC",
+    "FEE": "Fee",
+    "INTEREST": "Interest",
+    "INVESTMENT_RETURN": "Investment Return",
+    "LOAN_PAYMENT": "Loan Payment",
+    "OTHER_EXPENSE": "Other Expense",
+    "OTHER_INCOME": "Other Income",
+    "PIX": "Pix",
+    "SALARY": "Salary",
+    "TAX": "Tax",
+    "TED": "TED",
+    "TRANSFER": "Transfer",
+    "WITHDRAWAL": "Withdrawal"
+  },
+  "recurringPayments": {
+    "newButton": "New transaction",
+    "emptyTitle": "No recurring transactions",
+    "emptyDescription": "Add bills and subscriptions to track upcoming due dates.",
+    "variableAmountBadge": "variable estimate",
+    "daysUntilDue": "due in {{count}}d",
+    "widget": {
+      "overdueCount": "{{count}} overdue",
+      "upcomingCount": "{{count}} in the next 30 days",
+      "viewAll": "View all",
+      "overdueDay": "Overdue by {{count}} day",
+      "overdueDays": "Overdue by {{count}} days",
+      "dueToday": "Due today",
+      "dueInDay": "{{count}} day until due",
+      "dueInDays": "{{count}} days until due"
+    },
+    "frequency": {
+      "MONTHLY": "Monthly",
+      "WEEKLY": "Weekly",
+      "YEARLY": "Yearly",
+      "CUSTOM": "Custom"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "PAUSED": "Paused"
+    },
+    "form": {
+      "name": "Name",
+      "account": "Account",
+      "accountOptional": "Payment account (optional)",
+      "creditDebitType": "Type",
+      "expectedAmount": "Estimated average amount",
+      "variableAmount": "Leave blank if the amount varies a lot between due dates",
+      "accountSearchPlaceholder": "Search account…",
+      "frequency": "Frequency",
+      "dayOfMonth": "Day of month",
+      "intervalDays": "Interval (days)",
+      "firstDueDate": "Next due date",
+      "remindDaysBefore": "Remind N days before",
+      "notes": "Notes",
+      "fromTransaction": "Creating from transaction on {{date}}. Type is pre-filled from the transaction; you can adjust the other fields.",
+      "category": "Category",
+      "merchant": "Merchant",
+      "drawerTitleNew": "New recurring transaction",
+      "drawerTitleEdit": "Edit recurring transaction"
+    },
+    "actions": {
+      "confirmPayment": "Mark as paid",
+      "pause": "Pause",
+      "resume": "Resume"
+    },
+    "deleteConfirmation": {
+      "title": "Remove recurring transaction?",
+      "message": "Are you sure you want to remove this recurring transaction? This action cannot be undone."
+    },
+    "confirmPaymentDialog": {
+      "title": "Confirm payment",
+      "description": "Record payment of \"{{name}}\" without linking a specific transaction.",
+      "dateLabel": "Payment date",
+      "confirm": "Confirm"
+    },
+    "pendingActions": {
+      "paymentDue": "Recurring transaction due soon",
+      "viewAll": "View recurring",
+      "dismiss": "Dismiss"
+    },
+    "suggestion": {
+      "link": "Link to \"{{name}}\"",
+      "nextDue": "Due on {{date}}"
+    },
+    "uncategorized": "Uncategorized",
+    "summary": {
+      "monthlyCommitted": "Estimated Monthly Total",
+      "next7Days": "Next 7 days",
+      "overdue": "Overdue",
+      "distribution": "Breakdown",
+      "byCategory": "By category",
+      "byFrequency": "By frequency",
+      "noDistributionData": "No chart data (set an estimated amount on recurring items).",
+      "mobileAccordionTitle": "Indicators"
+    },
+    "header": {
+      "searchPlaceholder": "Search by name…"
+    },
+    "filters": {
+      "account": "Account",
+      "allAccounts": "All accounts",
+      "status": "Status",
+      "category": "Category",
+      "frequency": "Frequency",
+      "clear": "Clear filters",
+      "anyCategory": "All categories",
+      "all": "All",
+      "selectedCount": "{{count}} selected",
+      "ariaStatus": "Filter by status",
+      "ariaFrequency": "Filter by frequency"
+    },
+    "table": {
+      "ariaLabel": "Recurring transactions table",
+      "noRecurringActivity": "No recurring transactions",
+      "groups": {
+        "overdue": "Overdue",
+        "next7Days": "Next 7 days",
+        "nextMonth": "Next month"
+      },
+      "columns": {
+        "name": "Name",
+        "category": "Category",
+        "frequency": "Frequency",
+        "amount": "Amount",
+        "due": "Due",
+        "status": "Status",
+        "actions": ""
+      },
+      "rowActions": {
+        "ariaLabel": "Recurring transaction actions",
+        "edit": "Edit",
+        "remove": "Remove"
+      }
+    },
+    "statusOverdue": "Overdue",
+    "noFilterResults": "No results for the selected filters."
   }
 }

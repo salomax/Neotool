@@ -1,0 +1,47 @@
+meta {
+  name: Submit PDF Bill Import (Custom Base64)
+  type: graphql
+  seq: 19
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation SubmitPdfBillImport($input: SubmitPdfBillImportInput!) {
+    submitPdfBillImport(input: $input) {
+      id
+      status
+      fileName
+      createdAt
+      errorMessage
+      errorCode
+      errorParameters
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "importType": "CREDIT_CARD_BILL",
+      "financialAccountId": "{{financial_account_id}}",
+      "fileName": "{{pdf_file_name}}",
+      "fileBase64": "{{pdf_file_base64}}"
+    }
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body && body.data && body.data.submitPdfBillImport && body.data.submitPdfBillImport.id) {
+    bru.setEnvVar("pdf_import_job_id", body.data.submitPdfBillImport.id, { persist: true });
+  }
+}

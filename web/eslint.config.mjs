@@ -34,6 +34,38 @@ const config = [
   },
 
   {
+    files: [
+      'src/app/personal-finance/investments/**/*{Form,Drawer}.tsx',
+      'src/app/personal-finance/finance-transactions/**/*{Form,Drawer}.tsx',
+      'src/app/personal-finance/finance-transactions/transaction/hooks/useTransactionSave.ts',
+      'src/app/personal-finance/finance-transactions/bill/steps/TxReviewStep.tsx',
+      'src/app/personal-finance/finance-transactions/bill/billImportUtils.ts',
+    ],
+    ignores: ['**/__tests__/**', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "CallExpression[callee.property.name='format'][arguments.length=1][arguments.0.type='Literal'][arguments.0.value='YYYY-MM-DD']",
+          message:
+            "Use shared date-only helpers from '@/shared/utils/date/dateOnly' instead of ad-hoc YYYY-MM-DD formatting.",
+        },
+        {
+          selector: "NewExpression[callee.name='Date'][arguments.length=1][arguments.0.callee.name='String']",
+          message:
+            "Use parseDateOnly from '@/shared/utils/date/dateOnly' instead of parsing with new Date(String(...)).",
+        },
+        {
+          selector: "NewExpression[callee.name='Date'][arguments.length=1][arguments.0.type='TemplateLiteral']",
+          message:
+            "Use parseDateOnly from '@/shared/utils/date/dateOnly' instead of template-based Date parsing.",
+        },
+      ],
+    },
+  },
+
+  {
     files: ["**/__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}"],
     languageOptions: {
       globals: {

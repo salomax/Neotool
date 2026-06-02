@@ -537,6 +537,7 @@ export function SearchableAutocomplete<
               {...(errorProp && { error: true })}
               {...(helperTextValue && { helperText: helperTextValue })}
               fullWidth
+              size={(textFieldParams as { size?: "small" | "medium" }).size ?? "medium"}
               variant={variant}
               inputProps={{
                 ...params.inputProps,

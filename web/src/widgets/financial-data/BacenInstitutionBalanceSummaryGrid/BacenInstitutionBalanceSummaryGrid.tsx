@@ -94,18 +94,18 @@ export function BacenInstitutionBalanceSummaryGrid({
       <MetricDetailsDrawer
         open={!!selectedMetric}
         onClose={() => setSelectedMetric(null)}
-        title={selectedMetric?.label || t("actions.details", "Details")}
+        title={selectedMetric?.label || t("actions.details")}
         metric={selectedMetric ? { ...selectedMetric, locale: i18n.language } : null}
         growth={periodGrowth}
         chartData={chartData}
         period={period}
         onPeriodChange={setPeriod}
         periodOptions={[
-          { value: "1Y", label: t("periods.1y", "1Y") },
-          { value: "3Y", label: t("periods.3y", "3Y") },
-          { value: "5Y", label: t("periods.5y", "5Y") },
+          { value: "1Y", label: t("periods.1y") },
+          { value: "3Y", label: t("periods.3y") },
+          { value: "5Y", label: t("periods.5y") },
         ]}
-        historyTablePeriodLabel={t("calendar.quarter", "Quarter")}
+        historyTablePeriodLabel={t("calendar.quarter")}
       />
     </Box>
   );

@@ -1,0 +1,24 @@
+meta {
+  name: List Transaction Belongs To Options
+  type: graphql
+  seq: 5
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query TransactionBelongsToOptions {
+    transactionBelongsToOptions {
+      belongsToUserId
+      belongsToName
+    }
+  }
+}

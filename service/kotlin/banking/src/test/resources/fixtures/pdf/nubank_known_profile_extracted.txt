@@ -1,0 +1,11 @@
+Nubank
+Fatura do cartao - final 1234
+Periodo: 08/01/2026 a 07/02/2026
+
+| Data | Descricao | Valor |
+|---|---|---|
+| 15/01 | MERCADO EXTRA | 45,90 |
+| 22/01 | ESTORNO IFOOD | -32,00 |
+| 24/01 | UBER TRIP 2/3 | 139,50 |
+
+Total da fatura: 153,40

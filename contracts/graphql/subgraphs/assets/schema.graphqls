@@ -159,6 +159,7 @@ input CreateAssetUploadInput {
   will return the existing asset instead of creating a new one.
   """
   idempotencyKey: String
+
 }
 
 """

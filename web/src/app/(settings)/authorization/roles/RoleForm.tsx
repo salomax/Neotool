@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import { Stack } from "@mui/material";
+import { FormStack } from "@/shared/components/ui/forms/components";
 import { TextField } from "@/shared/components/ui/primitives";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
@@ -24,7 +24,7 @@ export const RoleForm: React.FC<RoleFormProps> = ({ initialValues }) => {
   const { control } = useFormContext<RoleFormData>();
 
   return (
-    <Stack spacing={3}>
+    <FormStack>
       <Controller
         name="name"
         control={control}
@@ -49,7 +49,7 @@ export const RoleForm: React.FC<RoleFormProps> = ({ initialValues }) => {
         )}
       />
 
-    </Stack>
+    </FormStack>
   );
 };
 

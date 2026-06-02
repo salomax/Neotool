@@ -5,6 +5,7 @@ import io.github.salomax.neotool.assets.graphql.dto.AssetDTO
 import io.github.salomax.neotool.assets.service.AssetService
 import io.github.salomax.neotool.assets.storage.BucketResolver
 import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.util.UUID
@@ -42,6 +43,7 @@ class AssetQueryResolver(
     fun asset(
         id: String,
         requesterId: String,
+        principalType: PrincipalType,
     ): AssetDTO? {
         val assetId =
             try {
@@ -54,7 +56,7 @@ class AssetQueryResolver(
                     cause = e,
                 )
             }
-        val asset = assetService.getAsset(assetId, requesterId) ?: return null
+        val asset = assetService.getAsset(assetId, requesterId, principalType) ?: return null
         return AssetDTO.fromDomain(asset, bucketResolver.getPublicBaseUrl())
     }
 }

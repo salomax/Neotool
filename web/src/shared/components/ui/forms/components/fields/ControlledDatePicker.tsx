@@ -10,6 +10,10 @@ import {
 } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
+import {
+  APP_DATE_PICKER_VIEWS,
+  mergeAppDatePickerSlotProps,
+} from "@/shared/components/ui/forms/form/appDatePickerConfig";
 
 /** Stores native Date by default (valueAsDate=true), even usando Dayjs no UI */
 export type ControlledDatePickerProps = Omit<
@@ -26,8 +30,13 @@ export function ControlledDatePicker({
   control,
   name,
   valueAsDate = true,
+  views,
+  slotProps,
   ...rest
 }: ControlledDatePickerProps) {
+  const mergedSlotProps = React.useMemo(() => mergeAppDatePickerSlotProps(slotProps), [slotProps]);
+  const resolvedViews = views !== undefined ? [...views] : [...APP_DATE_PICKER_VIEWS];
+
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Controller
@@ -45,6 +54,8 @@ export function ControlledDatePicker({
           return (
             <DatePicker
               {...rest}
+              views={resolvedViews}
+              slotProps={mergedSlotProps}
               value={value}
               onChange={(v) => {
                 if (valueAsDate) {

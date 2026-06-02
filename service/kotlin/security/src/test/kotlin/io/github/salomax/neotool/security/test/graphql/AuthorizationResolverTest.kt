@@ -9,6 +9,10 @@ import io.github.salomax.neotool.security.graphql.dto.PermissionDTO
 import io.github.salomax.neotool.security.graphql.dto.RoleDTO
 import io.github.salomax.neotool.security.graphql.mapper.AuthorizationMapper
 import io.github.salomax.neotool.security.graphql.resolver.AuthorizationResolver
+import io.github.salomax.neotool.security.model.account.AccountMembershipEntity
+import io.github.salomax.neotool.security.model.account.AccountRole
+import io.github.salomax.neotool.security.model.account.MembershipStatus
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.service.authorization.AuthorizationResult
 import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import org.assertj.core.api.Assertions.assertThat
@@ -27,13 +31,15 @@ import java.util.UUID
 class AuthorizationResolverTest {
     private lateinit var authorizationService: AuthorizationService
     private lateinit var mapper: AuthorizationMapper
+    private lateinit var accountMembershipRepository: AccountMembershipRepository
     private lateinit var authorizationResolver: AuthorizationResolver
 
     @BeforeEach
     fun setUp() {
         authorizationService = mock()
         mapper = mock()
-        authorizationResolver = AuthorizationResolver(authorizationService, mapper)
+        accountMembershipRepository = mock()
+        authorizationResolver = AuthorizationResolver(authorizationService, mapper, accountMembershipRepository)
     }
 
     @Nested
@@ -561,6 +567,50 @@ class AuthorizationResolverTest {
                     assertThat(exception.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
                     assertThat(exception.field).isEqualTo("userId")
                 }
+        }
+    }
+
+    @Nested
+    @DisplayName("Is User Active Member Of Account")
+    inner class IsUserActiveMemberOfAccountTests {
+        @Test
+        fun `should return true when membership exists and is active`() {
+            val userId = UUID.randomUUID()
+            val accountId = UUID.randomUUID()
+            val membership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = userId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(accountId, userId))
+                .thenReturn(java.util.Optional.of(membership))
+
+            val response =
+                authorizationResolver.isUserActiveMemberOfAccount(
+                    userId = userId.toString(),
+                    accountId = accountId.toString(),
+                )
+
+            assertThat(response).isTrue()
+        }
+
+        @Test
+        fun `should return false when membership does not exist`() {
+            val userId = UUID.randomUUID()
+            val accountId = UUID.randomUUID()
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(accountId, userId))
+                .thenReturn(java.util.Optional.empty())
+
+            val response =
+                authorizationResolver.isUserActiveMemberOfAccount(
+                    userId = userId.toString(),
+                    accountId = accountId.toString(),
+                )
+
+            assertThat(response).isFalse()
         }
     }
 }

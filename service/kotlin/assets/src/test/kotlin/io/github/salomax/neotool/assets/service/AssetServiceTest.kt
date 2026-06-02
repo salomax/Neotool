@@ -11,7 +11,10 @@ import io.github.salomax.neotool.assets.storage.BucketResolver
 import io.github.salomax.neotool.assets.storage.StorageClient
 import io.github.salomax.neotool.assets.storage.StorageKeyFactory
 import io.github.salomax.neotool.assets.storage.StorageProperties
+import io.github.salomax.neotool.assets.test.ValidationTestDataBuilders
 import io.github.salomax.neotool.common.error.ConflictException
+import io.github.salomax.neotool.common.error.NotFoundException
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.micrometer.core.instrument.MeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -76,6 +79,10 @@ class AssetServiceTest {
                 bucketResolver,
                 meterRegistry,
             )
+        whenever(assetConfig.getNamespaceConfig(any())).thenAnswer {
+            val namespace = it.arguments[0] as String
+            ValidationTestDataBuilders.namespaceConfig(name = namespace)
+        }
     }
 
     @Nested
@@ -271,6 +278,74 @@ class AssetServiceTest {
     @DisplayName("confirmUpload()")
     inner class ConfirmUploadTests {
         @Test
+        fun `should allow service actor to confirm when delegated owner matches asset owner`() {
+            // Arrange
+            val assetId = UUID.randomUUID()
+            val tenantOwnerId = "account-456"
+            val entity =
+                createTestEntity(
+                    id = assetId,
+                    ownerId = tenantOwnerId,
+                    namespace = "transaction-imports",
+                    status = AssetStatus.PENDING,
+                    uploadExpiresAt = Instant.now().plusSeconds(3600),
+                )
+            val metadata =
+                StorageClient.ObjectMetadata(
+                    sizeBytes = 2048L,
+                    contentType = "text/csv",
+                    etag = "etag-123",
+                )
+
+            whenever(assetRepository.findById(assetId)).thenReturn(Optional.of(entity))
+            whenever(storageClient.objectExists(entity.storageBucket, entity.storageKey)).thenReturn(true)
+            whenever(storageClient.getObjectMetadata(entity.storageBucket, entity.storageKey)).thenReturn(metadata)
+            whenever(assetRepository.update(any())).thenAnswer { it.arguments[0] as AssetEntity }
+
+            // Act
+            val confirmed = assetService.confirmUpload(assetId, tenantOwnerId, principalType = PrincipalType.SERVICE)
+
+            // Assert
+            assertThat(confirmed.status).isEqualTo(AssetStatus.READY)
+            verify(assetRepository).findById(assetId)
+            verify(storageClient).objectExists(entity.storageBucket, entity.storageKey)
+            verify(storageClient).getObjectMetadata(entity.storageBucket, entity.storageKey)
+            verify(assetRepository).update(any())
+        }
+
+        @Test
+        fun `should deny service actor when delegated owner does not match`() {
+            // Arrange
+            val assetId = UUID.randomUUID()
+            val entity =
+                createTestEntity(
+                    id = assetId,
+                    ownerId = "account-456",
+                    namespace = "user-profiles",
+                    status = AssetStatus.PENDING,
+                    uploadExpiresAt = Instant.now().plusSeconds(3600),
+                )
+
+            whenever(assetRepository.findById(assetId)).thenReturn(Optional.of(entity))
+
+            // Act & Assert
+            assertThatThrownBy {
+                assetService.confirmUpload(
+                    assetId,
+                    "service-123",
+                    principalType = PrincipalType.SERVICE,
+                )
+            }
+                .isInstanceOf(NotFoundException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(AssetErrorCode.ASSET_NOT_FOUND)
+
+            verify(assetRepository).findById(assetId)
+            verify(storageClient, never()).objectExists(any(), any())
+            verify(assetRepository, never()).update(any())
+        }
+
+        @Test
         fun `should throw when upload URL has expired`() {
             // Arrange
             val assetId = UUID.randomUUID()
@@ -289,10 +364,9 @@ class AssetServiceTest {
 
             // Act & Assert
             assertThatThrownBy { assetService.confirmUpload(assetId, ownerId) }
-                .isInstanceOfSatisfying(ConflictException::class.java) { ex ->
-                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_UPLOAD_EXPIRED)
-                    assertThat(ex.field).isEqualTo("uploadExpiresAt")
-                }
+                .isInstanceOf(ConflictException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(AssetErrorCode.ASSET_UPLOAD_URL_EXPIRED)
 
             verify(assetRepository).findById(assetId)
             verify(assetRepository).update(any()) // Should update status to FAILED
@@ -319,10 +393,9 @@ class AssetServiceTest {
 
             // Act & Assert
             assertThatThrownBy { assetService.confirmUpload(assetId, ownerId) }
-                .isInstanceOfSatisfying(ConflictException::class.java) { ex ->
-                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_UPLOAD_NOT_COMPLETED)
-                    assertThat(ex.field).isEqualTo("assetId")
-                }
+                .isInstanceOf(ConflictException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(AssetErrorCode.ASSET_UPLOAD_NOT_COMPLETED)
 
             verify(assetRepository).findById(assetId)
             verify(storageClient).objectExists(entity.storageBucket, entity.storageKey)
@@ -352,10 +425,9 @@ class AssetServiceTest {
 
             // Act & Assert
             assertThatThrownBy { assetService.confirmUpload(assetId, ownerId) }
-                .isInstanceOfSatisfying(ConflictException::class.java) { ex ->
-                    assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_UPLOAD_VERIFICATION_FAILED)
-                    assertThat(ex.field).isEqualTo("assetId")
-                }
+                .isInstanceOf(ConflictException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(AssetErrorCode.ASSET_UPLOAD_VERIFICATION_FAILED)
 
             verify(assetRepository).findById(assetId)
             verify(storageClient).objectExists(entity.storageBucket, entity.storageKey)
@@ -367,6 +439,56 @@ class AssetServiceTest {
     @Nested
     @DisplayName("deleteAsset()")
     inner class DeleteAssetTests {
+        @Test
+        fun `should allow service actor to delete when delegated owner matches asset owner`() {
+            // Arrange
+            val assetId = UUID.randomUUID()
+            val tenantOwnerId = "account-456"
+            val entity =
+                createTestEntity(
+                    id = assetId,
+                    ownerId = tenantOwnerId,
+                    namespace = "transaction-imports",
+                    status = AssetStatus.READY,
+                )
+
+            whenever(assetRepository.findById(assetId)).thenReturn(Optional.of(entity))
+            whenever(storageClient.deleteObject(entity.storageBucket, entity.storageKey)).thenReturn(true)
+
+            // Act
+            val result = assetService.deleteAsset(assetId, tenantOwnerId, principalType = PrincipalType.SERVICE)
+
+            // Assert
+            assertThat(result).isTrue()
+            verify(assetRepository).findById(assetId)
+            verify(storageClient).deleteObject(entity.storageBucket, entity.storageKey)
+            verify(assetRepository).delete(entity)
+        }
+
+        @Test
+        fun `should deny service actor delete when delegated owner does not match`() {
+            // Arrange
+            val assetId = UUID.randomUUID()
+            val entity =
+                createTestEntity(
+                    id = assetId,
+                    ownerId = "account-456",
+                    namespace = "user-profiles",
+                    status = AssetStatus.READY,
+                )
+
+            whenever(assetRepository.findById(assetId)).thenReturn(Optional.of(entity))
+
+            // Act
+            val result = assetService.deleteAsset(assetId, "service-123", principalType = PrincipalType.SERVICE)
+
+            // Assert
+            assertThat(result).isFalse()
+            verify(assetRepository).findById(assetId)
+            verify(storageClient, never()).deleteObject(any(), any())
+            verify(assetRepository, never()).delete(any())
+        }
+
         @Test
         fun `should continue deletion when storage deletion fails`() {
             // Arrange
@@ -392,6 +514,58 @@ class AssetServiceTest {
             verify(assetRepository).findById(assetId)
             verify(storageClient).deleteObject(entity.storageBucket, entity.storageKey)
             verify(assetRepository).delete(entity) // Should still delete from DB
+        }
+    }
+
+    @Nested
+    @DisplayName("getAsset()")
+    inner class GetAssetTests {
+        @Test
+        fun `should allow service actor for PRIVATE asset when delegated owner matches`() {
+            // Arrange
+            val assetId = UUID.randomUUID()
+            val tenantOwnerId = "account-456"
+            val entity =
+                createTestEntity(
+                    id = assetId,
+                    ownerId = tenantOwnerId,
+                    namespace = "transaction-imports",
+                    visibility = AssetVisibility.PRIVATE,
+                    status = AssetStatus.READY,
+                )
+
+            whenever(assetRepository.findById(assetId)).thenReturn(Optional.of(entity))
+
+            // Act
+            val result = assetService.getAsset(assetId, tenantOwnerId, principalType = PrincipalType.SERVICE)
+
+            // Assert
+            assertThat(result).isNotNull()
+            assertThat(result!!.id).isEqualTo(assetId)
+            verify(assetRepository).findById(assetId)
+        }
+
+        @Test
+        fun `should deny service actor get when delegated owner does not match`() {
+            // Arrange
+            val assetId = UUID.randomUUID()
+            val entity =
+                createTestEntity(
+                    id = assetId,
+                    ownerId = "account-456",
+                    namespace = "user-profiles",
+                    visibility = AssetVisibility.PRIVATE,
+                    status = AssetStatus.READY,
+                )
+
+            whenever(assetRepository.findById(assetId)).thenReturn(Optional.of(entity))
+
+            // Act
+            val result = assetService.getAsset(assetId, "service-123", principalType = PrincipalType.SERVICE)
+
+            // Assert
+            assertThat(result).isNull()
+            verify(assetRepository).findById(assetId)
         }
     }
 

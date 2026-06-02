@@ -40,17 +40,45 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
 }, ref) => {
   const [showPassword, setShowPassword] = useState(false);
 
-  // Handle custom 'large' size with styling
   const muiSize = size === 'large' ? 'medium' : size;
-  const largeSx = size === 'large' ? {
-    '& .MuiInputBase-root': {
-      fontSize: '1.125rem',
-      '& .MuiInputBase-input': {
-        padding: '16.5px 14px',
-      },
+  const isMultiline = !!props.multiline;
+  const inputPadding =
+    size === "small"
+      ? "10.5px 14px"
+      : size === "large"
+        ? "16.5px 14px"
+        : "14.5px 14px";
+  const multilineAdornmentMarginTop =
+    size === "small" ? "6px" : size === "large" ? "10px" : "8px";
+
+  /** Applied on OutlinedInput so it wins over MUI's multiline root padding (otherwise it stacks with textarea padding and looks ~2× single-line). */
+  const multilineOutlinedRootSx = {
+    padding: 0,
+    alignItems: "flex-start" as const,
+    "& .MuiInputAdornment-root.MuiInputAdornment-positionStart": {
+      marginRight: 6,
+      marginTop: multilineAdornmentMarginTop,
     },
-    ...sx,
-  } : sx;
+    "& .MuiInputAdornment-root.MuiInputAdornment-positionEnd": {
+      marginLeft: 6,
+      marginTop: multilineAdornmentMarginTop,
+    },
+  };
+
+  const baseSx = {
+    ...(size === "large" && {
+      "& .MuiInputBase-root": {
+        fontSize: "1.125rem",
+      },
+    }),
+    "& .MuiOutlinedInput-input": {
+      padding: inputPadding,
+    },
+  } as const;
+
+  const mergedSx = sx
+    ? [baseSx, ...(Array.isArray(sx) ? sx : [sx])]
+    : baseSx;
 
   // Convert string icon names to icon components
   const startAdornment = startIcon ? (
@@ -81,9 +109,22 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
   // Determine actual input type (toggle password visibility)
   const inputType = type === 'password' && showPassword ? 'text' : type;
 
+  const inputPropsSx = InputProps?.sx;
+  const mergedInputSx = isMultiline
+    ? [
+        ...(Array.isArray(inputPropsSx)
+          ? inputPropsSx
+          : inputPropsSx
+            ? [inputPropsSx]
+            : []),
+        multilineOutlinedRootSx,
+      ]
+    : inputPropsSx;
+
   // Merge with existing InputProps
   const mergedInputProps = {
     ...InputProps,
+    ...(mergedInputSx !== undefined ? { sx: mergedInputSx } : {}),
     startAdornment: startAdornment || InputProps?.startAdornment,
     endAdornment: endAdornment || InputProps?.endAdornment,
   };
@@ -134,7 +175,7 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
       size={muiSize}
       InputProps={mergedInputProps}
       inputProps={mergedInputPropsAttrs}
-      sx={largeSx}
+      sx={mergedSx}
       {...props}
     />
   );

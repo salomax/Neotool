@@ -89,8 +89,6 @@ export function MetricLineChart({
         },
       ]}
       scale
-      scaleMinPadding={0.05}
-      scaleMaxPadding={0.15}
       consolidateDecimal
       showArea
       showLegend={showLegend}

@@ -2,7 +2,11 @@
   "hero": {
     "titlePrefix": "Clarity for your",
     "titleHighlight": "financial life.",
-    "subtitle": "Your investments and personal expenses in one smart tool. Better decisions start here."
+    "subtitle": "Your investments and personal expenses in one smart tool. Better decisions start here.",
+    "floatingCards": {
+      "save": "Save",
+      "invest": "Invest"
+    }
   },
   "features": {
     "title": "What's New",

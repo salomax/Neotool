@@ -41,6 +41,9 @@ dependencies {
     // HTTP Client for GraphQL
     implementation("io.micronaut:micronaut-http-client")
 
+    // Kafka (assistant worker mode for banking reader flow)
+    implementation("io.micronaut.kafka:micronaut-kafka")
+
     // JSON processing
     implementation("io.micronaut.serde:micronaut-serde-jackson")
 
@@ -59,6 +62,14 @@ application {
 tasks.test {
     systemProperty("ryuk.disabled", "true")
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
+}
+
+// Workaround for KSP configuration cache issue
+// KSP tasks are not fully compatible with Gradle configuration cache
+tasks.all {
+    if (name.startsWith("ksp") || name.contains("Ksp")) {
+        notCompatibleWithConfigurationCache("KSP tasks are not compatible with configuration cache")
+    }
 }
 
 // Enable ZIP64 support for all JAR tasks to handle more than 65535 entries

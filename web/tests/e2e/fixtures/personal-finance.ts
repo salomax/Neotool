@@ -1,0 +1,241 @@
+/**
+ * Personal Finance fixtures for E2E tests.
+ *
+ * Design decisions:
+ * - pfUser and its storageState are worker-scoped to avoid N sign-ups per test.
+ * - bankAccount / creditCardAccount / transactions are test-scoped (created per test).
+ * - deleteFinancialAccount now exists, but bankAccount includes an initial balance
+ *   transaction and cannot be deleted directly. Accounts are still named uniquely.
+ * - twoTenants creates two isolated users for cross-tenant security tests.
+ *
+ * Initial balance date:
+ * - `bankAccount` sets `initialBalanceDate` to **the first day of the current month** so it is on
+ *   or before the inline form default (day 1 of the selected month). GraphQL `createTransaction`
+ *   rejects dates before that. Tests that post to **last month** must use
+ *   `createFinancialAccount({ …, initialBalanceDate })` on or before those dates (see
+ *   `transactions.e2e.spec.ts` header and monthly-summary helpers).
+ */
+
+/* eslint-disable react-hooks/rules-of-hooks */
+import { test as base, type BrowserContext } from '@playwright/test';
+import { signInWithSession, createUser, type AuthSession } from '../helpers/graphql';
+import { buildAuthStorageState } from '../helpers/storage-state';
+import {
+  createFinancialAccount,
+  createTransaction,
+  CreditDebitType,
+  deleteTransaction,
+  FinancialAccount,
+  Transaction,
+  firstDayOfMonth,
+  today,
+  TransactionStatus,
+  TransactionType,
+} from '../helpers/banking-graphql';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface PfUser {
+  id: string;
+  email: string;
+  password: string;
+  token: string;
+  session: AuthSession;
+}
+
+type StorageState = Awaited<ReturnType<BrowserContext['storageState']>>;
+
+export interface TwoTenants {
+  userA: PfUser;
+  userB: PfUser;
+  ctxA: BrowserContext;
+  ctxB: BrowserContext;
+}
+
+export interface PfFixtures {
+  /** A BANK/CONTA_CORRENTE account with R$ 1.000 initial balance. */
+  bankAccount: FinancialAccount;
+  /** A CREDIT/CREDIT_CARD account (closingDay=7, dueDay=15). */
+  creditCardAccount: FinancialAccount;
+  /** A POSTED DEBIT transaction in bankAccount. */
+  postedExpense: Transaction;
+  /** A POSTED CREDIT transaction in bankAccount. */
+  postedIncome: Transaction;
+  /** Two isolated browser contexts signed in as different users (for security tests). */
+  twoTenants: TwoTenants;
+}
+
+export interface PfWorkerFixtures {
+  /** A unique user with a valid JWT token, scoped per worker for speed. */
+  pfUser: PfUser;
+  workerStorageState: StorageState;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function uniqueName(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function uniqueEmail(): string {
+  return `pf-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@test.neotool.com`;
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function createPfUser(): Promise<PfUser> {
+  const password = 'TestPassword123!';
+  const maxAttempts = 4;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const email = uniqueEmail();
+      const user = await createUser(email, password, 'PF Test User');
+      const session = await signInWithSession(email, password, true);
+      return { id: user.id, email, password, token: session.token, session };
+    } catch (e) {
+      lastError = e;
+      const msg = e instanceof Error ? e.message : String(e);
+      const transient = /\b(502|503|504|Gateway Timeout)\b/i.test(msg);
+      if (!transient || attempt === maxAttempts - 1) break;
+      await sleep(400 * (attempt + 1));
+    }
+  }
+  throw lastError;
+}
+
+// ── Fixture definitions ───────────────────────────────────────────────────────
+
+export const test = base.extend<PfFixtures, PfWorkerFixtures>({
+  /**
+   * Reuse one authenticated storage state per worker so every page starts logged in.
+   */
+  storageState: async ({ workerStorageState }, use) => {
+    await use(workerStorageState);
+  },
+
+  workerStorageState: [
+    async ({ pfUser }: { pfUser: PfUser }, use: (storageState: StorageState) => Promise<void>) => {
+      await use(buildAuthStorageState(pfUser.session));
+    },
+    { scope: 'worker' },
+  ],
+
+  /**
+   * One unique user per worker. Worker scope avoids creating N users for N tests
+   * in the same worker process.
+   */
+  pfUser: [
+    async ({ browser: _browser }, use) => {
+      const user = await createPfUser();
+      await use(user);
+    },
+    { scope: 'worker' },
+  ],
+
+  /**
+   * BANK / CONTA_CORRENTE account with R$ 1.000 initial balance.
+   * Created fresh per test so tests don't share transaction state.
+   * `initialBalanceDate` is the first day of the current month — use a custom account for UI/API
+   * tests that need an initial balance after day 1 or in a prior month.
+   */
+  bankAccount: async ({ pfUser }, use) => {
+    const account = await createFinancialAccount(
+      {
+        name: uniqueName('Conta Corrente E2E'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+        initialBalance: 1000.0,
+        initialBalanceDate: firstDayOfMonth(),
+      },
+      pfUser.token
+    );
+    await use(account);
+    // account has initial balance transaction; deletion is intentionally skipped in fixture teardown.
+  },
+
+  /**
+   * CREDIT / CREDIT_CARD account with closingDay=7 and dueDay=15.
+   */
+  creditCardAccount: async ({ pfUser }, use) => {
+    const account = await createFinancialAccount(
+      {
+        name: uniqueName('Cartão Crédito E2E'),
+        type: 'CREDIT',
+        subtype: 'CREDIT_CARD',
+        closingDay: 7,
+        dueDay: 15,
+      },
+      pfUser.token
+    );
+    await use(account);
+  },
+
+  /**
+   * A POSTED DEBIT transaction (expense) of R$ 100 in bankAccount.
+   * Deleted after the test to keep account state clean.
+   */
+  postedExpense: async ({ pfUser, bankAccount }, use) => {
+    const tx = await createTransaction(
+      {
+        financialAccountId: bankAccount.id,
+        description: uniqueName('Despesa E2E'),
+        amount: 100.0,
+        creditDebitType: CreditDebitType.Debit,
+        type: TransactionType.OtherExpense,
+        status: TransactionStatus.Posted,
+        date: today(),
+      },
+      pfUser.token
+    );
+    await use(tx);
+    await deleteTransaction(tx.id, pfUser.token).catch(() => {
+      // Ignore teardown errors — the transaction may have already been deleted by the test.
+    });
+  },
+
+  /**
+   * A POSTED CREDIT transaction (income) of R$ 500 in bankAccount.
+   * Deleted after the test to keep account state clean.
+   */
+  postedIncome: async ({ pfUser, bankAccount }, use) => {
+    const tx = await createTransaction(
+      {
+        financialAccountId: bankAccount.id,
+        description: uniqueName('Receita E2E'),
+        amount: 500.0,
+        creditDebitType: CreditDebitType.Credit,
+        type: TransactionType.Salary,
+        status: TransactionStatus.Posted,
+        date: today(),
+      },
+      pfUser.token
+    );
+    await use(tx);
+    await deleteTransaction(tx.id, pfUser.token).catch(() => {});
+  },
+
+  /**
+   * Two isolated browser contexts signed in as different users.
+   * Used exclusively for cross-tenant security tests.
+   *
+   * userA creates a financial account; userB attempts to access/modify it.
+   */
+  twoTenants: async ({ browser }, use) => {
+    // Sequential sign-ups reduce gateway 504s when the banking stack is under parallel E2E load.
+    const userA = await createPfUser();
+    const userB = await createPfUser();
+
+    const ctxA = await browser.newContext({ storageState: buildAuthStorageState(userA.session) });
+    const ctxB = await browser.newContext({ storageState: buildAuthStorageState(userB.session) });
+
+    const tenants: TwoTenants = { userA, userB, ctxA, ctxB };
+    await use(tenants);
+
+    await Promise.all([ctxA.close(), ctxB.close()]);
+  },
+});
+
+export { expect } from '@playwright/test';

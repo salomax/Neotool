@@ -1,0 +1,174 @@
+import React from 'react';
+import {
+  Box,
+  Stack,
+  Select,
+  MenuItem,
+  FormControl,
+  IconButton,
+  Tooltip,
+  useTheme,
+  useMediaQuery,
+} from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
+import { useDashboardStore } from '../store';
+import { DateRangeOption } from '../types';
+import { useTranslation } from '@/shared/i18n';
+import { personalFinanceTranslations } from '@/app/personal-finance/i18n';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+import RepeatIcon from '@mui/icons-material/Repeat';
+import { QuickActionCard } from './QuickActionCard';
+import { useFeatureFlagEnabled } from '@/shared/hooks/useFeatureFlag';
+
+const quickActionIconSx = { fontSize: 128 };
+
+interface DashboardControlsProps {
+}
+
+export const DashboardControls: React.FC<DashboardControlsProps> = () => {
+  const { dateRange, setDateRange, resetLayout } = useDashboardStore();
+  const { t } = useTranslation(personalFinanceTranslations);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const pricingEnabled = useFeatureFlagEnabled('pricing-enabled');
+  const outlinedBorderColor = alpha(theme.palette.primary.main, 0.5);
+
+  const timeRangeLabelByOption = React.useMemo<Record<DateRangeOption, string>>(
+    () => ({
+      currentMonth: t('dashboard.timeRange.options.currentMonth'),
+      '3m': t('dashboard.timeRange.options.3m'),
+      '6m': t('dashboard.timeRange.options.6m'),
+      '1y': t('dashboard.timeRange.options.1y'),
+      '3y': t('dashboard.timeRange.options.3y'),
+      all: t('dashboard.timeRange.options.all'),
+      custom: t('dashboard.timeRange.options.custom'),
+    }),
+    [t]
+  );
+
+  return (
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: isMobile ? 'stretch' : 'flex-end',
+        mb: 2,
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: 1.5
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: isMobile ? '100%' : 'auto' }}>
+        <Box sx={{ width: isMobile ? '100%' : 'auto' }}>
+          <Stack direction={isMobile ? 'column' : 'row'} spacing={2} sx={{ width: '100%' }}>
+            <QuickActionCard
+              href="/personal-finance/finance-transactions"
+              title={t('dashboard.actions.financeMovements.title')}
+              accentColor={theme.palette.primary.main}
+              icon={<SwapHorizIcon sx={quickActionIconSx} />}
+              isMobile={isMobile}
+            />
+
+            <QuickActionCard
+              href="/personal-finance/investments"
+              title={t('dashboard.actions.investmentsPortfolio.title')}
+              accentColor={theme.palette.success.main}
+              icon={<SavingsOutlinedIcon sx={quickActionIconSx} />}
+              isMobile={isMobile}
+            />
+
+            {pricingEnabled && (
+              <QuickActionCard
+                href="/personal-finance/prices-consumption"
+                title={t('dashboard.actions.pricesConsumption.title')}
+                accentColor={theme.palette.info.main}
+                icon={<ShoppingCartOutlinedIcon sx={quickActionIconSx} />}
+                isMobile={isMobile}
+              />
+            )}
+
+            <QuickActionCard
+              href="/personal-finance/recurring-payments"
+              title={t('dashboard.actions.recurringPayments.title')}
+              accentColor={theme.palette.warning.main}
+              icon={<RepeatIcon sx={quickActionIconSx} />}
+              isMobile={isMobile}
+            />
+          </Stack>
+        </Box>
+      </Box>
+
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        sx={{
+          width: isMobile ? '100%' : 'auto',
+          justifyContent: isMobile ? 'space-between' : 'flex-end',
+          flexWrap: 'wrap',
+        }}
+      >
+        <FormControl
+          sx={{
+            minWidth: 160,
+            '& .MuiOutlinedInput-root': {
+              borderRadius: `${theme.custom.radius.button}px`,
+              height: 48,
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: outlinedBorderColor,
+            },
+            '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'primary.main',
+            },
+          }}
+        >
+          <Select
+            aria-label={t('dashboard.timeRange.ariaLabel')}
+            value={dateRange.option}
+            onChange={(e) => setDateRange(e.target.value as DateRangeOption)}
+            displayEmpty
+            renderValue={(value) => timeRangeLabelByOption[value as DateRangeOption] ?? String(value)}
+            sx={{
+              bgcolor: 'transparent',
+              '& .MuiSelect-select': {
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                py: 0,
+              },
+            }}
+          >
+            <MenuItem value="currentMonth">{t('dashboard.timeRange.options.currentMonth')}</MenuItem>
+            <MenuItem value="3m">{t('dashboard.timeRange.options.3m')}</MenuItem>
+            <MenuItem value="6m">{t('dashboard.timeRange.options.6m')}</MenuItem>
+            <MenuItem value="1y">{t('dashboard.timeRange.options.1y')}</MenuItem>
+            <MenuItem value="3y">{t('dashboard.timeRange.options.3y')}</MenuItem>
+            <MenuItem value="all">{t('dashboard.timeRange.options.all')}</MenuItem>
+          </Select>
+        </FormControl>
+        <Tooltip title={t('dashboard.controls.resetLayout')}>
+          <IconButton
+            aria-label={t('dashboard.controls.resetLayout')}
+            onClick={resetLayout}
+            sx={{
+              border: 1,
+              borderColor: outlinedBorderColor,
+              borderRadius: `${theme.custom.radius.button}px`,
+              height: 48,
+              width: 48,
+              p: 1.5,
+              '&:hover': {
+                borderColor: 'primary.main',
+              },
+            }}
+          >
+            <RestartAltIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Stack>
+    </Box>
+  );
+};

@@ -10,6 +10,8 @@ export const SIGN_IN = gql`
         id
         email
         displayName
+        avatarUrl
+        avatarProvider
         roles {
           id
           name
@@ -33,6 +35,8 @@ export const SIGN_IN_WITH_OAUTH = gql`
         id
         email
         displayName
+        avatarUrl
+        avatarProvider
         roles {
           id
           name
@@ -57,6 +61,8 @@ export const SIGN_UP = gql`
         id
         email
         displayName
+        avatarUrl
+        avatarProvider
         emailVerified
         emailVerifiedAt
         roles {
@@ -125,10 +131,13 @@ export const REFRESH_ACCESS_TOKEN = gql`
   mutation RefreshAccessToken($input: RefreshAccessTokenInput!) {
     refreshAccessToken(input: $input) {
       token
+      refreshToken
       user {
         id
         email
         displayName
+        avatarUrl
+        avatarProvider
         roles {
           id
           name
@@ -138,6 +147,50 @@ export const REFRESH_ACCESS_TOKEN = gql`
           name
         }
       }
+    }
+  }
+`;
+
+export const UPDATE_USER_PREFERENCES = gql`
+  mutation UpdateUserPreferences($input: UpdateUserPreferencesInput!) {
+    updateUserPreferences(input: $input) {
+      language
+      theme
+      blurBalances
+      firstDayOfWeek
+      keepMeConnected
+    }
+  }
+`;
+
+export const UPDATE_ACCOUNT = gql`
+  mutation UpdateAccount($accountId: ID!, $input: UpdateAccountInput!) {
+    updateAccount(accountId: $accountId, input: $input) {
+      id
+      accountName
+      accountType
+      accountStatus
+      isOwner
+    }
+  }
+`;
+
+export const UPDATE_USER_AVATAR = gql`
+  mutation UpdateUserAvatar($input: UpdateUserAvatarInput!) {
+    updateUserAvatar(input: $input) {
+      id
+      avatarUrl
+      avatarProvider
+    }
+  }
+`;
+
+export const REMOVE_USER_AVATAR = gql`
+  mutation RemoveUserAvatar {
+    removeUserAvatar {
+      id
+      avatarUrl
+      avatarProvider
     }
   }
 `;

@@ -257,6 +257,21 @@ export function extractErrorMessage(
     } catch (_err) {
       // Ignore translation failures and use safe default message below.
     }
+
+    if (typeof error === 'object' && error !== null) {
+      const err = error as any;
+      const rawMessage =
+        (Array.isArray(err.graphQLErrors) && err.graphQLErrors.length > 0 && err.graphQLErrors[0]?.message) ||
+        err.networkError?.message ||
+        err.networkError?.error?.message ||
+        err.message;
+
+      const cleaned = cleanErrorMessage(rawMessage);
+      if (isConnectionError(cleaned)) {
+        return getConnectionErrorMessage(cleaned);
+      }
+    }
+
     return defaultTranslated;
   }
 

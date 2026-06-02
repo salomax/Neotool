@@ -191,9 +191,9 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     mimeType = "application/pdf",
                     sizeBytes = 1048576L,
                 )
-            }.isInstanceOfSatisfying(ValidationException::class.java) { ex ->
-                Assertions.assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_FORMAT_UNSUPPORTED)
-            }
+            }.isInstanceOf(ValidationException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(AssetErrorCode.ASSET_FORMAT_UNSUPPORTED)
         }
 
         @Test
@@ -208,9 +208,9 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
                     // Exceeds default limit
                     sizeBytes = 100_000_000L,
                 )
-            }.isInstanceOfSatisfying(ValidationException::class.java) { ex ->
-                Assertions.assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_SIZE_EXCEEDED)
-            }
+            }.isInstanceOf(ValidationException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(AssetErrorCode.ASSET_SIZE_EXCEEDED)
         }
     }
 
@@ -269,9 +269,9 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             // Act & Assert
             Assertions.assertThatThrownBy {
                 assetService.confirmUpload(asset.id!!, testUserId)
-            }.isInstanceOfSatisfying(ConflictException::class.java) { ex ->
-                Assertions.assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_UPLOAD_NOT_COMPLETED)
-            }
+            }.isInstanceOf(ConflictException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(AssetErrorCode.ASSET_UPLOAD_NOT_COMPLETED)
 
             // Verify asset is marked as FAILED and uploadUrl is cleared
             val persisted = assetRepository.findById(asset.id!!)
@@ -315,9 +315,9 @@ open class AssetServiceIntegrationTest : BaseIntegrationTest(), PostgresIntegrat
             // Act & Assert
             Assertions.assertThatThrownBy {
                 assetService.confirmUpload(asset.id!!, testUserId)
-            }.isInstanceOfSatisfying(ConflictException::class.java) { ex ->
-                Assertions.assertThat(ex.errorCode).isEqualTo(AssetErrorCode.ASSET_INVALID_STATE)
-            }
+            }.isInstanceOf(ConflictException::class.java)
+                .extracting("errorCode")
+                .isEqualTo(AssetErrorCode.ASSET_INVALID_STATE)
         }
     }
 

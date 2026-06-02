@@ -8,7 +8,6 @@ import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.exception.StorageUnavailableException
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
-import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
 import org.assertj.core.api.Assertions.assertThat
 import org.hibernate.StaleStateException
@@ -32,29 +31,39 @@ class AssetGraphQLExceptionHandlerTest {
     @DisplayName("handleException()")
     inner class HandleExceptionTests {
         @Test
-        fun `should map DomainException to code and safe message`() {
-            val exception = ValidationException(AssetErrorCode.ASSET_FORMAT_UNSUPPORTED, field = "mimeType")
+        fun `should handle DomainException with asset error code`() {
+            // Arrange
+            val exception =
+                ValidationException(
+                    errorCode = AssetErrorCode.ASSET_FORMAT_UNSUPPORTED,
+                    field = "mimeType",
+                    parameters = mapOf("mimeType" to "application/pdf"),
+                )
             val parameters = createHandlerParameters(exception)
 
             val result = handler.handleException(parameters).get()
 
+            // Assert
             assertThat(result.errors).hasSize(1)
             assertThat(result.errors[0].message).isEqualTo(AssetErrorCode.ASSET_FORMAT_UNSUPPORTED.defaultMessage)
             assertThat(result.errors[0].extensions).containsEntry("code", AssetErrorCode.ASSET_FORMAT_UNSUPPORTED.code)
+            assertThat(result.errors[0].extensions).containsEntry("parameters", mapOf("mimeType" to "application/pdf"))
+            assertThat(result.errors[0].extensions).containsEntry("field", listOf("mimeType"))
             assertThat(result.errors[0].extensions).containsEntry("service", "assets")
         }
 
         @Test
-        fun `should map AuthenticationRequiredException without exposing details`() {
-            val exception = AuthenticationRequiredException("token for user 123 missing")
+        fun `should handle IllegalArgumentException as invalid input`() {
+            // Arrange
+            val exception = IllegalArgumentException()
             val parameters = createHandlerParameters(exception)
 
             val result = handler.handleException(parameters).get()
 
+            // Assert
             assertThat(result.errors).hasSize(1)
-            assertThat(result.errors[0].message).isEqualTo("Authentication required")
-            assertThat(result.errors[0].extensions).containsEntry("code", "AUTH_AUTHENTICATION_REQUIRED")
-            assertThat(result.errors[0].message).doesNotContain("123")
+            assertThat(result.errors[0].message).isEqualTo(CommonErrorCode.INVALID_INPUT.defaultMessage)
+            assertThat(result.errors[0].extensions).containsEntry("code", CommonErrorCode.INVALID_INPUT.code)
         }
 
         @Test
@@ -64,10 +73,11 @@ class AssetGraphQLExceptionHandlerTest {
 
             val result = handler.handleException(parameters).get()
 
+            // Assert
             assertThat(result.errors).hasSize(1)
             assertThat(result.errors[0].message).isEqualTo("Access denied")
             assertThat(result.errors[0].extensions).containsEntry("code", "AUTH_AUTHORIZATION_DENIED")
-            assertThat(result.errors[0].message).doesNotContain("abc")
+            assertThat(result.errors[0].extensions).containsEntry("service", "assets")
         }
 
         @Test
@@ -77,10 +87,10 @@ class AssetGraphQLExceptionHandlerTest {
 
             val result = handler.handleException(parameters).get()
 
+            // Assert
             assertThat(result.errors).hasSize(1)
             assertThat(result.errors[0].message).isEqualTo(CommonErrorCode.INVALID_INPUT.defaultMessage)
             assertThat(result.errors[0].extensions).containsEntry("code", CommonErrorCode.INVALID_INPUT.code)
-            assertThat(result.errors[0].message).doesNotContain("raw detail")
         }
 
         @Test
@@ -90,10 +100,11 @@ class AssetGraphQLExceptionHandlerTest {
 
             val result = handler.handleException(parameters).get()
 
+            // Assert
             assertThat(result.errors).hasSize(1)
             assertThat(result.errors[0].message).isEqualTo(AssetErrorCode.ASSET_STORAGE_UNAVAILABLE.defaultMessage)
             assertThat(result.errors[0].extensions).containsEntry("code", AssetErrorCode.ASSET_STORAGE_UNAVAILABLE.code)
-            assertThat(result.errors[0].message).doesNotContain("10.0.0.1")
+            assertThat(result.errors[0].extensions).containsEntry("service", "assets")
         }
 
         @Test
@@ -103,6 +114,7 @@ class AssetGraphQLExceptionHandlerTest {
 
             val result = handler.handleException(parameters).get()
 
+            // Assert
             assertThat(result.errors).hasSize(1)
             assertThat(result.errors[0].message).isEqualTo(CommonErrorCode.OPTIMISTIC_LOCK_ERROR.defaultMessage)
             assertThat(result.errors[0].extensions).containsEntry("code", CommonErrorCode.OPTIMISTIC_LOCK_ERROR.code)

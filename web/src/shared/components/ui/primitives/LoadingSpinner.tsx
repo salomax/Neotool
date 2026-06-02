@@ -1,26 +1,164 @@
 "use client";
 
 import React from "react";
-import Box from '@mui/material/Box';
-import CircularProgress from '@mui/material/CircularProgress';
-import Typography from '@mui/material/Typography';
+import Box from "@mui/material/Box";
 
-export function LoadingSpinner({ message = "Loading..." }: { message?: string }) {
+export function LoadingSpinner({
+  message = "Loading",
+  minHeight = 200,
+  size,
+}: {
+  message?: string;
+  minHeight?: string | number;
+  size?: number;
+}) {
+  const [active, setActive] = React.useState(false);
+
+  React.useEffect(() => {
+    const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReducedMotion) {
+      setActive(true);
+      return;
+    }
+
+    const animationMs = 2100;
+    const pauseMs = 350;
+
+    let rafId: number | null = null;
+    const timeoutIds: number[] = [];
+
+    const schedule = () => {
+      setActive(false);
+      rafId = window.requestAnimationFrame(() => setActive(true));
+
+      timeoutIds.push(
+        window.setTimeout(() => {
+          setActive(false);
+        }, animationMs + pauseMs),
+      );
+
+      timeoutIds.push(
+        window.setTimeout(() => {
+          schedule();
+        }, (animationMs + pauseMs) * 2),
+      );
+    };
+
+    schedule();
+
+    return () => {
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+      for (const id of timeoutIds) window.clearTimeout(id);
+    };
+  }, []);
+
   return (
     <Box
       sx={{
         display: "flex",
-        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        minHeight: "200px",
-        gap: 2,
+        minHeight,
       }}
     >
-      <CircularProgress />
-      <Typography variant="body2" color="text.secondary">
-        {message}
-      </Typography>
+      <Box
+        sx={{
+          width: size ? size : { xs: 96, sm: 112 },
+          height: size ? size : { xs: 96, sm: 112 },
+          color: "primary.main",
+          "& .svg-elem-2": {
+            fill: "transparent",
+            transition: "fill 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.9s",
+          },
+          "& .svg-elem-3": {
+            fill: "transparent",
+            transition: "fill 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) 1s",
+          },
+          "& .svg-elem-4": {
+            fill: "transparent",
+            transition: "fill 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) 1.1s",
+          },
+          "& .svg-elem-5": {
+            fill: "transparent",
+            transition: "fill 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) 1.2s",
+          },
+          "& .svg-elem-6": {
+            fill: "transparent",
+            transition: "fill 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) 1.3s",
+          },
+          "& .svg-elem-7": {
+            fill: "transparent",
+            transition: "fill 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275) 1.4s",
+          },
+          ...(active
+            ? {
+                "& .svg-elem-2, & .svg-elem-3, & .svg-elem-4, & .svg-elem-5, & .svg-elem-6, & .svg-elem-7":
+                  {
+                    fill: "currentColor",
+                  },
+              }
+            : null),
+        }}
+      >
+        <svg
+          width="100%"
+          height="100%"
+          viewBox="0 0 500 502"
+          version="1.1"
+          xmlns="http://www.w3.org/2000/svg"
+          xmlSpace="preserve"
+          focusable="false"
+          role="img"
+          aria-label={message}
+          style={{
+            fillRule: "evenodd",
+            clipRule: "evenodd",
+            strokeLinejoin: "round",
+            strokeMiterlimit: 2,
+          }}
+        >
+          <g id="Logo" transform="matrix(1,0,0,1,-0.111708,-0.361292)">
+            <g transform="matrix(1.134424,0,0,1.133654,-47.824846,-32.849068)">
+              <g transform="matrix(0.218735,0,0,0.181382,-198.295054,-527.402253)">
+                <path
+                  d="M2360,4475.822L2360,3525.871C2360,3519.009 2362.726,3512.429 2367.577,3507.577C2372.429,3502.726 2379.009,3500 2385.871,3500L2666.697,3500C2682.048,3500 2694.492,3512.444 2694.492,3527.794L2694.492,3997.9C2596.273,4191.809 2481.418,4348.77 2360,4475.822Z"
+                  className="svg-elem-2"
+                />
+              </g>
+              <g transform="matrix(0.218735,0,0,0.181382,-198.295054,-527.402253)">
+                <path
+                  d="M2694.492,4565.557L2694.492,5075.608C2694.492,5091.828 2676.568,5100 2661.844,5100L2379.797,5100C2368.863,5100 2360,5091.137 2360,5080.204L2360,4786.092C2470.92,4726.488 2583.495,4653.9 2694.492,4565.557Z"
+                  className="svg-elem-3"
+                />
+              </g>
+              <g transform="matrix(0.182912,0,0,0.149499,-193.574373,-350.676233)">
+                <path
+                  d="M2700,4674.705L2700,4969.834C2700,4977.835 2697.032,4985.507 2691.749,4991.165C2686.465,4996.822 2679.3,5000 2671.828,5000L2330.173,5000C2322.171,5000 2314.496,4996.596 2308.838,4990.537C2303.179,4984.478 2300,4976.26 2300,4967.691L2300,4833.481C2427.133,4794.434 2561.958,4742.805 2700,4674.705Z"
+                  className="svg-elem-4"
+                />
+              </g>
+              <g transform="matrix(0.182912,0,0,0.149499,-193.574373,-350.676233)">
+                <path
+                  d="M2300,4639.303L2300,3494.419C2300,3475.41 2314.391,3460 2332.144,3460L2667.197,3460C2685.313,3460 2700,3475.726 2700,3495.125L2700,4344.376C2567.963,4468.039 2431.782,4564.328 2300,4639.303Z"
+                  className="svg-elem-5"
+                />
+              </g>
+              <g transform="matrix(0.201719,0,0,0.114559,-337.715907,-175.835026)">
+                <path
+                  d="M2712.727,4817.59L2712.727,4963.338C2712.727,4983.586 2701.649,5000 2687.983,5000L2371.42,4999.214C2367.889,4999.207 2364.486,4996.868 2361.885,4992.66C2355.478,4982.237 2344.961,4962.289 2352.822,4954.195L2352.799,4915.424C2456.504,4898.764 2578.827,4869.089 2712.727,4817.59Z"
+                  className="svg-elem-6"
+                />
+              </g>
+              <g transform="matrix(0.201719,0,0,0.114559,-337.715907,-175.835026)">
+                <path
+                  d="M2352.727,4793.387L2351.956,3490.513C2352.093,3473.602 2361.384,3460 2372.799,3460L2690.919,3460C2702.964,3460 2712.727,3474.466 2712.727,3492.311L2712.727,4595.39C2581.723,4690.096 2458.104,4752.402 2352.727,4793.387Z"
+                  className="svg-elem-7"
+                />
+              </g>
+            </g>
+          </g>
+        </svg>
+      </Box>
     </Box>
   );
 }

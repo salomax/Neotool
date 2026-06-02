@@ -1,8 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Box, Typography, Button, Stack, CircularProgress } from "@mui/material";
+import { Box, Typography, Button, Stack } from "@mui/material";
 import SearchOffIcon from "@mui/icons-material/SearchOff";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import { useTranslation } from "react-i18next";
+import { extractErrorMessage } from "@/shared/utils/error";
+import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
 
 export interface EmptyStateProps {
   title: string;
@@ -39,7 +43,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           </Typography>
         )}
         {actionText && (
-          <Button variant="contained" onClick={onAction}>
+          <Button variant="contained" onClick={() => onAction?.()}>
             {actionText}
           </Button>
         )}
@@ -66,7 +70,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   return (
     <Box textAlign="center" p={4}>
       <Stack spacing={2} alignItems="center">
-        <Box>{illustration ?? <span style={{ fontSize: 40 }}>⚠️</span>}</Box>
+        <Box>{illustration ?? <ErrorOutlineIcon sx={{ fontSize: 44, color: "text.disabled" }} />}</Box>
         <Typography variant="h6">{title}</Typography>
         {description && (
           <Typography variant="body2" color="text.secondary" maxWidth={420}>
@@ -74,12 +78,43 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
           </Typography>
         )}
         {onRetry && (
-          <Button variant="contained" color="error" onClick={onRetry}>
+          <Button variant="contained" color="error" onClick={() => onRetry()}>
             {retryText}
           </Button>
         )}
       </Stack>
     </Box>
+  );
+};
+
+export interface QueryErrorStateProps {
+  error: unknown;
+  title?: string;
+  description?: string;
+  retryText?: string;
+  onRetry?: () => void;
+  illustration?: React.ReactNode;
+}
+
+export const QueryErrorState: React.FC<QueryErrorStateProps> = ({
+  error,
+  title,
+  description,
+  retryText,
+  onRetry,
+  illustration,
+}) => {
+  const { t } = useTranslation("common");
+  const friendlyDescription = description ?? extractErrorMessage(error, t("errors.default"));
+
+  return (
+    <ErrorState
+      title={title ?? t("cardGrid.unableToLoadResults")}
+      description={friendlyDescription}
+      retryText={retryText ?? t("cardGrid.retry")}
+      onRetry={onRetry}
+      illustration={illustration}
+    />
   );
 };
 
@@ -124,16 +159,5 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
     return null;
   }
 
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        minHeight,
-      }}
-    >
-      <CircularProgress size={size} />
-    </Box>
-  );
+  return <LoadingSpinner minHeight={minHeight} size={size} />;
 };

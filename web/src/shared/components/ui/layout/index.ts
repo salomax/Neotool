@@ -9,6 +9,7 @@ export { Cluster } from './Cluster';
 export { Grid } from './Grid';
 export { PageHeader } from './PageHeader';
 export { SectionHeader } from './SectionHeader';
+export { SectionDivider } from './SectionDivider';
 export { PageLayout } from './PageLayout';
 export { PageTitle } from './PageTitle';
 export { Cover } from './Cover';

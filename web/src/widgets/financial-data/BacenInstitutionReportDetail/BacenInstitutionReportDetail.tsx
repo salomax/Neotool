@@ -383,7 +383,7 @@ export function BacenInstitutionReportDetail({
           { value: "3Y", label: t("periods.3y") },
           { value: "5Y", label: t("periods.5y") },
         ]}
-        historyTablePeriodLabel={tCommon("calendar.quarter", "Quarter")}
+        historyTablePeriodLabel={tCommon("calendar.quarter")}
       />
     </Box>
   );

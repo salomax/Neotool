@@ -17,8 +17,18 @@ export { MetricFilledAreaChart } from './MetricFilledAreaChart';
 export { AreaChart } from './AreaChart';
 export { MetricHistoryTable } from './MetricHistoryTable';
 export { GrowthChip } from './GrowthChip';
+export { GainPercent } from './GainPercent';
+export { AllocationInline } from './AllocationInline';
 export { TrendIndicator } from './TrendIndicator';
 export { StatusIndicator } from './StatusIndicator';
+export { Amount } from './Amount';
+export { CurrencyAmountParts } from './CurrencyAmountParts';
+export { TransactionDirectionBadge, resolveTransactionDirectionVisuals } from './TransactionDirectionBadge';
+export { InfoField } from './InfoField';
+export { FinancialAccountIdentity } from './FinancialAccountIdentity';
+export { TagChips } from './TagChips';
+export { PercentageGain } from './PercentageGain';
+export { ValueOriginIndicator } from './ValueOriginIndicator';
 export { FinancialMetricItem } from './FinancialMetricItem';
 export { MetricDetailsDrawer } from './MetricDetailsDrawer';
 export { ChartTooltip, createChartTooltipContent } from './ChartTooltip';
@@ -42,6 +52,7 @@ export type { StatusIndicatorProps } from './StatusIndicator';
 export type { FinancialMetricItemProps } from './FinancialMetricItem';
 export type { MetricDetailsDrawerProps } from './MetricDetailsDrawer';
 export type { ChartTooltipProps } from './ChartTooltip';
+export type { FinancialAccountIdentityAccount, FinancialAccountIdentityProps } from './FinancialAccountIdentity';
 
 // Re-export MetricValueType from the canonical source
 export type { MetricValueType } from '@/shared/utils/formatMetricValue';

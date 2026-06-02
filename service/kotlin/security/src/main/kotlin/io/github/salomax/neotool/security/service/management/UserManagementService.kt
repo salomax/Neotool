@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.service.management
 
 import io.github.salomax.neotool.common.error.NotFoundException
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.ConnectionBuilder
@@ -350,6 +351,72 @@ open class UserManagementService(
         logger.info { "User updated: ${saved.email} (ID: ${saved.id}), displayName: ${saved.displayName}" }
 
         return saved.toDomain()
+    }
+
+    /**
+     * Updates a user avatar URL.
+     *
+     * Only email/password users can upload custom avatars. OAuth users must use provider avatar.
+     */
+    @Transactional
+    open fun updateAvatar(
+        userId: UUID,
+        avatarUrl: String,
+    ): User {
+        val user =
+            userRepository
+                .findById(userId)
+                .orElseThrow {
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.USER_NOT_FOUND,
+                        field = "userId",
+                    )
+                }
+
+        if (user.avatarProvider != null) {
+            throw ValidationException(
+                errorCode = SecurityErrorCode.AVATAR_UPLOAD_NOT_ALLOWED_FOR_OAUTH_USERS,
+                field = "avatarUrl",
+            )
+        }
+
+        val normalizedUrl = avatarUrl.trim()
+        val now = Instant.now()
+        user.avatarUrl = normalizedUrl
+        user.avatarUpdatedAt = now
+        user.updatedAt = now
+        return userRepository.update(user).toDomain()
+    }
+
+    /**
+     * Removes a user avatar.
+     *
+     * Only email/password users can remove custom avatars.
+     */
+    @Transactional
+    open fun removeAvatar(userId: UUID): User {
+        val user =
+            userRepository
+                .findById(userId)
+                .orElseThrow {
+                    NotFoundException(
+                        errorCode = SecurityErrorCode.USER_NOT_FOUND,
+                        field = "userId",
+                    )
+                }
+
+        if (user.avatarProvider != null) {
+            throw ValidationException(
+                errorCode = SecurityErrorCode.AVATAR_UPLOAD_NOT_ALLOWED_FOR_OAUTH_USERS,
+                field = null,
+            )
+        }
+
+        val now = Instant.now()
+        user.avatarUrl = null
+        user.avatarUpdatedAt = now
+        user.updatedAt = now
+        return userRepository.update(user).toDomain()
     }
 
     /**

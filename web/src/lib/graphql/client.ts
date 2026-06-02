@@ -3,7 +3,7 @@ import { ApolloClient, InMemoryCache, HttpLink, ApolloLink, Observable, type Ope
 import { SetContextLink } from '@apollo/client/link/context';
 import { ErrorLink } from '@apollo/client/link/error';
 import { CombinedGraphQLErrors, CombinedProtocolErrors } from '@apollo/client/errors';
-import { getAuthToken, clearAuthStorage, isAuthenticationError, getRefreshToken, updateAuthToken, updateAuthUser } from '@/shared/utils/auth';
+import { getAuthToken, clearAuthStorage, isAuthenticationError, getRefreshToken, updateAuthToken, updateAuthUser, updateAuthRefreshToken } from '@/shared/utils/auth';
 import { syncAuthSessionCookie } from '@/shared/utils/auth-session/client';
 import { logger } from '@/shared/utils/logger';
 import { getRuntimeConfig } from '@/shared/config/runtime-config';
@@ -80,7 +80,7 @@ async function refreshAccessToken(): Promise<string | null> {
         ssrMode: typeof window === 'undefined',
       });
 
-      const result = await tempClient.mutate<{ refreshAccessToken: { token: string; user: any } }>({
+      const result = await tempClient.mutate<{ refreshAccessToken: { token: string; refreshToken: string | null; user: any } }>({
         mutation: REFRESH_ACCESS_TOKEN,
         variables: {
           input: {
@@ -90,11 +90,14 @@ async function refreshAccessToken(): Promise<string | null> {
       });
 
       if (result.data?.refreshAccessToken) {
-        const { token: newToken, user } = result.data.refreshAccessToken;
+        const { token: newToken, refreshToken: newRefreshToken, user } = result.data.refreshAccessToken;
         const rememberMe = typeof window !== 'undefined' && Boolean(localStorage.getItem('auth_token'));
-        
+
         // Update token and user in storage
         updateAuthToken(newToken);
+        if (newRefreshToken) {
+          updateAuthRefreshToken(newRefreshToken);
+        }
         updateAuthUser(user);
         void syncAuthSessionCookie({ user, rememberMe });
         
@@ -134,7 +137,10 @@ const responseErrorLink = new ApolloLink((operation: Operation, forward: (operat
   return new Observable<FetchResult>((observer) => {
     const subscription = forward(operation).subscribe({
       next: (result: FetchResult) => {
-        if (result.errors && result.errors.length > 0) {
+        // If there are errors but also data, we should let Apollo Client handle it
+        // based on the errorPolicy (e.g. 'all' to show partial data)
+        // We only convert to a stream error if there is NO data
+        if (result.errors && result.errors.length > 0 && !result.data) {
           const error = new Error(result.errors.map((e: { message: string }) => e.message).join(', '));
           (error as any).graphQLErrors = result.errors;
           (error as any).response = {
@@ -163,6 +169,24 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
     });
     return;
   }
+
+  const AUTH_CODES_REQUIRING_REAUTH = new Set([
+    'UNAUTHENTICATED',
+    'AUTH_AUTHENTICATION_REQUIRED',
+    'AUTH_SESSION_EXPIRED',
+    'AUTH_TOKEN_EXPIRED',
+    'AUTH_TOKEN_INVALID',
+    'AUTH_ACCESS_TOKEN_REQUIRED',
+    'AUTH_INVALID_OR_EXPIRED_ACCESS_TOKEN',
+  ]);
+
+  const AUTH_CODES_NOT_REAUTH = new Set([
+    'AUTH_INVALID_CREDENTIALS',
+    'AUTH_AUTHORIZATION_DENIED',
+    'AUTH_INSUFFICIENT_PERMISSIONS',
+    'AUTH_RESOURCE_ACCESS_DENIED',
+    'UNAUTHORIZED',
+  ]);
 
   // Extract errors based on type (Apollo Client 4.0 API)
   let graphQLErrors: Array<{ message: string; extensions?: any }> = [];
@@ -193,9 +217,8 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
   const isAuthError = 
     // Check GraphQL/protocol errors with message matching and error extensions
     allErrors.some(({ message, extensions }) => 
-      isAuthenticationError(null, message) ||
-      extensions?.code === 'UNAUTHENTICATED' ||
-      extensions?.code === 'UNAUTHORIZED'
+      (typeof extensions?.code === 'string' && AUTH_CODES_REQUIRING_REAUTH.has(extensions.code)) ||
+      (isAuthenticationError(null, message) && !(typeof extensions?.code === 'string' && AUTH_CODES_NOT_REAUTH.has(extensions.code)))
     ) ||
     // Check network errors (401 status, auth-related messages)
     (networkError && isAuthenticationError(networkError));

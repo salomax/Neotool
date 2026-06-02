@@ -9,14 +9,14 @@ const meta: Meta<typeof LoadingSpinner> = {
     layout: 'centered',
     docs: {
       description: {
-        component: 'Loading spinner component for displaying loading states with an optional customizable message.',
+        component: 'Loading spinner component for displaying loading states.',
       },
     },
   },
   argTypes: {
     message: {
       control: { type: 'text' },
-      description: 'The message to display below the spinner',
+      description: 'Accessible label for the loader (not rendered as visible text)',
     },
   },
   tags: ['autodocs'],
@@ -27,19 +27,18 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: {
-    message: 'Loading...',
+    message: 'Loading',
   },
 };
 
 export const CustomMessage: Story = {
   args: {
-    message: 'Please wait...',
+    message: 'Loading application',
   },
 };
 
 export const NoMessage: Story = {
   args: {
-    message: '',
+    message: undefined,
   },
 };
-

@@ -5,12 +5,2480 @@
 # and financial operations.
 # ============================================================================
 
+# External type reference — Asset is defined in the assets subgraph.
+type Asset @key(fields: "id") {
+  id: ID!
+}
+
+# ============================================================================
+# Issuer
+# ============================================================================
+
+"""
+Financial institution associated with an account.
+"""
+type Issuer {
+  id: ID!
+  name: String!
+  domain: String
+  compeCode: String
+  ispb: String
+  countryCode: String!
+  logoKey: String
+  category: IssuerCategory!
+  logoAsset: Asset
+}
+
+# ============================================================================
+# Enums
+# ============================================================================
+
+enum FinancialAccountType {
+  BANK
+  CREDIT
+  PAYMENT
+  CASH
+  INVESTMENT
+  LOAN
+  ASSET
+  BENEFIT
+}
+
+enum FinancialAccountSubtype {
+  # Bank account subtypes
+  CONTA_CORRENTE
+  CONTA_POUPANCA
+  CONTA_SALARIO
+  CONTA_DIGITAL
+  CONTA_CONJUNTA
+  # Card subtypes
+  CREDIT_CARD
+  CHARGE_CARD
+  PREPAID_CARD
+  VOUCHER_CARD
+  # Other
+  WALLET
+  BROKERAGE
+  FIXED_INCOME
+  PENSION
+  CRYPTO
+  PERSONAL_LOAN
+  MORTGAGE
+  AUTO_LOAN
+  PROPERTY
+  VEHICLE
+  OTHER_ASSET
+  # Benefit subtypes (government-managed, institution: Caixa Econômica Federal)
+  FGTS
+  INSS
+}
+
+enum CreditCardNetwork {
+  VISA
+  MASTERCARD
+  AMERICAN_EXPRESS
+  DINERS_CLUB
+  HIPERCARD
+  ELO
+  BANDEIRA_PROPRIA
+  OUTRAS
+}
+
+enum CreditCardLevel {
+  STANDARD
+  GOLD
+  PLATINUM
+  INFINITE
+  BLACK
+}
+
+enum ConnectionStatus {
+  CONNECTED
+  SYNCING
+  DISCONNECTED
+  ERROR
+  CONSENT_EXPIRING
+  CONSENT_EXPIRED
+}
+
+enum IssuerCategory {
+  BANK
+  BROKERAGE
+  CRYPTO_EXCHANGE
+  PAYMENT
+  BENEFIT
+}
+
+# ============================================================================
+# Transaction enums
+# ============================================================================
+
+"""
+Direction of money flow.
+Amount is always positive; direction is carried here.
+"""
+enum CreditDebitType {
+  CREDIT
+  DEBIT
+}
+
+"""
+Transaction type (OFB-aligned).
+BALANCE_ADJUSTMENT is neutral — used for opening balance and reconciliation.
+"""
+enum TransactionType {
+  # Payment types (OFB-aligned)
+  PIX
+  TED
+  DOC
+  BOLETO
+  TRANSFER
+  BILL_PAYMENT
+  # Income types
+  SALARY
+  DEPOSIT
+  CASHBACK
+  INVESTMENT_RETURN
+  OTHER_INCOME
+  # Expense types
+  CARD
+  WITHDRAWAL
+  FEE
+  INTEREST
+  LOAN_PAYMENT
+  TAX
+  OTHER_EXPENSE
+  # Neutral
+  BALANCE_ADJUSTMENT
+}
+
+"""
+Lifecycle status of a transaction.
+FUTURE = manually scheduled; excluded from current balance but included in projected balance.
+"""
+enum TransactionStatus {
+  POSTED
+  PENDING
+  FUTURE
+}
+
+"""
+How the transaction entered the system.
+"""
+enum TransactionSource {
+  MANUAL
+  OPEN_FINANCE
+  OFX
+  CSV
+  PDF
+  NFC_E
+  RECEIPT_OCR
+  """ @deprecated — legacy values kept for backward compatibility """
+  PLUGGY
+  PDF_BILL
+}
+
+"""How the transaction's category was assigned. Null when uncategorized."""
+enum CategorySource {
+  MANUAL
+  RULE
+  IMPORTED
+  AI
+}
+
+"""
+Category applicability (income, expense, transfer, or any).
+"""
+enum CategoryApplicableTo {
+  INCOME
+  EXPENSE
+  TRANSFER
+  ANY
+}
+
+"""Pattern type for transaction rule description matching."""
+enum PatternType {
+  CONTAINS
+  STARTS_WITH
+  EXACT
+  REGEX
+}
+
+enum ImportSource {
+  AUTO
+  OFX
+  CSV_AUTO
+  CSV_NUBANK
+  CSV_ITAU
+  CSV_BRADESCO
+  CSV_SANTANDER
+  NFC_E
+  RECEIPT_OCR
+  OPEN_FINANCE
+  PLUGGY
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REVIEW_REQUIRED
+  REVIEW_CANCELLED
+}
+
+enum BillImportJobStatus {
+  PENDING
+  EXTRACTING
+  EXTRACTED
+  LLM_PROCESSING
+  AWAITING_REVIEW
+  IMPORTING
+  DONE
+  FAILED
+}
+
+enum ImportType {
+  CREDIT_CARD_BILL
+  BANK_STATEMENT
+}
+
+"""
+User resolution for a duplicate candidate (incoming row vs existing transaction(s)).
+"""
+enum DuplicateResolution {
+  KEEP_BOTH
+  USE_INCOMING
+  KEEP_EXISTING
+}
+
+# ============================================================================
+# Financial Account Types
+# ============================================================================
+
+"""
+Bank-specific data. Present only when type = BANK.
+"""
+type BankAccountData {
+  branchCode: String
+  number: String
+  checkDigit: String
+  maskedNumber: String
+}
+
+"""
+Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
+closingDay and dueDay are optional billing-cycle metadata when known.
+"""
+type CardData {
+  maskedNumber: String
+  bin: String
+  cardNetwork: CreditCardNetwork
+  cardLevel: CreditCardLevel
+  creditLimit: Float
+  availableCreditLimit: Float
+  minimumPaymentPercentage: Float
+  closingDay: Int
+  dueDay: Int
+  """Optional bank account that will receive the debit leg of bill-payment transfers."""
+  linkedBankAccountId: ID
+  """When true, this account represents multiple/virtual cards with no specific last-4."""
+  isMultiCard: Boolean!
+}
+
+type YearMonth {
+  year: Int!
+  month: Int!
+}
+
+"""
+A personal finance account or card belonging to the authenticated user's account.
+The tenant association is resolved from the JWT and is not exposed directly.
+"""
+type FinancialAccount {
+  id: ID!
+  type: FinancialAccountType!
+  subtype: FinancialAccountSubtype!
+  name: String!
+  currencyCode: String!
+  includeInNetWorth: Boolean!
+  includeInDashboard: Boolean!
+  """When true, idle cash on this custodian account counts toward allocation % in investments UI."""
+  includeCashInAllocation: Boolean!
+  themeColor: String
+  """Linked issuer from the issuers seed list. Null when a custom institution is used."""
+  issuer: Issuer
+  """Custom institution name. Set when issuerId is null. Use issuer.name when issuer is present."""
+  issuerName: String
+  bankData: BankAccountData
+  cardData: CardData
+  """Open Finance connection status. Null for manually managed accounts."""
+  connectionStatus: ConnectionStatus
+  consentExpiresAt: DateTime
+  lastSyncAt: DateTime
+  """Earliest month with account data (transactions or investment portfolio snapshots)."""
+  dataSince: YearMonth
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+# ============================================================================
+# Transactions
+# ============================================================================
+
+"""
+A merchant (payee) associated with a transaction.
+System merchants are shared across all accounts; user merchants are account-scoped.
+"""
+type Merchant {
+  id: ID!
+  name: String!
+  domain: String
+  sector: String
+  isSystem: Boolean!
+  isOwned: Boolean!
+  """Logo asset via federation. Null until the hydration job has run for the domain."""
+  logoAsset: Asset
+}
+
+type MerchantEdge {
+  node: Merchant!
+  cursor: String!
+}
+
+type MerchantConnection {
+  edges: [MerchantEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+"""A top-merchant analytics row."""
+type TopMerchant {
+  merchant: Merchant!
+  transactionCount: Int!
+  totalAmount: Float!
+  lastUsedAt: Date!
+}
+
+input CreateMerchantInput {
+  name: String!
+  website: String
+  sector: String
+}
+
+"""
+Category for classifying transactions (system + user-defined).
+"""
+type TransactionCategory {
+  id: ID!
+  parentId: ID
+  name: String!
+  applicableTo: CategoryApplicableTo!
+  icon: String
+  color: String
+  isSystem: Boolean!
+  sortOrder: Int!
+}
+
+input CreateCategoryInput {
+  parentId: ID
+  name: String!
+  applicableTo: CategoryApplicableTo!
+  icon: String
+  color: String
+  sortOrder: Int
+}
+
+input UpdateCategoryInput {
+  name: String
+  icon: String
+  color: String
+  sortOrder: Int
+}
+
+"""
+Auto-assignment rule that maps a description pattern to a category and/or merchant.
+Explicit or implicit.
+"""
+type TransactionRule {
+  id: ID!
+  categoryId: ID
+  category: TransactionCategory
+  merchantId: ID
+  merchant: Merchant
+  descriptionOverride: String
+  tagsOverride: [String!]
+  pattern: String!
+  patternType: PatternType!
+  applicableTo: CategoryApplicableTo!
+  priority: Int!
+  isSystem: Boolean!
+  isDisabledForAccount: Boolean!
+  isImplicit: Boolean!
+  matchCount: Int!
+  """1-based evaluation order position (same order used by the rule engine)."""
+  position: Int!
+  createdAt: DateTime!
+}
+
+"""Edge in a TransactionRuleConnection."""
+type TransactionRuleEdge {
+  node: TransactionRule!
+  cursor: String!
+}
+
+"""Relay connection for paginated transaction rules."""
+type TransactionRuleConnection {
+  edges: [TransactionRuleEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type AppliedRuleHistoryEntry {
+  ruleId: ID!
+  appliedAt: DateTime!
+}
+
+input CreateTransactionRuleInput {
+  categoryId: ID
+  merchantId: ID
+  descriptionOverride: String
+  tagsOverride: [String!]
+  pattern: String!
+  patternType: PatternType!
+  applicableTo: CategoryApplicableTo!
+  priority: Int
+}
+
+input UpdateTransactionRuleInput {
+  categoryId: ID
+  merchantId: ID
+  descriptionOverride: String
+  tagsOverride: [String!]
+  applicableTo: CategoryApplicableTo
+  pattern: String
+  patternType: PatternType
+  priority: Int
+}
+
+"""
+Core ledger transaction row.
+"""
+type Transaction {
+  id: ID!
+  financialAccountId: ID!
+  belongsToUserId: ID
+  belongsToName: String
+
+  # Classification
+  creditDebitType: CreditDebitType!
+  type: TransactionType!
+  status: TransactionStatus!
+  source: TransactionSource!
+  hasNfceDocument: Boolean!
+
+  # Amount
+  amount: Float!
+  currencyCode: String!
+  """BRL equivalent for FX transactions (null for BRL)."""
+  amountBrl: Float
+
+  # Dates
+  date: Date!
+  """Exact date-time of the transaction when provided (e.g. by Open Finance). Null when only date is known."""
+  transactionDatetime: DateTime
+
+  # Description
+  description: String!
+  notes: String
+  tags: [String!]!
+
+  # Category
+  category: TransactionCategory
+  """How the category was assigned. Null when uncategorized."""
+  categorySource: CategorySource
+
+  # Merchant
+  merchant: Merchant
+
+  # Counterparty (bank account transactions / PIX / TED)
+  counterpartyName: String
+  counterpartyDocument: String
+  counterpartyBankCode: String
+  counterpartyAccountNumber: String
+  paymentReason: String
+
+  # Transfer
+  transferPeerTransactionId: ID
+  """Set when this row is the cash leg linked to an investment transaction."""
+  investmentTransactionId: ID
+  """Optional link to a recurring payment template."""
+  recurringPaymentId: ID
+  """
+  When [investmentTransactionId] is set, the underlying instrument for that event.
+  Same shape as [InvestmentHolding.asset] (e.g. for cash-movement UI without N+1 client resolution).
+  """
+  linkedInvestmentAsset: InvestmentAsset
+
+  # Installments
+  installmentNumber: Int
+  totalInstallments: Int
+
+  # Card
+  billId: ID
+  cardIdentifier: String
+  payeeMcc: Int
+  billPostDate: Date
+  """Distinct rule IDs that have been applied at least once to this transaction."""
+  appliedRuleIds: [ID!]!
+  """Audit history of rule applications for this transaction."""
+  appliedRuleHistory: [AppliedRuleHistoryEntry!]!
+
+  # Attachments (receipts, contracts, guarantees, etc.)
+  attachments: [TransactionAttachment!]!
+
+  # Audit
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+Monthly summary header for a financial account — entradas, saídas, saldo total.
+Served from the monthly_balance_snapshots cache; transfer and projection fields are on-demand.
+"""
+type MonthSummary {
+  year: Int!
+  month: Int!
+  """Entradas: total CREDIT excluding TRANSFER and BALANCE_ADJUSTMENT (POSTED/PENDING only)."""
+  totalIncome: Float!
+  """Saídas: total DEBIT excluding TRANSFER and BALANCE_ADJUSTMENT (POSTED/PENDING only)."""
+  totalExpenses: Float!
+  """Saldo total at month-end (includes all types, excludes FUTURE)."""
+  closingBalance: Float!
+  """Balance at start of month (prior month's closingBalance)."""
+  openingBalance: Float!
+  """Total CREDIT of type TRANSFER in the month."""
+  transfersIn: Float!
+  """Total DEBIT of type TRANSFER in the month."""
+  transfersOut: Float!
+  """closingBalance + FUTURE transactions. Null when no FUTURE transactions exist."""
+  projectedClosingBalance: Float
+  """True when (year, month) equals the current calendar month."""
+  isCurrentMonth: Boolean!
+  """True when (year, month) is strictly after today's month. All values are on-demand projections; no snapshot is persisted."""
+  isFutureMonth: Boolean!
+  """Top expense categories for the month (ordered by totalAmount DESC)."""
+  expensesByCategory: [CategoryTotal!]!
+  """Top income categories for the month (ordered by totalAmount DESC)."""
+  incomeByCategory: [CategoryTotal!]!
+  """Top tags for the month (ordered by totalAmount DESC)."""
+  tagsSummary: [TagTotal!]!
+}
+
+"""
+Single month data point for a cash-flow series (income vs expenses vs net).
+"""
+type CashFlowDataPoint {
+  year: Int!
+  month: Int!
+  totalIncome: Float!
+  totalExpenses: Float!
+  """Net = totalIncome - totalExpenses."""
+  net: Float!
+  """Aggregate banking closing balance for the month."""
+  closingBalance: Float!
+}
+
+"""
+Aggregate summary across a date range (used by the dashboard period summary).
+"""
+type DashboardPeriodSummary {
+  # ── Fluxo de caixa ──────────────────────────────────────────────────────
+  totalIncome: Float!
+  totalExpenses: Float!
+  """net = totalIncome - totalExpenses"""
+  net: Float!
+  """Number of months in the selected range (used by frontend for averages)."""
+  monthCount: Int!
+  avgMonthlyIncome: Float!
+  avgMonthlyExpenses: Float!
+  """avgMonthlySavings = net / monthCount."""
+  avgMonthlySavings: Float!
+  """(net / totalIncome) × 100. Null when totalIncome = 0."""
+  savingsRate: Float
+
+  # ── Patrimônio ──────────────────────────────────────────────────────────
+  """Closing cash balance of the last month (banking accounts, excl. transfers)."""
+  closingCashBalance: Float!
+  """Investment portfolio gross value at end of period."""
+  closingPortfolioValue: Float!
+  """closingCashBalance + closingPortfolioValue."""
+  totalNetWorth: Float!
+
+  # ── Investimentos ────────────────────────────────────────────────────────
+  """Aligned with investments summary totalCostBasis (all-time holdings cost basis)."""
+  totalInvested: Float!
+  avgMonthlyInvested: Float!
+  """Aligned with investments summary grossGain (all-time)."""
+  totalReturn: Float!
+  """Average monthly return amount (totalReturn / monthCount)."""
+  avgMonthlyReturn: Float!
+  """Investment portfolio gross value at start of period."""
+  openingPortfolioValue: Float!
+  """Aligned with investments summary performance.twr for ALL period, in percentage points."""
+  returnPct: Float
+
+  # ── Campos mantidos para compatibilidade ────────────────────────────────
+  """Deprecated alias for closingCashBalance. Keep for frontend compatibility."""
+  closingBalance: Float!
+  """Opening balance of the first month in the range."""
+  openingBalance: Float!
+}
+
+"""Monthly portfolio gross value snapshot for a date range (dashboard use)."""
+type PortfolioMonthlyValue {
+  year: Int!
+  month: Int!
+  """Market value of all positions. Does NOT include investment account cash balance."""
+  grossValue: Float!
+  """True when at least one holding used an estimated valuation for this month."""
+  isEstimated: Boolean!
+}
+
+"""
+Category total for a period (expense/income breakdown). Percentage of period total.
+"""
+type CategoryTotal {
+  """Null when this row represents the special uncategorized bucket."""
+  category: TransactionCategory
+  """True when the row aggregates transactions with no category assigned."""
+  uncategorized: Boolean!
+  totalAmount: Float!
+  transactionCount: Int!
+  """Percentage of the period total (0–100)."""
+  percentage: Float!
+}
+
+"""
+Tag total for a period. Percentage of grouped tag total.
+"""
+type TagTotal {
+  tag: String!
+  totalAmount: Float!
+  transactionCount: Int!
+  """Percentage of the grouped tag total (0–100)."""
+  percentage: Float!
+}
+
+"""
+Lifecycle status of a credit card bill (fatura).
+OPEN    → closingDate >= today (bill still accepting charges).
+CLOSED  → closingDate < today and dueDate >= today (awaiting payment).
+OVERDUE → dueDate < today and not yet paid.
+PAID    → terminal state.
+"""
+enum BillStatus { OPEN CLOSED PAID OVERDUE }
+
+"""
+A monthly credit card bill (fatura) for a CREDIT_CARD or CHARGE_CARD account.
+totalAmount is the net spend across all non-deleted transactions in the billing cycle:
+  SUM(DEBIT amount) - SUM(CREDIT amount).
+Bills are auto-created when the first transaction is recorded for a billing cycle.
+"""
+type CreditCardBill {
+  id: ID!
+  financialAccountId: ID!
+  """Last day of the billing cycle (derived from CardData.closingDay)."""
+  closingDate: Date!
+  """Payment due date (derived from CardData.dueDay relative to closingDate)."""
+  dueDate: Date!
+  """Net spend in the billing cycle (DEBIT - CREDIT). Zero until first transaction."""
+  totalAmount: Float!
+  """Minimum payment amount. Null until computed (Phase 5: Open Finance)."""
+  minimumPayment: Float
+  status: BillStatus!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+Relay-style page info for paginated lists.
+"""
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+"""
+Edge in a TransactionConnection.
+"""
+type TransactionEdge {
+  node: Transaction!
+  cursor: String!
+}
+
+"""
+Relay connection for paginated transactions.
+"""
+type TransactionConnection {
+  edges: [TransactionEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+"""
+Distinct attribution option (user or name tag) used by transactions in the account.
+Exactly one field is expected to be non-null.
+"""
+type TransactionBelongsToOption {
+  belongsToUserId: ID
+  belongsToName: String
+}
+
+"""
+Distinct tag already used in transactions for the authenticated account.
+"""
+type TransactionTagOption {
+  tag: String!
+}
+
+type SimilarTransactionEditPreview {
+  similarCount: Int!
+  matchDescription: String!
+  supportsFuturePropagation: Boolean!
+}
+
+type SimilarTransactionEditResult {
+  affectedCount: Int!
+  futureRuleCreated: Boolean!
+}
+
+# ============================================================================
+# Input Types
+# ============================================================================
+
+input BankAccountDataInput {
+  branchCode: String
+  number: String
+  checkDigit: String
+  maskedNumber: String
+}
+
+input CardDataInput {
+  maskedNumber: String
+  bin: String
+  cardNetwork: CreditCardNetwork
+  cardLevel: CreditCardLevel
+  """Optional billing-cycle limit metadata."""
+  creditLimit: Float
+  """Optional billing-cycle closing day when known."""
+  closingDay: Int
+  """Optional billing-cycle due day when known."""
+  dueDay: Int
+  """Optional bank account that will receive the debit leg of bill-payment transfers."""
+  linkedBankAccountId: ID
+  """Set to true to mark this account as an umbrella for multiple/virtual cards."""
+  isMultiCard: Boolean
+}
+
+input CreateFinancialAccountInput {
+  type: FinancialAccountType!
+  subtype: FinancialAccountSubtype!
+  """Display name. Defaults to issuer name when omitted."""
+  name: String
+  """ID from the issuers list. Mutually exclusive with issuerName."""
+  issuerId: ID
+  """Custom institution name. Required when issuerId is null."""
+  issuerName: String
+  themeColor: String
+  """ISO 4217 currency code. Defaults to BRL."""
+  currencyCode: String
+  includeInNetWorth: Boolean
+  includeInDashboard: Boolean
+  includeCashInAllocation: Boolean
+  """Required when type = BANK."""
+  bankData: BankAccountDataInput
+  """Required when subtype is CREDIT_CARD, CHARGE_CARD, PREPAID_CARD, or VOUCHER_CARD."""
+  cardData: CardDataInput
+  """Non-zero account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically."""
+  initialBalance: Float
+  """Reference date for the initial balance. Required when initialBalance is provided."""
+  initialBalanceDate: Date
+}
+
+input UpdateFinancialAccountInput {
+  type: FinancialAccountType!
+  subtype: FinancialAccountSubtype!
+  name: String
+  issuerId: ID
+  issuerName: String
+  themeColor: String
+  currencyCode: String
+  includeInNetWorth: Boolean
+  includeInDashboard: Boolean
+  includeCashInAllocation: Boolean
+  bankData: BankAccountDataInput
+  cardData: CardDataInput
+}
+
+"""
+Input for creating a new manual transaction.
+"""
+input CreateTransactionInput {
+  financialAccountId: ID!
+  creditDebitType: CreditDebitType!
+  type: TransactionType!
+  amount: Float!
+  date: Date!
+  description: String!
+  status: TransactionStatus
+  currencyCode: String
+  notes: String
+  tags: [String!]
+  categoryId: ID
+  merchantId: ID
+  belongsToUserId: ID
+  belongsToName: String
+
+  # Counterparty
+  counterpartyName: String
+  counterpartyDocument: String
+  counterpartyBankCode: String
+  counterpartyAccountNumber: String
+  paymentReason: String
+
+  # Installments
+  installmentNumber: Int
+  totalInstallments: Int
+
+  # Card
+  cardIdentifier: String
+  payeeMcc: Int
+}
+
+"""
+Input for updating an existing manual transaction.
+All fields are optional and only provided fields are updated.
+"""
+input UpdateTransactionInput {
+  creditDebitType: CreditDebitType
+  type: TransactionType
+  amount: Float
+  date: Date
+  description: String
+  status: TransactionStatus
+  notes: String
+  tags: [String!]
+  categoryId: ID
+  merchantId: ID
+  belongsToUserId: ID
+  belongsToName: String
+
+  # Counterparty
+  counterpartyName: String
+  counterpartyDocument: String
+  counterpartyBankCode: String
+  counterpartyAccountNumber: String
+  paymentReason: String
+
+  # Card
+  cardIdentifier: String
+  payeeMcc: Int
+}
+
+input ResolveImportDuplicateInput {
+  jobId: ID!
+  rowIndex: Int!
+  resolution: DuplicateResolution!
+}
+
+input ImportTransactionsFileInput {
+  financialAccountId: ID!
+  fileName: String!
+  source: ImportSource
+  fileBase64: String!
+}
+
+input SubmitBillImportInput {
+  importType: ImportType!
+  financialAccountId: ID
+  fileName: String!
+  fileBase64: String!
+  password: String
+}
+
+input ConfirmBillImportInput {
+  jobId: ID!
+  closingDate: Date
+  dueDate: Date
+  cards: [ConfirmBillReviewCardInput!]!
+}
+
+input ConfirmBillReviewCardInput {
+  reviewCardId: ID!
+  financialAccountId: ID!
+  transactions: [ConfirmBillReviewTransactionInput!]!
+}
+
+input ConfirmBillReviewTransactionInput {
+  date: Date!
+  description: String!
+  amount: Float!
+  creditDebitType: CreditDebitType!
+  include: Boolean!
+  isBillPayment: Boolean
+  installment: InstallmentInfoInput
+  categoryId: ID
+  categorySource: CategorySource
+}
+
+input InstallmentInfoInput {
+  current: Int!
+  total: Int!
+}
+
+# ============================================================================
+# Transaction Import Types
+# ============================================================================
+
+type ParsedImportRow {
+  creditDebitType: CreditDebitType!
+  amount: Float!
+  date: Date!
+  description: String!
+  currencyCode: String!
+  counterpartyName: String
+  counterpartyDocument: String
+}
+
+type ImportDuplicateCandidate {
+  rowIndex: Int!
+  parsed: ParsedImportRow!
+  candidates: [Transaction!]!
+}
+
+type TransactionImport {
+  id: ID!
+  financialAccountId: ID!
+  source: ImportSource!
+  fileName: String
+  status: ImportStatus!
+  totalRows: Int
+  importedCount: Int
+  skippedCount: Int
+  duplicateReviewCount: Int
+  errorCount: Int
+  errorDetails: String
+  duplicateCandidates: [ImportDuplicateCandidate!]!
+  dateFrom: Date
+  dateTo: Date
+  completedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ImportResult {
+  import: TransactionImport!
+}
+
+type BillImportJob {
+  id: ID!
+  importType: ImportType!
+  status: BillImportJobStatus!
+  fileName: String
+  createdAt: DateTime!
+  reviewPayload: BillImportReview
+  errorCode: String
+  errorParameters: JSON
+  errorMessage: String @deprecated(reason: "Use errorCode/errorParameters for i18n")
+}
+
+type BillImportReview {
+  bankName: String
+  reviewMode: BillImportReviewMode!
+  statementPeriod: DateRange
+  cards: [BillImportReviewCard!]!
+}
+
+enum BillImportReviewMode {
+  CARD_BUCKET_MATCHING
+  TX_CARD_ASSIGNMENT
+}
+
+type DateRange {
+  from: Date
+  to: Date
+}
+
+type BillImportReviewCard {
+  reviewCardId: ID!
+  lastFourDigits: String
+  holderName: String
+  closingDate: Date
+  dueDate: Date
+  declaredTotal: Float!
+  computedTotal: Float!
+  totalMatchesDeclared: Boolean!
+  transactions: [BillImportReviewTransaction!]!
+  matchedFinancialAccountId: ID
+  matchAmbiguous: Boolean!
+  matchCandidates: [BillImportMatchCandidate!]!
+}
+
+type BillImportMatchCandidate {
+  id: ID!
+  name: String!
+}
+
+type BillImportReviewTransaction {
+  date: Date
+  description: String!
+  amount: Float!
+  creditDebitType: CreditDebitType!
+  installment: InstallmentInfo
+  isBillPayment: Boolean!
+  categoryId: ID
+  categorySource: CategorySource
+}
+
+type InstallmentInfo {
+  current: Int!
+  total: Int!
+}
+
+# ============================================================================
+# Investment enums
+# ============================================================================
+
+"""
+Asset class (classe de ativo). Drives pricing model and tax treatment.
+"""
+enum AssetType {
+  # Renda Variável (B3)
+  STOCK
+  STOCK_RIGHTS
+  BDR
+  REAL_ESTATE_FUND
+  AGRIBUSINESS_FUND
+  ETF
+  ETF_FIXED_INCOME
+  ETF_INTERNATIONAL
+  # Renda Fixa Bancária
+  CDB
+  RDB
+  LCI
+  LCA
+  LC
+  LF
+  LIG
+  # Renda Fixa Crédito
+  DEBENTURES
+  CRI
+  CRA
+  # Tesouro Direto
+  TREASURY
+  # Fundos
+  MUTUAL_FUND
+  # Previdência
+  PGBL
+  VGBL
+  # Estruturado
+  COE
+  # Outros
+  CRYPTO
+  OPTION
+  DERIVATIVES
+  OTHER
+}
+
+"""Aggregate class used to filter holdings by broader investment category."""
+enum InvestmentHoldingAssetClass {
+  FIXED_INCOME
+  INVESTMENT_FUND
+  VARIABLE_INCOME
+  CRYPTO
+  OPTIONS
+}
+
+"""
+Direction of an investment event. INFLOW increases or adds; OUTFLOW decreases or withdraws.
+"""
+enum InvestmentTransactionDirection {
+  INFLOW
+  OUTFLOW
+}
+
+"""
+Nature of an investment event (OFB/Pluggy/Belvo canonical).
+"""
+enum InvestmentTransactionType {
+  PURCHASE
+  SALE
+  CANCELLATION
+  DIVIDEND
+  INTEREST_ON_EQUITY
+  INTEREST_PAYMENT
+  AMORTIZATION
+  PRIZE
+  MATURITY
+  STOCK_SPLIT
+  REVERSE_SPLIT
+  BONUS_SHARES
+  SUBSCRIPTION
+  CUSTODY_TRANSFER
+  OWNERSHIP_TRANSFER
+  QUOTA_TRANSFER
+  STOCK_LENDING
+  WITHHOLDING_TAX
+  FINE
+  LATE_PAYMENT_INTEREST
+  OTHER
+}
+
+"""
+Fixed income indexer (referenciador). Only applicable to RF holdings.
+"""
+enum Indexer {
+  CDI
+  DI
+  TR
+  IPCA
+  IGP_M
+  IGP_DI
+  INPC
+  BCP
+  TLC
+  SELIC
+  PRE_FIXADO
+  OUTROS
+}
+
+"""
+How often a fixed income instrument pays interest during its holding period.
+"""
+enum CouponFrequency {
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+  "No interim payments — all interest accumulates and is paid at maturity or redemption."
+  AT_MATURITY
+}
+
+"""
+ANBIMA fund category. Required for correct tax treatment (come-cotas schedule).
+"""
+enum AnbimaCategory {
+  RENDA_FIXA
+  ACOES
+  MULTIMERCADO
+  CAMBIAL
+}
+
+"""
+How an investment record entered the system.
+"""
+enum InvestmentSource {
+  MANUAL
+  OPEN_FINANCE
+  FILE_IMPORT
+}
+
+enum HoldingCloseReason {
+  MATURED
+  REDEEMED_EARLY
+  TRANSFERRED
+}
+
+enum PendingActionType {
+  INVESTMENT_MATURED
+  """Coupon payment is due for a coupon-bearing fixed income holding."""
+  COUPON_PAYMENT_DUE
+  """Bank account balance went negative after a paired investment cash transfer (informational)."""
+  BANK_ACCOUNT_NEGATIVE_BALANCE
+  """A recurring payment is approaching the due date."""
+  RECURRING_PAYMENT_DUE
+}
+
+enum PendingActionSeverity {
+  INFO
+  WARNING
+  ACTION_REQUIRED
+}
+
+enum PendingActionStatus {
+  PENDING
+  COMPLETED
+  DISMISSED
+  CANCELLED
+}
+
+type AccountPendingAction {
+  id: ID!
+  type: PendingActionType!
+  severity: PendingActionSeverity!
+  status: PendingActionStatus!
+  entityType: String
+  entityId: ID
+  relatedHolding: InvestmentHolding
+  payload: JSON!
+  createdAt: DateTime!
+  expiresAt: DateTime
+}
+
+input MaturityCashMovementInput {
+  financialAccountId: ID!
+  amount: Float!
+  date: Date!
+}
+
+input ConfirmHoldingMaturityInput {
+  holdingId: ID!
+  maturityDate: Date!
+  grossValue: Float!
+  netValue: Float!
+  incomeTax: Float
+  iof: Float
+  closeReason: HoldingCloseReason!
+  cashMovement: MaturityCashMovementInput
+}
+
+type ConfirmHoldingMaturityResult {
+  maturityTransaction: InvestmentTransaction!
+  bankingTransaction: Transaction
+  pendingAction: AccountPendingAction!
+}
+
+input ConfirmCouponPaymentInput {
+  holdingId: ID!
+  tradeDate: Date!
+  grossValue: Float!
+  netValue: Float!
+  incomeTax: Float!
+  destinationAccountId: ID!
+  pendingActionId: ID
+}
+
+type ConfirmCouponPaymentResult {
+  couponTransaction: InvestmentTransaction!
+  bankingTransaction: Transaction
+  pendingAction: AccountPendingAction
+}
+
+input TransferCustodyInput {
+  sourceHoldingId: ID!
+  destinationFinancialAccountId: ID!
+  """Quantidade a transferir. Se omitido, transfere a posição completa."""
+  quantity: Float
+  tradeDate: Date!
+}
+
+type TransferCustodyResult {
+  outflowTransaction: InvestmentTransaction!
+  inflowTransaction: InvestmentTransaction!
+}
+
+enum HoldingPricingMode {
+  MANUAL
+  MARKET_DATA
+}
+
+enum HoldingPerformanceResolution {
+  MINUTE
+  HOUR
+  DAY
+  MONTH
+}
+
+enum PerformancePeriod {
+  MTD
+  YTD
+  ONE_YEAR
+  THREE_YEARS
+  ALL
+}
+
+enum GridClassTwrPeriod {
+  SIX_MONTHS
+  ONE_YEAR
+  THREE_YEARS
+  ALL
+}
+
+"""
+Indicates the origin and reliability of a holding's current value.
+"""
+enum ValuationSource {
+  "Value provided by the data provider (Open Finance / file import). Authoritative."
+  PROVIDER
+  "Value provided by the app's internal market-data services (e.g. CVM NAV)."
+  MARKET_DATA
+  "Value entered by the user for a manual fund holding."
+  MANUAL
+  "Value computed from the contracted rate with no external variables (PRE_FIXADO only). Exact."
+  CALCULATED
+  "Value projected using latest economic indicators (CDI, IPCA, etc.). Approximate."
+  ESTIMATED
+  "Value cannot be determined (unsupported indexer, missing data, or no issueDate)."
+  UNAVAILABLE
+}
+
+# ============================================================================
+# Investment Types
+# ============================================================================
+
+"""
+Global investable instrument from the asset catalog.
+Equities are identified by ticker; fixed income by isinCode; funds by fundCnpj.
+Market prices are NOT stored here — fetched from financial-data at query time.
+"""
+type InvestmentAsset {
+  id: ID!
+  ticker: String
+  isinCode: String
+  name: String!
+  assetType: AssetType!
+  exchange: String
+  currencyCode: String!
+  issuerCnpj: String
+  issuerName: String
+  fundCnpj: String
+  anbimaCategory: AnbimaCategory
+  anbimaClass: String
+  anbimaSubclass: String
+  logoAsset: Asset
+  """B3 pricing multiplier. Most assets = 1. Some debentures quoted per 1000 use 0.001."""
+  priceFactor: Float!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+User's current position in an asset within a custodian account.
+One holding per (financialAccountId, asset). Quantity aggregates all lots.
+averageCost is maintained by the transaction engine — custo médio ponderado (RFB method).
+"""
+type InvestmentHolding {
+  id: ID!
+  financialAccountId: ID!
+  financialAccount: FinancialAccount
+  asset: InvestmentAsset!
+  """Current number of units/shares/cotas held. Zero means position is closed."""
+  quantity: Float!
+  """Weighted average purchase price per unit (custo médio ponderado)."""
+  averageCost: Float!
+  # ── RF-specific contractual terms ──────────────────────────────────────────
+  indexer: Indexer
+  """Fraction of indexer applied (e.g. 1.15 = 115% CDI)."""
+  indexerPercentage: Float
+  """Annual fixed rate or spread (e.g. 0.12 = 12% a.a.)."""
+  fixedAnnualRate: Float
+  issueDate: Date
+  maturityDate: Date
+  """Earliest redemption date (carência)."""
+  gracePeriodDate: Date
+  """True for LCI/LCA/CRI/CRA — exempt from IR for individuals."""
+  isTaxExempt: Boolean!
+  "Coupon payment frequency. Null and AT_MATURITY are equivalent — no scheduled payments."
+  couponFrequency: CouponFrequency
+  "Day of month (1–31) on which coupon cash settles. Null for AT_MATURITY and Tesouro Direto (system calendar)."
+  couponDayOfMonth: Int
+  "Projected coupon schedule from issueDate to maturityDate. Empty when no coupon schedule is applicable."
+  couponSchedule: [CouponScheduleEntry!]!
+  # ── Provider-cached valuations (may be stale between syncs) ────────────────
+  grossValue: Float
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  """
+  Accrued interest for the current coupon period (grossValue − principal).
+  Non-null only for coupon-paying fixed income holdings with a valid valuation.
+  Use this as the pre-fill gross amount when registering a coupon payment.
+  """
+  accruedInterest: Float
+  lastValuedAt: DateTime
+  pricingMode: HoldingPricingMode
+  valuationSource: ValuationSource!
+  "Date of the most recent indicator used in the calculation (null when source is PROVIDER or UNAVAILABLE)."
+  valuationReferenceDate: Date
+  """
+  Whether the holding is on or past its maturity date.
+  Computed as maturityDate != null && !maturityDate.isAfter(today).
+  """
+  isExpired: Boolean!
+  """True when the holding was closed with an explicit reason (maturity, early redemption, transfer)."""
+  isClosed: Boolean!
+  """True when the holding is past maturity, still open (qty > 0), and not yet closed with a reason."""
+  isExpiredPending: Boolean!
+  closedAt: Date
+  closeReason: HoldingCloseReason
+  source: InvestmentSource!
+  """Attached files (corretagem, contracts, etc.). Max 3."""
+  attachments: [HoldingAttachment!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type CouponScheduleEntry {
+  "1-based coupon index in the projected schedule (e.g. 3 of 12)."
+  seriesNumber: Int!
+  "Projected payment date."
+  scheduledDate: Date!
+  "Start of the accrual period for this coupon."
+  periodStart: Date!
+  "End of the accrual period (inclusive)."
+  periodEnd: Date!
+  "True when the accrual period is shorter than a full cycle (typically first period after mid-month purchase)."
+  isPartialPeriod: Boolean!
+  "Whether this date is in the past."
+  isPast: Boolean!
+  "The INTEREST_PAYMENT transaction matched to this coupon, if any."
+  matchedTransaction: InvestmentTransaction
+}
+
+"""
+Fee breakdown from a broker note (nota de corretagem).
+1:1 with InvestmentTransaction. Present only for renda variável transactions.
+All fee fields are zero when not charged.
+"""
+type BrokerNote {
+  brokerNoteNumber: String
+  grossValue: Float!
+  brokerageFee: Float!
+  clearingSettlementFee: Float!
+  clearingRegistrationFee: Float!
+  stockExchangeAssetTradeNoticeFee: Float!
+  stockExchangeFee: Float!
+  clearingCustodyFee: Float!
+  incomeTax: Float!
+  taxes: Float!
+  netValue: Float!
+  createdAt: DateTime!
+}
+
+"""
+An event that changes (or explains) an investment holding.
+tradeDate is the legally relevant date (fato gerador for IR calculation).
+grossValue is always positive; direction is INFLOW or OUTFLOW.
+"""
+type InvestmentTransaction {
+  id: ID!
+  holdingId: ID!
+  financialAccountId: ID!
+  direction: InvestmentTransactionDirection!
+  type: InvestmentTransactionType!
+  """Required when type = OTHER (OFB transactionTypeAdditionalInfo)."""
+  typeAdditionalInfo: String
+  """Null for pure monetary events (DIVIDEND, INTEREST_PAYMENT, etc.)."""
+  quantity: Float
+  unitPrice: Float
+  grossValue: Float!
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  indexerPercentage: Float
+  """Annual fixed rate associated with the transaction, when applicable."""
+  fixedAnnualRate: Float
+  priceFactor: Float
+  """Legal event date — fato gerador for IR calculation."""
+  tradeDate: Date!
+  """Settlement date (D+2 equities, D+1 RF). Null for events with no settlement leg."""
+  settlementDate: Date
+  source: InvestmentSource!
+  brokerNote: BrokerNote
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type HoldingPerformanceCapabilities {
+  supportsProjection: Boolean!
+  projectionDefaultEnabled: Boolean!
+  supportedResolutions: [HoldingPerformanceResolution!]!
+  defaultResolution: HoldingPerformanceResolution!
+}
+
+type HoldingPerformanceSummary {
+  investedPrincipal: Float
+  netContributions: Float
+  currentCostBasis: Float
+  grossValue: Float
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  grossGain: Float
+  netGain: Float
+  grossGainPercent: Float
+}
+
+type HoldingPerformancePoint {
+  timestamp: DateTime!
+  isProjected: Boolean!
+  investedPrincipal: Float
+  netContributions: Float
+  currentCostBasis: Float
+  grossValue: Float
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  grossGain: Float
+  netGain: Float
+  quantity: Float
+}
+
+type HoldingPerformance {
+  holdingId: ID!
+  assetType: AssetType!
+  currencyCode: String!
+  resolution: HoldingPerformanceResolution!
+  valuationSource: ValuationSource!
+  valuationReferenceDate: Date
+  capabilities: HoldingPerformanceCapabilities!
+  summary: HoldingPerformanceSummary!
+  points: [HoldingPerformancePoint!]!
+}
+
+type PortfolioPerformanceSeries {
+  """Echo of the requested filter; null means whole portfolio."""
+  groupKey: String
+  """Localized label for the group, or "Portfolio" when groupKey is null."""
+  label: String!
+  currencyCode: String!
+  resolution: HoldingPerformanceResolution!
+  valuationSource: ValuationSource!
+  valuationReferenceDate: Date
+  capabilities: HoldingPerformanceCapabilities!
+  summary: HoldingPerformanceSummary!
+  points: [HoldingPerformancePoint!]!
+  """Number of holdings that matched the filter but were skipped (no series available)."""
+  excludedHoldingsCount: Int!
+  """Number of holdings actually contributing to the series."""
+  includedHoldingsCount: Int!
+}
+
+type BenchmarkPerformance {
+  code: String!
+  label: String!
+  twr: Float
+}
+
+type PortfolioPerformance {
+  twr: Float
+  twrSince: Date
+  twrAbsolute: Float
+  period: PerformancePeriod!
+  benchmarks: [BenchmarkPerformance!]!
+  hasEstimatedValues: Boolean!
+}
+
+"""One row in the portfolio quota series fed into the TWR engine."""
+type TwrQuotaPoint {
+  date: Date!
+  """Total portfolio value on this date (sum of all holdings mark-to-market)."""
+  totalValue: Float!
+}
+
+"""One flow event considered by the TWR engine for this account and period."""
+type TwrFlowEvent {
+  date: Date!
+  """DEPOSIT | WITHDRAWAL | DIVIDEND | INCOME_TAX | CORPORATE_ACTION"""
+  eventType: String!
+  grossAmount: Float!
+  """Signed net amount used in the TWR formula: positive = inflow, negative = outflow."""
+  canonicalNetFlow: Float!
+}
+
+"""One step in the TWR chain, corresponding to a quota point after the first."""
+type TwrDailyStep {
+  date: Date!
+  previousValue: Float!
+  currentValue: Float!
+  """Sum of canonical net flows on this date (0 if none)."""
+  netFlow: Float!
+  """(currentValue - previousValue - netFlow) / previousValue"""
+  dailyReturn: Float!
+  """Running product: factor_t = factor_(t-1) * (1 + dailyReturn_t). Starts at 1.0."""
+  cumulativeFactor: Float!
+}
+
+"""Full diagnostic payload for the TWR calculation of one account and period."""
+type PortfolioTwrDebug {
+  """ISO date of the first quota in the series (anchor point, factor = 1.0)."""
+  startDate: Date
+  """ISO date of the last quota in the series."""
+  endDate: Date
+  """Same value as investmentPortfolioSummary.performance.twr — null if series has fewer than 2 points."""
+  twr: Float
+  """The quota series (one entry per calendar day that has a stored quota)."""
+  series: [TwrQuotaPoint!]!
+  """Flow events in the window [startDate+1 .. endDate] used by the engine."""
+  flowEvents: [TwrFlowEvent!]!
+  """Per-day computation steps (series.size - 1 entries; empty if series < 2)."""
+  dailySteps: [TwrDailyStep!]!
+}
+
+type RecalculationStatus {
+  isCalculating: Boolean!
+  jobId: UUID
+  startedAt: DateTime
+  """Machine-readable error code for i18n when the latest job failed (errors.* keys)."""
+  errorCode: String
+  """Fallback human-readable status; prefer translating errorCode on the client when present."""
+  message: String
+  """Root-cause detail for support/debugging (exception class + message). Not intended for end-user display."""
+  errorDetails: String
+}
+
+type InvestmentHoldingPerformance {
+  holdingId: ID!
+  xirr: Float
+  xirrSince: Date
+  totalReturn: Float!
+  totalReturnAbsolute: Float!
+  dividendsReceived: Float!
+}
+
+type AssetGroupSummary {
+  groupKey: String!
+  label: String!
+  count: Int!
+  totalCostBasis: Float!
+  totalGrossValue: Float!
+  grossGainPercent: Float
+  twr: Float
+  allocationPercent: Float!
+  isCash: Boolean!
+}
+
+type InvestmentPortfolioSummary {
+  totalHoldingsCount: Int!
+  totalCostBasis: Float!
+  totalGrossValue: Float!
+  totalNetValue: Float!
+  totalIncomeTax: Float!
+  totalIof: Float!
+  grossGain: Float!
+  grossGainPercent: Float!
+  netGain: Float!
+  netGainPercent: Float!
+  cashBalance: Float!
+  totalPortfolioValue: Float!
+  byAssetGroup: [AssetGroupSummary!]!
+  hasEstimatedValues: Boolean!
+  valuationReferenceDate: Date
+  currencyCode: String!
+  performance: PortfolioPerformance!
+  recalculationStatus: RecalculationStatus!
+}
+
+"""A single point in a grid-class TWR quota time series."""
+type GridClassTwrPoint {
+  date: Date!
+  """Raw quota value. Normalize to % return as (quotaValue / firstPoint.quotaValue) - 1."""
+  quotaValue: Float!
+}
+
+# ============================================================================
+# Investment Input Types
+# ============================================================================
+
+"""
+Fee breakdown from a broker note (nota de corretagem). All fields default to zero.
+"""
+input BrokerNoteInput {
+  brokerNoteNumber: String
+  grossValue: Float!
+  brokerageFee: Float
+  clearingSettlementFee: Float
+  clearingRegistrationFee: Float
+  stockExchangeAssetTradeNoticeFee: Float
+  stockExchangeFee: Float
+  clearingCustodyFee: Float
+  incomeTax: Float
+  taxes: Float
+  netValue: Float!
+}
+
+"""
+Creates a global investment asset entry.
+Assets are not tenant-scoped and can be reused across accounts.
+"""
+input CreateInvestmentAssetInput {
+  name: String!
+  assetType: AssetType!
+  issuerName: String
+  fundCnpj: String
+  ticker: String
+  isinCode: String
+  """Defaults to BRL when omitted."""
+  currencyCode: String
+}
+
+input UpdateInvestmentAssetInput {
+  name: String!
+  assetType: AssetType!
+  issuerName: String
+  fundCnpj: String
+  ticker: String
+  isinCode: String
+  currencyCode: String
+}
+
+input ManualFundValuationInput {
+  grossValue: Float!
+  valuedAt: Date!
+}
+
+"""
+Records a new investment transaction and updates the corresponding holding.
+The holding is resolved from (financialAccountId, assetId) — created if this is the first transaction.
+RF-specific terms (indexer, maturityDate, etc.) are only used when creating a brand-new holding.
+"""
+input RecordInvestmentTransactionInput {
+  financialAccountId: ID!
+  assetId: ID!
+  direction: InvestmentTransactionDirection!
+  type: InvestmentTransactionType!
+  """Required when type = OTHER."""
+  typeAdditionalInfo: String
+  quantity: Float
+  unitPrice: Float
+  grossValue: Float!
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  indexerPercentage: Float
+  fixedAnnualRate: Float
+  priceFactor: Float
+  tradeDate: Date!
+  settlementDate: Date
+  brokerNote: BrokerNoteInput
+  # ── New holding terms (RF only — ignored when holding already exists) ───────
+  indexer: Indexer
+  issueDate: Date
+  maturityDate: Date
+  gracePeriodDate: Date
+  isTaxExempt: Boolean
+  couponFrequency: CouponFrequency
+  couponDayOfMonth: Int
+  providerInvestmentId: String
+  pricingMode: HoldingPricingMode
+  manualValuation: ManualFundValuationInput
+}
+
+input UpdateInvestmentTransactionInput {
+  direction: InvestmentTransactionDirection!
+  type: InvestmentTransactionType!
+  """Required when type = OTHER."""
+  typeAdditionalInfo: String
+  quantity: Float
+  unitPrice: Float
+  grossValue: Float!
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  indexerPercentage: Float
+  fixedAnnualRate: Float
+  priceFactor: Float
+  tradeDate: Date!
+  settlementDate: Date
+  brokerNote: BrokerNoteInput
+  indexer: Indexer
+  issueDate: Date
+  maturityDate: Date
+  gracePeriodDate: Date
+  isTaxExempt: Boolean
+  couponFrequency: CouponFrequency
+  couponDayOfMonth: Int
+  pricingMode: HoldingPricingMode
+  manualValuation: ManualFundValuationInput
+}
+
+"""Manual cash movement on an investment/benefit custodian account (no asset / investment-transaction link)."""
+enum InvestmentCashTransactionType {
+  """Credit TRANSFER — external deposit into the custodian account."""
+  DEPOSIT
+  """Debit TRANSFER — withdrawal from the custodian account."""
+  WITHDRAWAL
+  """BALANCE_ADJUSTMENT — signed amount: positive credits, negative debits the custodian cash balance."""
+  ADJUSTMENT
+}
+
+input CreateInvestmentCashTransactionInput {
+  financialAccountId: ID!
+  type: InvestmentCashTransactionType!
+  """
+  For DEPOSIT and WITHDRAWAL must be > 0.
+  For ADJUSTMENT: use positive for credit and negative for debit (must be non-zero).
+  """
+  amount: Float!
+  date: Date!
+  """Optional for DEPOSIT/WITHDRAWAL. Required when type = ADJUSTMENT or registerAsBalanceAdjustment is true."""
+  description: String
+  """
+  Optional bank account for an atomic transfer pair (checking/savings-style only).
+  Not allowed with ADJUSTMENT or registerAsBalanceAdjustment.
+  """
+  peerFinancialAccountId: ID
+  """
+  When true with DEPOSIT or WITHDRAWAL, records BALANCE_ADJUSTMENT instead of TRANSFER (description required).
+  """
+  registerAsBalanceAdjustment: Boolean
+}
+
+input UpdateInvestmentCashTransactionInput {
+  amount: Float!
+  date: Date!
+  description: String
+}
+
+# ============================================================================
+# Attachment Types
+# ============================================================================
+
+"""
+A file attached to a Transaction (receipt, contract, product guarantee, etc.).
+The file is stored privately in the assets service.
+Max 3 attachments per transaction. Supported formats: image, plain text, Excel, CSV, PDF.
+"""
+type TransactionAttachment {
+  id: ID!
+  transactionId: ID!
+  assetId: ID!
+  """Original filename as uploaded by the user."""
+  filename: String
+  """MIME type of the file (e.g. application/pdf, image/png)."""
+  mimeType: String
+  """File size in bytes."""
+  sizeBytes: Int
+  """Pre-signed download URL (valid for 1 hour). Null if the asset is not yet ready."""
+  downloadUrl: String
+  createdAt: DateTime!
+}
+
+"""
+A file attached to an InvestmentHolding (nota de corretagem, contract, etc.).
+The file is stored privately in the assets service.
+Max 3 attachments per holding. Supported formats: image, plain text, Excel, CSV, PDF.
+"""
+type HoldingAttachment {
+  id: ID!
+  holdingId: ID!
+  assetId: ID!
+  """Original filename as uploaded by the user."""
+  filename: String
+  """MIME type of the file (e.g. application/pdf, image/png)."""
+  mimeType: String
+  """File size in bytes."""
+  sizeBytes: Int
+  """Pre-signed download URL (valid for 1 hour). Null if the asset is not yet ready."""
+  downloadUrl: String
+  createdAt: DateTime!
+}
+
+input AttachFileToTransactionInput {
+  transactionId: ID!
+  """Asset ID returned by confirmAssetUpload (must be READY status)."""
+  assetId: ID!
+}
+
+input AttachFileToHoldingInput {
+  holdingId: ID!
+  """Asset ID returned by confirmAssetUpload (must be READY status)."""
+  assetId: ID!
+}
+
+# ============================================================================
+# Settings / Preferences
+# ============================================================================
+
+enum RuleApplicationMode {
+  NEVER
+  ALWAYS
+  ALWAYS_PROMPT
+}
+
+type BankingUserPreferences {
+  ruleApplicationMode: RuleApplicationMode!
+}
+
+input UpdateBankingUserPreferencesInput {
+  ruleApplicationMode: RuleApplicationMode
+}
+
+type AccountPreferences {
+  defaultTransactionStatus: TransactionStatus!
+}
+
+enum ProductAliasSource {
+  MANUAL
+  AI_SUGGESTED
+  EAN_MATCH
+  HEURISTIC
+}
+
+type Product {
+  id: ID!
+  name: String!
+  ncmCode: String
+  defaultUnit: String
+  category: String
+  variants: [ProductVariant!]!
+  averagePrice: Float
+  totalSpent: Float!
+  purchaseCount: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ProductVariant {
+  id: ID!
+  productId: ID!
+  name: String!
+  brand: String
+  ean: String
+  quantityValue: Float
+  quantityUnit: String
+  normalizedQuantityValue: Float
+  normalizedQuantityUnit: String
+  averageUnitPrice: Float
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ProductAlias {
+  id: ID!
+  productVariantId: ID!
+  productVariant: ProductVariant
+  rawDescription: String!
+  source: ProductAliasSource!
+  confidence: Float
+  confirmed: Boolean!
+  createdAt: DateTime!
+}
+
+type PurchaseItem {
+  id: ID!
+  transactionId: ID!
+  productVariantId: ID
+  productVariant: ProductVariant
+  sequence: Int!
+  rawDescription: String!
+  ncmCode: String
+  ean: String
+  issuerProductCode: String
+  quantity: Float!
+  unit: String!
+  unitPrice: Float!
+  totalPrice: Float!
+  discount: Float
+  effectivePrice: Float!
+  normalizedUnitPrice: Float
+  taxAmount: Float
+  createdAt: DateTime!
+}
+
+type NfceDocument {
+  id: ID!
+  transactionId: ID!
+  accessKey: String!
+  issuerCnpj: String!
+  issuerName: String!
+  issuerTradeName: String
+  issuerStateRegistration: String
+  issuerAddress: String
+  issuerPostalCode: String
+  emissionDate: DateTime!
+  totalValue: Float!
+  totalTax: Float
+  buyerCpf: String
+  municipalityCode: String
+  municipality: String
+  state: String!
+  countryCode: String!
+  sourceUrl: String
+  items: [PurchaseItem!]!
+  createdAt: DateTime!
+}
+
+type UnmappedItemGroup {
+  rawDescription: String!
+  count: Int!
+  suggestedVariant: ProductVariant
+  confidence: Float
+  sampleItems: [PurchaseItem!]!
+}
+
+type PricePoint {
+  date: Date!
+  unitPrice: Float!
+  storeName: String
+  municipality: String
+  state: String
+}
+
+type ConsumptionTrendPoint {
+  month: Date!
+  totalQuantity: Float!
+  totalSpent: Float!
+  purchaseCount: Int!
+}
+
+type ConsumptionTrend {
+  productId: ID!
+  periodMonths: Int!
+  totalQuantity: Float!
+  totalSpent: Float!
+  purchaseCount: Int!
+  months: [ConsumptionTrendPoint!]!
+}
+
+type StorePriceComparison {
+  storeName: String
+  municipality: String
+  state: String
+  averageUnitPrice: Float
+  purchaseCount: Int!
+  lastPurchaseDate: Date
+}
+
+type NcmMonthlySpending {
+  month: Date!
+  totalSpent: Float!
+  itemCount: Int!
+}
+
+type NcmSpending {
+  ncmCode: String!
+  ncmDescription: String
+  totalSpent: Float!
+  itemCount: Int!
+  months: [NcmMonthlySpending!]!
+}
+
+input UpdateAccountPreferencesInput {
+  defaultTransactionStatus: TransactionStatus
+}
+
+input CreateProductInput {
+  name: String!
+  ncmCode: String
+  defaultUnit: String
+  category: String
+}
+
+input UpdateProductInput {
+  name: String
+  ncmCode: String
+  defaultUnit: String
+  category: String
+}
+
+input CreateProductVariantInput {
+  productId: ID!
+  name: String!
+  brand: String
+  ean: String
+  quantityValue: Float
+  quantityUnit: String
+  normalizedQuantityValue: Float
+  normalizedQuantityUnit: String
+}
+
+input UpdateProductVariantInput {
+  productId: ID
+  name: String
+  brand: String
+  ean: String
+  quantityValue: Float
+  quantityUnit: String
+  normalizedQuantityValue: Float
+  normalizedQuantityUnit: String
+}
+
+# ============================================================================
+# Recurring Payments
+# ============================================================================
+
+enum RecurringFrequency {
+  MONTHLY
+  WEEKLY
+  YEARLY
+  CUSTOM
+}
+
+enum RecurringPaymentStatus {
+  ACTIVE
+  PAUSED
+}
+
+type RecurringPayment {
+  id: ID!
+  financialAccountId: ID
+  name: String!
+  creditDebitType: CreditDebitType!
+  type: TransactionType
+  expectedAmount: Float
+  currencyCode: String!
+  frequency: RecurringFrequency!
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int!
+  status: RecurringPaymentStatus!
+  nextDueDate: Date!
+  lastPaidDate: Date
+  notes: String
+  category: TransactionCategory
+  merchant: Merchant
+}
+
+input CreateRecurringPaymentInput {
+  financialAccountId: ID
+  name: String!
+  creditDebitType: CreditDebitType!
+  type: TransactionType
+  expectedAmount: Float
+  currencyCode: String
+  categoryId: ID
+  merchantId: ID
+  frequency: RecurringFrequency!
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int
+  firstDueDate: Date!
+  notes: String
+}
+
+input UpdateRecurringPaymentInput {
+  financialAccountId: ID
+  name: String
+  creditDebitType: CreditDebitType
+  expectedAmount: Float
+  categoryId: ID
+  merchantId: ID
+  frequency: RecurringFrequency
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int
+  nextDueDate: Date
+  notes: String
+}
+
+input CreateRecurringPaymentFromTransactionInput {
+  financialAccountId: ID
+  name: String
+  type: TransactionType
+  expectedAmount: Float
+  currencyCode: String
+  categoryId: ID
+  merchantId: ID
+  frequency: RecurringFrequency
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int
+  firstDueDate: Date
+  notes: String
+}
+
 # ============================================================================
 # Queries
 # ============================================================================
 
 extend type Query {
   _bankingService: String
+  """
+  All active issuers.
+  When categories is omitted, returns all active issuers.
+  """
+  issuers(categories: [IssuerCategory!]): [Issuer!]!
+  """All financial accounts belonging to the authenticated user's account."""
+  financialAccounts: [FinancialAccount!]!
+  """Current banking user preferences (defaults when no row exists)."""
+  bankingUserPreferences: BankingUserPreferences!
+  """Current account (tenant) preferences (defaults when no row exists)."""
+  accountPreferences: AccountPreferences!
+  """
+  Single transaction by ID (scoped to the authenticated account).
+  """
+  transaction(id: ID!): Transaction
+  """Merchant logo preview asset resolved through federation."""
+  merchantLogoPreview(domain: String!): Asset
+  """
+  Monthly summary (entradas, saídas, saldo) for a financial account or all accounts.
+  When financialAccountId is omitted, returns the aggregate across all accounts.
+  When month/year are not provided, the current month/year are used.
+  """
+  monthSummary(financialAccountId: ID, year: Int, month: Int): MonthSummary!
+  """Paginated merchants (system + user-created) available to the authenticated account."""
+  merchants(search: String, after: String, first: Int = 20): MerchantConnection!
+  """Top merchants by spend for the authenticated account. Defaults to top 10 for the current month."""
+  topMerchants(financialAccountId: ID, year: Int, month: Int, limit: Int): [TopMerchant!]!
+  """
+  All categories (system + custom) available to the authenticated account.
+  """
+  transactionCategories: [TransactionCategory!]!
+  """
+  Transaction rules for auto-categorization and merchant suggestion.
+  - isSystem omitted: returns all rules (user + system)
+  - isSystem false: returns only user rules
+  - isSystem true: returns only system rules
+  """
+  transactionRules(isSystem: Boolean, search: String, first: Int, after: String): TransactionRuleConnection!
+  """
+  Returns the requested transaction rules, preserving the input ID order.
+  Useful for explaining which rules contributed to a transaction.
+  """
+  transactionRulesByIds(ids: [ID!]!): [TransactionRule!]!
+  """Counts how many existing (non-manual) transactions would be affected by applying the given rule."""
+  transactionRuleHistoricalMatchCount(id: ID!): Int!
+  """
+  Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
+  Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.
+  """
+  previewTransactionRule(pattern: String!, patternType: PatternType!, sample: String!): Boolean!
+  similarTransactionEditPreview(id: ID!): SimilarTransactionEditPreview!
+  """
+  Category totals for a period (expense/income breakdown). Accepts the same filters as the
+  transactions query — the result reflects the category breakdown of exactly those transactions.
+  When financialAccountId is omitted, aggregates across all accounts.
+  """
+  transactionsByCategory(
+    financialAccountId: ID
+    belongsToUserId: ID
+    belongsToName: String
+    """Text search over transaction descriptions with full-text and partial substring matching."""
+    search: String
+    tags: [String!]
+    billId: ID
+    """Return only transactions in this category or its subcategories."""
+    categoryId: ID
+    """If true, return only transactions with no category (result will always be empty)."""
+    uncategorized: Boolean
+    year: Int
+    month: Int
+    """Filter by INCOME or EXPENSE; omit for all categorized transactions."""
+    applicableTo: CategoryApplicableTo
+  ): [CategoryTotal!]!
+  """
+  Monthly cash-flow series (income, expenses, net) for a date range.
+  Returns one CashFlowDataPoint per month ordered by year/month ASC.
+  When financialAccountId is omitted, aggregates across all accounts.
+  startYear/startMonth and endYear/endMonth default to the current month when omitted.
+  """
+  cashFlowSeries(
+    financialAccountId: ID
+    startYear: Int!
+    startMonth: Int!
+    endYear: Int!
+    endMonth: Int!
+  ): [CashFlowDataPoint!]!
+  """
+  Aggregate dashboard summary (income, expenses, net, opening/closing balance) across a date range.
+  When financialAccountId is omitted, aggregates across all accounts.
+  """
+  dashboardPeriodSummary(
+    financialAccountId: ID
+    startYear: Int!
+    startMonth: Int!
+    endYear: Int!
+    endMonth: Int!
+  ): DashboardPeriodSummary!
+  """
+  Category breakdown (expense or income) aggregated across a date range.
+  When financialAccountId is omitted, aggregates across all accounts.
+  applicableTo defaults to EXPENSE when omitted.
+  """
+  categoryBreakdownForRange(
+    financialAccountId: ID
+    startYear: Int!
+    startMonth: Int!
+    endYear: Int!
+    endMonth: Int!
+    applicableTo: CategoryApplicableTo
+  ): [CategoryTotal!]!
+  """
+  Monthly portfolio gross value series for the given date range.
+  One point per month (last available quota_date in the month).
+  Months with no quota data are omitted — use left-join by (year, month) on the client.
+  When financialAccountId is omitted, aggregates across all investment accounts.
+  """
+  portfolioNetWorthSeries(
+    financialAccountId: ID
+    startYear: Int!
+    startMonth: Int!
+    endYear: Int!
+    endMonth: Int!
+  ): [PortfolioMonthlyValue!]!
+  """
+  Tag totals for a period. Accepts the same filters as the
+  transactions query — the result reflects the tag breakdown of exactly those transactions.
+  When financialAccountId is omitted, aggregates across all accounts.
+  """
+  transactionsByTag(
+    financialAccountId: ID
+    belongsToUserId: ID
+    belongsToName: String
+    """Text search over transaction descriptions with full-text and partial substring matching."""
+    search: String
+    tags: [String!]
+    billId: ID
+    """Return only transactions in this category or its subcategories."""
+    categoryId: ID
+    """If true, return only uncategorized transactions before grouping tags."""
+    uncategorized: Boolean
+    year: Int
+    month: Int
+    """Filter by INCOME or EXPENSE; omit for all tagged transactions."""
+    applicableTo: CategoryApplicableTo
+  ): [TagTotal!]!
+  """
+  Distinct values used in transaction attribution ("belongs to"), across all account transactions.
+  """
+  transactionBelongsToOptions: [TransactionBelongsToOption!]!
+  """
+  Distinct tags used in transactions for the authenticated account.
+  """
+  transactionTags: [TransactionTagOption!]!
+  """
+  Transactions for a single financial account or all accounts belonging to the authenticated account.
+  Results are filtered by month/year and paginated using Relay-style cursors.
+  When month/year are not provided (and billId is null), the current month/year are used by the backend.
+  When billId is provided, it takes precedence over month/year and filters by bill only (used for card bill mode).
+  """
+  transactions(
+    financialAccountId: ID
+    belongsToUserId: ID
+    belongsToName: String
+    """Text search over transaction descriptions with full-text and partial substring matching."""
+    search: String
+    tags: [String!]
+    billId: ID
+    """Return only transactions in this category or its subcategories."""
+    categoryId: ID
+    """If true, return only transactions with no category."""
+    uncategorized: Boolean
+    """Filter by credit/debit direction (CREDIT = income, DEBIT = expense)."""
+    creditDebitType: CreditDebitType
+    """Filter to one or more transaction types (e.g. SALARY, TRANSFER)."""
+    types: [TransactionType!]
+    month: Int
+    year: Int
+    first: Int
+    after: String
+  ): TransactionConnection!
+  """Recurring payment templates for one account or all tenant accounts when omitted."""
+  recurringPayments(financialAccountId: ID): [RecurringPayment!]!
+  recurringPayment(id: ID!): RecurringPayment
+  suggestRecurringForTransaction(transactionId: ID!): RecurringPayment
+  transactionImports(financialAccountId: ID): [TransactionImport!]!
+  transactionImport(id: ID!): TransactionImport
+  pendingReviewImports(financialAccountId: ID): [TransactionImport!]!
+  billImportJob(jobId: ID!): BillImportJob
+  billImportJobs(financialAccountId: ID): [BillImportJob!]!
+  """
+  All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
+  ordered by closing date descending.
+  """
+  creditCardBills(financialAccountId: ID!): [CreditCardBill!]!
+  """
+  A specific credit card bill by closing date.
+  When closingDate is omitted, returns the current open bill (or most recent if no open bill exists).
+  """
+  creditCardBill(financialAccountId: ID!, closingDate: Date): CreditCardBill
+  """
+  Open holdings for investment/brokerage accounts.
+  When financialAccountId is provided, returns holdings for that account only.
+  When omitted, returns consolidated holdings across all accounts for the tenant.
+  Zero-quantity (closed) positions are always excluded.
+  """
+  investmentHoldings(financialAccountId: ID, assetClass: InvestmentHoldingAssetClass): [InvestmentHolding!]!
+  """
+  Ledger cash balance on investment custodian account(s): SUM(CREDIT) − SUM(DEBIT) for POSTED/PENDING rows.
+  When financialAccountId is omitted, aggregates all INVESTMENT and BENEFIT accounts for the tenant.
+  """
+  investmentCashBalance(financialAccountId: ID): Float!
+  """Investment portfolio summary for one investment account or the consolidated view."""
+  investmentPortfolioSummary(financialAccountId: ID, period: PerformancePeriod): InvestmentPortfolioSummary!
+  """Debug view of the TWR calculation pipeline for a given account and period."""
+  portfolioTwrDebug(financialAccountId: ID, period: PerformancePeriod): PortfolioTwrDebug!
+  """
+  Paginated ledger rows that affect investment custodian cash (TRANSFER, INVESTMENT_RETURN, BALANCE_ADJUSTMENT).
+  Keyset cursor on (date, id), ordered by date DESC then id DESC.
+  When financialAccountId is omitted, includes all INVESTMENT and BENEFIT accounts for the tenant.
+  """
+  investmentCashTransactions(
+    financialAccountId: ID
+    first: Int
+    after: String
+  ): TransactionConnection!
+  """Single holding by id."""
+  investmentHolding(id: ID!): InvestmentHolding
+  """Full event history for a holding, ordered by tradeDate DESC."""
+  investmentTransactions(holdingId: ID!): [InvestmentTransaction!]!
+  """Single investment transaction by id."""
+  investmentTransaction(id: ID!): InvestmentTransaction
+  """Look up an asset from the global catalog."""
+  investmentAsset(id: ID!): InvestmentAsset
+  """Generic performance series and valuation summary for a holding."""
+  holdingPerformance(
+    holdingId: ID!
+    resolution: HoldingPerformanceResolution
+    fromDate: Date
+    toDate: Date
+    includeProjection: Boolean
+  ): HoldingPerformance
+  """
+  Aggregated performance series for the authenticated account's portfolio.
+  When [groupKey] is null, aggregates all holdings; when provided, aggregates
+  only holdings whose asset type maps to that group (see AssetGroupSummary.groupKey).
+  When [financialAccountId] is set, only holdings on that custodian financial account
+  are included (same scope as investmentHoldings with the same argument). Omitted means all custodian accounts.
+  """
+  portfolioPerformance(
+    """When set, restrict series to this custodian financial account (tenant-scoped)."""
+    financialAccountId: ID
+    groupKey: String
+    """Canonical subgroup for grid slices (e.g. perfStocks, perfReits, perfCrypto, perfOptions)."""
+    subgroupKey: String
+    """Explicit asset type filter. When provided, narrows holdings to this exact set."""
+    assetTypes: [AssetType!]
+    resolution: HoldingPerformanceResolution
+    includeProjection: Boolean
+  ): PortfolioPerformanceSeries
+  """
+  TWR quota time series for a grid card class (cash, fixed-income, funds, stocks, reits, crypto).
+  Returns one point per recorded day, ascending. Returns empty list if no data is available.
+  """
+  gridClassTwrSeries(
+    """When set, restrict series to this custodian financial account (tenant-scoped)."""
+    financialAccountId: ID
+    gridClassKey: String!
+    """Lookback window. Defaults to ONE_YEAR when omitted."""
+    period: GridClassTwrPeriod
+  ): [GridClassTwrPoint!]!
+  """Annualized IRR and total return summary for a holding."""
+  investmentHoldingPerformance(holdingId: ID!): InvestmentHoldingPerformance
+  """Pending items for the authenticated account (e.g. matured fixed income awaiting confirmation)."""
+  pendingActions(status: PendingActionStatus): [AccountPendingAction!]!
+  """Product catalog for the authenticated account."""
+  products(search: String, category: String): [Product!]!
+  product(id: ID!): Product
+  productVariants(search: String, productId: ID, limit: Int): [ProductVariant!]!
+  purchaseItems(transactionId: ID!): [PurchaseItem!]!
+  nfceDocument(transactionId: ID!): NfceDocument
+  unmappedItems(limit: Int): [UnmappedItemGroup!]!
+  productPriceHistory(productId: ID!, variantId: ID, startDate: Date, endDate: Date): [PricePoint!]!
+  productConsumptionTrend(productId: ID!, periodMonths: Int = 6): ConsumptionTrend!
+  productStoreComparison(productId: ID!, startDate: Date, endDate: Date): [StorePriceComparison!]!
+  spendingByNcm(depth: Int = 4, startDate: Date, endDate: Date): [NcmSpending!]!
+}
+
+# Payload returned by `createTransaction`.
+type CreateTransactionPayload {
+  transaction: Transaction!
+  """Only populated when bankingUserPreferences.ruleApplicationMode = ALWAYS_PROMPT."""
+  appliedRules: [TransactionRule!]
 }
 
 # ============================================================================
@@ -19,4 +2487,178 @@ extend type Query {
 
 extend type Mutation {
   _bankingService: String
+
+  updateBankingUserPreferences(input: UpdateBankingUserPreferencesInput!): BankingUserPreferences!
+  """Updates current account preferences (account owner only)."""
+  updateAccountPreferences(input: UpdateAccountPreferencesInput!): AccountPreferences!
+  """
+  Create a new financial account or card.
+  Requires either issuerId (from the issuers list) or issuerName (custom institution).
+  Billing-cycle card metadata is optional and may be provided when known.
+  """
+  createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount!
+  updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount!
+  deleteFinancialAccount(id: ID!): Boolean!
+  """
+  Create a new manual transaction.
+  """
+  createTransaction(input: CreateTransactionInput!): CreateTransactionPayload!
+  """
+  Update an existing manual transaction.
+  """
+  updateTransaction(id: ID!, input: UpdateTransactionInput!): Transaction!
+  """
+  Soft-delete a manual transaction.
+  """
+  deleteTransaction(id: ID!): Boolean!
+  createRecurringPayment(input: CreateRecurringPaymentInput!): RecurringPayment!
+  updateRecurringPayment(id: ID!, input: UpdateRecurringPaymentInput!): RecurringPayment!
+  pauseRecurringPayment(id: ID!): RecurringPayment!
+  resumeRecurringPayment(id: ID!): RecurringPayment!
+  deleteRecurringPayment(id: ID!): Boolean!
+  confirmRecurringPayment(id: ID!, paymentDate: Date!): RecurringPayment!
+  linkTransactionToRecurring(transactionId: ID!, recurringPaymentId: ID!): Transaction!
+  createRecurringPaymentFromTransaction(
+    transactionId: ID!,
+    input: CreateRecurringPaymentFromTransactionInput!
+  ): RecurringPayment!
+  importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult!
+  importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult!
+  resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport!
+  cancelImportReview(jobId: ID!): Boolean!
+  submitBillImport(input: SubmitBillImportInput!): BillImportJob!
+  confirmBillImport(input: ConfirmBillImportInput!): BillImportJob!
+  """
+  Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
+  Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.
+  """
+  payBill(billId: ID!, amount: Float!, sourceAccountId: ID): CreditCardBill!
+  """
+  Records an investment transaction and updates the holding's quantity and averageCost.
+  Creates the holding automatically on the first PURCHASE of an asset.
+  """
+  createInvestmentAsset(input: CreateInvestmentAssetInput!): InvestmentAsset!
+  """Updates an existing investment asset metadata."""
+  updateInvestmentAsset(id: ID!, input: UpdateInvestmentAssetInput!): InvestmentAsset!
+  """Records an investment transaction and updates the holding's quantity and averageCost."""
+  recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction!
+  """Updates a MANUAL investment transaction and recomputes the holding state."""
+  updateInvestmentTransaction(id: ID!, input: UpdateInvestmentTransactionInput!): InvestmentTransaction!
+  """
+  Records manual cash on an investment/benefit custodian account (aporte, saque, or balance adjustment).
+  Categories are system-assigned for DEPOSIT/WITHDRAWAL; ADJUSTMENT has no category.
+  """
+  createInvestmentCashTransaction(input: CreateInvestmentCashTransactionInput!): Transaction!
+  """
+  Updates a manual investment custodian cash ledger row (and its transfer peer amount/date when present).
+  """
+  updateInvestmentCashTransaction(id: ID!, input: UpdateInvestmentCashTransactionInput!): Transaction!
+  """Soft-deletes a manual investment custodian cash ledger row and its transfer peer when present."""
+  deleteInvestmentCashTransaction(id: ID!): Boolean!
+  """Soft-deletes a MANUAL investment holding and all of its MANUAL transactions."""
+  deleteInvestmentHolding(id: ID!): Boolean!
+  """Triggers a manual portfolio quota recalculation. Optionally scoped to a financialAccountId and recalculateFrom date (ISO-8601). Defaults to all INVESTMENT accounts recalculating from 10 years ago."""
+  triggerPortfolioRecalculation(financialAccountId: ID, recalculateFrom: String): Boolean!
+  """Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted."""
+  deleteInvestmentTransaction(id: ID!): Boolean!
+
+  """
+  Create a custom merchant for the authenticated account.
+  System merchants cannot be created via this mutation.
+  """
+  createMerchant(input: CreateMerchantInput!): Merchant!
+
+  """
+  Create a new custom transaction category for the authenticated account.
+  """
+  createTransactionCategory(input: CreateCategoryInput!): TransactionCategory!
+
+  """
+  Update a custom transaction category for the authenticated account.
+  """
+  updateTransactionCategory(id: ID!, input: UpdateCategoryInput!): TransactionCategory!
+  createProduct(input: CreateProductInput!): Product!
+  updateProduct(id: ID!, input: UpdateProductInput!): Product!
+  createProductVariant(input: CreateProductVariantInput!): ProductVariant!
+  updateProductVariant(id: ID!, input: UpdateProductVariantInput!): ProductVariant!
+  mapItemToVariant(rawDescription: String!, variantId: ID!): ProductAlias!
+  unmapItem(aliasId: ID!): Boolean!
+
+  """
+  Soft-delete a custom transaction category (and its subcategories when deleting a root).
+  """
+  deleteTransactionCategory(id: ID!): Boolean!
+  """
+  Create a transaction rule for auto-categorization and/or merchant suggestion. Invalid REGEX pattern returns a validation error.
+  """
+  createTransactionRule(input: CreateTransactionRuleInput!): TransactionRule!
+  """
+  Update a user-owned transaction rule.
+  """
+  updateTransactionRule(id: ID!, input: UpdateTransactionRuleInput!): TransactionRule!
+  """
+  Applies the given transaction rule to historical (non-manual) transactions that match it.
+  Does not override MANUAL categories; other fields may be updated according to rule actions.
+  """
+  applyTransactionRuleToHistorical(id: ID!): BulkOperationResult!
+  """
+  Soft-delete a user-owned transaction rule. System rules cannot be deleted.
+  """
+  deleteTransactionRule(id: ID!): Boolean!
+  """
+  Reorders user rules by assigning priority = position+1 for each ID in the ordered list.
+  All IDs must belong to the authenticated account. Returns the full updated rule list.
+  """
+  reorderTransactionRules(ids: [ID!]!): [TransactionRule!]!
+  """
+  Enables/disables a system transaction rule for the authenticated account.
+  This does not mutate the global system rule itself.
+  """
+  setSystemTransactionRuleEnabled(id: ID!, enabled: Boolean!): Boolean!
+  """
+  Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
+  """
+  bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult!
+  applyTransactionEditToSimilar(
+    id: ID!
+    matchDescription: String!
+    input: UpdateTransactionInput!
+    applyToFuture: Boolean = true
+    applyToExisting: Boolean = true
+  ): SimilarTransactionEditResult!
+
+  """
+  Attach an already-uploaded asset to a transaction. The asset must be in READY status.
+  Call createAssetUpload → upload to presigned URL → confirmAssetUpload → attachFileToTransaction.
+  Max 3 attachments per transaction.
+  """
+  attachFileToTransaction(input: AttachFileToTransactionInput!): TransactionAttachment!
+
+  """Remove an attachment from a transaction and delete the underlying asset."""
+  removeTransactionAttachment(attachmentId: ID!): Boolean!
+
+  """
+  Attach an already-uploaded asset to an investment holding. The asset must be in READY status.
+  Call createAssetUpload → upload to presigned URL → confirmAssetUpload → attachFileToHolding.
+  Max 3 attachments per holding.
+  """
+  attachFileToHolding(input: AttachFileToHoldingInput!): HoldingAttachment!
+
+  """Remove an attachment from a holding and delete the underlying asset."""
+  removeHoldingAttachment(attachmentId: ID!): Boolean!
+
+  """Confirm fixed-income maturity: records MATURITY, closes the holding, completes the pending action, optional cash credit."""
+  confirmHoldingMaturity(command: ConfirmHoldingMaturityInput!): ConfirmHoldingMaturityResult!
+  """Confirms a fixed-income coupon payment and optionally completes a pending coupon action."""
+  confirmCouponPayment(input: ConfirmCouponPaymentInput!): ConfirmCouponPaymentResult!
+  """Transfere uma posição (total ou parcial) entre contas de custódia do mesmo usuário, preservando custo médio."""
+  transferCustody(input: TransferCustodyInput!): TransferCustodyResult!
+  """Dismiss a pending action (e.g. mark informational item as seen)."""
+  dismissPendingAction(id: ID!): AccountPendingAction!
+}
+
+"""Result of a bulk operation (e.g. bulkCategorize)."""
+type BulkOperationResult {
+  affectedCount: Int!
+  errors: [String!]!
 }

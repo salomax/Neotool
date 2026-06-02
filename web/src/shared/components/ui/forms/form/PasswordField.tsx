@@ -40,6 +40,7 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
             type={show ? "text" : "password"}
             label={label}
             fullWidth={fullWidth}
+            size="medium"
             error={!!fieldState.error}
             helperText={translatedError ?? helperText}
             data-testid={dataTestId}

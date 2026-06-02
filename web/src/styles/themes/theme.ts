@@ -1,5 +1,25 @@
-import { createTheme, ThemeOptions } from "@mui/material/styles";
+import { createTheme, ThemeOptions, alpha, Shadows } from "@mui/material/styles";
+import { fixedIncomeTypeColorsByMode } from "./fixedIncomeTypeColors";
 import { tokens, Mode, DesignTokens } from "./tokens";
+
+type CustomPaletteTokens = Pick<
+  DesignTokens["palette"],
+  | "inputBorder"
+  | "tabBorder"
+  | "errorLightBg"
+  | "successLightBg"
+  | "infoLightBg"
+  | "sidebarBg"
+  | "sidebarIcon"
+  | "labelIcon"
+  | "currencyPositive"
+  | "currencyNegative"
+  | "currencyNeutral"
+  | "thresholdBad"
+  | "thresholdRegular"
+  | "thresholdGood"
+  | "tax"
+>;
 
 declare module "@mui/material/styles" {
   interface Theme {
@@ -7,7 +27,25 @@ declare module "@mui/material/styles" {
       layout: DesignTokens["layout"];
       radius: DesignTokens["radius"];
       border: DesignTokens["border"];
-      palette: DesignTokens["palette"];
+      palette: CustomPaletteTokens;
+      /** Background colors for fixed-income type avatars (`AssetType` → hex). Includes `DEFAULT`. */
+      fixedIncomeTypeColors: Record<string, string>;
+      /**
+       * Cash vs portfolio in net-worth UI (dashboard month summary, Evolução do Patrimônio chart).
+       * Matches `palette.primary` / `palette.success` for the active mode — single source for composition visuals.
+       */
+      netWorthCompositionColors: { cash: string; portfolio: string };
+      /** Palette used by portfolio allocation charts (stacked/percent area + legends). */
+      portfolioAllocationColors: {
+        cash: string;
+        variableIncome: string;
+        fixedIncome: string;
+        mutualFunds: string;
+        pension: string;
+        structured: string;
+        others: string;
+      };
+      shadow: (level: 0 | 1 | 2 | 3 | 4, color?: string) => string;
     };
   }
   interface ThemeOptions {
@@ -15,7 +53,19 @@ declare module "@mui/material/styles" {
       layout?: DesignTokens["layout"];
       radius?: DesignTokens["radius"];
       border?: DesignTokens["border"];
-      palette?: DesignTokens["palette"];
+      palette?: CustomPaletteTokens;
+      fixedIncomeTypeColors?: Record<string, string>;
+      netWorthCompositionColors?: { cash: string; portfolio: string };
+      portfolioAllocationColors?: {
+        cash: string;
+        variableIncome: string;
+        fixedIncome: string;
+        mutualFunds: string;
+        pension: string;
+        structured: string;
+        others: string;
+      };
+      shadow?: (level: 0 | 1 | 2 | 3 | 4, color?: string) => string;
     };
   }
   interface ZIndex {
@@ -28,7 +78,38 @@ declare module "@mui/material/styles" {
 
 export const createAppTheme = (mode: Mode) => {
   const t = tokens[mode];
+  const defaultShadows = createTheme().shadows;
+  const shadows = [...defaultShadows] as Shadows;
+  const buttonRadiusPx = `${t.radius.button}px`;
+  const inputHoverBorderColor = t.palette.primary;
+
+  const buildShadow = (level: 0 | 1 | 2 | 3 | 4, color?: string) => {
+    if (level === 0) return "none";
+
+    const c = color ?? "#000";
+
+    if (level === 1) {
+      return `0px 1px 2px 0px ${alpha(c, 0.12)}, 0px 1px 3px 0px ${alpha(c, 0.06)}`;
+    }
+
+    if (level === 2) {
+      return `0px 2px 4px -1px ${alpha(c, 0.14)}, 0px 4px 6px -1px ${alpha(c, 0.08)}, 0px 1px 10px 0px ${alpha(c, 0.06)}`;
+    }
+
+    if (level === 3) {
+      return `0px 3px 6px -2px ${alpha(c, 0.16)}, 0px 6px 10px -2px ${alpha(c, 0.10)}, 0px 2px 18px 0px ${alpha(c, 0.08)}`;
+    }
+
+    return `0px 2px 4px -1px ${alpha(c, 0.20)}, 0px 4px 5px 0px ${alpha(c, 0.14)}, 0px 1px 10px 0px ${alpha(c, 0.12)}`;
+  };
+
+  shadows[1] = buildShadow(1);
+  shadows[2] = buildShadow(2);
+  shadows[3] = buildShadow(3);
+  shadows[4] = buildShadow(4);
+
   const options: ThemeOptions = {
+    shadows,
     // Mobile Breakpoints (2026 Standard)
     // xs: 0px    - Mobile Portrait
     // sm: 600px  - Mobile Landscape / Small Tablet
@@ -64,6 +145,9 @@ export const createAppTheme = (mode: Mode) => {
       background: { default: t.palette.bg, paper: t.palette.bgPaper },
       divider: t.palette.divider,
       text: { primary: t.palette.text, secondary: t.palette.textMuted },
+      action: {
+        hover: t.palette.infoLightBg,
+      },
     },
     shape: { borderRadius: t.radius.md },
     spacing: (factor: number) => `${factor * t.spacing.sm}px`,
@@ -77,20 +161,146 @@ export const createAppTheme = (mode: Mode) => {
       h6: { fontSize: t.typography.h6, fontWeight: 600, lineHeight: 1.25 },
       body1: { fontSize: t.typography.body },
       body2: { fontSize: t.typography.small },
-      button: { textTransform: "none", fontWeight: 600 },
+      button: { textTransform: "none", fontWeight: 600, fontSize: t.typography.small },
       fontFamilyMonospace: t.typography.monoFamily as any,
     } as any,
-    components: {
+    components: ({
+      MuiCssBaseline: {
+        styleOverrides: {
+          "*": {
+            scrollbarWidth: "thin",
+            scrollbarColor: `${t.palette.divider} transparent`,
+          },
+          "*::-webkit-scrollbar": {
+            width: 8,
+            height: 8,
+          },
+          "*::-webkit-scrollbar-track": {
+            backgroundColor: "transparent",
+          },
+          "*::-webkit-scrollbar-thumb": {
+            backgroundColor: t.palette.divider,
+            borderRadius: `${t.radius.lg}px`,
+          },
+          "*::-webkit-scrollbar-thumb:hover": {
+            backgroundColor: t.palette.divider,
+          },
+          "*::-webkit-scrollbar-thumb:active": {
+            backgroundColor: t.palette.divider,
+          },
+          "*::-webkit-scrollbar-corner": {
+            backgroundColor: "transparent",
+          },
+        },
+      },
+      MuiAvatar: {
+        defaultProps: {
+          imgProps: {
+            referrerPolicy: "no-referrer",
+          },
+        },
+      },
       MuiButton: {
         defaultProps: { disableElevation: true, variant: "contained" },
         styleOverrides: {
           root: { 
-            borderRadius: t.radius.lg,
+            borderRadius: buttonRadiusPx,
             minWidth: '90px',
           },
           sizeMedium: {
-            height: '56px',
-            minHeight: '56px',
+            height: '48px',
+            minHeight: '48px',
+          },
+        },
+      },
+      MuiLink: {
+        defaultProps: { variant: "inherit" as any },
+      },
+      MuiTextField: {
+        defaultProps: {
+          size: "medium",
+        },
+      },
+      MuiFormControl: {
+        defaultProps: {
+          size: "medium",
+        },
+      },
+      MuiFormLabel: {
+        styleOverrides: {
+          root: {
+            fontSize: t.typography.small,
+          },
+        },
+      },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: {
+            fontSize: t.typography.small,
+          },
+          outlined: {
+            transform: "translate(14px, 14px) scale(1)",
+            "&.MuiInputLabel-shrink": {
+              transform: "translate(14px, -9px) scale(0.75)",
+            },
+          },
+        },
+      },
+      MuiInputBase: {
+        styleOverrides: {
+          root: {
+            fontSize: t.typography.small,
+          },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            "&:hover:not(.Mui-disabled):not(.Mui-focused):not(.Mui-error) .MuiOutlinedInput-notchedOutline": {
+              borderColor: inputHoverBorderColor,
+            },
+          },
+          input: {
+            padding: "14.5px 14px",
+          },
+        },
+      },
+      MuiAutocomplete: {
+        styleOverrides: {
+          inputRoot: ({ ownerState }: any) => {
+            if (ownerState?.multiple) return {};
+
+            const inputPadding = ownerState?.size === "small" ? "10.5px 14px" : "14.5px 14px";
+
+            return {
+              paddingTop: 0,
+              paddingBottom: 0,
+              "& .MuiAutocomplete-input": {
+                padding: inputPadding,
+              },
+              "& .MuiOutlinedInput-inputAdornedStart.MuiAutocomplete-input": {
+                paddingLeft: 0,
+              },
+            };
+          },
+        },
+      },
+      MuiPickersOutlinedInput: {
+        styleOverrides: {
+          root: {
+            "&:hover:not(.Mui-disabled):not(.Mui-focused):not(.Mui-error) .MuiPickersOutlinedInput-notchedOutline": {
+              borderColor: inputHoverBorderColor,
+            },
+          },
+          input: {
+            padding: "14.5px 14px",
+          },
+        },
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            fontSize: t.typography.small,
           },
         },
       },
@@ -105,12 +315,27 @@ export const createAppTheme = (mode: Mode) => {
           },
         },
       },
-    },
+    } as any),
     // Custom theme properties for layout and design tokens
     custom: {
       layout: t.layout,
       radius: t.radius,
       border: t.border,
+      shadow: buildShadow,
+      fixedIncomeTypeColors: fixedIncomeTypeColorsByMode[mode],
+      netWorthCompositionColors: {
+        cash: t.palette.primary,
+        portfolio: t.palette.success,
+      },
+      portfolioAllocationColors: {
+        cash: t.palette.primary,
+        variableIncome: t.palette.secondary,
+        fixedIncome: t.palette.success,
+        mutualFunds: t.palette.info,
+        pension: t.palette.warning,
+        structured: t.palette.thresholdRegular,
+        others: t.palette.textMuted,
+      },
       palette: {
         inputBorder: t.palette.inputBorder,
         tabBorder: t.palette.tabBorder,
@@ -119,6 +344,7 @@ export const createAppTheme = (mode: Mode) => {
         infoLightBg: t.palette.infoLightBg,
         sidebarBg: t.palette.sidebarBg,
         sidebarIcon: t.palette.sidebarIcon,
+        labelIcon: t.palette.labelIcon,
         // Currency-specific colors
         currencyPositive: t.palette.currencyPositive,
         currencyNegative: t.palette.currencyNegative,
@@ -127,8 +353,9 @@ export const createAppTheme = (mode: Mode) => {
         thresholdBad: t.palette.thresholdBad,
         thresholdRegular: t.palette.thresholdRegular,
         thresholdGood: t.palette.thresholdGood,
+        tax: t.palette.tax,
       },
     },
-  } as ThemeOptions & { custom?: { layout: typeof t.layout } };
+  };
   return createTheme(options);
 };

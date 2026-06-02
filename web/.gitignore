@@ -1,0 +1,36 @@
+# Node
+node_modules
+npm-debug.log*
+yarn-error.log*
+pnpm-lock.yaml.#*
+.eslintcache
+.DS_Store
+
+# Env (keep .env.example and .env.development)
+.env*
+!.env.example
+!.env.development
+
+# Next.js (projeto em web/)
+.next
+out
+.vercel
+
+# Playwright / Vitest
+playwright-report
+test-results
+blob-report
+coverage
+.vitest
+types-tests
+
+# Storybook
+storybook-static
+node_modules/.cache/storybook
+
+# Build genéricos
+**/dist
+**/build
+
+#IDE
+.vscode

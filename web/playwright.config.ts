@@ -4,7 +4,13 @@ import { currentConfig, currentEnvironment } from './tests/e2e/config/environmen
 /**
  * Playwright configuration for E2E tests
  * @see https://playwright.dev/docs/test-configuration
+ *
+ * Browser projects: Chromium only by default (avoids overwhelming the local banking stack
+ * with 5× the parallel workers). Set ALL_BROWSERS=1 or run on CI to include Firefox, WebKit
+ * and mobile viewports.
  */
+const runAllBrowsers = !!(process.env.CI || process.env.ALL_BROWSERS);
+
 export default defineConfig({
   testDir: './tests/e2e',
   
@@ -21,8 +27,10 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? currentConfig.retries : 0,
   
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? currentConfig.workers : undefined,
+  /* Cap parallelism locally too — the banking stack cannot sustain one worker per CPU core. */
+  workers: process.env.PLAYWRIGHT_WORKERS
+    ? parseInt(process.env.PLAYWRIGHT_WORKERS, 10)
+    : currentConfig.workers,
   
   /* Test timeout */
   timeout: 60000,
@@ -65,33 +73,35 @@ export default defineConfig({
     navigationTimeout: currentConfig.apiTimeout,
   },
 
-  /* Configure projects for major browsers */
+  /* Configure projects for major browsers.
+   * Extra browsers are opt-in: set ALL_BROWSERS=1 locally or run on CI. */
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
 
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
+    /* Firefox, WebKit and mobile are skipped locally to avoid overwhelming the backend
+     * (serial-mode suites see 5× concurrent workers when all projects are enabled). */
+    ...(runAllBrowsers ? [
+      {
+        name: 'firefox',
+        use: { ...devices['Desktop Firefox'] },
+      },
+      {
+        name: 'webkit',
+        use: { ...devices['Desktop Safari'] },
+      },
+      {
+        name: 'Mobile Chrome',
+        use: { ...devices['Pixel 5'] },
+      },
+      {
+        name: 'Mobile Safari',
+        use: { ...devices['iPhone 12'] },
+      },
+    ] : []),
 
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-
-    /* Test against mobile viewports. */
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
-    },
-    
     /* Smoke tests - quick validation */
     {
       name: 'smoke',

@@ -22,6 +22,7 @@ class JwtPrincipalDecoder(
                 val servicePermissions = jwtTokenValidator.getPermissionsFromToken(token) ?: emptyList()
                 val userId = jwtTokenValidator.getUserIdFromServiceToken(token)
                 val userPermissions = jwtTokenValidator.getUserPermissionsFromServiceToken(token)
+                val delegatedBy = jwtTokenValidator.getDelegatedByFromServiceToken(token)
 
                 return RequestPrincipal(
                     principalType = PrincipalType.SERVICE,
@@ -30,6 +31,7 @@ class JwtPrincipalDecoder(
                     token = token,
                     permissionsFromToken = servicePermissions,
                     userPermissions = userPermissions,
+                    delegatedBy = delegatedBy,
                 )
             }
 

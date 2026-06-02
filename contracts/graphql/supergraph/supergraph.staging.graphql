@@ -21,9 +21,60 @@ directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on
 
 directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
 
+type Account
+  @join__type(graph: SECURITY)
+{
+  id: ID!
+  accountName: String!
+  accountType: String!
+  accountStatus: String!
+  isOwner: Boolean!
+}
+
+type AccountPendingAction
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  type: PendingActionType!
+  severity: PendingActionSeverity!
+  status: PendingActionStatus!
+  entityType: String
+  entityId: ID
+  relatedHolding: InvestmentHolding
+  payload: JSON!
+  createdAt: DateTime!
+  expiresAt: DateTime
+}
+
+type AccountPreferences
+  @join__type(graph: BANKING)
+{
+  defaultTransactionStatus: TransactionStatus!
+}
+
+"""
+ANBIMA fund category. Required for correct tax treatment (come-cotas schedule).
+"""
+enum AnbimaCategory
+  @join__type(graph: BANKING)
+{
+  RENDA_FIXA @join__enumValue(graph: BANKING)
+  ACOES @join__enumValue(graph: BANKING)
+  MULTIMERCADO @join__enumValue(graph: BANKING)
+  CAMBIAL @join__enumValue(graph: BANKING)
+}
+
+type AppliedRuleHistoryEntry
+  @join__type(graph: BANKING)
+{
+  ruleId: ID!
+  appliedAt: DateTime!
+}
+
 """Asset metadata and access information."""
 type Asset
   @join__type(graph: ASSETS, key: "id")
+  @join__type(graph: BANKING, key: "id")
   @join__type(graph: FINANCIALDATA, key: "id")
 {
   """Unique identifier (UUID v7)"""
@@ -97,6 +148,65 @@ type Asset
   deletedAt: DateTime @join__field(graph: ASSETS)
 }
 
+type AssetCorporateEventConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [AssetCorporateEventEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type AssetCorporateEventEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: AssetCorporateEventNode!
+  cursor: String!
+}
+
+type AssetCorporateEventNode
+  @join__type(graph: FINANCIALDATA)
+{
+  ticker: String
+  isinCode: String!
+  eventType: String!
+  factor: Float
+  priceUnit: Float
+  tradingStart: Date
+  tradingEnd: Date
+  subscriptionDate: Date
+  lastDatePrior: Date!
+  approvedOn: Date!
+  remarks: String
+  updatedAt: DateTime!
+}
+
+type AssetDailyPrice
+  @join__type(graph: FINANCIALDATA)
+{
+  date: Date!
+  openPrice: Float
+  highPrice: Float
+  lowPrice: Float
+  closePrice: Float!
+  avgPrice: Float
+  volume: Float
+  trades: Int
+}
+
+type AssetGroupSummary
+  @join__type(graph: BANKING)
+{
+  groupKey: String!
+  label: String!
+  count: Int!
+  totalCostBasis: Float!
+  totalGrossValue: Float!
+  grossGainPercent: Float
+  twr: Float
+  allocationPercent: Float!
+  isCash: Boolean!
+}
+
 """Asset upload lifecycle status."""
 enum AssetStatus
   @join__type(graph: ASSETS)
@@ -114,6 +224,39 @@ enum AssetStatus
   DELETED @join__enumValue(graph: ASSETS)
 }
 
+"""Asset class (classe de ativo). Drives pricing model and tax treatment."""
+enum AssetType
+  @join__type(graph: BANKING)
+{
+  STOCK @join__enumValue(graph: BANKING)
+  STOCK_RIGHTS @join__enumValue(graph: BANKING)
+  BDR @join__enumValue(graph: BANKING)
+  REAL_ESTATE_FUND @join__enumValue(graph: BANKING)
+  AGRIBUSINESS_FUND @join__enumValue(graph: BANKING)
+  ETF @join__enumValue(graph: BANKING)
+  ETF_FIXED_INCOME @join__enumValue(graph: BANKING)
+  ETF_INTERNATIONAL @join__enumValue(graph: BANKING)
+  CDB @join__enumValue(graph: BANKING)
+  RDB @join__enumValue(graph: BANKING)
+  LCI @join__enumValue(graph: BANKING)
+  LCA @join__enumValue(graph: BANKING)
+  LC @join__enumValue(graph: BANKING)
+  LF @join__enumValue(graph: BANKING)
+  LIG @join__enumValue(graph: BANKING)
+  DEBENTURES @join__enumValue(graph: BANKING)
+  CRI @join__enumValue(graph: BANKING)
+  CRA @join__enumValue(graph: BANKING)
+  TREASURY @join__enumValue(graph: BANKING)
+  MUTUAL_FUND @join__enumValue(graph: BANKING)
+  PGBL @join__enumValue(graph: BANKING)
+  VGBL @join__enumValue(graph: BANKING)
+  COE @join__enumValue(graph: BANKING)
+  CRYPTO @join__enumValue(graph: BANKING)
+  OPTION @join__enumValue(graph: BANKING)
+  DERIVATIVES @join__enumValue(graph: BANKING)
+  OTHER @join__enumValue(graph: BANKING)
+}
+
 """Asset visibility level - determines access control and URL generation."""
 enum AssetVisibility
   @join__type(graph: ASSETS)
@@ -125,11 +268,38 @@ enum AssetVisibility
   PRIVATE @join__enumValue(graph: ASSETS)
 }
 
+input AttachFileToHoldingInput
+  @join__type(graph: BANKING)
+{
+  holdingId: ID!
+
+  """Asset ID returned by confirmAssetUpload (must be READY status)."""
+  assetId: ID!
+}
+
+input AttachFileToTransactionInput
+  @join__type(graph: BANKING)
+{
+  transactionId: ID!
+
+  """Asset ID returned by confirmAssetUpload (must be READY status)."""
+  assetId: ID!
+}
+
 type AuthorizationResult
   @join__type(graph: SECURITY)
 {
   allowed: Boolean!
   reason: String!
+}
+
+enum B3AssetType
+  @join__type(graph: FINANCIALDATA)
+{
+  EQUITY @join__enumValue(graph: FINANCIALDATA)
+  FII @join__enumValue(graph: FINANCIALDATA)
+  OPTION_CALL @join__enumValue(graph: FINANCIALDATA)
+  OPTION_PUT @join__enumValue(graph: FINANCIALDATA)
 }
 
 enum BacenControlType
@@ -260,6 +430,176 @@ enum BacenInstitutionType
   FINANCIAL_GROUP @join__enumValue(graph: FINANCIALDATA)
 }
 
+"""Bank-specific data. Present only when type = BANK."""
+type BankAccountData
+  @join__type(graph: BANKING)
+{
+  branchCode: String
+  number: String
+  checkDigit: String
+  maskedNumber: String
+}
+
+input BankAccountDataInput
+  @join__type(graph: BANKING)
+{
+  branchCode: String
+  number: String
+  checkDigit: String
+  maskedNumber: String
+}
+
+type BankingUserPreferences
+  @join__type(graph: BANKING)
+{
+  ruleApplicationMode: RuleApplicationMode!
+}
+
+type BenchmarkPerformance
+  @join__type(graph: BANKING)
+{
+  code: String!
+  label: String!
+  twr: Float
+}
+
+type BillImportJob
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  importType: ImportType!
+  status: BillImportJobStatus!
+  fileName: String
+  createdAt: DateTime!
+  reviewPayload: BillImportReview
+  errorCode: String
+  errorParameters: JSON
+  errorMessage: String @deprecated(reason: "Use errorCode/errorParameters for i18n")
+}
+
+enum BillImportJobStatus
+  @join__type(graph: BANKING)
+{
+  PENDING @join__enumValue(graph: BANKING)
+  EXTRACTING @join__enumValue(graph: BANKING)
+  EXTRACTED @join__enumValue(graph: BANKING)
+  LLM_PROCESSING @join__enumValue(graph: BANKING)
+  AWAITING_REVIEW @join__enumValue(graph: BANKING)
+  IMPORTING @join__enumValue(graph: BANKING)
+  DONE @join__enumValue(graph: BANKING)
+  FAILED @join__enumValue(graph: BANKING)
+}
+
+type BillImportMatchCandidate
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  name: String!
+}
+
+type BillImportReview
+  @join__type(graph: BANKING)
+{
+  bankName: String
+  reviewMode: BillImportReviewMode!
+  statementPeriod: DateRange
+  cards: [BillImportReviewCard!]!
+}
+
+type BillImportReviewCard
+  @join__type(graph: BANKING)
+{
+  reviewCardId: ID!
+  lastFourDigits: String
+  holderName: String
+  closingDate: Date
+  dueDate: Date
+  declaredTotal: Float!
+  computedTotal: Float!
+  totalMatchesDeclared: Boolean!
+  transactions: [BillImportReviewTransaction!]!
+  matchedFinancialAccountId: ID
+  matchAmbiguous: Boolean!
+  matchCandidates: [BillImportMatchCandidate!]!
+}
+
+enum BillImportReviewMode
+  @join__type(graph: BANKING)
+{
+  CARD_BUCKET_MATCHING @join__enumValue(graph: BANKING)
+  TX_CARD_ASSIGNMENT @join__enumValue(graph: BANKING)
+}
+
+type BillImportReviewTransaction
+  @join__type(graph: BANKING)
+{
+  date: Date
+  description: String!
+  amount: Float!
+  creditDebitType: CreditDebitType!
+  installment: InstallmentInfo
+  isBillPayment: Boolean!
+  categoryId: ID
+  categorySource: CategorySource
+}
+
+"""
+Lifecycle status of a credit card bill (fatura).
+OPEN    → closingDate >= today (bill still accepting charges).
+CLOSED  → closingDate < today and dueDate >= today (awaiting payment).
+OVERDUE → dueDate < today and not yet paid.
+PAID    → terminal state.
+"""
+enum BillStatus
+  @join__type(graph: BANKING)
+{
+  OPEN @join__enumValue(graph: BANKING)
+  CLOSED @join__enumValue(graph: BANKING)
+  PAID @join__enumValue(graph: BANKING)
+  OVERDUE @join__enumValue(graph: BANKING)
+}
+
+"""
+Fee breakdown from a broker note (nota de corretagem).
+1:1 with InvestmentTransaction. Present only for renda variável transactions.
+All fee fields are zero when not charged.
+"""
+type BrokerNote
+  @join__type(graph: BANKING)
+{
+  brokerNoteNumber: String
+  grossValue: Float!
+  brokerageFee: Float!
+  clearingSettlementFee: Float!
+  clearingRegistrationFee: Float!
+  stockExchangeAssetTradeNoticeFee: Float!
+  stockExchangeFee: Float!
+  clearingCustodyFee: Float!
+  incomeTax: Float!
+  taxes: Float!
+  netValue: Float!
+  createdAt: DateTime!
+}
+
+"""
+Fee breakdown from a broker note (nota de corretagem). All fields default to zero.
+"""
+input BrokerNoteInput
+  @join__type(graph: BANKING)
+{
+  brokerNoteNumber: String
+  grossValue: Float!
+  brokerageFee: Float
+  clearingSettlementFee: Float
+  clearingRegistrationFee: Float
+  stockExchangeAssetTradeNoticeFee: Float
+  stockExchangeFee: Float
+  clearingCustodyFee: Float
+  incomeTax: Float
+  taxes: Float
+  netValue: Float!
+}
+
 enum BudgetPeriod
   @join__type(graph: ASSISTANT)
 {
@@ -275,6 +615,126 @@ enum BudgetScope
   ACCOUNT @join__enumValue(graph: ASSISTANT)
   SERVICE @join__enumValue(graph: ASSISTANT)
   FEATURE @join__enumValue(graph: ASSISTANT)
+}
+
+"""Result of a bulk operation (e.g. bulkCategorize)."""
+type BulkOperationResult
+  @join__type(graph: BANKING)
+{
+  affectedCount: Int!
+  errors: [String!]!
+}
+
+"""
+Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
+closingDay and dueDay are optional billing-cycle metadata when known.
+"""
+type CardData
+  @join__type(graph: BANKING)
+{
+  maskedNumber: String
+  bin: String
+  cardNetwork: CreditCardNetwork
+  cardLevel: CreditCardLevel
+  creditLimit: Float
+  availableCreditLimit: Float
+  minimumPaymentPercentage: Float
+  closingDay: Int
+  dueDay: Int
+
+  """
+  Optional bank account that will receive the debit leg of bill-payment transfers.
+  """
+  linkedBankAccountId: ID
+
+  """
+  When true, this account represents multiple/virtual cards with no specific last-4.
+  """
+  isMultiCard: Boolean!
+}
+
+input CardDataInput
+  @join__type(graph: BANKING)
+{
+  maskedNumber: String
+  bin: String
+  cardNetwork: CreditCardNetwork
+  cardLevel: CreditCardLevel
+
+  """Optional billing-cycle limit metadata."""
+  creditLimit: Float
+
+  """Optional billing-cycle closing day when known."""
+  closingDay: Int
+
+  """Optional billing-cycle due day when known."""
+  dueDay: Int
+
+  """
+  Optional bank account that will receive the debit leg of bill-payment transfers.
+  """
+  linkedBankAccountId: ID
+
+  """
+  Set to true to mark this account as an umbrella for multiple/virtual cards.
+  """
+  isMultiCard: Boolean
+}
+
+"""
+Single month data point for a cash-flow series (income vs expenses vs net).
+"""
+type CashFlowDataPoint
+  @join__type(graph: BANKING)
+{
+  year: Int!
+  month: Int!
+  totalIncome: Float!
+  totalExpenses: Float!
+
+  """Net = totalIncome - totalExpenses."""
+  net: Float!
+
+  """Aggregate banking closing balance for the month."""
+  closingBalance: Float!
+}
+
+"""Category applicability (income, expense, transfer, or any)."""
+enum CategoryApplicableTo
+  @join__type(graph: BANKING)
+{
+  INCOME @join__enumValue(graph: BANKING)
+  EXPENSE @join__enumValue(graph: BANKING)
+  TRANSFER @join__enumValue(graph: BANKING)
+  ANY @join__enumValue(graph: BANKING)
+}
+
+"""How the transaction's category was assigned. Null when uncategorized."""
+enum CategorySource
+  @join__type(graph: BANKING)
+{
+  MANUAL @join__enumValue(graph: BANKING)
+  RULE @join__enumValue(graph: BANKING)
+  IMPORTED @join__enumValue(graph: BANKING)
+  AI @join__enumValue(graph: BANKING)
+}
+
+"""
+Category total for a period (expense/income breakdown). Percentage of period total.
+"""
+type CategoryTotal
+  @join__type(graph: BANKING)
+{
+  """Null when this row represents the special uncategorized bucket."""
+  category: TransactionCategory
+
+  """True when the row aggregates transactions with no category assigned."""
+  uncategorized: Boolean!
+  totalAmount: Float!
+  transactionCount: Int!
+
+  """Percentage of the period total (0–100)."""
+  percentage: Float!
 }
 
 input ChatInput
@@ -346,6 +806,109 @@ input ConfirmAssetUploadInput
   checksum: String
 }
 
+input ConfirmBillImportInput
+  @join__type(graph: BANKING)
+{
+  jobId: ID!
+  closingDate: Date
+  dueDate: Date
+  cards: [ConfirmBillReviewCardInput!]!
+}
+
+input ConfirmBillReviewCardInput
+  @join__type(graph: BANKING)
+{
+  reviewCardId: ID!
+  financialAccountId: ID!
+  transactions: [ConfirmBillReviewTransactionInput!]!
+}
+
+input ConfirmBillReviewTransactionInput
+  @join__type(graph: BANKING)
+{
+  date: Date!
+  description: String!
+  amount: Float!
+  creditDebitType: CreditDebitType!
+  include: Boolean!
+  isBillPayment: Boolean
+  installment: InstallmentInfoInput
+  categoryId: ID
+  categorySource: CategorySource
+}
+
+input ConfirmCouponPaymentInput
+  @join__type(graph: BANKING)
+{
+  holdingId: ID!
+  tradeDate: Date!
+  grossValue: Float!
+  netValue: Float!
+  incomeTax: Float!
+  destinationAccountId: ID!
+  pendingActionId: ID
+}
+
+type ConfirmCouponPaymentResult
+  @join__type(graph: BANKING)
+{
+  couponTransaction: InvestmentTransaction!
+  bankingTransaction: Transaction
+  pendingAction: AccountPendingAction
+}
+
+input ConfirmHoldingMaturityInput
+  @join__type(graph: BANKING)
+{
+  holdingId: ID!
+  maturityDate: Date!
+  grossValue: Float!
+  netValue: Float!
+  incomeTax: Float
+  iof: Float
+  closeReason: HoldingCloseReason!
+  cashMovement: MaturityCashMovementInput
+}
+
+type ConfirmHoldingMaturityResult
+  @join__type(graph: BANKING)
+{
+  maturityTransaction: InvestmentTransaction!
+  bankingTransaction: Transaction
+  pendingAction: AccountPendingAction!
+}
+
+enum ConnectionStatus
+  @join__type(graph: BANKING)
+{
+  CONNECTED @join__enumValue(graph: BANKING)
+  SYNCING @join__enumValue(graph: BANKING)
+  DISCONNECTED @join__enumValue(graph: BANKING)
+  ERROR @join__enumValue(graph: BANKING)
+  CONSENT_EXPIRING @join__enumValue(graph: BANKING)
+  CONSENT_EXPIRED @join__enumValue(graph: BANKING)
+}
+
+type ConsumptionTrend
+  @join__type(graph: BANKING)
+{
+  productId: ID!
+  periodMonths: Int!
+  totalQuantity: Float!
+  totalSpent: Float!
+  purchaseCount: Int!
+  months: [ConsumptionTrendPoint!]!
+}
+
+type ConsumptionTrendPoint
+  @join__type(graph: BANKING)
+{
+  month: Date!
+  totalQuantity: Float!
+  totalSpent: Float!
+  purchaseCount: Int!
+}
+
 type Conversation
   @join__type(graph: ASSISTANT)
 {
@@ -369,6 +932,50 @@ enum ConversationStatus
 {
   ACTIVE @join__enumValue(graph: ASSISTANT)
   ESCALATED @join__enumValue(graph: ASSISTANT)
+}
+
+"""
+How often a fixed income instrument pays interest during its holding period.
+"""
+enum CouponFrequency
+  @join__type(graph: BANKING)
+{
+  MONTHLY @join__enumValue(graph: BANKING)
+  QUARTERLY @join__enumValue(graph: BANKING)
+  SEMI_ANNUAL @join__enumValue(graph: BANKING)
+  ANNUAL @join__enumValue(graph: BANKING)
+
+  """
+  No interim payments — all interest accumulates and is paid at maturity or redemption.
+  """
+  AT_MATURITY @join__enumValue(graph: BANKING)
+}
+
+type CouponScheduleEntry
+  @join__type(graph: BANKING)
+{
+  """1-based coupon index in the projected schedule (e.g. 3 of 12)."""
+  seriesNumber: Int!
+
+  """Projected payment date."""
+  scheduledDate: Date!
+
+  """Start of the accrual period for this coupon."""
+  periodStart: Date!
+
+  """End of the accrual period (inclusive)."""
+  periodEnd: Date!
+
+  """
+  True when the accrual period is shorter than a full cycle (typically first period after mid-month purchase).
+  """
+  isPartialPeriod: Boolean!
+
+  """Whether this date is in the past."""
+  isPast: Boolean!
+
+  """The INTEREST_PAYMENT transaction matched to this coupon, if any."""
+  matchedTransaction: InvestmentTransaction
 }
 
 """Input for creating a new asset upload."""
@@ -398,12 +1005,142 @@ input CreateAssetUploadInput
   idempotencyKey: String
 }
 
+input CreateCategoryInput
+  @join__type(graph: BANKING)
+{
+  parentId: ID
+  name: String!
+  applicableTo: CategoryApplicableTo!
+  icon: String
+  color: String
+  sortOrder: Int
+}
+
+input CreateFinancialAccountInput
+  @join__type(graph: BANKING)
+{
+  type: FinancialAccountType!
+  subtype: FinancialAccountSubtype!
+
+  """Display name. Defaults to issuer name when omitted."""
+  name: String
+
+  """ID from the issuers list. Mutually exclusive with issuerName."""
+  issuerId: ID
+
+  """Custom institution name. Required when issuerId is null."""
+  issuerName: String
+  themeColor: String
+
+  """ISO 4217 currency code. Defaults to BRL."""
+  currencyCode: String
+  includeInNetWorth: Boolean
+  includeInDashboard: Boolean
+  includeCashInAllocation: Boolean
+
+  """Required when type = BANK."""
+  bankData: BankAccountDataInput
+
+  """
+  Required when subtype is CREDIT_CARD, CHARGE_CARD, PREPAID_CARD, or VOUCHER_CARD.
+  """
+  cardData: CardDataInput
+
+  """
+  Non-zero account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically.
+  """
+  initialBalance: Float
+
+  """
+  Reference date for the initial balance. Required when initialBalance is provided.
+  """
+  initialBalanceDate: Date
+}
+
 input CreateGroupInput
   @join__type(graph: SECURITY)
 {
   name: String!
   description: String
   userIds: [ID!]
+}
+
+"""
+Creates a global investment asset entry.
+Assets are not tenant-scoped and can be reused across accounts.
+"""
+input CreateInvestmentAssetInput
+  @join__type(graph: BANKING)
+{
+  name: String!
+  assetType: AssetType!
+  issuerName: String
+  fundCnpj: String
+  ticker: String
+  isinCode: String
+
+  """Defaults to BRL when omitted."""
+  currencyCode: String
+}
+
+input CreateInvestmentCashTransactionInput
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID!
+  type: InvestmentCashTransactionType!
+
+  """
+  For DEPOSIT and WITHDRAWAL must be > 0.
+  For ADJUSTMENT: use positive for credit and negative for debit (must be non-zero).
+  """
+  amount: Float!
+  date: Date!
+
+  """
+  Optional for DEPOSIT/WITHDRAWAL. Required when type = ADJUSTMENT or registerAsBalanceAdjustment is true.
+  """
+  description: String
+
+  """
+  Optional bank account for an atomic transfer pair (checking/savings-style only).
+  Not allowed with ADJUSTMENT or registerAsBalanceAdjustment.
+  """
+  peerFinancialAccountId: ID
+
+  """
+  When true with DEPOSIT or WITHDRAWAL, records BALANCE_ADJUSTMENT instead of TRANSFER (description required).
+  """
+  registerAsBalanceAdjustment: Boolean
+}
+
+input CreateMerchantInput
+  @join__type(graph: BANKING)
+{
+  name: String!
+  website: String
+  sector: String
+}
+
+input CreateProductInput
+  @join__type(graph: BANKING)
+{
+  name: String!
+  ncmCode: String
+  defaultUnit: String
+  category: String
+}
+
+input CreateProductVariantInput
+  @join__type(graph: BANKING)
+{
+  productId: ID!
+  name: String!
+  brand: String
+  ean: String
+  quantityValue: Float
+  quantityUnit: String
+  normalizedQuantityValue: Float
+  normalizedQuantityUnit: String
 }
 
 input CreatePromptInput
@@ -421,10 +1158,213 @@ input CreatePromptInput
   performanceMetrics: JSON
 }
 
+input CreateRecurringPaymentInput
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID
+  name: String!
+  creditDebitType: CreditDebitType!
+  type: TransactionType
+  expectedAmount: Float
+  currencyCode: String
+  categoryId: ID
+  merchantId: ID
+  frequency: RecurringFrequency!
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int
+  firstDueDate: Date!
+  notes: String
+}
+
 input CreateRoleInput
   @join__type(graph: SECURITY)
 {
   name: String!
+}
+
+"""Input for creating a new manual transaction."""
+input CreateTransactionInput
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID!
+  creditDebitType: CreditDebitType!
+  type: TransactionType!
+  amount: Float!
+  date: Date!
+  description: String!
+  status: TransactionStatus
+  currencyCode: String
+  notes: String
+  tags: [String!]
+  categoryId: ID
+  merchantId: ID
+  belongsToUserId: ID
+  belongsToName: String
+  counterpartyName: String
+  counterpartyDocument: String
+  counterpartyBankCode: String
+  counterpartyAccountNumber: String
+  paymentReason: String
+  installmentNumber: Int
+  totalInstallments: Int
+  cardIdentifier: String
+  payeeMcc: Int
+}
+
+type CreateTransactionPayload
+  @join__type(graph: BANKING)
+{
+  transaction: Transaction!
+
+  """
+  Only populated when bankingUserPreferences.ruleApplicationMode = ALWAYS_PROMPT.
+  """
+  appliedRules: [TransactionRule!]
+}
+
+input CreateTransactionRuleInput
+  @join__type(graph: BANKING)
+{
+  categoryId: ID
+  merchantId: ID
+  descriptionOverride: String
+  tagsOverride: [String!]
+  pattern: String!
+  patternType: PatternType!
+  applicableTo: CategoryApplicableTo!
+  priority: Int
+}
+
+"""
+A monthly credit card bill (fatura) for a CREDIT_CARD or CHARGE_CARD account.
+totalAmount is the net spend across all non-deleted transactions in the billing cycle:
+  SUM(DEBIT amount) - SUM(CREDIT amount).
+Bills are auto-created when the first transaction is recorded for a billing cycle.
+"""
+type CreditCardBill
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  financialAccountId: ID!
+
+  """Last day of the billing cycle (derived from CardData.closingDay)."""
+  closingDate: Date!
+
+  """
+  Payment due date (derived from CardData.dueDay relative to closingDate).
+  """
+  dueDate: Date!
+
+  """
+  Net spend in the billing cycle (DEBIT - CREDIT). Zero until first transaction.
+  """
+  totalAmount: Float!
+
+  """Minimum payment amount. Null until computed (Phase 5: Open Finance)."""
+  minimumPayment: Float
+  status: BillStatus!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum CreditCardLevel
+  @join__type(graph: BANKING)
+{
+  STANDARD @join__enumValue(graph: BANKING)
+  GOLD @join__enumValue(graph: BANKING)
+  PLATINUM @join__enumValue(graph: BANKING)
+  INFINITE @join__enumValue(graph: BANKING)
+  BLACK @join__enumValue(graph: BANKING)
+}
+
+enum CreditCardNetwork
+  @join__type(graph: BANKING)
+{
+  VISA @join__enumValue(graph: BANKING)
+  MASTERCARD @join__enumValue(graph: BANKING)
+  AMERICAN_EXPRESS @join__enumValue(graph: BANKING)
+  DINERS_CLUB @join__enumValue(graph: BANKING)
+  HIPERCARD @join__enumValue(graph: BANKING)
+  ELO @join__enumValue(graph: BANKING)
+  BANDEIRA_PROPRIA @join__enumValue(graph: BANKING)
+  OUTRAS @join__enumValue(graph: BANKING)
+}
+
+"""
+Direction of money flow.
+Amount is always positive; direction is carried here.
+"""
+enum CreditDebitType
+  @join__type(graph: BANKING)
+{
+  CREDIT @join__enumValue(graph: BANKING)
+  DEBIT @join__enumValue(graph: BANKING)
+}
+
+"""
+Aggregate summary across a date range (used by the dashboard period summary).
+"""
+type DashboardPeriodSummary
+  @join__type(graph: BANKING)
+{
+  totalIncome: Float!
+  totalExpenses: Float!
+
+  """net = totalIncome - totalExpenses"""
+  net: Float!
+
+  """
+  Number of months in the selected range (used by frontend for averages).
+  """
+  monthCount: Int!
+  avgMonthlyIncome: Float!
+  avgMonthlyExpenses: Float!
+
+  """avgMonthlySavings = net / monthCount."""
+  avgMonthlySavings: Float!
+
+  """(net / totalIncome) × 100. Null when totalIncome = 0."""
+  savingsRate: Float
+
+  """
+  Closing cash balance of the last month (banking accounts, excl. transfers).
+  """
+  closingCashBalance: Float!
+
+  """Investment portfolio gross value at end of period."""
+  closingPortfolioValue: Float!
+
+  """closingCashBalance + closingPortfolioValue."""
+  totalNetWorth: Float!
+
+  """
+  Aligned with investments summary totalCostBasis (all-time holdings cost basis).
+  """
+  totalInvested: Float!
+  avgMonthlyInvested: Float!
+
+  """Aligned with investments summary grossGain (all-time)."""
+  totalReturn: Float!
+
+  """Average monthly return amount (totalReturn / monthCount)."""
+  avgMonthlyReturn: Float!
+
+  """Investment portfolio gross value at start of period."""
+  openingPortfolioValue: Float!
+
+  """
+  Aligned with investments summary performance.twr for ALL period, in percentage points.
+  """
+  returnPct: Float
+
+  """
+  Deprecated alias for closingCashBalance. Keep for frontend compatibility.
+  """
+  closingBalance: Float!
+
+  """Opening balance of the first month in the range."""
+  openingBalance: Float!
 }
 
 type DataRestriction
@@ -447,12 +1387,30 @@ scalar Date
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
+type DateRange
+  @join__type(graph: BANKING)
+{
+  from: Date
+  to: Date
+}
+
 scalar DateTime
   @join__type(graph: ASSETS)
   @join__type(graph: ASSISTANT)
   @join__type(graph: BANKING)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
+
+"""
+User resolution for a duplicate candidate (incoming row vs existing transaction(s)).
+"""
+enum DuplicateResolution
+  @join__type(graph: BANKING)
+{
+  KEEP_BOTH @join__enumValue(graph: BANKING)
+  USE_INCOMING @join__enumValue(graph: BANKING)
+  KEEP_EXISTING @join__enumValue(graph: BANKING)
+}
 
 type EconomicIndicator
   @join__type(graph: FINANCIALDATA)
@@ -470,11 +1428,46 @@ type EconomicIndicator
   variations(label: String): [EconomicIndicatorVariation!]!
 }
 
+type EconomicIndicatorLatestItem
+  @join__type(graph: FINANCIALDATA)
+{
+  indicator: String!
+  variation: String!
+  latest: EconomicIndicatorPoint
+}
+
 type EconomicIndicatorPoint
   @join__type(graph: FINANCIALDATA)
 {
   referenceDate: Date!
   value: Float!
+}
+
+type EconomicIndicatorPointConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [EconomicIndicatorPointEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type EconomicIndicatorPointEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: EconomicIndicatorPointNode!
+  cursor: String!
+}
+
+type EconomicIndicatorPointNode
+  @join__type(graph: FINANCIALDATA)
+{
+  indicator: String!
+  variation: String!
+  unit: String
+  referenceDate: Date!
+  publicationDate: Date
+  value: Float!
+  updatedAt: DateTime!
 }
 
 type EconomicIndicatorVariation
@@ -506,6 +1499,92 @@ type FeatureUsage
   completionTokens: Int!
   totalTokens: Int!
   cost: Float!
+}
+
+"""
+A personal finance account or card belonging to the authenticated user's account.
+The tenant association is resolved from the JWT and is not exposed directly.
+"""
+type FinancialAccount
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  type: FinancialAccountType!
+  subtype: FinancialAccountSubtype!
+  name: String!
+  currencyCode: String!
+  includeInNetWorth: Boolean!
+  includeInDashboard: Boolean!
+
+  """
+  When true, idle cash on this custodian account counts toward allocation % in investments UI.
+  """
+  includeCashInAllocation: Boolean!
+  themeColor: String
+
+  """
+  Linked issuer from the issuers seed list. Null when a custom institution is used.
+  """
+  issuer: Issuer
+
+  """
+  Custom institution name. Set when issuerId is null. Use issuer.name when issuer is present.
+  """
+  issuerName: String
+  bankData: BankAccountData
+  cardData: CardData
+
+  """Open Finance connection status. Null for manually managed accounts."""
+  connectionStatus: ConnectionStatus
+  consentExpiresAt: DateTime
+  lastSyncAt: DateTime
+
+  """
+  Earliest month with account data (transactions or investment portfolio snapshots).
+  """
+  dataSince: YearMonth
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum FinancialAccountSubtype
+  @join__type(graph: BANKING)
+{
+  CONTA_CORRENTE @join__enumValue(graph: BANKING)
+  CONTA_POUPANCA @join__enumValue(graph: BANKING)
+  CONTA_SALARIO @join__enumValue(graph: BANKING)
+  CONTA_DIGITAL @join__enumValue(graph: BANKING)
+  CONTA_CONJUNTA @join__enumValue(graph: BANKING)
+  CREDIT_CARD @join__enumValue(graph: BANKING)
+  CHARGE_CARD @join__enumValue(graph: BANKING)
+  PREPAID_CARD @join__enumValue(graph: BANKING)
+  VOUCHER_CARD @join__enumValue(graph: BANKING)
+  WALLET @join__enumValue(graph: BANKING)
+  BROKERAGE @join__enumValue(graph: BANKING)
+  FIXED_INCOME @join__enumValue(graph: BANKING)
+  PENSION @join__enumValue(graph: BANKING)
+  CRYPTO @join__enumValue(graph: BANKING)
+  PERSONAL_LOAN @join__enumValue(graph: BANKING)
+  MORTGAGE @join__enumValue(graph: BANKING)
+  AUTO_LOAN @join__enumValue(graph: BANKING)
+  PROPERTY @join__enumValue(graph: BANKING)
+  VEHICLE @join__enumValue(graph: BANKING)
+  OTHER_ASSET @join__enumValue(graph: BANKING)
+  FGTS @join__enumValue(graph: BANKING)
+  INSS @join__enumValue(graph: BANKING)
+}
+
+enum FinancialAccountType
+  @join__type(graph: BANKING)
+{
+  BANK @join__enumValue(graph: BANKING)
+  CREDIT @join__enumValue(graph: BANKING)
+  PAYMENT @join__enumValue(graph: BANKING)
+  CASH @join__enumValue(graph: BANKING)
+  INVESTMENT @join__enumValue(graph: BANKING)
+  LOAN @join__enumValue(graph: BANKING)
+  ASSET @join__enumValue(graph: BANKING)
+  BENEFIT @join__enumValue(graph: BANKING)
 }
 
 type FinancialDataPageInfo
@@ -642,6 +1721,70 @@ type FixedIncomeTaxMethodology
   bracketTable: [FixedIncomeTaxBracket!]!
 }
 
+type FundDailyNav
+  @join__type(graph: FINANCIALDATA)
+{
+  date: Date!
+  closePrice: Float!
+  totalNetAssets: Float
+}
+
+type FundDailyNavConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [FundDailyNavSyncEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type FundDailyNavNode
+  @join__type(graph: FINANCIALDATA)
+{
+  cnpj: String!
+  date: Date!
+  closePrice: Float!
+  totalNetAssets: Float
+  updatedAt: DateTime!
+}
+
+type FundDailyNavSyncEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: FundDailyNavNode!
+  cursor: String!
+}
+
+enum FundTaxProfile
+  @join__type(graph: FINANCIALDATA)
+{
+  COME_COTAS_LONG @join__enumValue(graph: FINANCIALDATA)
+  COME_COTAS_SHORT @join__enumValue(graph: FINANCIALDATA)
+  VARIABLE_INCOME_15 @join__enumValue(graph: FINANCIALDATA)
+  PENSION @join__enumValue(graph: FINANCIALDATA)
+  UNKNOWN @join__enumValue(graph: FINANCIALDATA)
+}
+
+enum GridClassTwrPeriod
+  @join__type(graph: BANKING)
+{
+  SIX_MONTHS @join__enumValue(graph: BANKING)
+  ONE_YEAR @join__enumValue(graph: BANKING)
+  THREE_YEARS @join__enumValue(graph: BANKING)
+  ALL @join__enumValue(graph: BANKING)
+}
+
+"""A single point in a grid-class TWR quota time series."""
+type GridClassTwrPoint
+  @join__type(graph: BANKING)
+{
+  date: Date!
+
+  """
+  Raw quota value. Normalize to % return as (quotaValue / firstPoint.quotaValue) - 1.
+  """
+  quotaValue: Float!
+}
+
 type Group
   @join__type(graph: SECURITY, key: "id")
 {
@@ -682,12 +1825,208 @@ enum GroupOrderField
   NAME @join__enumValue(graph: SECURITY)
 }
 
+"""
+A file attached to an InvestmentHolding (nota de corretagem, contract, etc.).
+The file is stored privately in the assets service.
+Max 3 attachments per holding. Supported formats: image, plain text, Excel, CSV, PDF.
+"""
+type HoldingAttachment
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  holdingId: ID!
+  assetId: ID!
+
+  """Original filename as uploaded by the user."""
+  filename: String
+
+  """MIME type of the file (e.g. application/pdf, image/png)."""
+  mimeType: String
+
+  """File size in bytes."""
+  sizeBytes: Int
+
+  """
+  Pre-signed download URL (valid for 1 hour). Null if the asset is not yet ready.
+  """
+  downloadUrl: String
+  createdAt: DateTime!
+}
+
+enum HoldingCloseReason
+  @join__type(graph: BANKING)
+{
+  MATURED @join__enumValue(graph: BANKING)
+  REDEEMED_EARLY @join__enumValue(graph: BANKING)
+  TRANSFERRED @join__enumValue(graph: BANKING)
+}
+
+type HoldingPerformance
+  @join__type(graph: BANKING)
+{
+  holdingId: ID!
+  assetType: AssetType!
+  currencyCode: String!
+  resolution: HoldingPerformanceResolution!
+  valuationSource: ValuationSource!
+  valuationReferenceDate: Date
+  capabilities: HoldingPerformanceCapabilities!
+  summary: HoldingPerformanceSummary!
+  points: [HoldingPerformancePoint!]!
+}
+
+type HoldingPerformanceCapabilities
+  @join__type(graph: BANKING)
+{
+  supportsProjection: Boolean!
+  projectionDefaultEnabled: Boolean!
+  supportedResolutions: [HoldingPerformanceResolution!]!
+  defaultResolution: HoldingPerformanceResolution!
+}
+
+type HoldingPerformancePoint
+  @join__type(graph: BANKING)
+{
+  timestamp: DateTime!
+  isProjected: Boolean!
+  investedPrincipal: Float
+  netContributions: Float
+  currentCostBasis: Float
+  grossValue: Float
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  grossGain: Float
+  netGain: Float
+  quantity: Float
+}
+
+enum HoldingPerformanceResolution
+  @join__type(graph: BANKING)
+{
+  MINUTE @join__enumValue(graph: BANKING)
+  HOUR @join__enumValue(graph: BANKING)
+  DAY @join__enumValue(graph: BANKING)
+  MONTH @join__enumValue(graph: BANKING)
+}
+
+type HoldingPerformanceSummary
+  @join__type(graph: BANKING)
+{
+  investedPrincipal: Float
+  netContributions: Float
+  currentCostBasis: Float
+  grossValue: Float
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  grossGain: Float
+  netGain: Float
+  grossGainPercent: Float
+}
+
+enum HoldingPricingMode
+  @join__type(graph: BANKING)
+{
+  MANUAL @join__enumValue(graph: BANKING)
+  MARKET_DATA @join__enumValue(graph: BANKING)
+}
+
+type ImportDuplicateCandidate
+  @join__type(graph: BANKING)
+{
+  rowIndex: Int!
+  parsed: ParsedImportRow!
+  candidates: [Transaction!]!
+}
+
+type ImportResult
+  @join__type(graph: BANKING)
+{
+  import: TransactionImport!
+}
+
+enum ImportSource
+  @join__type(graph: BANKING)
+{
+  AUTO @join__enumValue(graph: BANKING)
+  OFX @join__enumValue(graph: BANKING)
+  CSV_AUTO @join__enumValue(graph: BANKING)
+  CSV_NUBANK @join__enumValue(graph: BANKING)
+  CSV_ITAU @join__enumValue(graph: BANKING)
+  CSV_BRADESCO @join__enumValue(graph: BANKING)
+  CSV_SANTANDER @join__enumValue(graph: BANKING)
+  NFC_E @join__enumValue(graph: BANKING)
+  RECEIPT_OCR @join__enumValue(graph: BANKING)
+  OPEN_FINANCE @join__enumValue(graph: BANKING)
+  PLUGGY @join__enumValue(graph: BANKING)
+}
+
+enum ImportStatus
+  @join__type(graph: BANKING)
+{
+  PENDING @join__enumValue(graph: BANKING)
+  PROCESSING @join__enumValue(graph: BANKING)
+  COMPLETED @join__enumValue(graph: BANKING)
+  FAILED @join__enumValue(graph: BANKING)
+  REVIEW_REQUIRED @join__enumValue(graph: BANKING)
+  REVIEW_CANCELLED @join__enumValue(graph: BANKING)
+}
+
+input ImportTransactionsFileInput
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID!
+  fileName: String!
+  source: ImportSource
+  fileBase64: String!
+}
+
+enum ImportType
+  @join__type(graph: BANKING)
+{
+  CREDIT_CARD_BILL @join__enumValue(graph: BANKING)
+  BANK_STATEMENT @join__enumValue(graph: BANKING)
+}
+
+"""Fixed income indexer (referenciador). Only applicable to RF holdings."""
+enum Indexer
+  @join__type(graph: BANKING)
+{
+  CDI @join__enumValue(graph: BANKING)
+  DI @join__enumValue(graph: BANKING)
+  TR @join__enumValue(graph: BANKING)
+  IPCA @join__enumValue(graph: BANKING)
+  IGP_M @join__enumValue(graph: BANKING)
+  IGP_DI @join__enumValue(graph: BANKING)
+  INPC @join__enumValue(graph: BANKING)
+  BCP @join__enumValue(graph: BANKING)
+  TLC @join__enumValue(graph: BANKING)
+  SELIC @join__enumValue(graph: BANKING)
+  PRE_FIXADO @join__enumValue(graph: BANKING)
+  OUTROS @join__enumValue(graph: BANKING)
+}
+
 input IndicatorRangeInput
   @join__type(graph: FINANCIALDATA)
 {
   from: Date
   to: Date
   last: Int
+}
+
+type InstallmentInfo
+  @join__type(graph: BANKING)
+{
+  current: Int!
+  total: Int!
+}
+
+input InstallmentInfoInput
+  @join__type(graph: BANKING)
+{
+  current: Int!
+  total: Int!
 }
 
 type InstitutionRating
@@ -700,6 +2039,375 @@ type InstitutionRating
   customParams: JSON
   issuer: RatingIssuer!
   updatedAt: DateTime!
+}
+
+"""
+Global investable instrument from the asset catalog.
+Equities are identified by ticker; fixed income by isinCode; funds by fundCnpj.
+Market prices are NOT stored here — fetched from financial-data at query time.
+"""
+type InvestmentAsset
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  ticker: String
+  isinCode: String
+  name: String!
+  assetType: AssetType!
+  exchange: String
+  currencyCode: String!
+  issuerCnpj: String
+  issuerName: String
+  fundCnpj: String
+  anbimaCategory: AnbimaCategory
+  anbimaClass: String
+  anbimaSubclass: String
+  logoAsset: Asset
+
+  """
+  B3 pricing multiplier. Most assets = 1. Some debentures quoted per 1000 use 0.001.
+  """
+  priceFactor: Float!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+Manual cash movement on an investment/benefit custodian account (no asset / investment-transaction link).
+"""
+enum InvestmentCashTransactionType
+  @join__type(graph: BANKING)
+{
+  """Credit TRANSFER — external deposit into the custodian account."""
+  DEPOSIT @join__enumValue(graph: BANKING)
+
+  """Debit TRANSFER — withdrawal from the custodian account."""
+  WITHDRAWAL @join__enumValue(graph: BANKING)
+
+  """
+  BALANCE_ADJUSTMENT — signed amount: positive credits, negative debits the custodian cash balance.
+  """
+  ADJUSTMENT @join__enumValue(graph: BANKING)
+}
+
+type InvestmentFund
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  name: String!
+  cnpj: String!
+  assetType: String!
+  isActive: Boolean!
+  latestNav: FundDailyNav
+  priceHistory(from: Date, to: Date, last: Int): [FundDailyNav!]!
+}
+
+enum InvestmentFundAssetType
+  @join__type(graph: FINANCIALDATA)
+{
+  FIXED_INCOME_FUND @join__enumValue(graph: FINANCIALDATA)
+  EQUITY_FUND @join__enumValue(graph: FINANCIALDATA)
+  MULTI_MARKET_FUND @join__enumValue(graph: FINANCIALDATA)
+  FOREX_FUND @join__enumValue(graph: FINANCIALDATA)
+  MUTUAL_FUND @join__enumValue(graph: FINANCIALDATA)
+  PGBL @join__enumValue(graph: FINANCIALDATA)
+  VGBL @join__enumValue(graph: FINANCIALDATA)
+}
+
+type InvestmentFundAutocompleteConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  suggestions: [InvestmentFundAutocompleteItem!]!
+}
+
+type InvestmentFundAutocompleteItem
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  name: String!
+  cnpj: String!
+  assetType: String!
+  isActive: Boolean!
+}
+
+type InvestmentFundConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [InvestmentFundEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type InvestmentFundEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: InvestmentFund!
+  cursor: String!
+}
+
+type InvestmentFundMarketSnapshot
+  @join__type(graph: FINANCIALDATA)
+{
+  cnpj: String!
+  assetType: String!
+  taxProfile: FundTaxProfile!
+  latestNav: FundDailyNav
+}
+
+"""
+User's current position in an asset within a custodian account.
+One holding per (financialAccountId, asset). Quantity aggregates all lots.
+averageCost is maintained by the transaction engine — custo médio ponderado (RFB method).
+"""
+type InvestmentHolding
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  financialAccountId: ID!
+  financialAccount: FinancialAccount
+  asset: InvestmentAsset!
+
+  """
+  Current number of units/shares/cotas held. Zero means position is closed.
+  """
+  quantity: Float!
+
+  """Weighted average purchase price per unit (custo médio ponderado)."""
+  averageCost: Float!
+  indexer: Indexer
+
+  """Fraction of indexer applied (e.g. 1.15 = 115% CDI)."""
+  indexerPercentage: Float
+
+  """Annual fixed rate or spread (e.g. 0.12 = 12% a.a.)."""
+  fixedAnnualRate: Float
+  issueDate: Date
+  maturityDate: Date
+
+  """Earliest redemption date (carência)."""
+  gracePeriodDate: Date
+
+  """True for LCI/LCA/CRI/CRA — exempt from IR for individuals."""
+  isTaxExempt: Boolean!
+
+  """
+  Coupon payment frequency. Null and AT_MATURITY are equivalent — no scheduled payments.
+  """
+  couponFrequency: CouponFrequency
+
+  """
+  Day of month (1–31) on which coupon cash settles. Null for AT_MATURITY and Tesouro Direto (system calendar).
+  """
+  couponDayOfMonth: Int
+
+  """
+  Projected coupon schedule from issueDate to maturityDate. Empty when no coupon schedule is applicable.
+  """
+  couponSchedule: [CouponScheduleEntry!]!
+  grossValue: Float
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+
+  """
+  Accrued interest for the current coupon period (grossValue − principal).
+  Non-null only for coupon-paying fixed income holdings with a valid valuation.
+  Use this as the pre-fill gross amount when registering a coupon payment.
+  """
+  accruedInterest: Float
+  lastValuedAt: DateTime
+  pricingMode: HoldingPricingMode
+  valuationSource: ValuationSource!
+
+  """
+  Date of the most recent indicator used in the calculation (null when source is PROVIDER or UNAVAILABLE).
+  """
+  valuationReferenceDate: Date
+
+  """
+  Whether the holding is on or past its maturity date.
+  Computed as maturityDate != null && !maturityDate.isAfter(today).
+  """
+  isExpired: Boolean!
+
+  """
+  True when the holding was closed with an explicit reason (maturity, early redemption, transfer).
+  """
+  isClosed: Boolean!
+
+  """
+  True when the holding is past maturity, still open (qty > 0), and not yet closed with a reason.
+  """
+  isExpiredPending: Boolean!
+  closedAt: Date
+  closeReason: HoldingCloseReason
+  source: InvestmentSource!
+
+  """Attached files (corretagem, contracts, etc.). Max 3."""
+  attachments: [HoldingAttachment!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+Aggregate class used to filter holdings by broader investment category.
+"""
+enum InvestmentHoldingAssetClass
+  @join__type(graph: BANKING)
+{
+  FIXED_INCOME @join__enumValue(graph: BANKING)
+  INVESTMENT_FUND @join__enumValue(graph: BANKING)
+  VARIABLE_INCOME @join__enumValue(graph: BANKING)
+  CRYPTO @join__enumValue(graph: BANKING)
+  OPTIONS @join__enumValue(graph: BANKING)
+}
+
+type InvestmentHoldingPerformance
+  @join__type(graph: BANKING)
+{
+  holdingId: ID!
+  xirr: Float
+  xirrSince: Date
+  totalReturn: Float!
+  totalReturnAbsolute: Float!
+  dividendsReceived: Float!
+}
+
+type InvestmentPortfolioSummary
+  @join__type(graph: BANKING)
+{
+  totalHoldingsCount: Int!
+  totalCostBasis: Float!
+  totalGrossValue: Float!
+  totalNetValue: Float!
+  totalIncomeTax: Float!
+  totalIof: Float!
+  grossGain: Float!
+  grossGainPercent: Float!
+  netGain: Float!
+  netGainPercent: Float!
+  cashBalance: Float!
+  totalPortfolioValue: Float!
+  byAssetGroup: [AssetGroupSummary!]!
+  hasEstimatedValues: Boolean!
+  valuationReferenceDate: Date
+  currencyCode: String!
+  performance: PortfolioPerformance!
+  recalculationStatus: RecalculationStatus!
+}
+
+"""How an investment record entered the system."""
+enum InvestmentSource
+  @join__type(graph: BANKING)
+{
+  MANUAL @join__enumValue(graph: BANKING)
+  OPEN_FINANCE @join__enumValue(graph: BANKING)
+  FILE_IMPORT @join__enumValue(graph: BANKING)
+}
+
+"""
+An event that changes (or explains) an investment holding.
+tradeDate is the legally relevant date (fato gerador for IR calculation).
+grossValue is always positive; direction is INFLOW or OUTFLOW.
+"""
+type InvestmentTransaction
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  holdingId: ID!
+  financialAccountId: ID!
+  direction: InvestmentTransactionDirection!
+  type: InvestmentTransactionType!
+
+  """Required when type = OTHER (OFB transactionTypeAdditionalInfo)."""
+  typeAdditionalInfo: String
+
+  """Null for pure monetary events (DIVIDEND, INTEREST_PAYMENT, etc.)."""
+  quantity: Float
+  unitPrice: Float
+  grossValue: Float!
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  indexerPercentage: Float
+
+  """Annual fixed rate associated with the transaction, when applicable."""
+  fixedAnnualRate: Float
+  priceFactor: Float
+
+  """Legal event date — fato gerador for IR calculation."""
+  tradeDate: Date!
+
+  """
+  Settlement date (D+2 equities, D+1 RF). Null for events with no settlement leg.
+  """
+  settlementDate: Date
+  source: InvestmentSource!
+  brokerNote: BrokerNote
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+Direction of an investment event. INFLOW increases or adds; OUTFLOW decreases or withdraws.
+"""
+enum InvestmentTransactionDirection
+  @join__type(graph: BANKING)
+{
+  INFLOW @join__enumValue(graph: BANKING)
+  OUTFLOW @join__enumValue(graph: BANKING)
+}
+
+"""Nature of an investment event (OFB/Pluggy/Belvo canonical)."""
+enum InvestmentTransactionType
+  @join__type(graph: BANKING)
+{
+  PURCHASE @join__enumValue(graph: BANKING)
+  SALE @join__enumValue(graph: BANKING)
+  CANCELLATION @join__enumValue(graph: BANKING)
+  DIVIDEND @join__enumValue(graph: BANKING)
+  INTEREST_ON_EQUITY @join__enumValue(graph: BANKING)
+  INTEREST_PAYMENT @join__enumValue(graph: BANKING)
+  AMORTIZATION @join__enumValue(graph: BANKING)
+  PRIZE @join__enumValue(graph: BANKING)
+  MATURITY @join__enumValue(graph: BANKING)
+  STOCK_SPLIT @join__enumValue(graph: BANKING)
+  REVERSE_SPLIT @join__enumValue(graph: BANKING)
+  BONUS_SHARES @join__enumValue(graph: BANKING)
+  SUBSCRIPTION @join__enumValue(graph: BANKING)
+  CUSTODY_TRANSFER @join__enumValue(graph: BANKING)
+  OWNERSHIP_TRANSFER @join__enumValue(graph: BANKING)
+  QUOTA_TRANSFER @join__enumValue(graph: BANKING)
+  STOCK_LENDING @join__enumValue(graph: BANKING)
+  WITHHOLDING_TAX @join__enumValue(graph: BANKING)
+  FINE @join__enumValue(graph: BANKING)
+  LATE_PAYMENT_INTEREST @join__enumValue(graph: BANKING)
+  OTHER @join__enumValue(graph: BANKING)
+}
+
+"""Financial institution associated with an account."""
+type Issuer
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  name: String!
+  domain: String
+  compeCode: String
+  ispb: String
+  countryCode: String!
+  logoKey: String
+  category: IssuerCategory!
+  logoAsset: Asset
+}
+
+enum IssuerCategory
+  @join__type(graph: BANKING)
+{
+  BANK @join__enumValue(graph: BANKING)
+  BROKERAGE @join__enumValue(graph: BANKING)
+  CRYPTO_EXCHANGE @join__enumValue(graph: BANKING)
+  PAYMENT @join__enumValue(graph: BANKING)
+  BENEFIT @join__enumValue(graph: BANKING)
 }
 
 scalar join__FieldSet
@@ -719,6 +2427,13 @@ scalar JSON
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
+enum Language
+  @join__type(graph: SECURITY)
+{
+  ENGLISH @join__enumValue(graph: SECURITY)
+  PORTUGUESE @join__enumValue(graph: SECURITY)
+}
+
 scalar link__Import
 
 enum link__Purpose {
@@ -733,12 +2448,139 @@ enum link__Purpose {
   EXECUTION
 }
 
+type ListedAsset
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  ticker: String!
+  name: String!
+  assetType: String!
+  exchange: String
+  isActive: Boolean!
+  logoAsset: Asset
+  latestPrice: AssetDailyPrice
+  priceHistory(from: Date, to: Date, last: Int): [AssetDailyPrice!]!
+}
+
+type ListedAssetAutocompleteConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  suggestions: [ListedAssetAutocompleteItem!]!
+}
+
+type ListedAssetAutocompleteItem
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  ticker: String!
+  name: String!
+  assetType: String!
+  isActive: Boolean!
+  logoAsset: Asset
+}
+
+type ListedAssetConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [ListedAssetEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type ListedAssetDailyPriceConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [ListedAssetDailyPriceEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type ListedAssetDailyPriceEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: ListedAssetDailyPriceNode!
+  cursor: String!
+}
+
+type ListedAssetDailyPriceNode
+  @join__type(graph: FINANCIALDATA)
+{
+  ticker: String!
+  isinCode: String
+  date: Date!
+  openPrice: Float
+  highPrice: Float
+  lowPrice: Float
+  closePrice: Float!
+  avgPrice: Float
+  volume: Float
+  trades: Int
+  updatedAt: DateTime!
+}
+
+type ListedAssetEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: ListedAsset!
+  cursor: String!
+}
+
 scalar Long
   @join__type(graph: ASSETS)
   @join__type(graph: ASSISTANT)
   @join__type(graph: BANKING)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
+
+input ManualFundValuationInput
+  @join__type(graph: BANKING)
+{
+  grossValue: Float!
+  valuedAt: Date!
+}
+
+input MaturityCashMovementInput
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID!
+  amount: Float!
+  date: Date!
+}
+
+"""
+A merchant (payee) associated with a transaction.
+System merchants are shared across all accounts; user merchants are account-scoped.
+"""
+type Merchant
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  name: String!
+  domain: String
+  sector: String
+  isSystem: Boolean!
+  isOwned: Boolean!
+
+  """
+  Logo asset via federation. Null until the hydration job has run for the domain.
+  """
+  logoAsset: Asset
+}
+
+type MerchantConnection
+  @join__type(graph: BANKING)
+{
+  edges: [MerchantEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type MerchantEdge
+  @join__type(graph: BANKING)
+{
+  node: Merchant!
+  cursor: String!
+}
 
 input MessageInput
   @join__type(graph: ASSISTANT)
@@ -776,6 +2618,61 @@ type ModelUsage
   completionTokens: Int!
   totalTokens: Int!
   cost: Float!
+}
+
+"""
+Monthly summary header for a financial account — entradas, saídas, saldo total.
+Served from the monthly_balance_snapshots cache; transfer and projection fields are on-demand.
+"""
+type MonthSummary
+  @join__type(graph: BANKING)
+{
+  year: Int!
+  month: Int!
+
+  """
+  Entradas: total CREDIT excluding TRANSFER and BALANCE_ADJUSTMENT (POSTED/PENDING only).
+  """
+  totalIncome: Float!
+
+  """
+  Saídas: total DEBIT excluding TRANSFER and BALANCE_ADJUSTMENT (POSTED/PENDING only).
+  """
+  totalExpenses: Float!
+
+  """Saldo total at month-end (includes all types, excludes FUTURE)."""
+  closingBalance: Float!
+
+  """Balance at start of month (prior month's closingBalance)."""
+  openingBalance: Float!
+
+  """Total CREDIT of type TRANSFER in the month."""
+  transfersIn: Float!
+
+  """Total DEBIT of type TRANSFER in the month."""
+  transfersOut: Float!
+
+  """
+  closingBalance + FUTURE transactions. Null when no FUTURE transactions exist.
+  """
+  projectedClosingBalance: Float
+
+  """True when (year, month) equals the current calendar month."""
+  isCurrentMonth: Boolean!
+
+  """
+  True when (year, month) is strictly after today's month. All values are on-demand projections; no snapshot is persisted.
+  """
+  isFutureMonth: Boolean!
+
+  """Top expense categories for the month (ordered by totalAmount DESC)."""
+  expensesByCategory: [CategoryTotal!]!
+
+  """Top income categories for the month (ordered by totalAmount DESC)."""
+  incomeByCategory: [CategoryTotal!]!
+
+  """Top tags for the month (ordered by totalAmount DESC)."""
+  tagsSummary: [TagTotal!]!
 }
 
 type Mutation
@@ -863,6 +2760,200 @@ type Mutation
   registerTool(input: RegisterToolInput!): Tool! @join__field(graph: ASSISTANT)
   setUsageBudget(input: SetBudgetInput!): UsageBudget! @join__field(graph: ASSISTANT)
   _bankingService: String @join__field(graph: BANKING)
+  updateBankingUserPreferences(input: UpdateBankingUserPreferencesInput!): BankingUserPreferences! @join__field(graph: BANKING)
+
+  """Updates current account preferences (account owner only)."""
+  updateAccountPreferences(input: UpdateAccountPreferencesInput!): AccountPreferences! @join__field(graph: BANKING)
+
+  """
+  Create a new financial account or card.
+  Requires either issuerId (from the issuers list) or issuerName (custom institution).
+  Billing-cycle card metadata is optional and may be provided when known.
+  """
+  createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
+  updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
+  deleteFinancialAccount(id: ID!): Boolean! @join__field(graph: BANKING)
+
+  """Create a new manual transaction."""
+  createTransaction(input: CreateTransactionInput!): CreateTransactionPayload! @join__field(graph: BANKING)
+
+  """Update an existing manual transaction."""
+  updateTransaction(id: ID!, input: UpdateTransactionInput!): Transaction! @join__field(graph: BANKING)
+
+  """Soft-delete a manual transaction."""
+  deleteTransaction(id: ID!): Boolean! @join__field(graph: BANKING)
+  createRecurringPayment(input: CreateRecurringPaymentInput!): RecurringPayment! @join__field(graph: BANKING)
+  updateRecurringPayment(id: ID!, input: UpdateRecurringPaymentInput!): RecurringPayment! @join__field(graph: BANKING)
+  pauseRecurringPayment(id: ID!): RecurringPayment! @join__field(graph: BANKING)
+  resumeRecurringPayment(id: ID!): RecurringPayment! @join__field(graph: BANKING)
+  deleteRecurringPayment(id: ID!): Boolean! @join__field(graph: BANKING)
+  confirmRecurringPayment(id: ID!, paymentDate: Date!): RecurringPayment! @join__field(graph: BANKING)
+  linkTransactionToRecurring(transactionId: ID!, recurringPaymentId: ID!): Transaction! @join__field(graph: BANKING)
+  createRecurringPaymentFromTransaction(transactionId: ID!, input: CreateRecurringPaymentInput!): RecurringPayment! @join__field(graph: BANKING)
+  importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult! @join__field(graph: BANKING)
+  importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult! @join__field(graph: BANKING)
+  resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport! @join__field(graph: BANKING)
+  cancelImportReview(jobId: ID!): Boolean! @join__field(graph: BANKING)
+  submitBillImport(input: SubmitBillImportInput!): BillImportJob! @join__field(graph: BANKING)
+  confirmBillImport(input: ConfirmBillImportInput!): BillImportJob! @join__field(graph: BANKING)
+
+  """
+  Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
+  Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.
+  """
+  payBill(billId: ID!, amount: Float!, sourceAccountId: ID): CreditCardBill! @join__field(graph: BANKING)
+
+  """
+  Records an investment transaction and updates the holding's quantity and averageCost.
+  Creates the holding automatically on the first PURCHASE of an asset.
+  """
+  createInvestmentAsset(input: CreateInvestmentAssetInput!): InvestmentAsset! @join__field(graph: BANKING)
+
+  """Updates an existing investment asset metadata."""
+  updateInvestmentAsset(id: ID!, input: UpdateInvestmentAssetInput!): InvestmentAsset! @join__field(graph: BANKING)
+
+  """
+  Records an investment transaction and updates the holding's quantity and averageCost.
+  """
+  recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction! @join__field(graph: BANKING)
+
+  """
+  Updates a MANUAL investment transaction and recomputes the holding state.
+  """
+  updateInvestmentTransaction(id: ID!, input: UpdateInvestmentTransactionInput!): InvestmentTransaction! @join__field(graph: BANKING)
+
+  """
+  Records manual cash on an investment/benefit custodian account (aporte, saque, or balance adjustment).
+  Categories are system-assigned for DEPOSIT/WITHDRAWAL; ADJUSTMENT has no category.
+  """
+  createInvestmentCashTransaction(input: CreateInvestmentCashTransactionInput!): Transaction! @join__field(graph: BANKING)
+
+  """
+  Updates a manual investment custodian cash ledger row (and its transfer peer amount/date when present).
+  """
+  updateInvestmentCashTransaction(id: ID!, input: UpdateInvestmentCashTransactionInput!): Transaction! @join__field(graph: BANKING)
+
+  """
+  Soft-deletes a manual investment custodian cash ledger row and its transfer peer when present.
+  """
+  deleteInvestmentCashTransaction(id: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Soft-deletes a MANUAL investment holding and all of its MANUAL transactions.
+  """
+  deleteInvestmentHolding(id: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Triggers a manual portfolio quota recalculation. Optionally scoped to a financialAccountId and recalculateFrom date (ISO-8601). Defaults to all INVESTMENT accounts recalculating from 10 years ago.
+  """
+  triggerPortfolioRecalculation(financialAccountId: ID, recalculateFrom: String): Boolean! @join__field(graph: BANKING)
+
+  """
+  Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted.
+  """
+  deleteInvestmentTransaction(id: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Create a custom merchant for the authenticated account.
+  System merchants cannot be created via this mutation.
+  """
+  createMerchant(input: CreateMerchantInput!): Merchant! @join__field(graph: BANKING)
+
+  """
+  Create a new custom transaction category for the authenticated account.
+  """
+  createTransactionCategory(input: CreateCategoryInput!): TransactionCategory! @join__field(graph: BANKING)
+
+  """Update a custom transaction category for the authenticated account."""
+  updateTransactionCategory(id: ID!, input: UpdateCategoryInput!): TransactionCategory! @join__field(graph: BANKING)
+  createProduct(input: CreateProductInput!): Product! @join__field(graph: BANKING)
+  updateProduct(id: ID!, input: UpdateProductInput!): Product! @join__field(graph: BANKING)
+  createProductVariant(input: CreateProductVariantInput!): ProductVariant! @join__field(graph: BANKING)
+  updateProductVariant(id: ID!, input: UpdateProductVariantInput!): ProductVariant! @join__field(graph: BANKING)
+  mapItemToVariant(rawDescription: String!, variantId: ID!): ProductAlias! @join__field(graph: BANKING)
+  unmapItem(aliasId: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Soft-delete a custom transaction category (and its subcategories when deleting a root).
+  """
+  deleteTransactionCategory(id: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Create a transaction rule for auto-categorization and/or merchant suggestion. Invalid REGEX pattern returns a validation error.
+  """
+  createTransactionRule(input: CreateTransactionRuleInput!): TransactionRule! @join__field(graph: BANKING)
+
+  """Update a user-owned transaction rule."""
+  updateTransactionRule(id: ID!, input: UpdateTransactionRuleInput!): TransactionRule! @join__field(graph: BANKING)
+
+  """
+  Applies the given transaction rule to historical (non-manual) transactions that match it.
+  Does not override MANUAL categories; other fields may be updated according to rule actions.
+  """
+  applyTransactionRuleToHistorical(id: ID!): BulkOperationResult! @join__field(graph: BANKING)
+
+  """
+  Soft-delete a user-owned transaction rule. System rules cannot be deleted.
+  """
+  deleteTransactionRule(id: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Reorders user rules by assigning priority = position+1 for each ID in the ordered list.
+  All IDs must belong to the authenticated account. Returns the full updated rule list.
+  """
+  reorderTransactionRules(ids: [ID!]!): [TransactionRule!]! @join__field(graph: BANKING)
+
+  """
+  Enables/disables a system transaction rule for the authenticated account.
+  This does not mutate the global system rule itself.
+  """
+  setSystemTransactionRuleEnabled(id: ID!, enabled: Boolean!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
+  """
+  bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult! @join__field(graph: BANKING)
+  applyTransactionEditToSimilar(id: ID!, matchDescription: String!, input: UpdateTransactionInput!, applyToFuture: Boolean = true, applyToExisting: Boolean = true): SimilarTransactionEditResult! @join__field(graph: BANKING)
+
+  """
+  Attach an already-uploaded asset to a transaction. The asset must be in READY status.
+  Call createAssetUpload → upload to presigned URL → confirmAssetUpload → attachFileToTransaction.
+  Max 3 attachments per transaction.
+  """
+  attachFileToTransaction(input: AttachFileToTransactionInput!): TransactionAttachment! @join__field(graph: BANKING)
+
+  """
+  Remove an attachment from a transaction and delete the underlying asset.
+  """
+  removeTransactionAttachment(attachmentId: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Attach an already-uploaded asset to an investment holding. The asset must be in READY status.
+  Call createAssetUpload → upload to presigned URL → confirmAssetUpload → attachFileToHolding.
+  Max 3 attachments per holding.
+  """
+  attachFileToHolding(input: AttachFileToHoldingInput!): HoldingAttachment! @join__field(graph: BANKING)
+
+  """Remove an attachment from a holding and delete the underlying asset."""
+  removeHoldingAttachment(attachmentId: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Confirm fixed-income maturity: records MATURITY, closes the holding, completes the pending action, optional cash credit.
+  """
+  confirmHoldingMaturity(command: ConfirmHoldingMaturityInput!): ConfirmHoldingMaturityResult! @join__field(graph: BANKING)
+
+  """
+  Confirms a fixed-income coupon payment and optionally completes a pending coupon action.
+  """
+  confirmCouponPayment(input: ConfirmCouponPaymentInput!): ConfirmCouponPaymentResult! @join__field(graph: BANKING)
+
+  """
+  Transfere uma posição (total ou parcial) entre contas de custódia do mesmo usuário, preservando custo médio.
+  """
+  transferCustody(input: TransferCustodyInput!): TransferCustodyResult! @join__field(graph: BANKING)
+
+  """Dismiss a pending action (e.g. mark informational item as seen)."""
+  dismissPendingAction(id: ID!): AccountPendingAction! @join__field(graph: BANKING)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
   signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
@@ -871,6 +2962,10 @@ type Mutation
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload! @join__field(graph: SECURITY)
   verifyEmailWithToken(token: String!): VerifyEmailPayload! @join__field(graph: SECURITY)
   resendVerificationEmail: ResendVerificationEmailPayload! @join__field(graph: SECURITY)
+  updateUserPreferences(input: UpdateUserPreferencesInput!): UserPreferences! @join__field(graph: SECURITY)
+  updateUserAvatar(input: UpdateUserAvatarInput!): User! @join__field(graph: SECURITY)
+  removeUserAvatar: User! @join__field(graph: SECURITY)
+  updateAccount(accountId: ID!, input: UpdateAccountInput!): Account! @join__field(graph: SECURITY)
   enableUser(userId: ID!): User! @join__field(graph: SECURITY)
   disableUser(userId: ID!): User! @join__field(graph: SECURITY)
   updateUser(userId: ID!, input: UpdateUserInput!): User! @join__field(graph: SECURITY)
@@ -888,6 +2983,49 @@ type Mutation
   removeRoleFromGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
 }
 
+type NcmMonthlySpending
+  @join__type(graph: BANKING)
+{
+  month: Date!
+  totalSpent: Float!
+  itemCount: Int!
+}
+
+type NcmSpending
+  @join__type(graph: BANKING)
+{
+  ncmCode: String!
+  ncmDescription: String
+  totalSpent: Float!
+  itemCount: Int!
+  months: [NcmMonthlySpending!]!
+}
+
+type NfceDocument
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  transactionId: ID!
+  accessKey: String!
+  issuerCnpj: String!
+  issuerName: String!
+  issuerTradeName: String
+  issuerStateRegistration: String
+  issuerAddress: String
+  issuerPostalCode: String
+  emissionDate: DateTime!
+  totalValue: Float!
+  totalTax: Float
+  buyerCpf: String
+  municipalityCode: String
+  municipality: String
+  state: String!
+  countryCode: String!
+  sourceUrl: String
+  items: [PurchaseItem!]!
+  createdAt: DateTime!
+}
+
 enum OrderDirection
   @join__type(graph: SECURITY)
 {
@@ -902,7 +3040,9 @@ enum OutputFormat
   JSON @join__enumValue(graph: ASSISTANT)
 }
 
+"""Relay-style page info for paginated lists."""
 type PageInfo
+  @join__type(graph: BANKING)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 {
@@ -910,6 +3050,72 @@ type PageInfo
   hasPreviousPage: Boolean!
   startCursor: String
   endCursor: String
+}
+
+type ParsedImportRow
+  @join__type(graph: BANKING)
+{
+  creditDebitType: CreditDebitType!
+  amount: Float!
+  date: Date!
+  description: String!
+  currencyCode: String!
+  counterpartyName: String
+  counterpartyDocument: String
+}
+
+"""Pattern type for transaction rule description matching."""
+enum PatternType
+  @join__type(graph: BANKING)
+{
+  CONTAINS @join__enumValue(graph: BANKING)
+  STARTS_WITH @join__enumValue(graph: BANKING)
+  EXACT @join__enumValue(graph: BANKING)
+  REGEX @join__enumValue(graph: BANKING)
+}
+
+enum PendingActionSeverity
+  @join__type(graph: BANKING)
+{
+  INFO @join__enumValue(graph: BANKING)
+  WARNING @join__enumValue(graph: BANKING)
+  ACTION_REQUIRED @join__enumValue(graph: BANKING)
+}
+
+enum PendingActionStatus
+  @join__type(graph: BANKING)
+{
+  PENDING @join__enumValue(graph: BANKING)
+  COMPLETED @join__enumValue(graph: BANKING)
+  DISMISSED @join__enumValue(graph: BANKING)
+  CANCELLED @join__enumValue(graph: BANKING)
+}
+
+enum PendingActionType
+  @join__type(graph: BANKING)
+{
+  INVESTMENT_MATURED @join__enumValue(graph: BANKING)
+
+  """Coupon payment is due for a coupon-bearing fixed income holding."""
+  COUPON_PAYMENT_DUE @join__enumValue(graph: BANKING)
+
+  """
+  Bank account balance went negative after a paired investment cash transfer (informational).
+  """
+  BANK_ACCOUNT_NEGATIVE_BALANCE @join__enumValue(graph: BANKING)
+
+  """A recurring payment is approaching the due date."""
+  RECURRING_PAYMENT_DUE @join__enumValue(graph: BANKING)
+}
+
+enum PerformancePeriod
+  @join__type(graph: BANKING)
+{
+  MTD @join__enumValue(graph: BANKING)
+  YTD @join__enumValue(graph: BANKING)
+  ONE_YEAR @join__enumValue(graph: BANKING)
+  THREE_YEARS @join__enumValue(graph: BANKING)
+  ALL @join__enumValue(graph: BANKING)
 }
 
 type Permission
@@ -961,6 +3167,158 @@ type PopularInstitutionTopMetricItem
   metricValue: Float
 }
 
+"""
+Monthly portfolio gross value snapshot for a date range (dashboard use).
+"""
+type PortfolioMonthlyValue
+  @join__type(graph: BANKING)
+{
+  year: Int!
+  month: Int!
+
+  """
+  Market value of all positions. Does NOT include investment account cash balance.
+  """
+  grossValue: Float!
+
+  """
+  True when at least one holding used an estimated valuation for this month.
+  """
+  isEstimated: Boolean!
+}
+
+type PortfolioPerformance
+  @join__type(graph: BANKING)
+{
+  twr: Float
+  twrSince: Date
+  twrAbsolute: Float
+  period: PerformancePeriod!
+  benchmarks: [BenchmarkPerformance!]!
+  hasEstimatedValues: Boolean!
+}
+
+type PortfolioPerformanceSeries
+  @join__type(graph: BANKING)
+{
+  """Echo of the requested filter; null means whole portfolio."""
+  groupKey: String
+
+  """Localized label for the group, or "Portfolio" when groupKey is null."""
+  label: String!
+  currencyCode: String!
+  resolution: HoldingPerformanceResolution!
+  valuationSource: ValuationSource!
+  valuationReferenceDate: Date
+  capabilities: HoldingPerformanceCapabilities!
+  summary: HoldingPerformanceSummary!
+  points: [HoldingPerformancePoint!]!
+
+  """
+  Number of holdings that matched the filter but were skipped (no series available).
+  """
+  excludedHoldingsCount: Int!
+
+  """Number of holdings actually contributing to the series."""
+  includedHoldingsCount: Int!
+}
+
+"""
+Full diagnostic payload for the TWR calculation of one account and period.
+"""
+type PortfolioTwrDebug
+  @join__type(graph: BANKING)
+{
+  """
+  ISO date of the first quota in the series (anchor point, factor = 1.0).
+  """
+  startDate: Date
+
+  """ISO date of the last quota in the series."""
+  endDate: Date
+
+  """
+  Same value as investmentPortfolioSummary.performance.twr — null if series has fewer than 2 points.
+  """
+  twr: Float
+
+  """The quota series (one entry per calendar day that has a stored quota)."""
+  series: [TwrQuotaPoint!]!
+
+  """Flow events in the window [startDate+1 .. endDate] used by the engine."""
+  flowEvents: [TwrFlowEvent!]!
+
+  """
+  Per-day computation steps (series.size - 1 entries; empty if series < 2).
+  """
+  dailySteps: [TwrDailyStep!]!
+}
+
+type PricePoint
+  @join__type(graph: BANKING)
+{
+  date: Date!
+  unitPrice: Float!
+  storeName: String
+  municipality: String
+  state: String
+}
+
+type Product
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  name: String!
+  ncmCode: String
+  defaultUnit: String
+  category: String
+  variants: [ProductVariant!]!
+  averagePrice: Float
+  totalSpent: Float!
+  purchaseCount: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ProductAlias
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  productVariantId: ID!
+  productVariant: ProductVariant
+  rawDescription: String!
+  source: ProductAliasSource!
+  confidence: Float
+  confirmed: Boolean!
+  createdAt: DateTime!
+}
+
+enum ProductAliasSource
+  @join__type(graph: BANKING)
+{
+  MANUAL @join__enumValue(graph: BANKING)
+  AI_SUGGESTED @join__enumValue(graph: BANKING)
+  EAN_MATCH @join__enumValue(graph: BANKING)
+  HEURISTIC @join__enumValue(graph: BANKING)
+}
+
+type ProductVariant
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  productId: ID!
+  name: String!
+  brand: String
+  ean: String
+  quantityValue: Float
+  quantityUnit: String
+  normalizedQuantityValue: Float
+  normalizedQuantityUnit: String
+  averageUnitPrice: Float
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
 type Prompt
   @join__type(graph: ASSISTANT)
 {
@@ -1010,6 +3368,29 @@ enum PromptVersionStatus
   DEPRECATED @join__enumValue(graph: ASSISTANT)
 }
 
+type PurchaseItem
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  transactionId: ID!
+  productVariantId: ID
+  productVariant: ProductVariant
+  sequence: Int!
+  rawDescription: String!
+  ncmCode: String
+  ean: String
+  issuerProductCode: String
+  quantity: Float!
+  unit: String!
+  unitPrice: Float!
+  totalPrice: Float!
+  discount: Float
+  effectivePrice: Float!
+  normalizedUnitPrice: Float
+  taxAmount: Float
+  createdAt: DateTime!
+}
+
 input QuarterRangeInput
   @join__type(graph: FINANCIALDATA)
 {
@@ -1052,17 +3433,369 @@ type Query
   myUsage(period: UsagePeriod!): UsageStats! @join__field(graph: ASSISTANT)
   serviceUsage(serviceId: String!, period: UsagePeriod!): UsageStats! @join__field(graph: ASSISTANT)
   _bankingService: String @join__field(graph: BANKING)
+
+  """
+  All active issuers.
+  When categories is omitted, returns all active issuers.
+  """
+  issuers(categories: [IssuerCategory!]): [Issuer!]! @join__field(graph: BANKING)
+
+  """All financial accounts belonging to the authenticated user's account."""
+  financialAccounts: [FinancialAccount!]! @join__field(graph: BANKING)
+
+  """Current banking user preferences (defaults when no row exists)."""
+  bankingUserPreferences: BankingUserPreferences! @join__field(graph: BANKING)
+
+  """Current account (tenant) preferences (defaults when no row exists)."""
+  accountPreferences: AccountPreferences! @join__field(graph: BANKING)
+
+  """Single transaction by ID (scoped to the authenticated account)."""
+  transaction(id: ID!): Transaction @join__field(graph: BANKING)
+
+  """Merchant logo preview asset resolved through federation."""
+  merchantLogoPreview(domain: String!): Asset @join__field(graph: BANKING)
+
+  """
+  Monthly summary (entradas, saídas, saldo) for a financial account or all accounts.
+  When financialAccountId is omitted, returns the aggregate across all accounts.
+  When month/year are not provided, the current month/year are used.
+  """
+  monthSummary(financialAccountId: ID, year: Int, month: Int): MonthSummary! @join__field(graph: BANKING)
+
+  """
+  Paginated merchants (system + user-created) available to the authenticated account.
+  """
+  merchants(search: String, after: String, first: Int = 20): MerchantConnection! @join__field(graph: BANKING)
+
+  """
+  Top merchants by spend for the authenticated account. Defaults to top 10 for the current month.
+  """
+  topMerchants(financialAccountId: ID, year: Int, month: Int, limit: Int): [TopMerchant!]! @join__field(graph: BANKING)
+
+  """
+  All categories (system + custom) available to the authenticated account.
+  """
+  transactionCategories: [TransactionCategory!]! @join__field(graph: BANKING)
+
+  """
+  Transaction rules for auto-categorization and merchant suggestion.
+  - isSystem omitted: returns all rules (user + system)
+  - isSystem false: returns only user rules
+  - isSystem true: returns only system rules
+  """
+  transactionRules(isSystem: Boolean, search: String, first: Int, after: String): TransactionRuleConnection! @join__field(graph: BANKING)
+
+  """
+  Returns the requested transaction rules, preserving the input ID order.
+  Useful for explaining which rules contributed to a transaction.
+  """
+  transactionRulesByIds(ids: [ID!]!): [TransactionRule!]! @join__field(graph: BANKING)
+
+  """
+  Counts how many existing (non-manual) transactions would be affected by applying the given rule.
+  """
+  transactionRuleHistoricalMatchCount(id: ID!): Int! @join__field(graph: BANKING)
+
+  """
+  Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
+  Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.
+  """
+  previewTransactionRule(pattern: String!, patternType: PatternType!, sample: String!): Boolean! @join__field(graph: BANKING)
+  similarTransactionEditPreview(id: ID!): SimilarTransactionEditPreview! @join__field(graph: BANKING)
+
+  """
+  Category totals for a period (expense/income breakdown). Accepts the same filters as the
+  transactions query — the result reflects the category breakdown of exactly those transactions.
+  When financialAccountId is omitted, aggregates across all accounts.
+  """
+  transactionsByCategory(
+    financialAccountId: ID
+    belongsToUserId: ID
+    belongsToName: String
+
+    """
+    Text search over transaction descriptions with full-text and partial substring matching.
+    """
+    search: String
+    tags: [String!]
+    billId: ID
+
+    """Return only transactions in this category or its subcategories."""
+    categoryId: ID
+
+    """
+    If true, return only transactions with no category (result will always be empty).
+    """
+    uncategorized: Boolean
+    year: Int
+    month: Int
+
+    """Filter by INCOME or EXPENSE; omit for all categorized transactions."""
+    applicableTo: CategoryApplicableTo
+  ): [CategoryTotal!]! @join__field(graph: BANKING)
+
+  """
+  Monthly cash-flow series (income, expenses, net) for a date range.
+  Returns one CashFlowDataPoint per month ordered by year/month ASC.
+  When financialAccountId is omitted, aggregates across all accounts.
+  startYear/startMonth and endYear/endMonth default to the current month when omitted.
+  """
+  cashFlowSeries(financialAccountId: ID, startYear: Int!, startMonth: Int!, endYear: Int!, endMonth: Int!): [CashFlowDataPoint!]! @join__field(graph: BANKING)
+
+  """
+  Aggregate dashboard summary (income, expenses, net, opening/closing balance) across a date range.
+  When financialAccountId is omitted, aggregates across all accounts.
+  """
+  dashboardPeriodSummary(financialAccountId: ID, startYear: Int!, startMonth: Int!, endYear: Int!, endMonth: Int!): DashboardPeriodSummary! @join__field(graph: BANKING)
+
+  """
+  Category breakdown (expense or income) aggregated across a date range.
+  When financialAccountId is omitted, aggregates across all accounts.
+  applicableTo defaults to EXPENSE when omitted.
+  """
+  categoryBreakdownForRange(financialAccountId: ID, startYear: Int!, startMonth: Int!, endYear: Int!, endMonth: Int!, applicableTo: CategoryApplicableTo): [CategoryTotal!]! @join__field(graph: BANKING)
+
+  """
+  Monthly portfolio gross value series for the given date range.
+  One point per month (last available quota_date in the month).
+  Months with no quota data are omitted — use left-join by (year, month) on the client.
+  When financialAccountId is omitted, aggregates across all investment accounts.
+  """
+  portfolioNetWorthSeries(financialAccountId: ID, startYear: Int!, startMonth: Int!, endYear: Int!, endMonth: Int!): [PortfolioMonthlyValue!]! @join__field(graph: BANKING)
+
+  """
+  Tag totals for a period. Accepts the same filters as the
+  transactions query — the result reflects the tag breakdown of exactly those transactions.
+  When financialAccountId is omitted, aggregates across all accounts.
+  """
+  transactionsByTag(
+    financialAccountId: ID
+    belongsToUserId: ID
+    belongsToName: String
+
+    """
+    Text search over transaction descriptions with full-text and partial substring matching.
+    """
+    search: String
+    tags: [String!]
+    billId: ID
+
+    """Return only transactions in this category or its subcategories."""
+    categoryId: ID
+
+    """If true, return only uncategorized transactions before grouping tags."""
+    uncategorized: Boolean
+    year: Int
+    month: Int
+
+    """Filter by INCOME or EXPENSE; omit for all tagged transactions."""
+    applicableTo: CategoryApplicableTo
+  ): [TagTotal!]! @join__field(graph: BANKING)
+
+  """
+  Distinct values used in transaction attribution ("belongs to"), across all account transactions.
+  """
+  transactionBelongsToOptions: [TransactionBelongsToOption!]! @join__field(graph: BANKING)
+
+  """Distinct tags used in transactions for the authenticated account."""
+  transactionTags: [TransactionTagOption!]! @join__field(graph: BANKING)
+
+  """
+  Transactions for a single financial account or all accounts belonging to the authenticated account.
+  Results are filtered by month/year and paginated using Relay-style cursors.
+  When month/year are not provided (and billId is null), the current month/year are used by the backend.
+  When billId is provided, it takes precedence over month/year and filters by bill only (used for card bill mode).
+  """
+  transactions(
+    financialAccountId: ID
+    belongsToUserId: ID
+    belongsToName: String
+
+    """
+    Text search over transaction descriptions with full-text and partial substring matching.
+    """
+    search: String
+    tags: [String!]
+    billId: ID
+
+    """Return only transactions in this category or its subcategories."""
+    categoryId: ID
+
+    """If true, return only transactions with no category."""
+    uncategorized: Boolean
+
+    """Filter by credit/debit direction (CREDIT = income, DEBIT = expense)."""
+    creditDebitType: CreditDebitType
+
+    """Filter to one or more transaction types (e.g. SALARY, TRANSFER)."""
+    types: [TransactionType!]
+    month: Int
+    year: Int
+    first: Int
+    after: String
+  ): TransactionConnection! @join__field(graph: BANKING)
+
+  """
+  Recurring payment templates for one account or all tenant accounts when omitted.
+  """
+  recurringPayments(financialAccountId: ID): [RecurringPayment!]! @join__field(graph: BANKING)
+  recurringPayment(id: ID!): RecurringPayment @join__field(graph: BANKING)
+  suggestRecurringForTransaction(transactionId: ID!): RecurringPayment @join__field(graph: BANKING)
+  transactionImports(financialAccountId: ID): [TransactionImport!]! @join__field(graph: BANKING)
+  transactionImport(id: ID!): TransactionImport @join__field(graph: BANKING)
+  pendingReviewImports(financialAccountId: ID): [TransactionImport!]! @join__field(graph: BANKING)
+  billImportJob(jobId: ID!): BillImportJob @join__field(graph: BANKING)
+  billImportJobs(financialAccountId: ID): [BillImportJob!]! @join__field(graph: BANKING)
+
+  """
+  All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
+  ordered by closing date descending.
+  """
+  creditCardBills(financialAccountId: ID!): [CreditCardBill!]! @join__field(graph: BANKING)
+
+  """
+  A specific credit card bill by closing date.
+  When closingDate is omitted, returns the current open bill (or most recent if no open bill exists).
+  """
+  creditCardBill(financialAccountId: ID!, closingDate: Date): CreditCardBill @join__field(graph: BANKING)
+
+  """
+  Open holdings for investment/brokerage accounts.
+  When financialAccountId is provided, returns holdings for that account only.
+  When omitted, returns consolidated holdings across all accounts for the tenant.
+  Zero-quantity (closed) positions are always excluded.
+  """
+  investmentHoldings(financialAccountId: ID, assetClass: InvestmentHoldingAssetClass): [InvestmentHolding!]! @join__field(graph: BANKING)
+
+  """
+  Ledger cash balance on investment custodian account(s): SUM(CREDIT) − SUM(DEBIT) for POSTED/PENDING rows.
+  When financialAccountId is omitted, aggregates all INVESTMENT and BENEFIT accounts for the tenant.
+  """
+  investmentCashBalance(financialAccountId: ID): Float! @join__field(graph: BANKING)
+
+  """
+  Investment portfolio summary for one investment account or the consolidated view.
+  """
+  investmentPortfolioSummary(financialAccountId: ID, period: PerformancePeriod): InvestmentPortfolioSummary! @join__field(graph: BANKING)
+
+  """
+  Debug view of the TWR calculation pipeline for a given account and period.
+  """
+  portfolioTwrDebug(financialAccountId: ID, period: PerformancePeriod): PortfolioTwrDebug! @join__field(graph: BANKING)
+
+  """
+  Paginated ledger rows that affect investment custodian cash (TRANSFER, INVESTMENT_RETURN, BALANCE_ADJUSTMENT).
+  Keyset cursor on (date, id), ordered by date DESC then id DESC.
+  When financialAccountId is omitted, includes all INVESTMENT and BENEFIT accounts for the tenant.
+  """
+  investmentCashTransactions(financialAccountId: ID, first: Int, after: String): TransactionConnection! @join__field(graph: BANKING)
+
+  """Single holding by id."""
+  investmentHolding(id: ID!): InvestmentHolding @join__field(graph: BANKING)
+
+  """Full event history for a holding, ordered by tradeDate DESC."""
+  investmentTransactions(holdingId: ID!): [InvestmentTransaction!]! @join__field(graph: BANKING)
+
+  """Single investment transaction by id."""
+  investmentTransaction(id: ID!): InvestmentTransaction @join__field(graph: BANKING)
+
+  """Look up an asset from the global catalog."""
+  investmentAsset(id: ID!): InvestmentAsset @join__field(graph: BANKING)
+
+  """Generic performance series and valuation summary for a holding."""
+  holdingPerformance(holdingId: ID!, resolution: HoldingPerformanceResolution, fromDate: Date, toDate: Date, includeProjection: Boolean): HoldingPerformance @join__field(graph: BANKING)
+
+  """
+  Aggregated performance series for the authenticated account's portfolio.
+  When [groupKey] is null, aggregates all holdings; when provided, aggregates
+  only holdings whose asset type maps to that group (see AssetGroupSummary.groupKey).
+  When [financialAccountId] is set, only holdings on that custodian financial account
+  are included (same scope as investmentHoldings with the same argument). Omitted means all custodian accounts.
+  """
+  portfolioPerformance(
+    """
+    When set, restrict series to this custodian financial account (tenant-scoped).
+    """
+    financialAccountId: ID
+    groupKey: String
+
+    """
+    Canonical subgroup for grid slices (e.g. perfStocks, perfReits, perfCrypto, perfOptions).
+    """
+    subgroupKey: String
+
+    """
+    Explicit asset type filter. When provided, narrows holdings to this exact set.
+    """
+    assetTypes: [AssetType!]
+    resolution: HoldingPerformanceResolution
+    includeProjection: Boolean
+  ): PortfolioPerformanceSeries @join__field(graph: BANKING)
+
+  """
+  TWR quota time series for a grid card class (cash, fixed-income, funds, stocks, reits, crypto).
+  Returns one point per recorded day, ascending. Returns empty list if no data is available.
+  """
+  gridClassTwrSeries(
+    """
+    When set, restrict series to this custodian financial account (tenant-scoped).
+    """
+    financialAccountId: ID
+    gridClassKey: String!
+
+    """Lookback window. Defaults to ONE_YEAR when omitted."""
+    period: GridClassTwrPeriod
+  ): [GridClassTwrPoint!]! @join__field(graph: BANKING)
+
+  """Annualized IRR and total return summary for a holding."""
+  investmentHoldingPerformance(holdingId: ID!): InvestmentHoldingPerformance @join__field(graph: BANKING)
+
+  """
+  Pending items for the authenticated account (e.g. matured fixed income awaiting confirmation).
+  """
+  pendingActions(status: PendingActionStatus): [AccountPendingAction!]! @join__field(graph: BANKING)
+
+  """Product catalog for the authenticated account."""
+  products(search: String, category: String): [Product!]! @join__field(graph: BANKING)
+  product(id: ID!): Product @join__field(graph: BANKING)
+  productVariants(search: String, productId: ID, limit: Int): [ProductVariant!]! @join__field(graph: BANKING)
+  purchaseItems(transactionId: ID!): [PurchaseItem!]! @join__field(graph: BANKING)
+  nfceDocument(transactionId: ID!): NfceDocument @join__field(graph: BANKING)
+  unmappedItems(limit: Int): [UnmappedItemGroup!]! @join__field(graph: BANKING)
+  productPriceHistory(productId: ID!, variantId: ID, startDate: Date, endDate: Date): [PricePoint!]! @join__field(graph: BANKING)
+  productConsumptionTrend(productId: ID!, periodMonths: Int = 6): ConsumptionTrend! @join__field(graph: BANKING)
+  productStoreComparison(productId: ID!, startDate: Date, endDate: Date): [StorePriceComparison!]! @join__field(graph: BANKING)
+  spendingByNcm(depth: Int = 4, startDate: Date, endDate: Date): [NcmSpending!]! @join__field(graph: BANKING)
   searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutionSlugs(anoMes: String, first: Int, after: String): BacenInstitutionSlugConnection! @join__field(graph: FINANCIALDATA)
   bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution @join__field(graph: FINANCIALDATA)
   ratingIssuers: [RatingIssuer!]! @join__field(graph: FINANCIALDATA)
   economicIndicators(label: String): [EconomicIndicator!]! @join__field(graph: FINANCIALDATA)
+  indicatorsLatest: [EconomicIndicatorLatestItem!]! @join__field(graph: FINANCIALDATA)
   fixedIncomeComparison(input: FixedIncomeComparisonInput!): FixedIncomeComparisonResult! @join__field(graph: FINANCIALDATA)
   popularInstitutions(anoMes: String): [PopularInstitution!]! @join__field(graph: FINANCIALDATA)
+  searchInvestmentFundsAutocomplete(query: String!): InvestmentFundAutocompleteConnection! @join__field(graph: FINANCIALDATA)
+  investmentFunds(query: String, assetType: InvestmentFundAssetType, isActive: Boolean, first: Int, after: String): InvestmentFundConnection! @join__field(graph: FINANCIALDATA)
+  investmentFund(id: ID!): InvestmentFund @join__field(graph: FINANCIALDATA)
+  investmentFundMarketSnapshots(cnpjs: [String!]!): [InvestmentFundMarketSnapshot!]! @join__field(graph: FINANCIALDATA)
+  fundNavSeries(cnpj: String!, from: Date!, to: Date!): [FundDailyNav!]! @join__field(graph: FINANCIALDATA)
+  fundDailyNavs(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, cnpjs: [String!]): FundDailyNavConnection! @join__field(graph: FINANCIALDATA)
+  searchInvestmentAssetsAutocomplete(query: String!, assetType: B3AssetType): ListedAssetAutocompleteConnection! @join__field(graph: FINANCIALDATA)
+  investmentAssets(query: String, assetType: B3AssetType, isActive: Boolean, first: Int, after: String): ListedAssetConnection! @join__field(graph: FINANCIALDATA)
+  investmentAssetByTicker(ticker: String!): ListedAsset @join__field(graph: FINANCIALDATA)
+  investmentAssetsByTickers(tickers: [String!]!): [ListedAsset!]! @join__field(graph: FINANCIALDATA)
+  listedAssetDailyPrices(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, tickers: [String!]): ListedAssetDailyPriceConnection! @join__field(graph: FINANCIALDATA)
+  economicIndicatorVariationPoints(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, indicators: [String!], variations: [String!]): EconomicIndicatorPointConnection! @join__field(graph: FINANCIALDATA)
+  assetCorporateEvents(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, tickers: [String!], isins: [String!]): AssetCorporateEventConnection! @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   myVerificationStatus: VerificationStatus @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
+  isUserActiveMemberOfAccount(userId: ID!, accountId: ID!): Boolean! @join__field(graph: SECURITY)
+
+  """Current user's preferences (defaults when no row exists)."""
+  userPreferences: UserPreferences! @join__field(graph: SECURITY)
+  myAccounts: [Account!]! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
   users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection! @join__field(graph: SECURITY)
   group(id: ID!): Group @join__field(graph: SECURITY)
@@ -1092,6 +3825,106 @@ type RatingIssuer
   name: String!
   website: String
   logoAssetId: String
+}
+
+type RecalculationStatus
+  @join__type(graph: BANKING)
+{
+  isCalculating: Boolean!
+  jobId: UUID
+  startedAt: DateTime
+
+  """
+  Machine-readable error code for i18n when the latest job failed (errors.* keys).
+  """
+  errorCode: String
+
+  """
+  Fallback human-readable status; prefer translating errorCode on the client when present.
+  """
+  message: String
+
+  """
+  Root-cause detail for support/debugging (exception class + message). Not intended for end-user display.
+  """
+  errorDetails: String
+}
+
+"""
+Records a new investment transaction and updates the corresponding holding.
+The holding is resolved from (financialAccountId, assetId) — created if this is the first transaction.
+RF-specific terms (indexer, maturityDate, etc.) are only used when creating a brand-new holding.
+"""
+input RecordInvestmentTransactionInput
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID!
+  assetId: ID!
+  direction: InvestmentTransactionDirection!
+  type: InvestmentTransactionType!
+
+  """Required when type = OTHER."""
+  typeAdditionalInfo: String
+  quantity: Float
+  unitPrice: Float
+  grossValue: Float!
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  indexerPercentage: Float
+  fixedAnnualRate: Float
+  priceFactor: Float
+  tradeDate: Date!
+  settlementDate: Date
+  brokerNote: BrokerNoteInput
+  indexer: Indexer
+  issueDate: Date
+  maturityDate: Date
+  gracePeriodDate: Date
+  isTaxExempt: Boolean
+  couponFrequency: CouponFrequency
+  couponDayOfMonth: Int
+  providerInvestmentId: String
+  pricingMode: HoldingPricingMode
+  manualValuation: ManualFundValuationInput
+}
+
+enum RecurringFrequency
+  @join__type(graph: BANKING)
+{
+  MONTHLY @join__enumValue(graph: BANKING)
+  WEEKLY @join__enumValue(graph: BANKING)
+  YEARLY @join__enumValue(graph: BANKING)
+  CUSTOM @join__enumValue(graph: BANKING)
+}
+
+type RecurringPayment
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  financialAccountId: ID
+  name: String!
+  creditDebitType: CreditDebitType!
+  type: TransactionType
+  expectedAmount: Float
+  currencyCode: String!
+  frequency: RecurringFrequency!
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int!
+  status: RecurringPaymentStatus!
+  nextDueDate: Date!
+  lastPaidDate: Date
+  notes: String
+  category: TransactionCategory
+  merchant: Merchant
+}
+
+enum RecurringPaymentStatus
+  @join__type(graph: BANKING)
+{
+  ACTIVE @join__enumValue(graph: BANKING)
+  PAUSED @join__enumValue(graph: BANKING)
 }
 
 input RefreshAccessTokenInput
@@ -1183,6 +4016,14 @@ type ResetPasswordPayload
   message: String!
 }
 
+input ResolveImportDuplicateInput
+  @join__type(graph: BANKING)
+{
+  jobId: ID!
+  rowIndex: Int!
+  resolution: DuplicateResolution!
+}
+
 type Role
   @join__type(graph: SECURITY, key: "id")
 {
@@ -1220,6 +4061,14 @@ enum RoleOrderField
   @join__type(graph: SECURITY)
 {
   NAME @join__enumValue(graph: SECURITY)
+}
+
+enum RuleApplicationMode
+  @join__type(graph: BANKING)
+{
+  NEVER @join__enumValue(graph: BANKING)
+  ALWAYS @join__enumValue(graph: BANKING)
+  ALWAYS_PROMPT @join__enumValue(graph: BANKING)
 }
 
 input SetBudgetInput
@@ -1274,10 +4123,66 @@ type SignUpPayload
   requiresVerification: Boolean!
 }
 
+type SimilarTransactionEditPreview
+  @join__type(graph: BANKING)
+{
+  similarCount: Int!
+  matchDescription: String!
+  supportsFuturePropagation: Boolean!
+}
+
+type SimilarTransactionEditResult
+  @join__type(graph: BANKING)
+{
+  affectedCount: Int!
+  futureRuleCreated: Boolean!
+}
+
+type StorePriceComparison
+  @join__type(graph: BANKING)
+{
+  storeName: String
+  municipality: String
+  state: String
+  averageUnitPrice: Float
+  purchaseCount: Int!
+  lastPurchaseDate: Date
+}
+
+input SubmitBillImportInput
+  @join__type(graph: BANKING)
+{
+  importType: ImportType!
+  financialAccountId: ID
+  fileName: String!
+  fileBase64: String!
+  password: String
+}
+
 type Subscription
   @join__type(graph: ASSISTANT)
 {
   messageStream(conversationId: ID!, input: MessageInput!): CompletionChunk!
+}
+
+"""Tag total for a period. Percentage of grouped tag total."""
+type TagTotal
+  @join__type(graph: BANKING)
+{
+  tag: String!
+  totalAmount: Float!
+  transactionCount: Int!
+
+  """Percentage of the grouped tag total (0–100)."""
+  percentage: Float!
+}
+
+enum Theme
+  @join__type(graph: SECURITY)
+{
+  LIGHT @join__enumValue(graph: SECURITY)
+  DARK @join__enumValue(graph: SECURITY)
+  SYSTEM @join__enumValue(graph: SECURITY)
 }
 
 type TokenUsage
@@ -1330,6 +4235,414 @@ enum TopInstitutionMetric
   MOBILIZATION_INDEX @join__enumValue(graph: FINANCIALDATA)
 }
 
+"""A top-merchant analytics row."""
+type TopMerchant
+  @join__type(graph: BANKING)
+{
+  merchant: Merchant!
+  transactionCount: Int!
+  totalAmount: Float!
+  lastUsedAt: Date!
+}
+
+"""Core ledger transaction row."""
+type Transaction
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  financialAccountId: ID!
+  belongsToUserId: ID
+  belongsToName: String
+  creditDebitType: CreditDebitType!
+  type: TransactionType!
+  status: TransactionStatus!
+  source: TransactionSource!
+  hasNfceDocument: Boolean!
+  amount: Float!
+  currencyCode: String!
+
+  """BRL equivalent for FX transactions (null for BRL)."""
+  amountBrl: Float
+  date: Date!
+
+  """
+  Exact date-time of the transaction when provided (e.g. by Open Finance). Null when only date is known.
+  """
+  transactionDatetime: DateTime
+  description: String!
+  notes: String
+  tags: [String!]!
+  category: TransactionCategory
+
+  """How the category was assigned. Null when uncategorized."""
+  categorySource: CategorySource
+  merchant: Merchant
+  counterpartyName: String
+  counterpartyDocument: String
+  counterpartyBankCode: String
+  counterpartyAccountNumber: String
+  paymentReason: String
+  transferPeerTransactionId: ID
+
+  """Set when this row is the cash leg linked to an investment transaction."""
+  investmentTransactionId: ID
+
+  """Optional link to a recurring payment template."""
+  recurringPaymentId: ID
+
+  """
+  When [investmentTransactionId] is set, the underlying instrument for that event.
+  Same shape as [InvestmentHolding.asset] (e.g. for cash-movement UI without N+1 client resolution).
+  """
+  linkedInvestmentAsset: InvestmentAsset
+  installmentNumber: Int
+  totalInstallments: Int
+  billId: ID
+  cardIdentifier: String
+  payeeMcc: Int
+  billPostDate: Date
+
+  """
+  Distinct rule IDs that have been applied at least once to this transaction.
+  """
+  appliedRuleIds: [ID!]!
+
+  """Audit history of rule applications for this transaction."""
+  appliedRuleHistory: [AppliedRuleHistoryEntry!]!
+  attachments: [TransactionAttachment!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+A file attached to a Transaction (receipt, contract, product guarantee, etc.).
+The file is stored privately in the assets service.
+Max 3 attachments per transaction. Supported formats: image, plain text, Excel, CSV, PDF.
+"""
+type TransactionAttachment
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  transactionId: ID!
+  assetId: ID!
+
+  """Original filename as uploaded by the user."""
+  filename: String
+
+  """MIME type of the file (e.g. application/pdf, image/png)."""
+  mimeType: String
+
+  """File size in bytes."""
+  sizeBytes: Int
+
+  """
+  Pre-signed download URL (valid for 1 hour). Null if the asset is not yet ready.
+  """
+  downloadUrl: String
+  createdAt: DateTime!
+}
+
+"""
+Distinct attribution option (user or name tag) used by transactions in the account.
+Exactly one field is expected to be non-null.
+"""
+type TransactionBelongsToOption
+  @join__type(graph: BANKING)
+{
+  belongsToUserId: ID
+  belongsToName: String
+}
+
+"""Category for classifying transactions (system + user-defined)."""
+type TransactionCategory
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  parentId: ID
+  name: String!
+  applicableTo: CategoryApplicableTo!
+  icon: String
+  color: String
+  isSystem: Boolean!
+  sortOrder: Int!
+}
+
+"""Relay connection for paginated transactions."""
+type TransactionConnection
+  @join__type(graph: BANKING)
+{
+  edges: [TransactionEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+"""Edge in a TransactionConnection."""
+type TransactionEdge
+  @join__type(graph: BANKING)
+{
+  node: Transaction!
+  cursor: String!
+}
+
+type TransactionImport
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  financialAccountId: ID!
+  source: ImportSource!
+  fileName: String
+  status: ImportStatus!
+  totalRows: Int
+  importedCount: Int
+  skippedCount: Int
+  duplicateReviewCount: Int
+  errorCount: Int
+  errorDetails: String
+  duplicateCandidates: [ImportDuplicateCandidate!]!
+  dateFrom: Date
+  dateTo: Date
+  completedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+Auto-assignment rule that maps a description pattern to a category and/or merchant.
+Explicit or implicit.
+"""
+type TransactionRule
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  categoryId: ID
+  category: TransactionCategory
+  merchantId: ID
+  merchant: Merchant
+  descriptionOverride: String
+  tagsOverride: [String!]
+  pattern: String!
+  patternType: PatternType!
+  applicableTo: CategoryApplicableTo!
+  priority: Int!
+  isSystem: Boolean!
+  isDisabledForAccount: Boolean!
+  isImplicit: Boolean!
+  matchCount: Int!
+
+  """
+  1-based evaluation order position (same order used by the rule engine).
+  """
+  position: Int!
+  createdAt: DateTime!
+}
+
+"""Relay connection for paginated transaction rules."""
+type TransactionRuleConnection
+  @join__type(graph: BANKING)
+{
+  edges: [TransactionRuleEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+"""Edge in a TransactionRuleConnection."""
+type TransactionRuleEdge
+  @join__type(graph: BANKING)
+{
+  node: TransactionRule!
+  cursor: String!
+}
+
+"""How the transaction entered the system."""
+enum TransactionSource
+  @join__type(graph: BANKING)
+{
+  MANUAL @join__enumValue(graph: BANKING)
+  OPEN_FINANCE @join__enumValue(graph: BANKING)
+  OFX @join__enumValue(graph: BANKING)
+  CSV @join__enumValue(graph: BANKING)
+  PDF @join__enumValue(graph: BANKING)
+  NFC_E @join__enumValue(graph: BANKING)
+  RECEIPT_OCR @join__enumValue(graph: BANKING)
+
+  """ @deprecated — legacy values kept for backward compatibility """
+  PLUGGY @join__enumValue(graph: BANKING)
+  PDF_BILL @join__enumValue(graph: BANKING)
+}
+
+"""
+Lifecycle status of a transaction.
+FUTURE = manually scheduled; excluded from current balance but included in projected balance.
+"""
+enum TransactionStatus
+  @join__type(graph: BANKING)
+{
+  POSTED @join__enumValue(graph: BANKING)
+  PENDING @join__enumValue(graph: BANKING)
+  FUTURE @join__enumValue(graph: BANKING)
+}
+
+"""
+Distinct tag already used in transactions for the authenticated account.
+"""
+type TransactionTagOption
+  @join__type(graph: BANKING)
+{
+  tag: String!
+}
+
+"""
+Transaction type (OFB-aligned).
+BALANCE_ADJUSTMENT is neutral — used for opening balance and reconciliation.
+"""
+enum TransactionType
+  @join__type(graph: BANKING)
+{
+  PIX @join__enumValue(graph: BANKING)
+  TED @join__enumValue(graph: BANKING)
+  DOC @join__enumValue(graph: BANKING)
+  BOLETO @join__enumValue(graph: BANKING)
+  TRANSFER @join__enumValue(graph: BANKING)
+  BILL_PAYMENT @join__enumValue(graph: BANKING)
+  SALARY @join__enumValue(graph: BANKING)
+  DEPOSIT @join__enumValue(graph: BANKING)
+  CASHBACK @join__enumValue(graph: BANKING)
+  INVESTMENT_RETURN @join__enumValue(graph: BANKING)
+  OTHER_INCOME @join__enumValue(graph: BANKING)
+  CARD @join__enumValue(graph: BANKING)
+  WITHDRAWAL @join__enumValue(graph: BANKING)
+  FEE @join__enumValue(graph: BANKING)
+  INTEREST @join__enumValue(graph: BANKING)
+  LOAN_PAYMENT @join__enumValue(graph: BANKING)
+  TAX @join__enumValue(graph: BANKING)
+  OTHER_EXPENSE @join__enumValue(graph: BANKING)
+  BALANCE_ADJUSTMENT @join__enumValue(graph: BANKING)
+}
+
+input TransferCustodyInput
+  @join__type(graph: BANKING)
+{
+  sourceHoldingId: ID!
+  destinationFinancialAccountId: ID!
+
+  """Quantidade a transferir. Se omitido, transfere a posição completa."""
+  quantity: Float
+  tradeDate: Date!
+}
+
+type TransferCustodyResult
+  @join__type(graph: BANKING)
+{
+  outflowTransaction: InvestmentTransaction!
+  inflowTransaction: InvestmentTransaction!
+}
+
+"""
+One step in the TWR chain, corresponding to a quota point after the first.
+"""
+type TwrDailyStep
+  @join__type(graph: BANKING)
+{
+  date: Date!
+  previousValue: Float!
+  currentValue: Float!
+
+  """Sum of canonical net flows on this date (0 if none)."""
+  netFlow: Float!
+
+  """(currentValue - previousValue - netFlow) / previousValue"""
+  dailyReturn: Float!
+
+  """
+  Running product: factor_t = factor_(t-1) * (1 + dailyReturn_t). Starts at 1.0.
+  """
+  cumulativeFactor: Float!
+}
+
+"""
+One flow event considered by the TWR engine for this account and period.
+"""
+type TwrFlowEvent
+  @join__type(graph: BANKING)
+{
+  date: Date!
+
+  """DEPOSIT | WITHDRAWAL | DIVIDEND | INCOME_TAX | CORPORATE_ACTION"""
+  eventType: String!
+  grossAmount: Float!
+
+  """
+  Signed net amount used in the TWR formula: positive = inflow, negative = outflow.
+  """
+  canonicalNetFlow: Float!
+}
+
+"""One row in the portfolio quota series fed into the TWR engine."""
+type TwrQuotaPoint
+  @join__type(graph: BANKING)
+{
+  date: Date!
+
+  """
+  Total portfolio value on this date (sum of all holdings mark-to-market).
+  """
+  totalValue: Float!
+}
+
+type UnmappedItemGroup
+  @join__type(graph: BANKING)
+{
+  rawDescription: String!
+  count: Int!
+  suggestedVariant: ProductVariant
+  confidence: Float
+  sampleItems: [PurchaseItem!]!
+}
+
+input UpdateAccountInput
+  @join__type(graph: SECURITY)
+{
+  accountName: String!
+}
+
+input UpdateAccountPreferencesInput
+  @join__type(graph: BANKING)
+{
+  defaultTransactionStatus: TransactionStatus
+}
+
+input UpdateBankingUserPreferencesInput
+  @join__type(graph: BANKING)
+{
+  ruleApplicationMode: RuleApplicationMode
+}
+
+input UpdateCategoryInput
+  @join__type(graph: BANKING)
+{
+  name: String
+  icon: String
+  color: String
+  sortOrder: Int
+}
+
+input UpdateFinancialAccountInput
+  @join__type(graph: BANKING)
+{
+  type: FinancialAccountType!
+  subtype: FinancialAccountSubtype!
+  name: String
+  issuerId: ID
+  issuerName: String
+  themeColor: String
+  currencyCode: String
+  includeInNetWorth: Boolean
+  includeInDashboard: Boolean
+  includeCashInAllocation: Boolean
+  bankData: BankAccountDataInput
+  cardData: CardDataInput
+}
+
 input UpdateGroupInput
   @join__type(graph: SECURITY)
 {
@@ -1338,16 +4651,161 @@ input UpdateGroupInput
   userIds: [ID!]
 }
 
+input UpdateInvestmentAssetInput
+  @join__type(graph: BANKING)
+{
+  name: String!
+  assetType: AssetType!
+  issuerName: String
+  fundCnpj: String
+  ticker: String
+  isinCode: String
+  currencyCode: String
+}
+
+input UpdateInvestmentCashTransactionInput
+  @join__type(graph: BANKING)
+{
+  amount: Float!
+  date: Date!
+  description: String
+}
+
+input UpdateInvestmentTransactionInput
+  @join__type(graph: BANKING)
+{
+  direction: InvestmentTransactionDirection!
+  type: InvestmentTransactionType!
+
+  """Required when type = OTHER."""
+  typeAdditionalInfo: String
+  quantity: Float
+  unitPrice: Float
+  grossValue: Float!
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  indexerPercentage: Float
+  fixedAnnualRate: Float
+  priceFactor: Float
+  tradeDate: Date!
+  settlementDate: Date
+  brokerNote: BrokerNoteInput
+  indexer: Indexer
+  issueDate: Date
+  maturityDate: Date
+  gracePeriodDate: Date
+  isTaxExempt: Boolean
+  couponFrequency: CouponFrequency
+  couponDayOfMonth: Int
+  pricingMode: HoldingPricingMode
+  manualValuation: ManualFundValuationInput
+}
+
+input UpdateProductInput
+  @join__type(graph: BANKING)
+{
+  name: String
+  ncmCode: String
+  defaultUnit: String
+  category: String
+}
+
+input UpdateProductVariantInput
+  @join__type(graph: BANKING)
+{
+  productId: ID
+  name: String
+  brand: String
+  ean: String
+  quantityValue: Float
+  quantityUnit: String
+  normalizedQuantityValue: Float
+  normalizedQuantityUnit: String
+}
+
+input UpdateRecurringPaymentInput
+  @join__type(graph: BANKING)
+{
+  name: String
+  expectedAmount: Float
+  categoryId: ID
+  merchantId: ID
+  frequency: RecurringFrequency
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int
+  nextDueDate: Date
+  notes: String
+}
+
 input UpdateRoleInput
   @join__type(graph: SECURITY)
 {
   name: String!
 }
 
+"""
+Input for updating an existing manual transaction.
+All fields are optional and only provided fields are updated.
+"""
+input UpdateTransactionInput
+  @join__type(graph: BANKING)
+{
+  creditDebitType: CreditDebitType
+  type: TransactionType
+  amount: Float
+  date: Date
+  description: String
+  status: TransactionStatus
+  notes: String
+  tags: [String!]
+  categoryId: ID
+  merchantId: ID
+  belongsToUserId: ID
+  belongsToName: String
+  counterpartyName: String
+  counterpartyDocument: String
+  counterpartyBankCode: String
+  counterpartyAccountNumber: String
+  paymentReason: String
+  cardIdentifier: String
+  payeeMcc: Int
+}
+
+input UpdateTransactionRuleInput
+  @join__type(graph: BANKING)
+{
+  categoryId: ID
+  merchantId: ID
+  descriptionOverride: String
+  tagsOverride: [String!]
+  applicableTo: CategoryApplicableTo
+  pattern: String
+  patternType: PatternType
+  priority: Int
+}
+
+input UpdateUserAvatarInput
+  @join__type(graph: SECURITY)
+{
+  avatarUrl: String!
+}
+
 input UpdateUserInput
   @join__type(graph: SECURITY)
 {
   displayName: String
+}
+
+input UpdateUserPreferencesInput
+  @join__type(graph: SECURITY)
+{
+  language: Language
+  theme: Theme
+  blurBalances: Boolean
+  firstDayOfWeek: Int
+  keepMeConnected: Boolean
 }
 
 type UsageBudget
@@ -1394,6 +4852,7 @@ type User
   email: String!
   displayName: String
   avatarUrl: String
+  avatarProvider: String
   enabled: Boolean!
   emailVerified: Boolean!
   emailVerifiedAt: String
@@ -1433,12 +4892,55 @@ enum UserOrderField
   EMAIL @join__enumValue(graph: SECURITY)
 }
 
+type UserPreferences
+  @join__type(graph: SECURITY)
+{
+  language: Language!
+  theme: Theme!
+  blurBalances: Boolean!
+  firstDayOfWeek: Int!
+  keepMeConnected: Boolean!
+}
+
 scalar UUID
   @join__type(graph: ASSETS)
   @join__type(graph: ASSISTANT)
   @join__type(graph: BANKING)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
+
+"""Indicates the origin and reliability of a holding's current value."""
+enum ValuationSource
+  @join__type(graph: BANKING)
+{
+  """
+  Value provided by the data provider (Open Finance / file import). Authoritative.
+  """
+  PROVIDER @join__enumValue(graph: BANKING)
+
+  """
+  Value provided by the app's internal market-data services (e.g. CVM NAV).
+  """
+  MARKET_DATA @join__enumValue(graph: BANKING)
+
+  """Value entered by the user for a manual fund holding."""
+  MANUAL @join__enumValue(graph: BANKING)
+
+  """
+  Value computed from the contracted rate with no external variables (PRE_FIXADO only). Exact.
+  """
+  CALCULATED @join__enumValue(graph: BANKING)
+
+  """
+  Value projected using latest economic indicators (CDI, IPCA, etc.). Approximate.
+  """
+  ESTIMATED @join__enumValue(graph: BANKING)
+
+  """
+  Value cannot be determined (unsupported indexer, missing data, or no issueDate).
+  """
+  UNAVAILABLE @join__enumValue(graph: BANKING)
+}
 
 type VerificationStatus
   @join__type(graph: SECURITY)
@@ -1458,4 +4960,11 @@ type VerifyEmailPayload
   user: User
   message: String
   attemptsRemaining: Int
+}
+
+type YearMonth
+  @join__type(graph: BANKING)
+{
+  year: Int!
+  month: Int!
 }

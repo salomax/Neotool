@@ -1,10 +1,2239 @@
 {
   "title": "Finanças pessoais",
+  "investments": {
+    "sidebar": {
+      "allBrokers": "Todas as Corretoras",
+      "consolidatedView": "Visão consolidada",
+      "summaryTitle": "Visão consolidada",
+      "totalLabel": "Total da Carteira",
+      "metrics": {
+        "contributions": "Aportes",
+        "returns": "Rentabilidade"
+      },
+      "allocation": "ALOCAÇÃO"
+    },
+    "emptyState": {
+      "title": "Sua carteira de investimentos está vazia",
+      "description": "Comece a organizar seus ativos para ter uma visão completa da sua rentabilidade e evolução patrimonial. Acompanhe ações, fundos, tesouro e muito mais em um só lugar.",
+      "primaryAction": "Criar conta de investimento",
+      "secondaryAction": "Registrar primeiro ativo"
+    },
+    "trackableAssets": {
+      "title": "Ativos que você pode acompanhar",
+      "crypto": "Cripto",
+      "reits": "FIIs",
+      "stocks": "Ações",
+      "fixedIncome": "Renda Fixa",
+      "funds": "Fundos"
+    },
+    "actions": {
+      "recordHolding": "Investimento",
+      "recordFund": "Novo fundo",
+      "recordEquity": "Nova Ação, FII ou opção"
+    },
+    "import": {
+      "pageButton": "Importar posições (B3)",
+      "drawer": {
+        "titleUpload": "Importar posições (B3)",
+        "titlePreview": "Revisar posições",
+        "titleResult": "Importação concluída",
+        "titleError": "Erro na importação",
+        "uploadHint": "Arraste ou selecione o arquivo .xlsx exportado da B3.",
+        "dragDrop": "Arraste o arquivo .xlsx ou clique para selecionar",
+        "dragDropSubtitle": "Somente arquivos .xlsx, até 10 MB",
+        "submitUpload": "Enviar arquivo",
+        "submittingUpload": "Enviando...",
+        "onlyXlsx": "Formato não suportado. Envie um arquivo .xlsx exportado da B3.",
+        "maxSize": "Arquivo muito grande. Limite: 10 MB.",
+        "genericError": "Não foi possível concluir a importação.",
+        "retry": "Tentar novamente",
+        "close": "Fechar",
+        "confirming": "Confirmando importação...",
+        "successMessage": "Importação concluída! {{count}} posições importadas com sucesso.",
+        "accountSectionTitle": "Conta de investimento por instituição",
+        "accountAmbiguousHint": "Mais de uma conta possível. Selecione a conta correta.",
+        "columns": {
+          "status": "Status",
+          "product": "Produto",
+          "indexer": "Indexador",
+          "issueDate": "Emissão",
+          "maturityDate": "Vencimento",
+          "principal": "Principal",
+          "skip": "Pular"
+        },
+        "conflictTitle": "Conflito detectado",
+        "conflictQuantity": "Quantidade",
+        "conflictCurrentValue": "Valor atual",
+        "conflictMaturity": "Vencimento",
+        "conflictUpdate": "Atualizar posição",
+        "conflictKeep": "Manter existente",
+        "missingPrincipal": "sem principal",
+        "unresolvedConflicts": "conflitos pendentes",
+        "confirmPositions": "Confirmar {{count}} posições"
+      }
+    },
+    "grid": {
+      "emptyDescription": "Nenhuma posição registrada",
+      "firstInvestmentCta": "+ Investimento",
+      "addMovementCta": "+ Movimento",
+      "movimentar": "Movimentar",
+      "backToGrid": "Voltar para visão em grade",
+      "openClassDetail": "Abrir detalhes de {{title}}",
+      "assetCount_one": "1 Ativo",
+      "assetCount_other": "{{count}} Ativos",
+      "classes": {
+        "cash": "Caixa",
+        "fixedIncome": "Renda Fixa",
+        "funds": "Fundos",
+        "stocks": "Ações",
+        "reits": "FIIs",
+        "crypto": "Cripto"
+      },
+      "actions": {
+        "contributeCash": "Aportar"
+      },
+      "loadError": {
+        "description": "Não foi possível carregar a carteira. Verifique sua conexão e tente novamente."
+      },
+      "tabs": {
+        "ariaLabel": "Classes de investimento",
+        "grid": "Grade"
+      },
+      "recordPopover": {
+        "ariaLabel": "Selecionar o que registrar"
+      }
+    },
+    "transactions": {
+      "buy": "Comprar",
+      "sell": "Vender",
+      "apply": "Aplicar",
+      "redeem": "Resgatar"
+    },
+    "newHoldingFlow": {
+      "selectFundTitle": "Escolher fundo",
+      "selectStockTitle": "Escolher ação",
+      "selectReitTitle": "Escolher FII",
+      "selectCryptoTitle": "Escolher cripto",
+      "selectFundSubtitle": "Busque um fundo na CVM ou informe um fundo não listado; em seguida siga para os dados da operação.",
+      "selectEquitySubtitle": "Busque por ticker ou nome; em seguida siga para os dados da operação.",
+      "selectCryptoSubtitle": "Informe nome, ticker e rede (opcional); em seguida siga para os dados da operação.",
+      "continue": "Continuar",
+      "changeAsset": "Alterar",
+      "identityLabel": "Ativo selecionado",
+      "recentSuggestions": "Últimos selecionados"
+    },
+    "updateHolding": {
+      "direction": {
+        "inflow": "Aportar",
+        "outflow": "Resgatar",
+        "inflowEquity": "Comprar",
+        "outflowEquity": "Vender"
+      },
+      "titles": {
+        "buy": "Comprar {{asset}}",
+        "sell": "Vender {{asset}}",
+        "contribute": "Aportar em {{asset}}",
+        "redeem": "Resgatar de {{asset}}",
+        "edit": "Editar operação — {{asset}}"
+      },
+      "loadingTitle": "Carregando posição",
+      "errorTitle": "Não foi possível abrir a posição",
+      "errorHoldingNotFound": "Posição não encontrada.",
+      "success": "Operação registrada com sucesso.",
+      "successEdit": "Operação atualizada com sucesso.",
+      "contextSection": "Detalhes do ativo",
+      "currentPosition": "Posição atual: {{qty}} {{unit}}",
+      "quantityExceeds": "Quantidade maior que a posição atual de {{qty}} {{unit}}",
+      "submitting": "Salvando...",
+      "saveChanges": "Salvar alterações",
+      "openDetailAriaLabel": "Abrir detalhe da posição",
+      "summary": {
+        "current": "Posição atual",
+        "afterOperation": "Após esta operação",
+        "value": "Valor",
+        "quantity": "Quantidade",
+        "netValue": "Valor líquido"
+      },
+      "units": {
+        "securities": "títulos",
+        "quotas": "cotas",
+        "stocks": "ações",
+        "units": "unidades"
+      },
+      "sections": {
+        "dates": "Datas",
+        "amounts": "Valores",
+        "trade": "Quantidades",
+        "pricing": "Precificação",
+        "taxes": "Impostos e taxas",
+        "purchaseFees": "Taxas de compra",
+        "saleFees": "Taxas da venda"
+      },
+      "context": {
+        "ticker": "Ticker",
+        "currentQuantity": "Quantidade atual",
+        "averageCost": "Custo médio",
+        "indexer": "Indexador",
+        "maturityDate": "Vencimento",
+        "couponFrequency": "Frequência de cupom",
+        "taxExempt": "Tributação",
+        "pricingMode": "Modo de precificação"
+      },
+      "fields": {
+        "tradeDate": "Data da operação",
+        "tradeDateInflow": "Data do aporte",
+        "tradeDateOutflow": "Data do resgate",
+        "tradeDateApply": "Data da aplicação",
+        "settlementDate": "Data de liquidação",
+        "grossValue": "Valor bruto",
+        "grossValueApplied": "Valor aplicado",
+        "grossValueRedeem": "Valor bruto de resgate",
+        "netValue": "Valor líquido",
+        "quantity": "Quantidade",
+        "quantityOf": "Quantidade de {{unit}}",
+        "unitPrice": "Preço unitário",
+        "salePrice": "Preço de venda",
+        "incomeTax": "IR retido",
+        "iof": "IOF",
+        "brokerageFee": "Corretagem",
+        "settlementFee": "Taxas de liquidação",
+        "otherFees": "Outras taxas",
+        "withholdingTax": "IRRF",
+        "valuedAt": "Data de valorização"
+      },
+      "validation": {
+        "tradeDateRequired": "Informe a data da operação",
+        "settlementDateRequired": "Informe a data de liquidação",
+        "grossValueRequired": "Informe o valor bruto",
+        "netValueRequired": "Informe o valor líquido",
+        "unitPriceRequired": "Informe o preço unitário",
+        "quantityRequired": "Informe a quantidade",
+        "integerQuantityRequired": "A quantidade deve ser um número inteiro",
+        "cryptoPrecision": "A quantidade deve ter no máximo 8 casas decimais",
+        "settlementOnOrAfterTrade": "A data de liquidação deve ser igual ou posterior à data da operação.",
+        "settlementNotInFuture": "A data de liquidação não pode ser posterior à data de hoje.",
+        "settlementMaxOneYearFromTrade": "A data de liquidação deve ser no máximo 1 ano após a data da operação."
+      }
+    },
+    "record": {
+      "cash": "Dinheiro em conta"
+    },
+    "summary": {
+      "totalPortfolio": "Patrimônio da carteira",
+      "grossGain": "Ganho acumulado",
+      "totalInvested": "Total investido",
+      "totalContributed": "Total aportado",
+      "cashBalance": "Caixa disponível",
+      "estimated": "estimado",
+      "allocation": "Alocação",
+      "viewAllGroups": "Ver todos os grupos",
+      "performance": {
+        "title": "Performance",
+        "portfolioReturn": "Rendimento",
+        "period": {
+          "MTD": "Este mês",
+          "YTD": "Este ano",
+          "ONE_YEAR": "1 ano",
+          "THREE_YEARS": "3 anos",
+          "ALL": "Desde o início"
+        },
+        "recalculating": "Recalculando histórico de performance...",
+        "recalculatingDetail": "O rendimento e comparativos serão atualizados em alguns instantes."
+      },
+      "drawer": {
+        "title": "Grupos de ativos"
+      },
+      "error": {
+        "title": "Não foi possível calcular o resumo",
+        "description": "Verifique sua conexão e tente novamente.",
+        "retry": "Tentar novamente"
+      }
+    },
+    "cash": {
+      "cardTitle": "Caixa disponível",
+      "cardPreviewCaption": "Movimentações recentes",
+      "cardSecondaryLabel": "Contexto",
+      "viewAll": "Ver movimentações",
+      "negativeBalanceHint": "O saldo de caixa está negativo. Revise lançamentos e ajustes.",
+      "registerAsBalanceAdjustment": "Registrar como ajuste de saldo",
+      "balanceAdjustmentHint": "Ajuste de saldo corrige o caixa atual sem criar uma transferência entre contas. Use movimento normal para aportes e saques que representam entradas ou saídas reais.",
+      "peerAccount": "Conta bancária de origem",
+      "peerAccountNone": "Sem conta vinculada",
+      "peerAccountNoMatch": "Nenhuma conta encontrada",
+      "successPaired": "Transferência registrada nas duas contas",
+      "drawer": {
+        "title": "Dinheiro em conta",
+        "selectAccount": {
+          "description": "Escolha a conta de investimento onde o dinheiro será registrado.",
+          "emptyState": "Nenhuma conta de investimento disponível."
+        }
+      },
+      "movementTypeLabel": "Tipo de movimentação",
+      "adjustmentDirectionLabel": "Direção do ajuste",
+      "type": {
+        "deposit": "Aporte",
+        "withdrawal": "Saque",
+        "adjustment": "Ajuste de saldo"
+      },
+      "adjustmentDirection": {
+        "credit": "Aumentar saldo",
+        "debit": "Reduzir saldo"
+      },
+      "amount": "Valor",
+      "date": "Data",
+      "description": "Descrição",
+      "descriptionAdjustment": "Motivo do ajuste",
+      "validation": {
+        "amountPositive": "Informe um valor maior que zero.",
+        "descriptionRequired": "Descreva o motivo do ajuste.",
+        "descriptionRequiredAdjustment": "Descreva o motivo do ajuste.",
+        "dateNotInFuture": "A data não pode ser futura."
+      },
+      "actions": {
+        "submit": "Salvar",
+        "submitting": "Salvando..."
+      },
+      "success": "Movimentação registrada",
+      "movements": {
+        "columns": {
+          "date": "Data",
+          "description": "Descrição",
+          "kind": "Tipo",
+          "financialAccount": "Corretora",
+          "amount": "Valor"
+        },
+        "kind": {
+          "adjustment": "Ajuste de saldo",
+          "return": "Rendimento / provento",
+          "transferIn": "Entrada (transferência)",
+          "transferOut": "Saída (transferência)"
+        },
+        "empty": "Nenhuma movimentação de caixa ainda.",
+        "loadError": "Não foi possível carregar as movimentações.",
+        "loadMore": "Carregar mais",
+        "linkedToAsset": "Ativo vinculado a esta movimentação",
+        "linkedAssetResolving": "A identificar o ativo…",
+        "linkedAssetUnknown": "Ativo vinculado não identificado.",
+        "detailTitle": "Detalhes da movimentação",
+        "editTitle": "Editar movimentação",
+        "deleteConfirmation": {
+          "title": "Excluir esta movimentação?",
+          "message": "Isso remove o lançamento nesta conta de investimento e a perna de transferência vinculada, se houver. Não é possível desfazer."
+        },
+        "successUpdated": "Movimentação atualizada",
+        "successDeleted": "Movimentação excluída"
+      }
+    },
+    "pendingActions": {
+      "panelTitle": "Ações pendentes",
+      "registerMaturity": "Registrar vencimento",
+      "registerCoupon": "Registrar cupom",
+      "markSeen": "Marcar como visto",
+      "dismiss": "Dispensar",
+      "viewAccount": "Ver conta",
+      "age": {
+        "today": "Hoje",
+        "yesterday": "Ontem",
+        "days": "{{count}} dias"
+      },
+      "types": {
+        "INVESTMENT_MATURED": "Vencimento",
+        "COUPON_PAYMENT_DUE": "Cupom",
+        "RECURRING_PAYMENT_DUE": "Recorrente",
+        "BANK_ACCOUNT_NEGATIVE_BALANCE": "Saldo negativo"
+      },
+      "descriptions": {
+        "investmentMatured": "Investimento vencido — registre o resgate.",
+        "maturityOn": "Venceu em {{date}} — registre o resgate.",
+        "couponDue": "Pagamento de cupom pendente.",
+        "couponOn": "Cupom em {{date}} — registre o recebimento.",
+        "recurringDueOn": "Vence em {{date}}.",
+        "negativeBalance": "A conta ficou com saldo negativo após uma transferência."
+      },
+      "couponDrawer": {
+        "irRateHint": "Alíquota estimada: {{rate}} (tabela regressiva)",
+        "taxExempt": "Isento de IR"
+      },
+      "emptyTitle": "Nenhuma ação pendente",
+      "emptyDescription": "Tudo em dia.",
+      "informational": "Informativo",
+      "maturityDrawer": {
+        "closePositionTitle": "Registrar Resgate",
+        "step1Title": "Confirmar vencimento",
+        "step2Title": "Crédito na conta",
+        "step2Hint": "O valor líquido foi creditado em alguma conta?",
+        "confirmContinue": "Encerrar",
+        "registerCredit": "Registrar crédito",
+        "skipCredit": "Pular",
+        "cancel": "Cancelar",
+        "grossValue": "Valor bruto",
+        "netValue": "Valor líquido",
+        "incomeTax": "IR",
+        "iof": "IOF",
+        "maturityDate": "Data do vencimento",
+        "closeReason": "Motivo do encerramento",
+        "closeReasons": {
+          "Matured": "Vencido",
+          "RedeemedEarly": "Resgatado antecipadamente",
+          "Transferred": "Transferido",
+          "MATURED": "Vencido",
+          "REDEEMED_EARLY": "Resgatado antecipadamente",
+          "TRANSFERRED": "Transferido"
+        },
+        "bankAccount": "Conta bancária",
+        "missingHoldingAccount": "Conta do investimento não encontrada.",
+        "creditNetValueToAccount": "Creditar valor na conta",
+        "creditDestination": "Destino do crédito",
+        "values": "Valores",
+        "creditDate": "Data do crédito",
+        "amountMustBePositive": "O valor precisa ser maior que zero.",
+        "submitClose": "Resgatar",
+        "back": "Voltar"
+      }
+    },
+    "withholdingTax": {
+      "drawerTitle": "Registrar come-cotas",
+      "submit": "Registrar come-cotas",
+      "form": {
+        "tradeDate": "Data do come-cotas",
+        "irValue": "IR retido (R$)",
+        "quotasDeducted": "Cotas resgatadas",
+        "estimatedQuotasHint": "≈ {{value}} cotas serão resgatadas pelo fundo"
+      },
+      "success": "Come-cotas registrado com sucesso",
+      "validation": {
+        "irPositive": "IR deve ser positivo",
+        "quotasPositive": "Cotas deduzidas devem ser positivas",
+        "quotasMax": "Cotas deduzidas não podem exceder a posição atual"
+      }
+    },
+    "amortization": {
+      "drawerTitle": "Registrar amortização",
+      "submit": "Registrar amortização",
+      "success": "Amortização registrada com sucesso",
+      "form": {
+        "tradeDate": "Data do pagamento",
+        "grossValue": "Valor bruto",
+        "netValue": "Valor líquido",
+        "incomeTax": "IR retido",
+        "iof": "IOF",
+        "destinationAccount": "Creditar em conta",
+        "noDestinationAccount": "Não registrar agora"
+      },
+      "validation": {
+        "grossPositive": "Valor bruto deve ser positivo",
+        "netMin": "Valor líquido deve ser >= 0",
+        "netMax": "Valor líquido não pode exceder o valor bruto"
+      }
+    },
+    "stockLending": {
+      "drawerTitle": "Registrar aluguel B3",
+      "submit": "Registrar aluguel",
+      "success": "Aluguel registrado com sucesso",
+      "form": {
+        "tradeDate": "Data do pagamento",
+        "grossValue": "Valor bruto",
+        "netValue": "Valor líquido",
+        "incomeTax": "IR retido",
+        "destinationAccount": "Creditar em conta",
+        "noDestinationAccount": "Não registrar agora"
+      },
+      "validation": {
+        "grossPositive": "Valor bruto deve ser positivo",
+        "netMin": "Valor líquido deve ser >= 0",
+        "netMax": "Valor líquido não pode exceder o valor bruto"
+      }
+    },
+    "transferCustody": {
+      "drawerTitle": "Transferir custódia",
+      "submit": "Transferir",
+      "success": "Transferência registrada com sucesso",
+      "form": {
+        "tradeDate": "Data da transferência",
+        "destinationAccount": "Conta de destino",
+        "noDestinationAccountAvailable": "Nenhuma outra conta disponível",
+        "fullTransferToggle": "Transferir posição completa",
+        "quantity": "Quantidade a transferir",
+        "quantityHint": "Posição atual: {{quantity}} unidades"
+      },
+      "validation": {
+        "destinationRequired": "Selecione a conta de destino",
+        "quantityPositive": "Quantidade deve ser positiva",
+        "quantityMax": "Quantidade excede a posição atual"
+      }
+    },
+    "createAccount": {
+      "title": "Criar conta de investimento",
+      "fields": {
+        "subtypeLabel": "Tipo de conta",
+        "issuerLabel": "Corretora / Instituição",
+        "issuerPlaceholder": "Buscar por nome...",
+        "customIssuerLabel": "Nome da instituição",
+        "accountNameLabel": "Nome da conta",
+        "accountNamePlaceholder": "Ex: Minha Carteira XP"
+      },
+      "subtypes": {
+        "BROKERAGE": "Corretora de Valores",
+        "FIXED_INCOME": "Renda Fixa",
+        "PENSION": "Previdência Privada",
+        "CRYPTO": "Criptomoedas",
+        "FGTS": "FGTS",
+        "INSS": "INSS"
+      },
+      "validation": {
+        "subtypeRequired": "Tipo de conta é obrigatório",
+        "issuerRequired": "Informe a corretora ou nome da instituição"
+      },
+      "actions": {
+        "submit": "Salvar",
+        "submitting": "Salvando...",
+        "cancel": "Cancelar"
+      },
+      "success": "Conta de investimento criada com sucesso"
+    },
+    "assetTypes": {
+      "STOCK": "Ações",
+      "STOCK_RIGHTS": "Direitos e recibos",
+      "BDR": "BDRs",
+      "REAL_ESTATE_FUND": "FIIs",
+      "AGRIBUSINESS_FUND": "FIAGRO",
+      "ETF": "ETFs",
+      "ETF_FIXED_INCOME": "ETF de renda fixa",
+      "ETF_INTERNATIONAL": "ETF internacional",
+      "CDB": "CDB",
+      "RDB": "RDB",
+      "LCI": "LCI",
+      "LCA": "LCA",
+      "LC": "LC",
+      "LF": "LF",
+      "LIG": "LIG",
+      "DEBENTURES": "Debêntures",
+      "CRI": "CRI",
+      "CRA": "CRA",
+      "TREASURY": "Tesouro Direto",
+      "MUTUAL_FUND": "Fundo de investimento",
+      "PGBL": "PGBL",
+      "VGBL": "VGBL",
+      "COE": "COE",
+      "CRYPTO": "Cripto",
+      "OPTION": "Opções",
+      "DERIVATIVES": "Derivativos",
+      "OTHER": "Outros"
+    },
+    "assetGroups": {
+      "fixedIncome": "Renda fixa",
+      "variableIncome": "Renda variável",
+      "mutualFunds": "Fundos de investimento",
+      "pension": "Previdência",
+      "structured": "Estruturados",
+      "others": "Outros"
+    },
+    "table": {
+      "columns": {
+        "asset": "Ativo",
+        "type": "Tipo",
+        "index": "Index",
+        "financialAccount": "Conta financeira",
+        "quantity": "Quantidade",
+        "averagePrice": "Preço médio",
+        "latestPrice": "Último preço",
+        "priceD1": "Preço D+1",
+        "currentValue": "Valor atual",
+        "indexer": "Indexador",
+        "fundQuantity": "Qtd. Cotas",
+        "grossValue": "Valor bruto",
+        "maturityDate": "Vencimento",
+        "gain": "Rentabilidade"
+      },
+      "searchPlaceholder": "Buscar ativos...",
+      "actions": {
+        "clearSearchAriaLabel": "Limpar busca"
+      },
+      "cashInAccount": "Caixa na conta",
+      "noMatches": "Nenhum ativo corresponde à sua busca.",
+      "valuationTooltip": {
+        "CALCULATED": "Valor calculado com base em indicadores e regras de renda fixa.",
+        "ESTIMATED": "Valor estimado. Referência: {{date}}.",
+        "MANUAL": "Valor atual informado manualmente. Referência: {{date}}.",
+        "MARKET_DATA": "Valor precificado por cota CVM. IR, IOF e come-cotas são estimados. Referência: {{date}}.",
+        "UNAVAILABLE": "Valor indisponível."
+      },
+      "valueSource": {
+        "MANUAL": "Valor manual",
+        "MARKET_DATA": "Cota CVM",
+        "PROVIDER": "Integração"
+      },
+      "valueOrigin": {
+        "ariaLabel": "Origem do valor",
+        "labels": {
+          "calculado_app": "Valores aproximados",
+          "estimado_app": "Valores aproximados",
+          "mercado_app": "Valores aproximados",
+          "manual": "Informado manualmente",
+          "sincronizado_provider": "Sincronizado com provedor",
+          "importado": "Importado",
+          "externo": "Externo",
+          "indisponivel": "Indisponível"
+        },
+        "descriptions": {
+          "calculado_app": "Valor estimado com base nas condições informadas.",
+          "estimado_app": "Valor estimado com base nas condições informadas e em indicadores econômicos.",
+          "mercado_app": "Valor estimado com base em dados de mercado em ao menos D+1.",
+          "manual": "Valor informado manualmente.",
+          "sincronizado_provider": "Valor enviado pela instituição ou pelo provedor conectado.",
+          "importado": "Valor importado de arquivo.",
+          "externo": "Valor enviado por uma fonte externa.",
+          "indisponivel": "Não foi possível determinar o valor atual deste investimento."
+        }
+      },
+      "latestPriceInfo": {
+        "ariaLabel": "Data do último preço",
+        "title": "Cotação em {{date}}"
+      },
+      "expiredBadge": "Expirado",
+      "maturityPendingBadge": "Vencido",
+      "expiredNudge": "Este ativo venceu em {{maturityDate}}. Atualize ou remova-o.",
+      "groupTotalEstimated": "Parte deste total usa valor ou impostos estimados.",
+      "total": "Total",
+      "groupSummary_one": "{{count}} ativo · {{total}}",
+      "groupSummary_other": "{{count}} ativos · {{total}}",
+      "rowActions": {
+        "ariaLabel": "Ações do ativo",
+        "viewDetails": "Ver detalhes",
+        "viewEvents": "Ver eventos",
+        "viewCurrentPosition": "Visualizar",
+        "editMovement": "Editar movimentações",
+        "recordWithholdingTax": "Registrar come-cotas",
+        "recordAmortization": "Registrar amortização",
+        "recordStockLending": "Registrar aluguel",
+        "transferCustody": "Transferir custódia",
+        "edit": "Editar",
+        "remove": "Remover"
+      },
+      "groups": {
+        "variableIncome": "Renda Variável",
+        "variableIncomeB3": "Renda Variável (B3)",
+        "fixedIncome": "Renda Fixa",
+        "bankFixedIncome": "Renda Fixa",
+        "creditFixedIncome": "Renda Fixa Crédito",
+        "treasuryDirect": "Tesouro Direto",
+        "mutualFunds": "Fundos de Investimento",
+        "pension": "Previdência Privada",
+        "structured": "Estruturado",
+        "others": "Outros",
+        "cash": "Caixa"
+      },
+      "emptyState": "Nenhum ativo registrado nesta conta",
+      "recordFirstHolding": "Registrar primeiro ativo",
+      "error": "Erro ao carregar investimentos"
+    },
+    "eventSelector": {
+      "title": "Selecionar evento",
+      "empty": {
+        "title": "Sem eventos registrados",
+        "description": "Nenhum evento encontrado para esta posição."
+      },
+      "notEditable": "Sincronizado — não editável"
+    },
+    "transactionTypes": {
+      "AMORTIZATION": "Amortização",
+      "APPLICATION": "Aplicação",
+      "BALANCE_ADJUSTMENT": "Ajuste de saldo",
+      "BONUS": "Bonificação",
+      "BONUS_SHARES": "Bonificação",
+      "CANCELLATION": "Cancelamento",
+      "CUSTODY_TRANSFER": "Transferência de custódia",
+      "DIVIDEND": "Dividendo",
+      "FINE": "Multa",
+      "INCOME": "Rendimento",
+      "INPLIT": "Grupamento",
+      "INTEREST_ON_EQUITY": "JCP",
+      "INTEREST_PAYMENT": "Juros / Cupom",
+      "JCP": "JCP",
+      "MATURITY": "Vencimento",
+      "OWNERSHIP_TRANSFER": "Transferência de titularidade",
+      "PRIZE": "Prêmio",
+      "PURCHASE": "Compra",
+      "QUOTA_TRANSFER": "Transferência de cotas",
+      "REDEMPTION": "Resgate",
+      "SALE": "Venda",
+      "SPLIT": "Desdobramento",
+      "STOCK_LENDING": "Aluguel",
+      "STOCK_SPLIT": "Desdobramento",
+      "SUBSCRIPTION": "Subscrição",
+      "SUBSCRIPTION_RIGHT": "Direito de subscrição",
+      "TRANSFER": "Transferência",
+      "WITHHOLDING_TAX": "Imposto retido"
+    },
+    "detailDrawer": {
+      "title": "Detalhes do investimento",
+      "comingSoonTitle": "Detalhes em breve",
+      "comingSoonDescription": "Os detalhes completos para este tipo de investimento serão adicionados nas próximas etapas.",
+      "errorTitle": "Não foi possível carregar o ativo",
+      "emptyTitle": "Ativo indisponível",
+      "emptyDescription": "Não foi possível carregar os detalhes desta posição.",
+      "netValue": "Total Líquido",
+      "common": {
+        "notAvailable": "—"
+      },
+      "fund": {
+        "pricingModeLabel": "Modo de precificação",
+        "latestNavLabel": "Última VNA",
+        "referenceDate": "Ref.: {{date}}"
+      },
+      "priceReference": {
+        "labelWithDate": "{{label}} ({{date}})",
+        "descriptors": {
+          "unitPrice": "Preço unitário",
+          "cryptoPrice": "Preço do criptoativo",
+          "fiiQuotaPrice": "Preço da cota (FII/Fiagro)",
+          "quotaValue": "Valor da cota"
+        }
+      },
+      "indexers": {
+        "Cdi": "CDI",
+        "Di": "DI",
+        "Ipca": "IPCA+",
+        "IgpM": "IGP-M",
+        "IgpDi": "IGP-DI",
+        "Inpc": "INPC",
+        "Tr": "TR",
+        "Selic": "SELIC",
+        "PreFixado": "Prefixado",
+        "Outros": "Outro",
+        "withPercentage": "{{label}} {{percentage}}%",
+        "fixedAnnualRate": "{{rate}}% a.a."
+      },
+      "grid": {
+        "quantityUnits": "Unidades",
+        "quantityQuotas": "Cotas",
+        "quantitySecurities": "Títulos",
+        "principal": "Principal",
+        "grossTotal": "Total Bruto",
+        "netTotal": "Total Líquido",
+        "grossEarnings": "Rendimento Bruto",
+        "totalReturn": "Rendimento Bruto",
+        "totalGain": "Ganho total",
+        "couponsReceivedNet": "Cupons recebidos (líq.)",
+        "dividendsReceived": "Proventos",
+        "incomeTax": "IR",
+        "iof": "IOF",
+        "netEarnings": "Rendimento Líquido"
+      },
+      "metrics": {
+        "principal": "Principal investido",
+        "currentCostBasis": "Custo atual",
+        "grossValue": "Valor bruto",
+        "netValue": "Valor líquido",
+        "incomeTax": "IR",
+        "iof": "IOF",
+        "grossGain": "Ganho bruto",
+        "grossGainPercent": "Rentabilidade bruta"
+      },
+      "performance": {
+        "xirr": "TIR anualizada",
+        "since": "Desde"
+      },
+      "actions": {
+        "moreActions": "Mais ações"
+      },
+      "transactions": {
+        "tabs": {
+          "summary": "Resumo",
+          "transactions": "Movimentações"
+        },
+        "add": "Nova transação",
+        "emptyTitle": "Nenhuma movimentação",
+        "emptyDescription": "Registre a primeira movimentação para este ativo.",
+        "tableAriaLabel": "Movimentações desta posição",
+        "columns": {
+          "date": "Data",
+          "direction": "Movimento",
+          "quantity": "Quantidade",
+          "unitPrice": "Preço unitário",
+          "value": "Valor",
+          "actions": "Ações"
+        },
+        "editTransaction": "Editar transação",
+        "deleteTransaction": "Excluir transação"
+      },
+      "chart": {
+        "title": "Evolução do investimento",
+        "emptyTitle": "Sem histórico disponível",
+        "emptyDescription": "Ainda não há pontos suficientes para montar a evolução desta posição.",
+        "principalLabel": "Principal investido",
+        "grossLabel": "Valor bruto",
+        "netLabel": "Valor líquido",
+        "couponTotalWealthNote": "Para títulos com cupom, este gráfico mostra posição + cupons líquidos já recebidos.",
+        "period": {
+          "1M": "1M",
+          "3M": "3M",
+          "6M": "6M",
+          "1A": "1A",
+          "2A": "2A",
+          "ALL": "Tudo"
+        },
+        "modes": {
+          "actual": "Atual",
+          "projected": "Projeção até o vencimento"
+        },
+        "partialMonthChip": "parcial até {{throughDate}}"
+      },
+      "dates": {
+        "elapsedTitle": "Tempo decorrido",
+        "elapsedValue_one": "1 mês decorrido",
+        "elapsedValue_other": "{{count}} meses decorridos",
+        "remainingTitle": "Tempo restante",
+        "remainingValue_one": "1 mês restante",
+        "remainingValue_other": "{{count}} meses restantes"
+      },
+      "taxExempt": {
+        "yes": "Isento de IR",
+        "no": "Tributado"
+      },
+      "status": {
+        "expired": "Vencido"
+      },
+      "terms": {
+        "title": "Condições do investimento",
+        "issueDate": "Data de emissão",
+        "gracePeriodDate": "Carência",
+        "maturityDate": "Vencimento",
+        "indexer": "Indexador"
+      },
+      "timeline": {
+        "title": "Linha do tempo",
+        "emptyTitle": "Sem movimentações",
+        "emptyDescription": "Nenhum evento foi encontrado para esta posição.",
+        "inflowLabel": "Entrada",
+        "outflowLabel": "Saída",
+        "tradeDate": "Data: {{date}}",
+        "settlementDate": "Liquidação: {{date}}",
+        "netAmount": "Líquido: {{value}}",
+        "incomeTax": "IR: {{value}}",
+        "iof": "IOF: {{value}}",
+        "notEditableTooltip": "Sincronizado automaticamente — não pode ser editado",
+        "deleteSuccess": "Transação excluída com sucesso",
+        "deleteError": "Não foi possível excluir a transação. Tente novamente.",
+        "deleteConfirmTitle": "Excluir transação?",
+        "deleteConfirmWarning": "Isso irá recalcular o custo médio e o histórico do ativo."
+      },
+      "couponSchedule": {
+        "sectionTitle": "Pagamento de Juros (Cupom)",
+        "statusPaid": "Pago",
+        "statusExpected": "Previsto",
+        "statusOverdue": "Pendente",
+        "showHistory": "Ver histórico ({{count}})",
+        "hideHistory": "Ocultar histórico",
+        "register": "Registrar",
+        "showMore": "Mostrar mais",
+        "showLess": "Mostrar menos",
+        "updateSuccess": "Pagamento de cupom atualizado",
+        "deleteSuccess": "Pagamento de cupom removido",
+        "deleteConfirmation": {
+          "title": "Remover pagamento de cupom?",
+          "message": "Esta ação não pode ser desfeita."
+        },
+        "showAll": "Ver todos"
+      },
+      "transactionTypes": {
+        "AMORTIZATION": "Amortização",
+        "BONUS_SHARES": "Bonificação",
+        "CUSTODY_TRANSFER": "Transferência de custódia",
+        "DIVIDEND": "Dividendo",
+        "INTEREST_PAYMENT": "Pagamento de juros",
+        "INTEREST_ON_EQUITY": "JCP",
+        "MATURITY": "Vencimento",
+        "OWNERSHIP_TRANSFER": "Transferência de titularidade",
+        "PRIZE": "Prêmio",
+        "PURCHASE": "Aplicação",
+        "QUOTA_TRANSFER": "Transferência de cotas",
+        "SALE": "Resgate",
+        "STOCK_LENDING": "Aluguel",
+        "STOCK_SPLIT": "Desdobramento",
+        "SUBSCRIPTION": "Subscrição",
+        "WITHHOLDING_TAX": "Imposto retido"
+      }
+    },
+    "deleteConfirmation": {
+      "title": "Excluir ativo",
+      "message": "Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita."
+    },
+    "editDialog": {
+      "title": "Editar lançamento",
+      "fields": {
+        "tradeDate": "Data",
+        "quantity": "Quantidade",
+        "unitPrice": "Preço unitário",
+        "grossValue": "Valor bruto"
+      }
+    },
+    "redemption": {
+      "title": "Registrar resgate",
+      "trigger": "Registrar resgate",
+      "success": "Resgate registrado com sucesso",
+      "sections": {
+        "type": "Tipo de movimentação",
+        "scope": "Resgate",
+        "values": "Valores recebidos"
+      },
+      "types": {
+        "sale": "Resgate antecipado",
+        "maturity": "Vencimento"
+      },
+      "scope": {
+        "full": "Total",
+        "partial": "Parcial"
+      },
+      "fields": {
+        "quantity": "Quantidade resgatada",
+        "quantityHelper": "Máximo: {{max}}",
+        "detailTaxes": "Detalhar impostos",
+        "grossValue": "Valor bruto recebido",
+        "incomeTax": "IR retido na fonte",
+        "incomeTaxOptional": "IR retido na fonte (opcional)",
+        "iof": "IOF",
+        "iofOptional": "IOF (opcional)",
+        "netValueInfo": "Valor líquido: {{value}}",
+        "tradeDate": "Data do resgate"
+      },
+      "taxExemptInfo": "Este ativo é isento de IR para pessoa física.",
+      "actions": {
+        "submit": "Registrar resgate",
+        "submitting": "Registrando..."
+      },
+      "validation": {
+        "quantityRequired": "Informe a quantidade",
+        "quantityPositive": "A quantidade deve ser positiva",
+        "quantityExceedsHolding": "Quantidade máxima disponível: {{max}}",
+        "grossValueRequired": "Informe o valor bruto recebido",
+        "grossValuePositive": "O valor bruto deve ser positivo",
+        "tradeDateRequired": "Informe a data do resgate"
+      }
+    },
+    "corporateEvents": {
+      "section": "Eventos",
+      "drawerTitle": "Registrar evento corporativo",
+      "provento": "Registrar provento",
+      "split": "Registrar desdobramento / grupamento",
+      "bonus": "Registrar bonificação",
+      "subscription": "Registrar subscrição",
+      "splitType": {
+        "split": "Desdobramento",
+        "reverseSplit": "Grupamento"
+      },
+      "form": {
+        "paymentDate": "Data",
+        "proventoType": "Tipo de provento",
+        "valuePerUnit": "Valor bruto por unidade",
+        "quantity": "Quantidade",
+        "grossTotal": "Valor bruto total",
+        "irWithheld": "IR retido na fonte",
+        "destinationAccount": "Conta de destino dos recursos",
+        "ratioNumerator": "Proporção (numerador)",
+        "ratioDenominator": "Proporção (denominador)",
+        "resultQuantity": "Quantidade resultante",
+        "bonusPercent": "Percentual de bonificação",
+        "issuePrice": "Preço de emissão por ação bonificada",
+        "bonusQuantity": "Quantidade bonificada",
+        "exerciseDate": "Data de exercício",
+        "exercisePrice": "Preço de exercício por ação",
+        "subscribedQuantity": "Quantidade subscrita"
+      },
+      "validation": {
+        "required": "Campo obrigatório",
+        "positiveValue": "Informe um valor maior que zero"
+      },
+      "success": "Evento corporativo registrado com sucesso"
+    },
+    "recordHolding": {
+      "title": "Registrar ativo de Renda Fixa",
+      "selectAccount": {
+        "description": "Selecione uma conta de investimento para registrar o ativo.",
+        "emptyState": "Nenhuma conta de investimento disponível."
+      },
+      "sections": {
+        "assetInfo": "Dados do ativo",
+        "applicationDetails": "Valores e datas"
+      },
+      "fields": {
+        "assetName": "Nome do ativo",
+        "assetType": "Tipo",
+        "issuerName": "Emissor",
+        "indexer": "Indexador",
+        "indexerPercentage": "% do indexador",
+        "fixedAnnualRate": "Taxa (% a.a.)",
+        "preFixedRate": "Taxa (% a.a.)",
+        "quantity": "Quantidade",
+        "grossValue": "Valor aplicado",
+        "tradeDate": "Data da aplicação",
+        "settlementDate": "Data de liquidação",
+        "maturityDate": "Data de vencimento",
+        "couponFrequency": "Pagamento de Juros",
+        "couponDayOfMonth": "Dia do pagamento de juros",
+        "isTaxExempt": "Isento de IR (LCI, LCA, CRI, CRA)"
+      },
+      "couponFrequencyOptions": {
+        "AT_MATURITY": "No vencimento",
+        "MONTHLY": "Mensal",
+        "QUARTERLY": "Trimestral",
+        "SEMI_ANNUAL": "Semestral",
+        "ANNUAL": "Anual"
+      },
+      "values": {
+        "unitPriceInfo": "Valor por unidade: {{unitPrice}}"
+      },
+      "assetTypes": {
+        "CDB": "CDB",
+        "RDB": "RDB",
+        "LCI": "LCI",
+        "LCA": "LCA",
+        "LC": "LC",
+        "LF": "LF",
+        "LIG": "LIG",
+        "DEBENTURES": "Debêntures",
+        "CRI": "CRI",
+        "CRA": "CRA",
+        "TREASURY": "Tesouro Direto"
+      },
+      "indexers": {
+        "CDI": "CDI",
+        "DI": "DI",
+        "IPCA": "IPCA+",
+        "IGP_M": "IGP-M+",
+        "SELIC": "SELIC",
+        "PRE_FIXADO": "Pré-fixado",
+        "OUTROS": "Outro"
+      },
+      "validation": {
+        "assetNameRequired": "Nome do ativo é obrigatório",
+        "assetTypeRequired": "Tipo de ativo é obrigatório",
+        "issuerRequired": "Emissor é obrigatório",
+        "indexerRequired": "Indexador é obrigatório",
+        "indexerPercentageRequired": "% do indexador é obrigatório",
+        "fixedAnnualRateRequired": "Taxa é obrigatória",
+        "preFixedRateRequired": "Taxa é obrigatória",
+        "quantityNonNegative": "Quantidade deve ser maior ou igual a zero",
+        "grossValueRequired": "Valor aplicado é obrigatório",
+        "grossValuePositive": "Valor deve ser maior que zero",
+        "tradeDateRequired": "Data da aplicação é obrigatória",
+        "tradeDateNotInFuture": "Data da aplicação não pode ser futura",
+        "maturityDateRequired": "Data de vencimento é obrigatória",
+        "maturityAfterTrade": "Vencimento deve ser após a data da aplicação",
+        "maturityDateTooFar": "Data de vencimento deve estar dentro dos próximos {{years}} anos",
+        "couponDayOfMonthRange": "Dia do pagamento deve ser entre 1 e 31",
+        "couponDayOfMonthRequired": "Informe o dia do mês do pagamento de juros"
+      },
+      "actions": {
+        "submit": "Salvar",
+        "submitting": "Salvando..."
+      },
+      "success": "Ativo registrado com sucesso"
+    },
+    "funds": {
+      "assetTypes": {
+        "FIXED_INCOME_FUND": "Renda Fixa",
+        "EQUITY_FUND": "Ações",
+        "MULTI_MARKET_FUND": "Multimercado",
+        "FOREX_FUND": "Cambial",
+        "MUTUAL_FUND": "Misto",
+        "PGBL": "PGBL",
+        "VGBL": "VGBL"
+      }
+    },
+    "recordFund": {
+      "title": "Registrar fundo",
+      "selectAccount": {
+        "description": "Selecione uma conta de investimento para registrar o fundo.",
+        "emptyState": "Nenhuma conta de investimento disponível."
+      },
+      "sections": {
+        "fund": "Fundo",
+        "listing": "Como o fundo está cadastrado?",
+        "manualFund": "Fundo manual",
+        "applicationData": "Dados da aplicação",
+        "values": "Valores",
+        "currentValue": "Valor atual",
+        "applicationDetails": "Detalhes da aplicação"
+      },
+      "modes": {
+        "cvmListed": "Listado na CVM",
+        "notListed": "Ainda não listado"
+      },
+      "flows": {
+        "byAmount": "Por valor aplicado",
+        "byQuantity": "Por quantidade de cotas"
+      },
+      "fields": {
+        "fund": "Fundo",
+        "manualFundName": "Nome do fundo",
+        "manualFundCnpj": "CNPJ do fundo",
+        "manualFundCnpjHelper": "Se informado, deve ser um CNPJ válido para permitir vinculação manual futura.",
+        "manualAssetType": "Tipo do fundo",
+        "quantity": "Quantidade de cotas",
+        "unitPrice": "Preço por cota (R$)",
+        "tradeDate": "Data da aplicação",
+        "settlementDate": "Data de liquidação",
+        "grossValue": "Valor a investir",
+        "manualCurrentGrossValue": "Valor atual",
+        "manualValuedAt": "Data do valor atual"
+      },
+      "assetTypes": {
+        "MUTUAL_FUND": "Fundo",
+        "PGBL": "PGBL",
+        "VGBL": "VGBL"
+      },
+      "values": {
+        "byAmount": {
+          "navLabel": "Preço da cota na data selecionada:",
+          "unitPriceLabel": "Preço por cota utilizado:",
+          "estimatedShares": "~ {{shares}} cotas"
+        },
+        "byQuantity": {
+          "totalEstimatedLabel": "Valor Total Estimado"
+        }
+      },
+      "validation": {
+        "fundRequired": "Selecione um fundo",
+        "manualFundNameRequired": "Nome do fundo é obrigatório",
+        "quantityRequired": "Quantidade é obrigatória",
+        "quantityPositive": "Quantidade deve ser maior que zero",
+        "unitPriceRequired": "Preço por cota é obrigatório",
+        "unitPricePositive": "Preço por cota deve ser maior que zero",
+        "tradeDateRequired": "Data da aplicação é obrigatória",
+        "grossValueRequired": "Valor a investir é obrigatório",
+        "grossValuePositive": "Valor a investir deve ser maior que zero",
+        "manualCurrentGrossValueRequired": "Valor atual é obrigatório para fundos manuais",
+        "manualValuedAtRequired": "Data do valor atual é obrigatória para fundos manuais"
+      },
+      "actions": {
+        "manualEntryHelp": "Não encontrou o fundo?",
+        "manualEntryCta": "+ Cadastrar manualmente",
+        "submit": "Salvar",
+        "submitting": "Salvando..."
+      },
+      "success": "Fundo registrado com sucesso"
+    },
+    "recordEquity": {
+      "titles": {
+        "stock": "Registrar ação",
+        "fii": "Registrar FII",
+        "mixed": "Registrar ação / FII"
+      },
+      "selectAccount": {
+        "description": "Selecione uma conta de investimento para registrar o ativo.",
+        "emptyState": "Nenhuma conta de investimento disponível."
+      },
+      "sections": {
+        "values": "Valores",
+        "fees": "Taxas e custos"
+      },
+      "flows": {
+        "byQuantity": "Por quantidade",
+        "byAmount": "Por valor total"
+      },
+      "fields": {
+        "asset": "Ativo (ticker)",
+        "quantityStock": "Quantidade de ações",
+        "quantityFii": "Quantidade de cotas",
+        "quantityMixed": "Quantidade (ações ou cotas)",
+        "unitPrice": "Preço unitário (R$)",
+        "tradeDate": "Data da operação",
+        "settlementDate": "Data de liquidação",
+        "grossValue": "Valor total"
+      },
+      "values": {
+        "byQuantity": {
+          "totalLabel": "Total da operação"
+        },
+        "byAmount": {
+          "estimatedStock": "~ Ações estimadas",
+          "estimatedFii": "~ Cotas estimadas",
+          "estimatedMixed": "~ Cotas ou ações estimadas",
+          "unitStock": "ações",
+          "unitFii": "cotas",
+          "unitMixed": "ações ou cotas"
+        }
+      },
+      "validation": {
+        "assetRequired": "Selecione um ativo",
+        "quantityRequired": "Quantidade é obrigatória",
+        "quantityPositive": "Quantidade deve ser maior que zero",
+        "unitPriceRequired": "Preço unitário é obrigatório",
+        "unitPricePositive": "Preço unitário deve ser maior que zero",
+        "tradeDateRequired": "Data da operação é obrigatória",
+        "settlementDateRequired": "Data de liquidação é obrigatória",
+        "grossValueRequired": "Valor total é obrigatório",
+        "grossValuePositive": "Valor total deve ser maior que zero"
+      },
+      "actions": {
+        "submit": "Salvar",
+        "submitting": "Salvando..."
+      },
+      "fees": {
+        "modes": {
+          "summary": "Resumido",
+          "detailed": "Detalhado"
+        },
+        "totalFees": "Total de taxas",
+        "brokerage": "Corretagem",
+        "settlement": "Emolumentos/Liquidação",
+        "other": "Outros"
+      },
+      "footer": {
+        "grossValue": "Valor da operação",
+        "fees": "Custos e taxas",
+        "total": "Total"
+      },
+      "success": "Ativo registrado com sucesso"
+    },
+    "recordCrypto": {
+      "fields": {
+        "name": "Nome do ativo",
+        "ticker": "Ticker / símbolo",
+        "network": "Rede (opcional)"
+      },
+      "validation": {
+        "nameRequired": "Informe o nome do ativo",
+        "tickerRequired": "Informe o ticker"
+      }
+    },
+    "b3AssetTypes": {
+      "EQUITY": "Ação",
+      "FII": "FII",
+      "OPTION_CALL": "Opção de Compra",
+      "OPTION_PUT": "Opção de Venda"
+    }
+  },
+  "categories": {
+    "title": "Categorias da conta",
+    "description": "Crie e edite categorias para classificar suas movimentações.",
+    "newCategory": "Nova categoria",
+    "emptyState": "Nenhuma categoria criada ainda. Clique em Nova categoria para começar.",
+    "applicableTo": {
+      "EXPENSE": "Despesa",
+      "INCOME": "Receita",
+      "ANY": "Qualquer",
+      "TRANSFER": "Transferência"
+    },
+    "form": {
+      "editTitle": "Editar categoria",
+      "name": "Nome",
+      "namePlaceholder": "Ex.: Supermercado",
+      "type": "Tipo",
+      "parent": "Categoria pai",
+      "parentNone": "Nenhuma (raiz)",
+      "icon": "Ícone",
+      "color": "Cor"
+    },
+    "deleteConfirm": {
+      "title": "Excluir categoria",
+      "message": "As transações que usam esta categoria manterão a atribuição. A categoria só deixará de aparecer em novos lançamentos. Deseja continuar?"
+    },
+    "edit": "Editar",
+    "delete": "Excluir"
+  },
+  "dashboard": {
+    "controls": {
+      "customize": "Personalizar",
+      "resetLayout": "Redefinir layout",
+      "done": "Concluir"
+    },
+    "timeRange": {
+      "ariaLabel": "Intervalo de tempo",
+      "options": {
+        "currentMonth": "Mês atual",
+        "3m": "Últimos 3 meses",
+        "6m": "Últimos 6 meses",
+        "1y": "Último ano",
+        "3y": "Últimos 3 anos",
+        "all": "Todo o período",
+        "90d": "Últimos 90 dias",
+        "ytd": "Ano até hoje",
+        "custom": "Personalizado"
+      }
+    },
+    "actions": {
+      "title": "Ações rápidas",
+      "financeMovements": {
+        "title": "Movimentação Financeira",
+        "description": "Controle de receitas e despesas"
+      },
+      "investmentsPortfolio": {
+        "title": "Carteira de Investimentos",
+        "description": "Gestão dos ativos"
+      },
+      "pricesConsumption": {
+        "title": "Preços & Consumo",
+        "description": "Acompanhe seu perfil de consumo."
+      },
+      "recurringPayments": {
+        "title": "Movimentações recorrentes",
+        "description": "Lembrete de contas e recebíveis"
+      }
+    },
+    "widgets": {
+      "addDrawer": {
+        "title": "Adicionar widget"
+      },
+      "registry": {
+        "periodSummary": {
+          "title": "Resumo",
+          "description": "Fluxo de caixa, patrimônio e investimentos no período selecionado."
+        },
+        "cashFlow": {
+          "title": "Fluxo de Caixa",
+          "description": "Comparativo de receitas e despesas por mês."
+        },
+        "netWorth": {
+          "title": "Evolução do Patrimônio",
+          "description": "Saldo bancário acumulado mês a mês."
+        },
+        "categoryDonut": {
+          "title": "Categorias",
+          "description": "Distribuição de despesas e receitas por categoria."
+        },
+        "investmentAllocation": {
+          "title": "Alocação de Investimentos",
+          "description": "Distribuição atual da carteira por grupo de ativos."
+        },
+        "investmentTreemap": {
+          "title": "Treemap de Investimentos",
+          "description": "Composição da carteira por grupo de ativos em treemap proporcional."
+        },
+        "upcomingRecurring": {
+          "title": "Próximas movimentações",
+          "description": "Movimentações recorrentes com vencimento próximo"
+        }
+      },
+      "menu": {
+        "refresh": "Atualizar",
+        "settings": "Configurações",
+        "hide": "Ocultar widget"
+      },
+      "kpi": {
+        "net": "Líquido"
+      },
+      "periodSummary": {
+        "totalNetWorth": "Patrimônio Total",
+        "totalIncome": "Receitas",
+        "totalExpenses": "Despesas",
+        "net": "Líquido",
+        "closingCashBalance": "Saldo em Caixa",
+        "totalInvested": "Total Investido",
+        "totalReturn": "Rendimento da Carteira",
+        "totalReturnShort": "Rendimento",
+        "monthlyAverage": "Média mensal: {{value}}",
+        "monthlyAveragePerMonth": "Média {{value}}/mês",
+        "monthlyAverageShort": "Média",
+        "perMonthSuffix": "/mês",
+        "savingsCapacityLabel": "Capacidade de poupar",
+        "savingsRateLabel": "Essa é sua capacidade de poupar",
+        "savingsRate": "Taxa de poupança: {{value}}",
+        "returnPct": "Rentabilidade: {{value}}",
+        "periodMonths": "{{count}} meses no período",
+        "netWorthBreakdown": "Caixa {{cash}} + Carteira {{portfolio}}"
+      },
+      "cashFlow": {
+        "noData": "Nenhum dado para o período",
+        "netSeries": "Líquido"
+      },
+      "netWorth": {
+        "bankingBalance": "Saldo Bancário",
+        "portfolioValue": "Carteira de Investimentos",
+        "totalNetWorth": "Patrimônio Total",
+        "estimatedNote": "Valor estimado",
+        "noData": "Sem dados para o período selecionado."
+      },
+      "investmentAllocation": {
+        "totalPortfolio": "Valor da carteira",
+        "legendCount_one": "1 ativo",
+        "legendCount_other": "{{count}} ativos",
+        "noData": "Sem alocação de investimentos disponível.",
+        "error": "Falha ao carregar a alocação de investimentos."
+      },
+      "investmentTreemap": {
+        "totalPortfolio": "Valor da carteira",
+        "allocation": "Alocação",
+        "groupAllocation": "% do grupo",
+        "amount": "Valor",
+        "account": "Conta",
+        "assets": "Ativos",
+        "backToPortfolio": "Voltar para carteira",
+        "portfolioBreadcrumb": "Carteira",
+        "legendCount_one": "1 ativo",
+        "legendCount_other": "{{count}} ativos",
+        "noData": "Sem posições de investimentos disponíveis.",
+        "noHoldingsInGroup": "Nenhum ativo nesta classe.",
+        "cashGroupNote": "Caixa representa o saldo em conta de custódia.",
+        "error": "Falha ao carregar o treemap de investimentos."
+      }
+    }
+  },
+  "attachments": {
+    "label": "Anexos",
+    "defaultLabel": "Anexo",
+    "uploading": "Enviando…",
+    "attachFile": "Anexar arquivo",
+    "addFile": "Adicionar arquivo (máx. {{max}})",
+    "download": "Download",
+    "remove": "Remover",
+    "errors": {
+      "tooLarge": "Arquivo muito grande. Máximo {{maxSize}}.",
+      "initFailed": "Não foi possível iniciar o upload.",
+      "uploadFailed": "Upload falhou: {{status}}",
+      "generic": "Erro ao enviar arquivo."
+    }
+  },
   "financeTransactions": {
-    "title": "Movimentações financeiras",
-    "description": "Acompanhe suas receitas e despesas."
+    "title": "Movimentações Financeiras",
+    "quickAdd": "Movimentação",
+    "credit": "Receita",
+    "debit": "Despesa",
+    "transfer": "Transferência",
+    "internalTransferIn": "Recebimento de conta própria",
+    "internalTransferOut": "Saída para conta própria",
+    "amount": "Valor",
+    "description": "Descrição",
+    "date": "Data",
+    "account": "Conta",
+    "category": "Categoria",
+    "value": "Valor",
+    "tags": "Tags",
+    "merchant": "Estabelecimento",
+    "noMerchant": "Sem estabelecimento",
+    "merchantPicker": {
+      "searchPlaceholder": "Buscar estabelecimento...",
+      "noResults": "Nenhum estabelecimento encontrado",
+      "createMerchant": "Criar estabelecimento",
+      "nameLabel": "Nome",
+      "namePlaceholder": "Ex.: Netflix",
+      "websiteLabel": "Website",
+      "websitePlaceholder": "netflix.com",
+      "logoPreview": "Pré-visualização do logo",
+      "noWebsite": "Sem website",
+      "created": "Estabelecimento criado: {{name}}",
+      "loadMore": "Carregar mais",
+      "resultCount": "Mostrando {{shown}} de {{total}}"
+    },
+    "issuer": "Instituição",
+    "financialAccount": "Conta financeira",
+    "validation": {
+      "dateTooOld": "A data deve estar dentro dos últimos {{years}} anos",
+      "dateNotInFuture": "A data não pode ser futura.",
+      "required": "Campo obrigatório"
+    },
+    "dateGroup": {
+      "today": "Hoje, {{date}}",
+      "tomorrow": "Amanhã, {{date}}"
+    },
+    "installmentPurchasesDueThisMonthHeader": "Compras parceladas com vencimento neste mês",
+    "billSummary": {
+      "billValue": "Valor da Fatura",
+      "closingDate": "Fechamento",
+      "dueDate": "Vencimento",
+      "availableLimit": "Limite Disp.",
+      "status": "Status",
+      "payBill": "Pagar Fatura",
+      "overdueMessage": "Esta fatura está em atraso.",
+      "billStatus": {
+        "OPEN": "Aberta",
+        "CLOSED": "Fechada",
+        "PAID": "Paga",
+        "OVERDUE": "Em atraso"
+      }
+    },
+    "payBillDialog": {
+      "title": "Pagar Fatura",
+      "amount": "Valor do Pagamento",
+      "sourceAccount": "Conta de Débito (opcional)",
+      "noSourceAccount": "Nenhuma",
+      "invalidAmount": "Informe um valor válido maior que zero."
+    },
+    "backToCurrentMonth": "Voltar para o mês atual",
+    "actions": {
+      "newAccountOrCard": "Nova conta ou cartão",
+      "addAccount": "Adicionar conta",
+      "addCard": "Adicionar cartão",
+      "deleteAccount": "Remover",
+      "deleteAccountConfirm": "Tem certeza? Esta ação não pode ser desfeita.",
+      "automation": "Automação",
+      "reviewItems": "Revisar itens",
+      "edit": "Editar",
+      "save": "Salvar",
+      "saving": "Salvando...",
+      "cancel": "Cancelar",
+      "back": "Voltar",
+      "close": "Fechar",
+      "delete": "Excluir"
+    },
+    "errors": {
+      "accountHasTransactions": "Esta conta possui transações. Remova as transações antes de excluir a conta.",
+      "accountHasOpenBills": "Esta conta possui faturas abertas. Quite as faturas antes de excluir a conta."
+    },
+    "unmappedItems": {
+      "title": "Itens não mapeados",
+      "empty": "Não há itens pendentes de normalização nesta conta.",
+      "currentGroup": "Descrição bruta",
+      "count": "{{count}} item(ns)",
+      "sample": {
+        "title": "Amostras recentes",
+        "noExtraData": "Sem NCM ou EAN disponível"
+      },
+      "searchTitle": "Mapear para uma variante existente",
+      "searchLabel": "Buscar variante",
+      "searchEmpty": "Nenhuma variante do catálogo corresponde à busca.",
+      "createTitle": "Criar produto e variante",
+      "form": {
+        "productName": "Produto canônico",
+        "variantName": "Nome da variante",
+        "category": "Categoria",
+        "defaultUnit": "Unidade padrão",
+        "brand": "Marca",
+        "ean": "EAN",
+        "quantityValue": "Quantidade",
+        "quantityUnit": "Unidade da embalagem"
+      },
+      "actions": {
+        "map": "Mapear",
+        "createAndMap": "Criar e mapear"
+      },
+      "feedback": {
+        "mapped": "Item mapeado com sucesso.",
+        "createdAndMapped": "Produto criado e item mapeado com sucesso.",
+        "mapError": "Não foi possível mapear o item agora.",
+        "createError": "Não foi possível criar o produto e mapear o item.",
+        "loadError": "Não foi possível carregar os itens pendentes.",
+        "validation": "Informe ao menos o produto e o nome da variante."
+      }
+    },
+    "transactionRules": {
+      "tabs": {
+        "manual": "Regras Customizadas",
+        "automatic": "Regras Automáticas"
+      },
+      "helpBanner": {
+        "title": "Entenda como funcionam as regras",
+        "actionLabel": "Saiba como a automação organiza suas movimentações"
+      },
+      "helpDrawer": {
+        "title": "Como funcionam as regras?",
+        "intro": "As regras de movimentação ajudam a organizar suas finanças automaticamente. Elas comparam descrições de movimentações e atribuem novos valores para facilitar o seu controle.",
+        "items": {
+          "item1": "Quando a descrição de uma movimentação corresponde ao texto definido na regra, o app aplica automaticamente uma nova descrição, uma categoria, tags e um comerciante.",
+          "item2": "O app verifica se há uma regra customizada, criada pelo usuário, e na sequência uma automática, criada pelo próprio app. Caso mais de uma regra seja identificada, a que tiver maior prioridade é atribuída.",
+          "item3": "Para movimentações manuais, categoria e tags apenas são atribuídas caso o usuário tenha deixado em branco durante o cadastro."
+        }
+      },
+      "searchPlaceholder": "Buscar...",
+      "actions": {
+        "newRule": "Nova Regra",
+        "clearSearchAriaLabel": "Limpar busca",
+        "disableAutomaticRule": "Desabilitar regra automática",
+        "enableAutomaticRule": "Habilitar regra automática"
+      },
+      "errors": {
+        "load": "Erro ao carregar regras.",
+        "delete": "Não foi possível excluir a regra.",
+        "toggleSystemRule": "Não foi possível atualizar o status da regra automática."
+      },
+      "toast": {
+        "deleted": "Regra excluída.",
+        "updated": "Regra automática atualizada."
+      },
+      "status": {
+        "disabled": "Desabilitada"
+      },
+      "loadingMore": "Carregando mais...",
+      "emptyState": {
+        "manual": "Nenhuma regra customizada criada ainda.",
+        "automatic": "Nenhuma regra automática ainda."
+      },
+      "deleteDialog": {
+        "title": "Excluir regra?",
+        "description": "Esta ação não pode ser desfeita."
+      },
+      "columns": {
+        "context": "Tipo",
+        "rule": "Regra",
+        "matchingText": "Descrição a comparar",
+        "newDescription": "Nova descrição",
+        "category": "Categoria",
+        "tags": "Tags",
+        "merchant": "Comerciante",
+        "priority": "Prioridade"
+      }
+    },
+    "categoryPicker": {
+      "searchPlaceholder": "Buscar categoria...",
+      "noCategory": "Sem categoria",
+      "noResults": "Nenhuma categoria encontrada",
+      "newCategory": "Nova categoria",
+      "backAriaLabel": "Voltar",
+      "deleteAriaLabel": "Excluir categoria",
+      "nameLabel": "Nome",
+      "namePlaceholder": "Ex.: Supermercado",
+      "created": "\"{{name}}\" criada",
+      "deleteTitle": "Excluir '{{name}}'?",
+      "deleteDescription": "As transações que usam esta categoria manterão a atribuição no histórico. Esta ação não pode ser desfeita.",
+      "deleteChildrenTitle": "As subcategorias a seguir também serão excluídas:"
+    },
+    "similarEditPrompt": {
+      "title": "Aplicar às movimentações semelhantes?",
+      "titleFutureOnly": "Criar regra para importações futuras?",
+      "description": "Identificamos itens similares. Escolha como deseja prosseguir.",
+      "applyToExistingTitle_one": "Atualizar {{count}} movimentação",
+      "applyToExistingTitle_other": "Atualizar {{count}} movimentações",
+      "applyToExistingDescription": "Aplica as alterações em itens com a mesma descrição original.",
+      "applyToFutureTitle": "Criar regra de automação",
+      "applyToFutureDescription": "Sempre aplicar esta descrição para futuras importações similares.",
+      "confirmFull": "Aplicar Alterações",
+      "confirm": "Aplicar",
+      "cancel": "Não, obrigado",
+      "success_one": "Alteração aplicada a {{count}} transação semelhante.",
+      "success_other": "Alteração aplicada a {{count}} transações semelhantes."
+    },
+    "selector": {
+      "allAccounts": "Todas as contas",
+      "consolidatedView": "Visão consolidada",
+      "unknownIssuer": "Instituição Desconhecida",
+      "searchPlaceholder": "Buscar contas...",
+      "noAccountsFound": "Nenhuma conta encontrada"
+    },
+    "multipleCards": "Múltiplos cartões",
+    "emptyState": {
+      "title": "Tudo pronto para começar?",
+      "description": "Centralize sua vida financeira. Adicione suas contas bancárias e cartões para ter uma visão completa dos seus gastos, investimentos e metas."
+    },
+    "createAccount": {
+      "title": "Adicionar conta financeira",
+      "step1": {
+        "title": "Escolha o tipo de conta que deseja criar no Invistus para começar a monitorar seu patrimônio.",
+        "bankAccount": {
+          "label": "Conta Bancária",
+          "subtitle": "Gerencie seus saldos, extratos automáticos e acompanhe o fluxo de caixa em tempo real."
+        },
+        "card": {
+          "label": "Cartão",
+          "subtitle": "Gerencie faturas, limites disponíveis e categorize seus gastos recorrentes facilmente."
+        },
+        "action": "Criar novo"
+      },
+      "step2": {
+        "backToSelection": "Voltar para seleção",
+        "fields": {
+          "issuer": "Instituição",
+          "issuerPlaceholder": "Buscar banco ou emissor do cartão",
+          "noIssuersFound": "Nenhuma instituição encontrada",
+          "customIssuer": "Outro / Personalizado",
+          "institutionName": "Nome da instituição",
+          "accountName": "Nome da conta",
+          "currency": "Moeda",
+          "initialBalance": "Saldo inicial",
+          "initialBalanceDate": "Data do saldo inicial",
+          "themeColor": "Cor do tema",
+          "includeInNetWorth": "Incluir no patrimônio",
+          "includeInDashboard": "Incluir no dashboard",
+          "subtype": "Tipo",
+          "branchCode": "Agência",
+          "accountNumber": "Conta",
+          "checkDigit": "Dígito",
+          "network": "Bandeira",
+          "level": "Variante",
+          "maskedNumber": "Últimos 4 dígitos",
+          "multiCard": "Múltiplos cartões / virtuais",
+          "creditLimit": "Limite de crédito",
+          "closingDay": "Dia de fechamento",
+          "dueDay": "Dia de vencimento"
+        },
+        "success": "Conta adicionada com sucesso",
+        "validation": {
+          "accountNameMaxLength": "O nome da conta deve ter no máximo {{max}} caracteres",
+          "issuerRequired": "Instituição é obrigatória",
+          "accountNameRequired": "Nome da conta é obrigatório",
+          "subtypeRequired": "Tipo é obrigatório",
+          "initialBalanceDateRequired": "Data do saldo inicial é obrigatória quando o saldo inicial é informado",
+          "initialBalanceNonZero": "Saldo inicial deve ser diferente de zero",
+          "closingDayRequired": "Dia de fechamento é obrigatório",
+          "dueDayRequired": "Dia de vencimento é obrigatório",
+          "closingDayInvalid": "Dia de fechamento inválido (1-31)",
+          "dueDayInvalid": "Dia de vencimento inválido (1-31)",
+          "maskedNumberInvalid": "Últimos 4 dígitos deve estar vazio ou conter exatamente 4 números",
+          "invalidCurrencyFormat": "Formato de moeda inválido (máx 2 decimais)"
+        },
+        "defaults": {
+          "creditCardType": "Crédito",
+          "noLastFour": "sem final"
+        },
+        "enums": {
+          "bankSubtype": {
+            "CONTA_CORRENTE": "Conta Corrente",
+            "CONTA_POUPANCA": "Poupança",
+            "CONTA_SALARIO": "Conta Salário",
+            "CONTA_DIGITAL": "Carteira Digital",
+            "CONTA_CONJUNTA": "Conta Conjunta"
+          },
+          "cardSubtype": {
+            "CREDIT_CARD": "Crédito",
+            "CHARGE_CARD": "Cartão de Cobrança",
+            "PREPAID_CARD": "Pré-pago",
+            "VOUCHER_CARD": "Voucher"
+          },
+          "cardNetwork": {
+            "VISA": "Visa",
+            "MASTERCARD": "Mastercard",
+            "ELO": "Elo",
+            "AMERICAN_EXPRESS": "Amex",
+            "HIPERCARD": "Hipercard",
+            "DINERS_CLUB": "Diners Club",
+            "BANDEIRA_PROPRIA": "Bandeira Própria",
+            "OUTRAS": "Outras"
+          },
+          "cardLevel": {
+            "STANDARD": "Standard",
+            "GOLD": "Gold",
+            "PLATINUM": "Platinum",
+            "INFINITE": "Infinite",
+            "BLACK": "Black"
+          },
+          "benefitSubtype": {
+            "FGTS": "FGTS",
+            "INSS": "INSS"
+          }
+        }
+      }
+    },
+    "editAccount": {
+      "title": "Editar conta financeira",
+      "success": "Conta atualizada com sucesso"
+    },
+    "import": {
+      "title": "Importar Movimentações",
+      "button": "Importar",
+      "menu": {
+        "file": "Extrato bancário",
+        "cardBill": "Fatura do cartão"
+      },
+      "accountStep": {
+        "title": "Selecione a conta para importar",
+        "noAccounts": "Nenhuma conta encontrada. Crie uma conta para continuar a importação.",
+        "createAccount": "Criar nova conta",
+        "createAccountOrCard": "Criar nova conta ou cartão"
+      },
+      "sourceStep": {
+        "title": "Selecione o formato",
+        "ofx": "Arquivo OFX",
+        "csvNubank": "CSV Nubank"
+      },
+      "uploadStep": {
+        "title": "Selecione o arquivo",
+        "recommendation": "Para melhor experiência, priorize arquivos OFX. Eles fornecem dados padronizados e mais detalhados em comparação com CSV ou XLSX.",
+        "fileSelected": "Arquivo selecionado:",
+        "dragDrop": "Arraste o arquivo aqui ou clique para procurar",
+        "acceptedTypes": ".ofx, .csv, .xlsx, .xls, .pdf",
+        "fileTooLarge": "O arquivo deve ter no máximo {{maxMb}} MB",
+        "unsupportedType": "Selecione um arquivo OFX, CSV, XLS/XLSX ou PDF",
+        "selectAccount": "Selecione uma conta primeiro"
+      },
+      "processingStep": {
+        "title": "Importando...",
+        "status": "Status: {{status}}",
+        "imported": "{{count}} importadas"
+      },
+      "resultStep": {
+        "title": "Importação concluída",
+        "summary": "{{imported}} transações importadas, {{skipped}} ignoradas (duplicadas)",
+        "close": "Fechar"
+      },
+      "errorStep": {
+        "title": "Falha na importação",
+        "message": "Algo deu errado. Tente novamente.",
+        "retry": "Tentar novamente"
+      },
+      "status": {
+        "PENDING": "Pendente",
+        "PROCESSING": "Processando",
+        "COMPLETED": "Concluído",
+        "FAILED": "Falhou",
+        "REVIEW_REQUIRED": "Revisão necessária"
+      }
+    },
+    "billImport": {
+      "uploadStep": {
+        "prompt": "Selecione o arquivo da fatura.",
+        "recommendation": "Para um melhor resultado, priorize arquivos OFX. Eles fornecem dados padronizados e mais ricos em comparação com PDF ou CSV.",
+        "dragDrop": "Arraste o arquivo ou clique para selecionar",
+        "acceptedHint": "OFX · PDF · XLS/XLSX · CSV — até {{maxMb}} MB",
+        "encryptedDetected": "Este PDF está criptografado. Informe a senha da fatura para continuar.",
+        "passwordLabel": "Senha do PDF",
+        "passwordRequired": "Este PDF exige senha.",
+        "passwordInvalid": "Senha inválida. Tente novamente.",
+        "submit": "Processar fatura",
+        "submitting": "Enviando..."
+      },
+      "processingStep": {
+        "title": "Processando fatura...",
+        "description": "Estamos extraindo as transações do arquivo. Isso pode levar alguns segundos.",
+        "status": "Status: {{status}}"
+      },
+      "status": {
+        "PENDING": "Pendente",
+        "EXTRACTING": "Extraindo",
+        "LLM_PROCESSING": "Analisando",
+        "EXTRACTED": "Extraído",
+        "IMPORTING": "Importando",
+        "AWAITING_REVIEW": "Aguardando revisão",
+        "DONE": "Concluído",
+        "FAILED": "Falhou"
+      },
+      "cardMatchingStep": {
+        "description": "Associe cada cartão identificado na fatura a uma conta cadastrada.",
+        "flatAssignmentBanner": "Importamos as transações da fatura, mas o arquivo não trouxe a referência do cartão. Defina os cartões desta fatura e associe as transações antes de continuar.",
+        "flatSteps": {
+          "issuerTitle": "Definir cartão",
+          "issuerLabel": "Nome do emissor (banco)",
+          "issuerSelectedTitle": "{{issuer}} selecionado",
+          "loadingCards": "Carregando cartões...",
+          "issuerHasCardsMessage": "Encontramos {{count}} cartão(ões) registrados para este emissor. Você pode usá-los nos lançamentos no passo abaixo ou inserir novos finais.",
+          "issuerNoCardsMessage": "Não encontramos cartões registrados para este emissor. Crie um novo no passo abaixo.",
+          "selectIssuerFirst": "Selecione o emissor para continuar.",
+          "newCardDetailsTitle": "Detalhes do novo cartão",
+          "cardAssignmentTitle": "Associar cartões",
+          "cardAssignmentMessage": "Selecione um cartão existente para usar na atribuição dos lançamentos.",
+          "assignTransactionsTitle": "Atribuir lançamentos",
+          "assignTransactionsInfoTitle": "Como atribuir",
+          "assignTransactionsHint": "Selecione os lançamentos, informe o final do cartão (4 dígitos) ou deixe vazio para aplicar como “Sem final”, e clique em Aplicar.",
+          "assignTransactionsRequirementHint": "Você precisa aplicar em pelo menos 1 lançamento para habilitar “Revisar transações”."
+        },
+        "cardDataSectionTitle": "Dados do cartão",
+        "availableTransactionsSectionTitle": "Transações disponíveis",
+        "assignmentProgressShort": "{{assigned}} de {{total}} atribuídas",
+        "lastFourChip": "Final {{lastFour}}",
+        "selectedCount": "{{count}} selecionados",
+        "floatingLastFourLabel": "Final (4 dígitos)",
+        "floatingApply": "Aplicar",
+        "customIssuer": "Outro emissor",
+        "customIssuerName": "Nome do emissor",
+        "templateIssuerHint": "Selecione o emissor comum desta fatura.",
+        "optionalField": "Opcional",
+        "descriptionBase": "Descrição base",
+        "descriptionBaseHint": "Se informar uma descrição, ela será usada como nome base ao criar os cartões.",
+        "defaultBaseName": "Cartão",
+        "previewLabel": "Prévia do nome: {{name}}",
+        "unassignedLastFour": "Sem final",
+        "noLastFourPlaceholder": "Sem final",
+        "ambiguousExistingCard": "Há mais de um cartão cadastrado com final {{lastFourDigits}}. Ajuste o emissor ou use o formulário completo.",
+        "templateInvalid": "Preencha os dados comuns do cartão antes de criar as contas.",
+        "templateLastFourRequired": "Informe o final do cartão ou use a opção de criar sem os 4 últimos dígitos.",
+        "templateCreateFailed": "Não foi possível criar os cartões com os dados informados.",
+        "status": {
+          "associated": "Associado",
+          "pending": "Pendente"
+        },
+        "ambiguousWarning": "Múltiplos cartões com final {{lastFourDigits}} encontrados. Selecione o correto.",
+        "unnamedCard": "Cartão {{index}}",
+        "duplicateLastFour": "Este final já está sendo usado por outro cartão desta fatura.",
+        "cardAccountLabel": "Conta do cartão",
+        "cardAccountPlaceholder": "Selecione...",
+        "createNewCard": "Cadastrar novo cartão",
+        "txSummary": "{{count}} transação(ões) · total {{total}}",
+        "selectAll": "Selecionar todas",
+        "reviewTransactions": "Revisar transações"
+      },
+      "txReviewStep": {
+        "description": "Revise as transações antes de confirmar. Desmarque itens que não deseja importar.",
+        "setupRequired": "Para confirmar, finalize a configuração dos cartões na etapa anterior.",
+        "billDatesTitle": "Datas da fatura",
+        "billDatesDescription": "Confira o fechamento e informe o vencimento quando o arquivo não trouxer essa data.",
+        "closingDateLabel": "Data de fechamento",
+        "closingDateHint": "Usamos essa data para identificar a fatura correta.",
+        "dueDateLabel": "Data de vencimento",
+        "dueDateHint": "A data de vencimento deve ser igual ou posterior à data de fechamento.",
+        "paymentChip": "Pagamento",
+        "suggestedBadge": "Sugerido",
+        "confirming": "Confirmando...",
+        "confirmButton": "Confirmar {{count}} transação(ões)"
+      },
+      "resultStep": {
+        "success": "Fatura importada com sucesso! {{included}} de {{total}} transações importadas."
+      },
+      "common": {
+        "back": "Voltar",
+        "close": "Fechar"
+      },
+      "steps": {
+        "uploadTitle": "Importar fatura",
+        "processingTitle": "Processando...",
+        "cardMatchingTitle": "Associar cartões",
+        "assignmentTitle": "Associar cartões aos lançamentos",
+        "txReviewTitle": "Revisar transações",
+        "resultTitle": "Importação concluída",
+        "errorTitle": "Erro na importação"
+      },
+      "errorStep": {
+        "title": "Erro na importação",
+        "retry": "Tentar novamente",
+        "passwordInvalid": "A senha do PDF está incorreta. Verifique e tente novamente.",
+        "generic": "Houve um erro na importação que impossibilitou o processamento no momento. Tente novamente mais tarde.",
+        "processingUnavailable": "No momento não foi possível processar esta fatura. Tente novamente mais tarde."
+      }
+    },
+    "duplicateReview": {
+      "header": "{{count}} transações precisam de revisão",
+      "header_one": "{{count}} transação precisa de revisão",
+      "header_other": "{{count}} transações precisam de revisão",
+      "newLabel": "Nova (importada)",
+      "newLabelNfce": "NFC-e",
+      "existingLabel": "Existente",
+      "keepBoth": "Manter ambas",
+      "useIncoming": "Usar nova",
+      "useIncomingLink": "Vincular NFC-e",
+      "keepExisting": "Manter existente",
+      "useIncomingWarning": "A existente será substituída",
+      "useIncomingLinkWarning": "A transação existente será enriquecida com os dados da NFC-e",
+      "finishReview": "Concluir revisão",
+      "resolved": "Resolvido",
+      "bannerAction": "Revisar"
+    },
+    "nfce": {
+      "drawerTitle": "Importar NFC-e",
+      "button": "Escanear NFC-e",
+      "uploadTab": "Upload de imagem",
+      "urlTab": "Digitar URL",
+      "uploadHint": "Arraste ou clique para selecionar uma foto do QR code da NFC-e",
+      "urlPlaceholder": "Cole a URL da NFC-e aqui",
+      "qrNotFound": "QR code não encontrado na imagem. Tente uma foto mais nítida.",
+      "invalidUrl": "URL não reconhecida como NFC-e válida",
+      "processing": "Consultando fornecedor...",
+      "submit": "Importar",
+      "success": "NFC-e importada com sucesso",
+      "reviewRequired": "Encontramos uma transação manual semelhante. Revise para vincular a NFC-e.",
+      "alreadyImported": "Esta nota já foi importada e possui uma transação vinculada",
+      "sefazUnavailable": "URL indisponível, tente novamente",
+      "error": "Falha ao importar NFC-e"
+    },
+    "nfceDocument": {
+      "drawerTitle": "Nota Fiscal Eletrônica",
+      "issuerSection": "Dados do Emissor",
+      "itemsSection": "Itens",
+      "itemsCount_one": "{{count}} item",
+      "itemsCount_other": "{{count}} itens",
+      "totalsSection": "Totais",
+      "cnpj": "CNPJ",
+      "legalName": "Razão social",
+      "tradeName": "Nome fantasia",
+      "stateRegistration": "Inscrição estadual",
+      "address": "Endereço",
+      "postalCode": "CEP",
+      "emissionDate": "Data de emissão",
+      "totalValue": "Total",
+      "totalTax": "Tributos",
+      "taxLoadLabel": "Carga tributária",
+      "buyerCpf": "CPF do comprador",
+      "accessKey": "Chave de acesso",
+      "copyAccessKey": "Copiar chave",
+      "accessKeyCopied": "Chave copiada",
+      "viewOnSefaz": "Ver na SEFAZ",
+      "noDocument": "Nenhum documento fiscal vinculado a esta transação",
+      "perUnit": "por {{unit}}",
+      "municipalityCode": "Município IBGE",
+      "countryCode": "País",
+      "canonicalProduct": "Produto",
+      "issuerProductCode": "Código do emissor",
+      "quantity": "Quantidade",
+      "unitPrice": "Preço unitário",
+      "discount": "Desconto",
+      "effectivePrice": "Preço efetivo"
+    },
+    "transactionTable": {
+      "ariaLabel": "Tabela de transações",
+      "categoryUpdated": "Categoria atualizada",
+      "columns": {
+        "description": "Descrição",
+        "category": "Categoria",
+        "type": "Tipo",
+        "amount": "Valor",
+        "currency": "Moeda"
+      },
+      "emptyState": "Nenhuma transação encontrada",
+      "attachments": {
+        "ariaLabel": "Ver anexos"
+      },
+      "tags": {
+        "moreAriaLabel": "Ver mais {{count}} tags"
+      },
+      "installments": {
+        "progressAriaLabel": "Parcela {{current}} de {{total}}"
+      },
+      "rowActions": {
+        "ariaLabel": "Ações da transação",
+        "viewNfce": "Ver NFC-e",
+        "markAsTransfer": "Marcar como transferência interna",
+        "markAsTransferSuccess": "Transação marcada como transferência interna",
+        "markAsTransferError": "Não foi possível marcar como transferência interna",
+        "markAsTransferMissingCategory": "Categoria padrão de transferência não encontrada. Recarregue a página ou tente novamente.",
+        "markAsBillPayment": "Pagamento de fatura",
+        "markAsBillPaymentSuccess": "Transação marcada como pagamento de fatura.",
+        "markAsBillPaymentError": "Erro ao marcar como pagamento de fatura.",
+        "edit": "Editar",
+        "viewAppliedRules": "Ver regras aplicadas",
+        "createRuleFromDescription": "Criar regra a partir da descrição",
+        "remove": "Remover",
+        "createRecurringPayment": "Criar movimentação recorrente"
+      },
+      "appliedRules": {
+        "title": "Regras aplicadas",
+        "description": "Regras aplicadas para enriquecimento desta transação, na ordem em que foram avaliadas.",
+        "empty": "Nenhuma regra aplicada foi encontrada para esta transação.",
+        "loadError": "Não foi possível carregar as regras aplicadas.",
+        "ruleNumber": "Regra {{index}}",
+        "appliedAt": "Aplicada em {{datetime}}",
+        "position": "Posição {{position}}",
+        "priority": "Prioridade {{priority}}",
+        "ownership": {
+          "manual": "Customizada",
+          "automatic": "Automática"
+        },
+        "applicableTo": {
+          "ANY": "Qualquer",
+          "INCOME": "Receita",
+          "EXPENSE": "Despesa",
+          "TRANSFER": "Transferência"
+        },
+        "patternType": {
+          "CONTAINS": "SE CONTIVER O TEXTO",
+          "STARTS_WITH": "SE COMEÇAR COM",
+          "EXACT": "SE FOR EXATAMENTE",
+          "REGEX": "SE CORRESPONDER AO PADRÃO"
+        },
+        "editRule": "Editar regra",
+        "removed": "Regra indisponível",
+        "removedDescription": "Uma das regras aplicadas nesta transação não está mais disponível.",
+        "missingValue": "Não disponível",
+        "summary": {
+          "date": "Data",
+          "amount": "Valor"
+        },
+        "fields": {
+          "category": "Categoria",
+          "merchant": "Estabelecimento",
+          "description": "Descrição",
+          "tags": "Tags"
+        }
+      }
+    },
+    "applyRuleToHistoryPrompt": {
+      "title": "Aplicar regra ao histórico?",
+      "description": "Esta regra corresponde a {{count}} transação(ões) existente(s). Deseja aplicá-la agora?",
+      "confirm": "Aplicar ao histórico",
+      "cancel": "Agora não",
+      "toastSuccess": "Regra aplicada em {{count}} transação(ões).",
+      "toastError": "Não foi possível aplicar a regra ao histórico"
+    },
+    "monthSummary": {
+      "income": "Receitas",
+      "expenses": "Despesas",
+      "balance": "Saldo",
+      "breakdownType": "Tipo",
+      "total": "do total",
+      "a11y": {
+        "filterByMetric": "Filtrar transações por",
+        "filterByCategory": "Filtrar transações por categoria",
+        "filterByTag": "Filtrar transações por tag"
+      },
+      "expensesByCategory": "Despesas por Categoria",
+      "incomeByCategory": "Receitas por Categoria",
+      "tagsSummary": "Tags",
+      "seeAll": "Ver todos",
+      "uncategorized": "Sem categoria",
+      "noCategorizedExpenses": "Nenhuma despesa categorizada neste mês",
+      "noCategorizedIncome": "Nenhuma receita categorizada neste mês",
+      "noTaggedTransactions": "Nenhuma transação com tag neste mês",
+      "totalExpenses": "Total despesas",
+      "filteringByCategory": "Categoria: {{name}}",
+      "filteringByTag": "Tag: #{{name}}",
+      "filteringByCredit": "Somente crédito (receitas)",
+      "filteringByDebit": "Somente débito (despesas)",
+      "clearCategoryFilter": "Remover filtro de categoria",
+      "clearTagFilter": "Remover filtro de tag",
+      "clearCreditDebitTypeFilter": "Remover filtro crédito/débito",
+      "transfersTitle": "Transferências entre contas próprias",
+      "transfersIn": "Recebidas",
+      "transfersOut": "Enviadas",
+      "filteringByTransfer": "Somente transferências internas",
+      "clearTransferFilter": "Remover filtro de transferência",
+      "unavailableTitle": "Não foi possível carregar o resumo do mês",
+      "unavailableDescription": "Essa informação está temporariamente indisponível. Tente novamente em instantes.",
+      "retry": "Tentar novamente"
+    },
+    "monthYearCarousel": {
+      "prevAriaLabel": "Mês anterior",
+      "nextAriaLabel": "Próximo mês"
+    },
+    "billCarousel": {
+      "title": "Fatura {{month}}",
+      "closes": "fecha {{day}}",
+      "prevAriaLabel": "Fatura anterior",
+      "nextAriaLabel": "Próxima fatura",
+      "statusOpen": "ABERTA",
+      "statusClosed": "FECHADA",
+      "statusPaid": "PAGA",
+      "statusOverdue": "EM ATRASO"
+    },
+    "deleteConfirmation": {
+      "title": "Excluir transação",
+      "message": "Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita."
+    }
   },
   "actions": {
-    "accessModule": "Acessar módulo"
+    "accessModule": "Acessar módulo",
+    "delete": "Excluir",
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "save": "Salvar"
+  },
+  "transactionType": {
+    "BALANCE_ADJUSTMENT": "Ajuste de Saldo",
+    "BILL_PAYMENT": "Pagamento de fatura",
+    "BOLETO": "Boleto",
+    "CARD": "Cartão",
+    "CASHBACK": "Cashback",
+    "DEPOSIT": "Depósito",
+    "DOC": "DOC",
+    "FEE": "Tarifa",
+    "INTEREST": "Juros",
+    "INVESTMENT_RETURN": "Rendimento",
+    "LOAN_PAYMENT": "Pagamento de Empréstimo",
+    "OTHER_EXPENSE": "Outra Despesa",
+    "OTHER_INCOME": "Outra Receita",
+    "PIX": "Pix",
+    "SALARY": "Salário",
+    "TAX": "Imposto",
+    "TED": "TED",
+    "TRANSFER": "Transferência",
+    "WITHDRAWAL": "Saque"
+  },
+  "recurringPayments": {
+    "newButton": "Nova movimentação",
+    "emptyTitle": "Nenhuma movimentação recorrente",
+    "emptyDescription": "Cadastre contas e assinaturas para acompanhar os próximos vencimentos.",
+    "variableAmountBadge": "estimativa variável",
+    "daysUntilDue": "vence em {{count}}d",
+    "widget": {
+      "overdueCount": "{{count}} em atraso",
+      "upcomingCount": "{{count}} nos próximos 30 dias",
+      "viewAll": "Ver todos",
+      "overdueDay": "Vencido há {{count}} dia",
+      "overdueDays": "Vencido há {{count}} dias",
+      "dueToday": "Vence hoje",
+      "dueInDay": "{{count}} dia para vencer",
+      "dueInDays": "{{count}} dias para vencer"
+    },
+    "frequency": {
+      "MONTHLY": "Mensal",
+      "WEEKLY": "Semanal",
+      "YEARLY": "Anual",
+      "CUSTOM": "Personalizada"
+    },
+    "status": {
+      "ACTIVE": "Ativo",
+      "PAUSED": "Pausado"
+    },
+    "form": {
+      "name": "Nome",
+      "account": "Conta",
+      "accountOptional": "Conta (opcional)",
+      "creditDebitType": "Tipo",
+      "expectedAmount": "Valor médio estimado",
+      "variableAmount": "Deixe em branco se o valor variar muito entre vencimentos",
+      "accountSearchPlaceholder": "Buscar conta…",
+      "frequency": "Frequência",
+      "dayOfMonth": "Dia do mês",
+      "intervalDays": "Intervalo (dias)",
+      "firstDueDate": "Próximo vencimento",
+      "remindDaysBefore": "Lembrar N dias antes",
+      "notes": "Notas",
+      "fromTransaction": "Criando a partir da transação de {{date}}. O tipo vem da transação; os demais campos podem ser ajustados.",
+      "category": "Categoria",
+      "merchant": "Estabelecimento",
+      "drawerTitleNew": "Nova movimentação recorrente",
+      "drawerTitleEdit": "Editar movimentação recorrente"
+    },
+    "actions": {
+      "confirmPayment": "Marcar como pago",
+      "pause": "Pausar",
+      "resume": "Retomar"
+    },
+    "deleteConfirmation": {
+      "title": "Remover movimentação recorrente?",
+      "message": "Tem certeza que deseja remover esta movimentação recorrente? Esta ação não pode ser desfeita."
+    },
+    "confirmPaymentDialog": {
+      "title": "Confirmar pagamento",
+      "description": "Registrar pagamento de \"{{name}}\" sem vincular uma transação específica.",
+      "dateLabel": "Data do pagamento",
+      "confirm": "Confirmar"
+    },
+    "pendingActions": {
+      "paymentDue": "Movimentação recorrente próxima",
+      "viewAll": "Ver recorrentes",
+      "dismiss": "Dispensar"
+    },
+    "suggestion": {
+      "link": "Vincular a \"{{name}}\"",
+      "nextDue": "Vence em {{date}}"
+    },
+    "uncategorized": "Sem categoria",
+    "summary": {
+      "monthlyCommitted": "Total Mensal Estimado",
+      "next7Days": "Próximos 7 dias",
+      "overdue": "Em atraso",
+      "distribution": "Distribuição",
+      "byCategory": "Por categoria",
+      "byFrequency": "Por frequência",
+      "noDistributionData": "Sem dados para o gráfico (defina um valor estimado nas recorrências).",
+      "mobileAccordionTitle": "Indicadores"
+    },
+    "header": {
+      "searchPlaceholder": "Buscar por nome…"
+    },
+    "filters": {
+      "account": "Conta",
+      "allAccounts": "Todas as contas",
+      "status": "Status",
+      "category": "Categoria",
+      "frequency": "Frequência",
+      "clear": "Limpar filtros",
+      "anyCategory": "Todas as categorias",
+      "all": "Todos",
+      "selectedCount": "{{count}} selecionados",
+      "ariaStatus": "Filtrar por status",
+      "ariaFrequency": "Filtrar por frequência"
+    },
+    "table": {
+      "ariaLabel": "Tabela de movimentações recorrentes",
+      "noRecurringActivity": "Nenhuma movimentação recorrente",
+      "groups": {
+        "overdue": "Em atraso",
+        "next7Days": "Próximos 7 dias",
+        "nextMonth": "Próximo mês"
+      },
+      "columns": {
+        "name": "Nome",
+        "category": "Categoria",
+        "frequency": "Frequência",
+        "amount": "Valor",
+        "due": "Vencimento",
+        "status": "Status",
+        "actions": ""
+      },
+      "rowActions": {
+        "ariaLabel": "Ações da movimentação recorrente",
+        "edit": "Editar",
+        "remove": "Remover"
+      }
+    },
+    "statusOverdue": "Atraso",
+    "noFilterResults": "Nenhum resultado para os filtros selecionados."
   }
 }

@@ -2,7 +2,11 @@
   "hero": {
     "titlePrefix": "Clareza para sua",
     "titleHighlight": "vida financeira.",
-    "subtitle": "Seus investimentos e gastos pessoais em uma só ferramenta. Decisões melhores começam aqui."
+    "subtitle": "Seus investimentos e gastos pessoais em uma só ferramenta. Decisões melhores começam aqui.",
+    "floatingCards": {
+      "save": "Poupar",
+      "invest": "Investir"
+    }
   },
   "features": {
     "title": "Novidades",

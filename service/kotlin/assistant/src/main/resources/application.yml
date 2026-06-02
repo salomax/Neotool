@@ -43,12 +43,12 @@ llm:
   provider: ${LLM_PROVIDER:gemini}
   gemini:
     base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
-    api-key: ${GEMINI_API_KEY:}
+    api-key: ${GEMINI_API_KEY}
     generate-content-path: ${GEMINI_GENERATE_CONTENT_PATH:/v1beta/models/__MODEL__:generateContent}
     request-timeout-ms: ${GEMINI_REQUEST_TIMEOUT_MS:60000}
     user-agent: ${GEMINI_USER_AGENT:neotool-assistant/1.0}
-    model: ${GEMINI_MODEL:gemini-2.5-flash}
-    temperature: ${GEMINI_TEMPERATURE:0.7}
+    model: ${GEMINI_MODEL}
+    temperature: ${GEMINI_TEMPERATURE:0.0}
     max-tokens: ${GEMINI_MAX_TOKENS:2048}
   openai:
     base-url: ${OPENAI_BASE_URL:https://api.openai.com}
@@ -174,3 +174,39 @@ flyway:
       schemas:
         - public
         - assistant
+
+# Kafka - assistant worker mode for banking import reader flow.
+# Keep disabled by default until rollout is explicitly enabled.
+kafka:
+  enabled: ${KAFKA_ENABLED:false}
+  bootstrap:
+    servers: ${KAFKA_BROKERS:}
+  topics:
+    pdf:
+      banking-reader-requested: ${KAFKA_TOPIC_PDF_BANKING_READER_REQUESTED:assistant.banking-reader.requested}
+      banking-reader-done: ${KAFKA_TOPIC_PDF_BANKING_READER_DONE:assistant.banking-pdf-reader.done}
+      banking-reader-failed: ${KAFKA_TOPIC_PDF_BANKING_READER_FAILED:assistant.banking-pdf-reader.failed}
+  consumers:
+    banking-reader:
+      group-id: ${KAFKA_PDF_BANKING_READER_GROUP_ID:assistant-banking-reader}
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      max-poll-records: 10
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  producers:
+    default:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.micronaut.serde.kafka.KafkaSerdeSerializer
+
+assistant:
+  banking-reader:
+    consumer:
+      enabled: ${ASSISTANT_BANKING_READER_CONSUMER_ENABLED:true}
+    prompt-selection:
+      credit-card-bill-prompt-id: ${ASSISTANT_BANKING_READER_PROMPT_CREDIT_CARD_BILL_ID:}
+      bank-statement-prompt-id: ${ASSISTANT_BANKING_READER_PROMPT_BANK_STATEMENT_ID:}
+    # Probe listener used only to validate bootstrap subscription in BKL-008.
+    # Keep disabled in normal runtime.
+    bootstrap-consumer:
+      enabled: ${ASSISTANT_BANKING_READER_BOOTSTRAP_CONSUMER_ENABLED:false}

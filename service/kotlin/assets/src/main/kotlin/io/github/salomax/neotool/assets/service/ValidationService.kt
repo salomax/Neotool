@@ -2,6 +2,7 @@ package io.github.salomax.neotool.assets.service
 
 import io.github.salomax.neotool.assets.config.AssetConfigProperties
 import io.github.salomax.neotool.assets.error.AssetErrorCode
+import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.tracing.TraceExecution
 import jakarta.inject.Singleton
@@ -21,7 +22,7 @@ class ValidationService(
      *
      * @param namespace The namespace to validate against
      * @param mimeType The MIME type to validate (case-insensitive)
-     * @throws IllegalArgumentException if MIME type is not allowed for the namespace
+     * @throws ValidationException if MIME type is not allowed for the namespace
      */
     fun validateMimeType(
         namespace: String,
@@ -52,7 +53,7 @@ class ValidationService(
      *
      * @param namespace The namespace to validate against
      * @param sizeBytes The file size in bytes
-     * @throws IllegalArgumentException if file size is invalid or exceeds limit
+     * @throws ValidationException if file size is invalid or exceeds limit
      */
     fun validateFileSize(
         namespace: String,
@@ -60,7 +61,7 @@ class ValidationService(
     ) {
         if (sizeBytes <= 0) {
             throw ValidationException(
-                errorCode = AssetErrorCode.ASSET_SIZE_INVALID,
+                errorCode = CommonErrorCode.INVALID_INPUT,
                 field = "sizeBytes",
                 parameters = mapOf("sizeBytes" to sizeBytes),
             )
@@ -76,8 +77,8 @@ class ValidationService(
                 parameters =
                     mapOf(
                         "namespace" to namespace,
-                        "maxSizeBytes" to maxSizeBytes,
                         "sizeBytes" to sizeBytes,
+                        "maxSizeBytes" to maxSizeBytes,
                     ),
             )
         }
@@ -89,7 +90,7 @@ class ValidationService(
      * @param namespace The namespace to validate against
      * @param mimeType The MIME type to validate
      * @param sizeBytes The file size in bytes
-     * @throws IllegalArgumentException if validation fails
+     * @throws ValidationException if validation fails
      */
     fun validate(
         namespace: String,

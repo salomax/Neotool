@@ -1,0 +1,61 @@
+meta {
+  name: Create Financial Account
+  type: graphql
+  seq: 4
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation CreateFinancialAccount($input: CreateFinancialAccountInput!) {
+    createFinancialAccount(input: $input) {
+      id
+      type
+      subtype
+      name
+      currencyCode
+      includeInNetWorth
+      includeInDashboard
+      issuerName
+      issuer {
+        id
+        name
+      }
+      bankData {
+        branchCode
+        number
+      }
+      createdAt
+      updatedAt
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "type": "BANK",
+      "subtype": "CONTA_CORRENTE",
+      "name": "Test Account",
+      "issuerName": "Custom Bank",
+      "currencyCode": "BRL",
+      "includeInNetWorth": true,
+      "includeInDashboard": true,
+      "initialBalance": 5000,
+      "initialBalanceDate": "2026-01-01",    
+      "bankData": {
+        "branchCode": "0001",
+        "number": "12345",
+        "checkDigit": "6"
+      }
+    }
+  }
+}

@@ -11,6 +11,7 @@ coverage.out
 .env
 .env.*
 venv
+.venv/
 .next/
 # Compiled binaries
 /cronjob
@@ -21,7 +22,10 @@ web/tsconfig.tsbuildinfo
 *.code-workspace
 .idea
 .vscode/
+.trae/
 .gradle/
+.gradle-home/
+.gradle-local/
 **/build/
 out/
 *.log
@@ -47,7 +51,35 @@ mobile/*.zip
 .run/
 
 .gocache/
+
+# Python
 __pycache__/
+/*.py[cod]
+*.pyo
+*.pyc
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+*.egg
+*.egg-info/
+dist/
+build/
+pip-wheel-metadata/
+*.manifest
+*.spec
+.coverage
+htmlcov/
+.tox/
+.cache/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/
+
 
 .expo/
 .expo-shared/
@@ -84,7 +116,9 @@ terraform.rc
 
 # IDE settings
 .vscode/
-.claude/
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 .cursor/
 
 # Drafting ideas

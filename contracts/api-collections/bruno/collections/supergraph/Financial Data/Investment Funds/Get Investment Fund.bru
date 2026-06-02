@@ -1,0 +1,64 @@
+meta {
+  name: Get Investment Fund
+  type: graphql
+  seq: 3
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query GetInvestmentFund($id: ID!) {
+    investmentFund(id: $id) {
+      id
+      name
+      cnpj
+      assetType
+      isActive
+      latestNav {
+        date
+        closePrice
+        totalNetAssets
+      }
+      priceHistory(last: 30) {
+        date
+        closePrice
+        totalNetAssets
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "id": "replace-with-fund-id"
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Has fund data", function() {
+    const data = res.getBody();
+    expect(data.data.investmentFund).to.be.an('object');
+  });
+
+  test("Has id", function() {
+    const data = res.getBody();
+    expect(data.data.investmentFund.id).to.be.a('string');
+  });
+
+  test("Has priceHistory array", function() {
+    const data = res.getBody();
+    expect(data.data.investmentFund.priceHistory).to.be.an('array');
+  });
+}

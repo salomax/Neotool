@@ -2,6 +2,7 @@ package processor
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/application"
@@ -85,6 +86,9 @@ func (d *Dispatcher) Dispatch(ctx context.Context) error {
 
 	pool.Shutdown()
 	pool.Wait()
+	if taskErrs := pool.Errors(); len(taskErrs) > 0 {
+		return fmt.Errorf("%d indicator task(s) failed", len(taskErrs))
+	}
 	return nil
 }
 

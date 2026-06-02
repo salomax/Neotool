@@ -66,6 +66,8 @@ dependencies {
 
     // Micrometer - api for other modules (needed for metrics instrumentation)
     api("io.micronaut.micrometer:micronaut-micrometer-core")
+    api("io.micronaut.kafka:micronaut-kafka")
+    api("io.getunleash:unleash-client-java:9.3.0")
 
     // OpenTelemetry tracing: W3C propagation + OTLP export to Tempo
     api("io.micronaut.tracing:micronaut-tracing-opentelemetry-http")

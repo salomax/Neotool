@@ -1,0 +1,652 @@
+'use client';
+
+import React, { useCallback, useState } from 'react';
+import {
+  Box,
+  Chip,
+  IconButton,
+  ListItem,
+  Menu,
+  MenuItem,
+  Divider,
+  ListItemIcon,
+  ListItemText,
+  Tooltip,
+  Typography,
+  alpha,
+  useTheme,
+  TableRow,
+  TableCell,
+} from '@mui/material';
+import type { Theme } from '@mui/material/styles';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
+import DragHandleIcon from '@mui/icons-material/DragHandle';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { CategoryApplicableTo, PatternType } from '@/lib/graphql/types/__generated__/graphql';
+import { Logo } from '@/shared/components/ui/primitives';
+import { CategoryChip } from '../category/CategoryChip';
+import type { TransactionRule } from './types';
+
+const PATTERN_TYPE_LABELS: Record<PatternType, string> = {
+  [PatternType.Contains]: 'Contém',
+  [PatternType.StartsWith]: 'Começa com',
+  [PatternType.Exact]: 'Exato',
+  [PatternType.Regex]: 'Regex',
+};
+
+const APPLICABLE_TO_LABELS: Record<CategoryApplicableTo, string> = {
+  [CategoryApplicableTo.Any]: 'Qualquer',
+  [CategoryApplicableTo.Income]: 'Receita',
+  [CategoryApplicableTo.Expense]: 'Despesa',
+  [CategoryApplicableTo.Transfer]: 'Transferência',
+};
+
+const TAG_COLORS = [
+  '#F44336',
+  '#E91E63',
+  '#9C27B0',
+  '#673AB7',
+  '#3F51B5',
+  '#2196F3',
+  '#03A9F4',
+  '#00BCD4',
+  '#009688',
+  '#4CAF50',
+  '#8BC34A',
+  '#CDDC39',
+  '#FFEB3B',
+  '#FFC107',
+  '#FF9800',
+  '#FF5722',
+  '#795548',
+  '#607D8B',
+];
+
+function stringToColor(value: string) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = value.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash % TAG_COLORS.length);
+  return TAG_COLORS[index]!;
+}
+
+function outlinedChipSx(theme: any, mainColor: string) {
+  return {
+    fontSize: '0.7rem',
+    height: 20,
+    borderColor: alpha(mainColor, 0.4),
+    color: mainColor,
+    backgroundColor: alpha(mainColor, 0.08),
+  } as const;
+}
+
+function contextChipSx(theme: any, applicableTo: CategoryApplicableTo) {
+  if (applicableTo === CategoryApplicableTo.Income) return outlinedChipSx(theme, theme.palette.success.main);
+  if (applicableTo === CategoryApplicableTo.Expense) return outlinedChipSx(theme, theme.palette.error.main);
+  if (applicableTo === CategoryApplicableTo.Transfer) return outlinedChipSx(theme, theme.palette.info.main);
+  return outlinedChipSx(theme, theme.palette.text.secondary);
+}
+
+function ruleChipSx(theme: any, patternType: PatternType) {
+  if (patternType === PatternType.Contains) return outlinedChipSx(theme, theme.palette.info.main);
+  if (patternType === PatternType.StartsWith) return outlinedChipSx(theme, theme.palette.warning.main);
+  if (patternType === PatternType.Exact) return outlinedChipSx(theme, theme.palette.primary.main);
+  return outlinedChipSx(theme, theme.palette.secondary.main);
+}
+
+/** Muted styling for table/list rows when automatic rule is disabled for the account. */
+function mutedChipSx(theme: Theme) {
+  return {
+    fontSize: '0.7rem',
+    height: 20,
+    borderColor: alpha(theme.palette.text.secondary, 0.4),
+    color: theme.palette.text.disabled,
+    backgroundColor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.06 : 0.04),
+  } as const;
+}
+
+function mutedTagChipSx(theme: Theme) {
+  return {
+    fontSize: '0.7rem',
+    height: 20,
+    bgcolor: alpha(theme.palette.grey[500], theme.palette.mode === 'dark' ? 0.2 : 0.12),
+    color: theme.palette.text.secondary,
+    borderRadius: '.3rem',
+  } as const;
+}
+
+interface TransactionRuleRowProps {
+  rule: TransactionRule;
+  draggable?: boolean;
+  onEdit: (rule: TransactionRule) => void;
+  onDelete: (rule: TransactionRule) => void;
+  renderAs?: 'list' | 'table';
+  isFirst?: boolean;
+  isLast?: boolean;
+  showActions?: boolean;
+  onToggleSystemRuleEnabled?: (rule: TransactionRule, enabled: boolean) => void;
+  disableSystemRuleLabel?: string;
+  enableSystemRuleLabel?: string;
+  disabledChipLabel?: string;
+}
+
+export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
+  rule,
+  draggable = false,
+  onEdit,
+  onDelete,
+  renderAs = 'list',
+  isFirst = false,
+  isLast = false,
+  showActions = true,
+  onToggleSystemRuleEnabled,
+  disableSystemRuleLabel = 'Desabilitar regra',
+  enableSystemRuleLabel = 'Habilitar regra',
+  disabledChipLabel = 'Desabilitada',
+}) => {
+  const theme = useTheme();
+  const isRowMuted = Boolean(rule.isDisabledForAccount);
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<HTMLElement | null>(null);
+  const isActionMenuOpen = Boolean(actionMenuAnchorEl);
+  const actionMenuId = `transaction-rule-actions-menu-${rule.id}`;
+  const actionButtonId = `transaction-rule-actions-button-${rule.id}`;
+
+  const closeActionMenu = useCallback(() => {
+    setActionMenuAnchorEl(null);
+  }, []);
+
+  const handleEditClick = useCallback(() => {
+    closeActionMenu();
+    onEdit(rule);
+  }, [closeActionMenu, onEdit, rule]);
+
+  const handleDeleteClick = useCallback(() => {
+    closeActionMenu();
+    onDelete(rule);
+  }, [closeActionMenu, onDelete, rule]);
+
+  const handleToggleSystemRuleEnabled = useCallback(() => {
+    closeActionMenu();
+    onToggleSystemRuleEnabled?.(rule, rule.isDisabledForAccount);
+  }, [closeActionMenu, onToggleSystemRuleEnabled, rule]);
+
+  if (renderAs === 'table') {
+    const cellBg = isRowMuted
+      ? alpha(theme.palette.grey[500], theme.palette.mode === 'dark' ? 0.14 : 0.08)
+      : 'background.paper';
+    return (
+      <TableRow
+        hover
+        sx={{
+          ...(isRowMuted && {
+            '& .rule-muted-visual': { filter: 'grayscale(1)' },
+          }),
+          '&:hover .rule-actions': { opacity: 1 },
+          '&:hover': isRowMuted
+            ? { bgcolor: alpha(theme.palette.grey[500], theme.palette.mode === 'dark' ? 0.2 : 0.12) }
+            : { bgcolor: alpha(theme.palette.primary.main, 0.04) },
+          '& .MuiTableCell-root': {
+            bgcolor: cellBg,
+            borderColor: 'transparent',
+          },
+          '& .MuiTableCell-root:first-of-type': {
+            borderTopLeftRadius: isFirst ? '12px' : 0,
+            borderBottomLeftRadius: isLast ? '12px' : 0,
+          },
+          '& .MuiTableCell-root:last-of-type': {
+            borderTopRightRadius: isFirst ? '12px' : 0,
+            borderBottomRightRadius: isLast ? '12px' : 0,
+          },
+        }}
+      >
+        <TableCell sx={{ pl: 2 }}>
+          <Chip
+            label={APPLICABLE_TO_LABELS[rule.applicableTo as CategoryApplicableTo]}
+            size="small"
+            variant="outlined"
+            sx={isRowMuted ? mutedChipSx(theme) : contextChipSx(theme, rule.applicableTo as CategoryApplicableTo)}
+          />
+        </TableCell>
+
+        <TableCell>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Chip
+              label={PATTERN_TYPE_LABELS[rule.patternType as PatternType]}
+              size="small"
+              variant="outlined"
+              sx={isRowMuted ? mutedChipSx(theme) : ruleChipSx(theme, rule.patternType as PatternType)}
+            />
+            {rule.isDisabledForAccount && (
+              <Chip
+                label={disabledChipLabel}
+                size="small"
+                variant="outlined"
+                sx={{
+                  fontSize: '0.7rem',
+                  height: 20,
+                  color: 'text.disabled',
+                  borderColor: alpha(theme.palette.text.secondary, 0.35),
+                  bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.08 : 0.05),
+                }}
+              />
+            )}
+          </Box>
+        </TableCell>
+
+        <TableCell>
+          <Typography
+            variant="body2"
+            color={isRowMuted ? 'text.disabled' : 'text.secondary'}
+            sx={{
+              fontStyle: 'italic',
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+            title={rule.pattern}
+          >
+            &quot;{rule.pattern}&quot;
+          </Typography>
+        </TableCell>
+
+        <TableCell>
+          {rule.descriptionOverride ? (
+            <Typography
+              variant="body2"
+              color={isRowMuted ? 'text.disabled' : 'text.secondary'}
+              sx={{
+                fontStyle: 'italic',
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+              title={rule.descriptionOverride}
+            >
+              &quot;{rule.descriptionOverride}&quot;
+            </Typography>
+          ) : (
+            <Typography variant="body2" color="text.disabled">
+              —
+            </Typography>
+          )}
+        </TableCell>
+
+        <TableCell>
+          <CategoryChip category={rule.category} disabled={isRowMuted} />
+        </TableCell>
+
+        <TableCell>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
+            {rule.tagsOverride?.map((tag: string) => {
+              const color = stringToColor(tag);
+              return (
+                <Chip
+                  key={tag}
+                  label={`#${tag}`}
+                  size="small"
+                  variant="filled"
+                  sx={
+                    isRowMuted
+                      ? mutedTagChipSx(theme)
+                      : {
+                          fontSize: '0.7rem',
+                          height: 20,
+                          bgcolor: alpha(color, 0.05),
+                          color: color,
+                          borderRadius: '.3rem',
+                        }
+                  }
+                />
+              );
+            })}
+          </Box>
+        </TableCell>
+
+        <TableCell>
+          {rule.merchant ? (
+            <Box
+              className={isRowMuted ? 'rule-muted-visual' : undefined}
+              sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+            >
+              <Logo
+                src={rule.merchant.logoAsset?.publicUrl ?? undefined}
+                alt={rule.merchant.name}
+                size="xs"
+              />
+              <Typography variant="body2" color={isRowMuted ? 'text.disabled' : 'text.primary'}>
+                {rule.merchant.name}
+              </Typography>
+            </Box>
+          ) : null}
+        </TableCell>
+
+        <TableCell>
+          <Typography
+            variant="body2"
+            color={isRowMuted ? 'text.disabled' : 'text.secondary'}
+            sx={{ fontVariantNumeric: 'tabular-nums' }}
+          >
+            {rule.priority}
+          </Typography>
+        </TableCell>
+
+        {showActions && (
+          <TableCell
+            align="center"
+            padding="none"
+            sx={{
+              width: 30,
+              maxWidth: 30,
+            }}
+          >
+            <IconButton
+              size="small"
+              sx={{ p: 0.5 }}
+              onClick={(e) => setActionMenuAnchorEl(e.currentTarget)}
+              id={actionButtonId}
+              aria-label="Ações da regra"
+              aria-haspopup="menu"
+              aria-expanded={isActionMenuOpen ? 'true' : undefined}
+              aria-controls={isActionMenuOpen ? actionMenuId : undefined}
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+
+            <Menu
+              id={actionMenuId}
+              open={isActionMenuOpen}
+              anchorEl={actionMenuAnchorEl}
+              onClose={closeActionMenu}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              MenuListProps={{
+                'aria-labelledby': actionButtonId,
+              }}
+            >
+              {rule.isSystem && onToggleSystemRuleEnabled && (
+                <MenuItem onClick={handleToggleSystemRuleEnabled}>
+                  <ListItemIcon>
+                    {rule.isDisabledForAccount ? <PlayCircleOutlineIcon fontSize="small" /> : <PauseCircleOutlineIcon fontSize="small" />}
+                  </ListItemIcon>
+                  <ListItemText>{rule.isDisabledForAccount ? enableSystemRuleLabel : disableSystemRuleLabel}</ListItemText>
+                </MenuItem>
+              )}
+              {!rule.isSystem && (
+                <MenuItem onClick={handleEditClick}>
+                  <ListItemIcon>
+                    <EditIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Editar</ListItemText>
+                </MenuItem>
+              )}
+              {!rule.isSystem && <Divider />}
+              {!rule.isSystem && (
+                <MenuItem
+                  onClick={handleDeleteClick}
+                  sx={{
+                    color: 'error.main',
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.error.main, 0.08),
+                    },
+                    '&.Mui-focusVisible': {
+                      bgcolor: alpha(theme.palette.error.main, 0.08),
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ color: 'inherit' }}>
+                    <DeleteOutlineIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Excluir</ListItemText>
+                </MenuItem>
+              )}
+            </Menu>
+          </TableCell>
+        )}
+      </TableRow>
+    );
+  }
+
+  return (
+    <ListItem
+      disablePadding
+      sx={{
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        '&:last-child': { borderBottom: 'none' },
+        '&:hover .rule-actions': { opacity: 1 },
+        '&:hover': isRowMuted
+          ? { bgcolor: alpha(theme.palette.grey[500], theme.palette.mode === 'dark' ? 0.16 : 0.1) }
+          : { bgcolor: alpha(theme.palette.primary.main, 0.04) },
+        bgcolor: isRowMuted ? alpha(theme.palette.grey[500], theme.palette.mode === 'dark' ? 0.12 : 0.06) : undefined,
+        px: 2,
+        py: 1.5,
+        gap: 1.5,
+        display: 'flex',
+        alignItems: 'flex-start',
+        ...(isRowMuted && {
+          '& .rule-muted-visual': { filter: 'grayscale(1)' },
+        }),
+      }}
+    >
+      {draggable ? (
+        <Box
+          sx={{
+            cursor: 'grab',
+            color: theme.palette.text.disabled,
+            display: 'flex',
+            alignItems: 'center',
+            pt: 0.25,
+            flexShrink: 0,
+            '&:active': { cursor: 'grabbing' },
+          }}
+        >
+          <DragHandleIcon fontSize="small" />
+        </Box>
+      ) : (
+        <Box sx={{ width: 20, flexShrink: 0 }} />
+      )}
+
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <Typography
+            variant="body2"
+            fontWeight={600}
+            sx={{ fontFamily: 'monospace', color: isRowMuted ? 'text.disabled' : undefined }}
+          >
+            &quot;{rule.pattern}&quot;
+          </Typography>
+          <Chip
+            label={PATTERN_TYPE_LABELS[rule.patternType as PatternType]}
+            size="small"
+            variant="outlined"
+            sx={isRowMuted ? mutedChipSx(theme) : ruleChipSx(theme, rule.patternType as PatternType)}
+          />
+          {rule.applicableTo !== CategoryApplicableTo.Any && (
+            <Chip
+              label={APPLICABLE_TO_LABELS[rule.applicableTo as CategoryApplicableTo]}
+              size="small"
+              variant="outlined"
+              sx={isRowMuted ? mutedChipSx(theme) : contextChipSx(theme, rule.applicableTo as CategoryApplicableTo)}
+            />
+          )}
+          {rule.isDisabledForAccount && (
+            <Chip
+              label={disabledChipLabel}
+              size="small"
+              variant="outlined"
+              sx={{
+                fontSize: '0.7rem',
+                height: 20,
+                color: 'text.disabled',
+                borderColor: alpha(theme.palette.text.secondary, 0.35),
+                bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.08 : 0.05),
+              }}
+            />
+          )}
+        </Box>
+      </Box>
+
+      <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
+        {rule.category && (
+          <Chip
+            label={rule.category.name}
+            size="small"
+            sx={
+              isRowMuted
+                ? {
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    color: 'text.disabled',
+                    borderColor: alpha(theme.palette.text.secondary, 0.35),
+                    bgcolor: alpha(theme.palette.grey[500], theme.palette.mode === 'dark' ? 0.2 : 0.12),
+                  }
+                : {
+                    bgcolor: rule.category.color ? alpha(rule.category.color, 0.12) : undefined,
+                    borderColor: rule.category.color ? alpha(rule.category.color, 0.4) : undefined,
+                    color: rule.category.color ?? undefined,
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                  }
+            }
+            variant="outlined"
+          />
+        )}
+        {rule.merchant && (
+          <Chip
+            label={rule.merchant.name}
+            size="small"
+            variant="outlined"
+            sx={{
+              fontSize: '0.75rem',
+              ...(isRowMuted && {
+                borderColor: alpha(theme.palette.text.secondary, 0.4),
+                color: theme.palette.text.disabled,
+                bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.06 : 0.04),
+              }),
+            }}
+          />
+        )}
+        {rule.descriptionOverride && (
+          <Typography
+            variant="caption"
+            color={isRowMuted ? 'text.disabled' : 'text.secondary'}
+            sx={{ fontStyle: 'italic' }}
+          >
+            → &quot;{rule.descriptionOverride}&quot;
+          </Typography>
+        )}
+        {rule.tagsOverride?.map((tag: string) => {
+          const color = stringToColor(tag);
+          return (
+            <Chip
+              key={tag}
+              label={`#${tag}`}
+              size="small"
+              variant="filled"
+              sx={
+                isRowMuted
+                  ? mutedTagChipSx(theme)
+                  : {
+                      fontSize: '0.7rem',
+                      height: 20,
+                      bgcolor: alpha(color, 0.05),
+                      color: color,
+                      borderRadius: '.3rem',
+                    }
+              }
+            />
+          );
+        })}
+        {rule.matchCount > 0 && (
+          <Chip
+            label={`${rule.matchCount}×`}
+            size="small"
+            variant="outlined"
+            sx={{ fontSize: '0.7rem', height: 20, color: 'text.secondary', borderColor: 'divider' }}
+          />
+        )}
+      </Box>
+
+      {showActions && (
+        <Box
+          className="rule-actions"
+          sx={{
+            display: 'flex',
+            gap: 0.5,
+            opacity: 0.4,
+            transition: 'opacity 0.15s',
+            flexShrink: 0,
+          }}
+        >
+          <Tooltip title="Ações">
+            <IconButton
+              size="small"
+              onClick={(e) => setActionMenuAnchorEl(e.currentTarget)}
+              id={actionButtonId}
+              aria-label="Ações da regra"
+              aria-haspopup="menu"
+              aria-expanded={isActionMenuOpen ? 'true' : undefined}
+              aria-controls={isActionMenuOpen ? actionMenuId : undefined}
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+
+          <Menu
+            id={actionMenuId}
+            open={isActionMenuOpen}
+            anchorEl={actionMenuAnchorEl}
+            onClose={closeActionMenu}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            MenuListProps={{
+              'aria-labelledby': actionButtonId,
+            }}
+          >
+            {rule.isSystem && onToggleSystemRuleEnabled && (
+              <MenuItem onClick={handleToggleSystemRuleEnabled}>
+                <ListItemIcon>
+                  {rule.isDisabledForAccount ? <PlayCircleOutlineIcon fontSize="small" /> : <PauseCircleOutlineIcon fontSize="small" />}
+                </ListItemIcon>
+                <ListItemText>{rule.isDisabledForAccount ? enableSystemRuleLabel : disableSystemRuleLabel}</ListItemText>
+              </MenuItem>
+            )}
+            {!rule.isSystem && (
+              <MenuItem onClick={handleEditClick}>
+                <ListItemIcon>
+                  <EditIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Editar</ListItemText>
+              </MenuItem>
+            )}
+            {!rule.isSystem && <Divider />}
+            {!rule.isSystem && (
+              <MenuItem
+                onClick={handleDeleteClick}
+                sx={{
+                  color: 'error.main',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.error.main, 0.08),
+                  },
+                  '&.Mui-focusVisible': {
+                    bgcolor: alpha(theme.palette.error.main, 0.08),
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ color: 'inherit' }}>
+                  <DeleteOutlineIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Excluir</ListItemText>
+              </MenuItem>
+            )}
+          </Menu>
+        </Box>
+      )}
+    </ListItem>
+  );
+};

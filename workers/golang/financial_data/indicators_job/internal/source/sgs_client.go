@@ -15,6 +15,22 @@ import (
 	"github.com/salomax/invistus/workflow/golang/financial_data/indicators/internal/domain"
 )
 
+// applySGSBrowserHeaders sets headers similar to a typical browser GET. BCB hosts SGS behind
+// Azure / WAF; the default Go User-Agent (Go-http-client/1.1) is often rejected with 502/HTML.
+func applySGSBrowserHeaders(req *http.Request) {
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "application/json, text/plain;q=0.9, */*;q=0.8")
+	req.Header.Set("Accept-Language", "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7")
+	// Leave Accept-Encoding unset so net/http Transport adds gzip and decompresses automatically.
+	req.Header.Set("Referer", "https://www.bcb.gov.br/")
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Site", "same-site")
+	req.Header.Set("Sec-CH-UA", `"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"`)
+	req.Header.Set("Sec-CH-UA-Mobile", "?0")
+	req.Header.Set("Sec-CH-UA-Platform", `"Windows"`)
+}
+
 type sgsItem struct {
 	Date  string `json:"data"`
 	Value string `json:"valor"`
@@ -27,6 +43,11 @@ type SGSClient struct {
 	lastRequest time.Time
 	mu          sync.Mutex
 }
+
+const (
+	sgsMaxAttempts = 3
+	sgsRetryDelay  = 1200 * time.Millisecond
+)
 
 func NewSGSClient(timeout time.Duration, minInterval time.Duration) *SGSClient {
 	return &SGSClient{
@@ -43,13 +64,9 @@ func (c *SGSClient) ValidateSeries(ctx context.Context, metadataURL string) erro
 	if err := c.throttle(ctx); err != nil {
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL, nil)
+	resp, err := c.doGetWithRetry(ctx, metadataURL)
 	if err != nil {
-		return fmt.Errorf("sgs metadata request build failed: %w", err)
-	}
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("sgs metadata request failed: %w", err)
+		return fmt.Errorf("sgs metadata request failed after retries: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -70,14 +87,9 @@ func (c *SGSClient) FetchValuesWithCalc(ctx context.Context, variationID, url, c
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	resp, err := c.doGetWithRetry(ctx, url)
 	if err != nil {
-		return nil, fmt.Errorf("sgs request build failed: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("sgs request failed: %w", err)
+		return nil, fmt.Errorf("sgs request failed after retries: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -175,6 +187,45 @@ func (c *SGSClient) FetchValuesWithCalc(ctx context.Context, variationID, url, c
 	}
 
 	return nil, fmt.Errorf("unsupported SGS calcType: %s", calcType)
+}
+
+func (c *SGSClient) doGetWithRetry(ctx context.Context, rawURL string) (*http.Response, error) {
+	var lastErr error
+	for attempt := 1; attempt <= sgsMaxAttempts; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("sgs request build failed: %w", err)
+		}
+		applySGSBrowserHeaders(req)
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			lastErr = err
+		} else if !isSGSTransientStatus(resp.StatusCode) {
+			return resp, nil
+		} else {
+			lastErr = fmt.Errorf("status %d", resp.StatusCode)
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}
+
+		if attempt == sgsMaxAttempts {
+			break
+		}
+		select {
+		case <-time.After(time.Duration(attempt) * sgsRetryDelay):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	return nil, lastErr
+}
+
+func isSGSTransientStatus(status int) bool {
+	return status == http.StatusBadGateway ||
+		status == http.StatusServiceUnavailable ||
+		status == http.StatusGatewayTimeout ||
+		status == http.StatusTooManyRequests
 }
 
 // parseMonthlyRates parses raw SGS items into a sorted map of monthly rates

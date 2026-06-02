@@ -44,8 +44,8 @@ export default function NationalIndicatorsClient() {
     const enrichedIndicators = useMemo(() => {
         return indicators.map(indicator => ({
             ...indicator,
-            translatedLabel: t(`nationalIndicators.indicators.${indicator.label}.label`, { defaultValue: indicator.label }),
-            translatedDescription: t(`nationalIndicators.indicators.${indicator.label}.description`, { defaultValue: indicator.description || undefined })
+            translatedLabel: t(`nationalIndicators.indicators.${indicator.label}.label`),
+            translatedDescription: t(`nationalIndicators.indicators.${indicator.label}.description`)
         }));
     }, [indicators, t]);
 

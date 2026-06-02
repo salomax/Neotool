@@ -11,8 +11,10 @@ import io.micronaut.context.annotation.Requires
 import io.micronaut.http.HttpHeaders
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
+import io.micronaut.http.client.DefaultHttpClientConfiguration
 import io.micronaut.http.client.HttpClient
 import io.micronaut.http.client.exceptions.HttpClientResponseException
+import io.micronaut.http.client.exceptions.ReadTimeoutException
 import jakarta.annotation.PreDestroy
 import jakarta.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +26,8 @@ import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.nio.charset.StandardCharsets
+import java.time.Duration
+import java.util.concurrent.TimeoutException
 
 @Singleton
 @Requires(property = "llm.provider", value = "gemini")
@@ -36,8 +40,16 @@ class GeminiProviderClient(
 
     private val httpClient: HttpClient by lazy {
         try {
+            val requestTimeout = Duration.ofMillis(config.requestTimeoutMs.coerceAtLeast(1))
+            val connectTimeoutMs = config.requestTimeoutMs.coerceAtMost(DEFAULT_CONNECT_TIMEOUT_MS).coerceAtLeast(1)
+            val clientConfig =
+                DefaultHttpClientConfiguration().apply {
+                    setReadTimeout(requestTimeout)
+                    setRequestTimeout(requestTimeout)
+                    setConnectTimeout(Duration.ofMillis(connectTimeoutMs))
+                }
             @Suppress("DEPRECATION")
-            HttpClient.create(URL(baseUrl))
+            HttpClient.create(URL(baseUrl), clientConfig)
         } catch (exception: Exception) {
             throw IllegalStateException("Invalid Gemini base URL: $baseUrl", exception)
         }
@@ -87,6 +99,12 @@ class GeminiProviderClient(
                     message = "Gemini request timed out after ${config.requestTimeoutMs}ms",
                     cause = exception,
                 )
+            } catch (exception: ReadTimeoutException) {
+                throw ProviderClientException(
+                    errorType = ErrorType.TIMEOUT,
+                    message = "Gemini read timeout after ${config.requestTimeoutMs}ms",
+                    cause = exception,
+                )
             } catch (exception: SocketTimeoutException) {
                 throw ProviderClientException(
                     errorType = ErrorType.TIMEOUT,
@@ -100,6 +118,13 @@ class GeminiProviderClient(
                     cause = exception,
                 )
             } catch (exception: Exception) {
+                if (isTimeoutLike(exception)) {
+                    throw ProviderClientException(
+                        errorType = ErrorType.TIMEOUT,
+                        message = "Gemini request timed out: ${exception.message ?: "timeout"}",
+                        cause = exception,
+                    )
+                }
                 throw ProviderClientException(
                     errorType = ErrorType.UNKNOWN,
                     message = "Unexpected Gemini provider error: ${exception.message}",
@@ -274,10 +299,31 @@ class GeminiProviderClient(
         return "https://$normalized"
     }
 
+    private fun isTimeoutLike(exception: Throwable): Boolean {
+        var current: Throwable? = exception
+        while (current != null) {
+            if (
+                current is kotlinx.coroutines.TimeoutCancellationException ||
+                current is ReadTimeoutException ||
+                current is SocketTimeoutException ||
+                current is TimeoutException
+            ) {
+                return true
+            }
+            val message = current.message?.lowercase()
+            if (message?.contains("read timeout") == true || message?.contains("timed out") == true) {
+                return true
+            }
+            current = current.cause
+        }
+        return false
+    }
+
     companion object {
         private const val ENV_PREFIX = "env:"
         private const val DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com"
         private const val DEFAULT_GENERATE_CONTENT_PATH = "/v1beta/models/__MODEL__:generateContent"
+        private const val DEFAULT_CONNECT_TIMEOUT_MS = 10_000L
         private const val MODEL_TOKEN_PLACEHOLDER = "__MODEL__"
         private const val MODEL_PLACEHOLDER = "{model}"
         private const val ERROR_BODY_LOG_LIMIT = 400

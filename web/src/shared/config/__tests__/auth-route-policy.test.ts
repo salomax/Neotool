@@ -8,6 +8,7 @@ describe("auth-route-policy", () => {
   describe("PROTECTED_ROUTE_PREFIXES", () => {
     it("includes expected protected segments", () => {
       expect(PROTECTED_ROUTE_PREFIXES).toContain("/personal-finance");
+      expect(PROTECTED_ROUTE_PREFIXES).toContain("/profile");
       expect(PROTECTED_ROUTE_PREFIXES).toContain("/settings");
     });
   });
@@ -16,6 +17,7 @@ describe("auth-route-policy", () => {
     it("returns true for protected path exact match", () => {
       expect(isRouteProtected("/settings")).toBe(true);
       expect(isRouteProtected("/personal-finance")).toBe(true);
+      expect(isRouteProtected("/profile")).toBe(true);
     });
 
     it("returns true for protected path with segment", () => {
@@ -23,6 +25,7 @@ describe("auth-route-policy", () => {
       expect(isRouteProtected("/personal-finance/finance-transactions")).toBe(
         true
       );
+      expect(isRouteProtected("/profile/security")).toBe(true);
     });
 
     it("returns false for public and anonymous-area routes", () => {

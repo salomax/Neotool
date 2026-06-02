@@ -1,0 +1,241 @@
+/**
+ * Page Object for the InlineTransactionForm component.
+ *
+ * The form is rendered as a TableRow inline inside the TransactionTable.
+ * It is opened by clicking the "Nova transação" button.
+ *
+ * Key observations from reading the source:
+ * - No `status` field exposed → transactions created via UI default to POSTED on the backend.
+ * - No `type` field exposed → always defaults to OtherExpense for creation.
+ * - `creditDebitType` accepts DEBIT | CREDIT | TRANSFER (TRANSFER is a UI shortcut).
+ * - Date window: minDate = today − 10 years, maxDate = today. Dates before min or after max
+ *   show validation helper text; save stays disabled until the date is valid.
+ * - Save stays enabled unless a save is in progress; missing/invalid required fields show errors
+ *   after the user clicks Save (or presses Enter in the amount field).
+ * - The form auto-focuses the description field when opened.
+ *
+ */
+
+import { Page, Locator, expect } from "@playwright/test";
+import { CreditDebitType } from "../../helpers/banking-schema-enums";
+import { today } from "../../helpers/banking-graphql";
+
+/** GraphQL credit/debit plus UI-only TRANSFER shortcut. */
+export type CreditDebitTypeOption = CreditDebitType | "TRANSFER";
+
+export class InlineTransactionForm {
+  private readonly form: Locator;
+
+  constructor(private readonly page: Page) {
+    this.form = page.getByTestId("inline-transaction-form");
+  }
+
+  async waitForOpen(): Promise<void> {
+    await this.form.waitFor({ state: "visible" });
+  }
+
+  /** Waits until the inline form is gone (collapse / unmount). */
+  async waitForClose(): Promise<void> {
+    await expect(this.form).not.toBeVisible({ timeout: 20_000 });
+  }
+
+  // ── Field interactions ──────────────────────────────────────────────────────
+
+  /**
+   * Selects DEBIT, CREDIT or TRANSFER from the creditDebitType dropdown.
+   * Opens the MUI Select and clicks the matching menu item.
+   */
+  async selectCreditDebitType(type: CreditDebitTypeOption): Promise<void> {
+    await this.form.getByTestId("tx-credit-debit-type-select").click();
+    const listbox = this.page.getByRole("listbox");
+    await listbox.waitFor({ state: "visible" });
+
+    // Labels follow i18n: pt uses Despesa/Receita/Transferência; en uses Debit/Credit/Transfer.
+    const labelMap: Record<CreditDebitTypeOption, RegExp> = {
+      [CreditDebitType.Debit]: /débit|debit|despesa/i,
+      [CreditDebitType.Credit]: /crédit|credit|receita/i,
+      TRANSFER: /transf|transferência/i,
+    };
+    await listbox.getByRole("option", { name: labelMap[type] }).click();
+    await listbox.waitFor({ state: "hidden" });
+  }
+
+  async fillDescription(text: string): Promise<void> {
+    const input = this.form.getByTestId("tx-description-input");
+    await input.clear();
+    await input.fill(text);
+  }
+
+  /**
+   * Fills the amount field.
+   * BaseMoneyInput renders a plain <input type="text"> with currency formatting.
+   * Clears the field first to avoid appending to an existing value.
+   */
+  async fillAmount(amount: number): Promise<void> {
+    const input = this.form.getByTestId("tx-amount-input");
+    await input.clear();
+    await input.fill(String(amount));
+    // Trigger change event (some money inputs require a blur or Enter to commit)
+    await input.press("Tab");
+  }
+
+  /**
+   * Sets the date using the MUI DatePicker text input.
+   * Expects dateStr in the locale format: DD/MM/YYYY for pt-BR.
+   *
+   * InlineTransactionForm uses `enableAccessibleFieldDOMStructure={false}` so the field is a
+   * normal TextField input; typing must flow through MUI’s field pipeline to update save state.
+   *
+   * Inline form uses `disableOpenPicker` (type-only). Tab commits focus like a normal TextField.
+   */
+  async setDate(dateStr: string): Promise<void> {
+    const input = this.form.getByTestId("tx-date-input");
+    await input.click();
+    await input.fill(dateStr);
+    await input.press("Tab");
+  }
+
+  /** Sets the transaction date to today (local calendar), on or after typical initial balance dates. */
+  async setDateToday(): Promise<void> {
+    await this.setDate(InlineTransactionForm.formatDateBr(today()));
+  }
+
+  /**
+   * Converts a YYYY-MM-DD string to DD/MM/YYYY (pt-BR format for the DatePicker).
+   */
+  static formatDateBr(isoDate: string): string {
+    const [year, month, day] = isoDate.split("-");
+    return `${day}/${month}/${year}`;
+  }
+
+  // ── Actions ─────────────────────────────────────────────────────────────────
+
+  async save(): Promise<void> {
+    const saveBtn = this.form.getByTestId("tx-save-btn");
+    await expect(saveBtn).not.toBeDisabled({ timeout: 15_000 });
+    await saveBtn.scrollIntoViewIfNeeded();
+    await saveBtn.click();
+  }
+
+  async attemptSave(): Promise<void> {
+    const saveBtn = this.form.getByTestId("tx-save-btn");
+    await saveBtn.scrollIntoViewIfNeeded();
+    await saveBtn.click();
+  }
+
+  async cancel(): Promise<void> {
+    await this.form.getByTestId("tx-cancel-btn").click();
+  }
+
+  async saveWithEnter(): Promise<void> {
+    await this.form.getByTestId("tx-amount-input").press("Enter");
+  }
+
+  // ── Assertions ──────────────────────────────────────────────────────────────
+
+  async expectSaveDisabled(): Promise<void> {
+    await expect(this.form.getByTestId("tx-save-btn")).toBeDisabled();
+  }
+
+  async expectSaveEnabled(): Promise<void> {
+    await expect(this.form.getByTestId("tx-save-btn")).not.toBeDisabled();
+  }
+
+  async isSaveEnabled(): Promise<boolean> {
+    return this.form.getByTestId("tx-save-btn").isEnabled();
+  }
+
+  async expectFieldRequiredError(field: "description" | "amount" | "account"): Promise<void> {
+    await expect(this.form.locator(`[data-field-error="${field}"]`)).toBeVisible();
+  }
+
+  async expectDateError(messagePattern?: string | RegExp): Promise<void> {
+    const helperText = this.form.locator(".MuiFormHelperText-root");
+    if (messagePattern) {
+      await expect(helperText).toHaveText(messagePattern);
+    } else {
+      await expect(helperText).toBeVisible();
+    }
+  }
+
+  // ── Shortcut: fill the complete form in one call ─────────────────────────────
+
+  async fillAndSave(params: {
+    description: string;
+    amount: number;
+    creditDebitType?: CreditDebitTypeOption;
+    date?: string; // YYYY-MM-DD
+  }): Promise<void> {
+    await this.waitForOpen();
+    if (
+      params.creditDebitType &&
+      params.creditDebitType !== CreditDebitType.Debit
+    ) {
+      await this.selectCreditDebitType(params.creditDebitType);
+    }
+    await this.fillDescription(params.description);
+    await this.fillAmount(params.amount);
+    const isoDate = params.date ?? today();
+    await this.setDate(InlineTransactionForm.formatDateBr(isoDate));
+    const responsePromise = this.page.waitForResponse(
+      (response) => {
+        const req = response.request();
+        if (req.method() !== "POST") return false;
+        if (!/graphql/i.test(req.url())) return false;
+        const body = req.postData() ?? "";
+        return body.includes("CreateTransaction") && body.includes("mutation");
+      },
+      { timeout: 30_000 },
+    );
+    await this.save();
+    const response = await responsePromise;
+    if (!response.ok()) {
+      throw new Error(`CreateTransaction HTTP ${response.status()}`);
+    }
+    const payload = (await response.json()) as { errors?: { message?: string }[] };
+    if (payload.errors?.length) {
+      throw new Error(
+        `CreateTransaction GraphQL: ${payload.errors.map((e) => e.message ?? JSON.stringify(e)).join("; ")}`,
+      );
+    }
+    await this.waitForClose();
+  }
+
+  async selectAnyCategory(): Promise<void> {
+    const trigger = this.form.getByTestId("tx-category-select");
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.click({ force: true });
+    await this.page
+      .locator(".MuiPopover-root .MuiListItemButton-root")
+      .nth(1)
+      .click();
+  }
+
+  async addTag(tag: string): Promise<void> {
+    const input = this.form.getByPlaceholder(/tags/i);
+    await input.fill(tag);
+    await input.press("Enter");
+  }
+
+  async openMerchantPicker(): Promise<void> {
+    await this.form.getByTestId("merchant-select-trigger").click();
+    await this.page.getByTestId("merchant-picker-search-input").waitFor({ state: "visible" });
+  }
+
+  async openCreateMerchant(): Promise<void> {
+    await this.page.getByTestId("merchant-picker-create-button").click();
+    await this.page.getByTestId("merchant-picker-name-input").waitFor({ state: "visible" });
+  }
+
+  async createMerchant(name: string, website?: string): Promise<void> {
+    await this.openMerchantPicker();
+    await this.openCreateMerchant();
+    await this.page.getByTestId("merchant-picker-name-input").fill(name);
+    if (website) {
+      await this.page.getByTestId("merchant-picker-website-input").fill(website);
+    }
+    await this.page.getByTestId("merchant-picker-save-btn").click();
+    await expect(this.form.getByTestId("merchant-select-trigger")).toContainText(name, { timeout: 15_000 });
+    await this.page.getByTestId("merchant-picker-search-input").waitFor({ state: "hidden", timeout: 15_000 });
+  }
+}

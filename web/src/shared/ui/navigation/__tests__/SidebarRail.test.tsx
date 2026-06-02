@@ -82,21 +82,24 @@ vi.mock('@/shared/hooks/useFeatureFlag', () => ({
   useFeatureFlagEnabled: () => false,
 }));
 
-// Mock i18n
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-  }),
-}));
+vi.mock("react-i18next", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-i18next")>();
+  return {
+    ...actual,
+    useTranslation: () => ({
+      t: (key: string) => key,
+    }),
+  };
+});
 
 // Mock feature flags
 vi.mock('@/shared/hooks/useFeatureFlag', () => ({
   useFeatureFlagEnabled: () => false,
 }));
 
-const renderSidebarRail = () => {
+const renderSidebarRail = (mode: 'light' | 'dark' = 'light') => {
   return render(
-    <AppThemeProvider>
+    <AppThemeProvider defaultMode={mode}>
       <SidebarRail />
     </AppThemeProvider>
   );
@@ -123,6 +126,14 @@ describe.sequential('SidebarRail', () => {
       const logoLink = screen.getByTestId('sidebar-rail-home-link');
       expect(logoLink).toBeInTheDocument();
       expect(logoLink).toHaveAttribute('href', '/');
+
+      const logo = screen.getByTestId('logo-mark');
+      expect(logo).toBeInTheDocument();
+      expect(logo).toHaveAttribute('data-variant', 'blue');
+    });
+    
+    it('renders white logo variant in dark mode', () => {
+      renderSidebarRail('dark');
 
       const logo = screen.getByTestId('logo-mark');
       expect(logo).toBeInTheDocument();

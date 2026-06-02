@@ -1,0 +1,53 @@
+meta {
+  name: List Investment Transactions
+  type: graphql
+  seq: 3
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query InvestmentTransactions($holdingId: ID!) {
+    investmentTransactions(holdingId: $holdingId) {
+      id
+      holdingId
+      financialAccountId
+      direction
+      type
+      typeAdditionalInfo
+      quantity
+      unitPrice
+      grossValue
+      netValue
+      incomeTax
+      iof
+      tradeDate
+      settlementDate
+      source
+      createdAt
+      updatedAt
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "holdingId": "{{investment_holding_id}}"
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  const firstTx = body?.data?.investmentTransactions?.[0];
+  if (firstTx?.id) {
+    bru.setEnvVar("investment_transaction_id", firstTx.id, { persist: true });
+  }
+}

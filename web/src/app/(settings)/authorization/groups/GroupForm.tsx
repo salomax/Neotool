@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import { Stack } from "@mui/material";
+import { FormStack } from "@/shared/components/ui/forms/components";
 import { TextField } from "@/shared/components/ui/primitives";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
@@ -26,7 +26,7 @@ export const GroupForm: React.FC<GroupFormProps> = ({ initialValues }) => {
   const { control } = useFormContext<GroupFormData>();
 
   return (
-    <Stack spacing={3}>
+    <FormStack>
       <Controller
         name="name"
         control={control}
@@ -68,7 +68,7 @@ export const GroupForm: React.FC<GroupFormProps> = ({ initialValues }) => {
           />
         )}
       />
-    </Stack>
+    </FormStack>
   );
 };
 

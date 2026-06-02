@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://invistus/schemas/kafka/pdf-extractor.extracted.v1.schema.json",
+  "title": "pdf-extractor.extracted.v1",
+  "description": "Canonical event emitted by pdf-extractor after successful extraction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "job_id",
+    "document_type",
+    "extracted_text",
+    "extraction_metadata",
+    "callback_context"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "job_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "asset_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "document_type": {
+      "type": "string",
+      "enum": [
+        "CREDIT_CARD_BILL",
+        "BANK_STATEMENT",
+        "INVESTMENT_IR_REPORT"
+      ]
+    },
+    "extracted_text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "extraction_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "page_count",
+        "tables_found",
+        "extraction_duration_ms"
+      ],
+      "properties": {
+        "page_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tables_found": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bank_name_hint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "extraction_duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "callback_context": {
+      "$ref": "#/$defs/callback_context"
+    }
+  },
+  "$defs": {
+    "callback_context": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "job_id",
+        "account_id",
+        "user_id"
+      ],
+      "properties": {
+        "job_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "account_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "user_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  }
+}

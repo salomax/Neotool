@@ -8,6 +8,7 @@ export const CURRENT_USER = gql`
       email
       displayName
       avatarUrl
+      avatarProvider
       roles {
         id
         name
@@ -20,3 +21,26 @@ export const CURRENT_USER = gql`
   }
 `;
 
+export const USER_PREFERENCES = gql`
+  query UserPreferences {
+    userPreferences {
+      language
+      theme
+      blurBalances
+      firstDayOfWeek
+      keepMeConnected
+    }
+  }
+`;
+
+export const MY_ACCOUNTS = gql`
+  query MyAccounts {
+    myAccounts {
+      id
+      accountName
+      accountType
+      accountStatus
+      isOwner
+    }
+  }
+`;

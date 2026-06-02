@@ -16,7 +16,7 @@ import {
 } from "@/shared/ui/mui-imports";
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import InsertChartIcon from '@mui/icons-material/InsertChart';
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { useThemeMode } from "@/styles/themes/AppThemeProvider";
 import { useAuthorization, useAuth } from "@/shared/providers";
@@ -73,7 +73,7 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
         zIndex: (theme) => theme.zIndex.drawer + 2, // Above bottom nav
       }}
     >
-      <Drawer.Header title={t('routes.menu', 'Menu')} />
+      <Drawer.Header title={t('routes.menu')} />
       
       <Drawer.Body>
         <Box sx={{ mx: -3, my: -2 }}>
@@ -81,9 +81,9 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
             {personalFinanceEnabled && (
               <ListItemButton onClick={() => handleNavigation("/personal-finance")}>
                 <ListItemIcon>
-                  <AccountBalanceWalletIcon />
+                  <InsertChartIcon />
                 </ListItemIcon>
-                <ListItemText primary={t('routes.personalFinance', 'Personal Finance')} />
+                <ListItemText primary={t('routes.personalFinance')} />
               </ListItemButton>
             )}
 
@@ -91,14 +91,14 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
               <ListItemIcon>
                 <AccountBalanceIcon />
               </ListItemIcon>
-              <ListItemText primary={t('routes.financialData', 'Financial Data')} />
+              <ListItemText primary={t('routes.financialData')} />
             </ListItemButton>
 
             <ListItemButton onClick={() => handleNavigation("/investments")}>
               <ListItemIcon>
                 <TrendingUpIcon />
               </ListItemIcon>
-              <ListItemText primary={t('routes.investments', 'Investments')} />
+              <ListItemText primary={t('routes.investments')} />
             </ListItemButton>
 
             {hasAuthorizationAccess && (
@@ -108,7 +108,7 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
                   <ListItemIcon>
                     <SettingsRoundedIcon />
                   </ListItemIcon>
-                  <ListItemText primary={t('routes.settings', 'Settings')} />
+                  <ListItemText primary={t('routes.settings')} />
                 </ListItemButton>
               </>
             )}

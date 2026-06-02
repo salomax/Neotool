@@ -1,0 +1,53 @@
+meta {
+  name: Create Investment Account
+  type: graphql
+  seq: 6
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation CreateFinancialAccount($input: CreateFinancialAccountInput!) {
+    createFinancialAccount(input: $input) {
+      id
+      type
+      subtype
+      name
+      currencyCode
+      includeInNetWorth
+      includeInDashboard
+      issuerName
+      createdAt
+      updatedAt
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "type": "INVESTMENT",
+      "subtype": "BROKERAGE",
+      "name": "Investment Account - Bruno",
+      "issuerName": "XP Investimentos",
+      "currencyCode": "BRL",
+      "includeInNetWorth": true,
+      "includeInDashboard": true
+    }
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body && body.data && body.data.createFinancialAccount && body.data.createFinancialAccount.id) {
+    bru.setEnvVar("investment_account_id", body.data.createFinancialAccount.id, { persist: true });
+  }
+}

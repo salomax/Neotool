@@ -1,7 +1,8 @@
 "use client";
 import * as React from "react";
 import Box from "@mui/material/Box";
-import Container from "@mui/material/Container";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 import { SidebarRail, BottomNavigationBar, MobileNavigationDrawer } from "@/shared/ui/navigation";
 import { AppHeader } from "@/shared/ui/shell/AppHeader";
 import { PageTitleProvider } from "@/shared/hooks/ui/usePageTitle";
@@ -10,7 +11,9 @@ import { useElementHeight } from "@/shared/hooks/ui/useElementHeight";
 import { RequireAuthGuard } from "@/shared/hooks/auth/useRequireAuth";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const headerHeight = useElementHeight("header");
+  const headerHeight = useElementHeight("header", 80);
+  const theme = useTheme();
+  const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const handleMoreClick = () => {
@@ -25,6 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <PageTitleProvider>
       <BreadcrumbLabelProvider>
       <Box
+        data-testid="app-layout"
         sx={{
           display: "flex",
           height: "100vh",
@@ -49,7 +53,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             sx={{ 
               flex: 1,
               overflow: "auto", // Allow scrolling only in main content area
-              marginTop: { xs: 0, md: headerHeight ? `${headerHeight}px` : "73px" }, // Account for fixed header height only on desktop with fallback
+              marginTop: { xs: 0, md: `${headerHeight}px` }, // Account for fixed header height only on desktop
+              transition: prefersReducedMotion
+                ? "none"
+                : theme.transitions.create("margin-top", {
+                    duration: theme.transitions.duration.shorter,
+                    easing: theme.transitions.easing.easeInOut,
+                  }),
+              willChange: prefersReducedMotion ? undefined : "margin-top",
               paddingBottom: { xs: "80px", md: 0 }, // Add padding for bottom nav on mobile
             }}
           >

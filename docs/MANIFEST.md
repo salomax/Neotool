@@ -81,6 +81,10 @@ Quick lookup and reference materials:
 
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
+| Investment Portfolio Blueprint | `03-features/investment-portfolio/investment-portfolio-blueprint.md` | feature | investment | investment, portfolio, holdings, performance, retail, advisory |
+| Holding Transaction Operations | `03-features/investment-portfolio/holding-transaction-operations.md` | feature | investment | aporte, resgate, compra, venda, holding, transaction, cash-flow, side-effect, portfolio |
+| Holding Update Flow | `03-features/investment-portfolio/holding-update-flow.md` | feature | investment | holding update, add position, withdraw, aporte, resgate, compra, venda, standardized drawer, ui-pattern |
+| Holding Events Roadmap | `03-features/investment-portfolio/holding-events-roadmap.md` | feature | investment | come-cotas, amortização, aluguel, transferência, dividendo, staking, roadmap, inventário, eventos |
 | Assets Service - Specification | `03-features/assets/asset-service/README.md` | feature | assets | assets, upload, cdn, storage, cloudflare-r2, s3, minio |
 | Assets Service - Decisions | `03-features/assets/asset-service/decisions.md` | feature | assets | assets, adr, decisions, trade-offs |
 | Billing Module Blueprint | `03-features/billing/README.md` | feature | billing | billing, subscriptions, payments, plans, entitlements |
@@ -161,6 +165,7 @@ Quick lookup and reference materials:
 | Breadcrumb Pattern | `07-frontend/patterns/breadcrumb-pattern.md` | pattern | frontend | breadcrumb, navigation, page hierarchy, navigation path, breadcrumb component |
 | Styling Pattern | `07-frontend/patterns/styling-pattern.md` | pattern | frontend | styling, themes, design-tokens |
 | Toast Notification Pattern | `07-frontend/patterns/toast-notification-pattern.md` | pattern | frontend | toast, notification, feedback, user-experience |
+| **Form Pattern** | `07-frontend/patterns/form-pattern.md` | pattern | frontend | **form, react-hook-form, zod, zodResolver, useForm, FormProvider, drawer form, page form, inline form, FormStack, FormRowStack, FormTextField, MoneyInput, DatePickerField, SelectField, NumberField, PercentField, ErrorAlert, Drawer.ActionButtons, validation, size medium** |
 | Testing Pattern | `07-frontend/patterns/testing-pattern.md` | pattern | frontend | testing, frontend, react, react-hook-form, vitest, testing-library |
 | E2E Testing Pattern | `07-frontend/patterns/e2e-testing-pattern.md` | pattern | frontend | testing, e2e, playwright, end-to-end, browser-testing, integration-testing |
 

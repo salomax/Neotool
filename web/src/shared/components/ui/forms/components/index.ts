@@ -2,8 +2,11 @@
 export * from "./FormLayout";
 export * from "./FormSection";
 export * from "./FormActions";
-export * from "./FormErrorBanner";
 export * from "./FormRow";
+export * from "./FormStack";
+export * from "./FormInfoBox";
+export * from "./FormTabs";
+export * from "./FormRowStack";
 
 export * from "./fields/ControlledTextField";
 export * from "./fields/ControlledNumberField";

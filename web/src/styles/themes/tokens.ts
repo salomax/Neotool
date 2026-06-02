@@ -11,8 +11,10 @@ export interface DesignTokens {
     xl: number;
   };
   radius: {
+    optionCard: number;
     sm: number;
     md: number;
+    button: number;
     lg: number;
     xl: number;
     table: number;
@@ -73,6 +75,7 @@ export interface DesignTokens {
     bgPaper: string;
     text: string;
     textMuted: string;
+    labelIcon: string;
     divider: string;
     inputBorder: string;
     tabBorder: string;
@@ -86,13 +89,14 @@ export interface DesignTokens {
     thresholdBad: string;
     thresholdRegular: string;
     thresholdGood: string;
+    tax: string;
   };
 }
 
 export const tokens: Record<Mode, DesignTokens> = {
   light: {
     spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
-    radius: { sm: 4, md: 8, lg: 12, xl: 16, table: 8 },
+    radius: { optionCard: 2, sm: 4, md: 8, button: 12, lg: 12, xl: 16, table: 8 },
     border: {
       default: 1,
       focused: 2,
@@ -130,7 +134,7 @@ export const tokens: Record<Mode, DesignTokens> = {
       h4: 24,
       h5: 20,
       h6: 18,
-      body: 16,
+      body: 14,
       small: 14,
     },
     palette: {
@@ -140,6 +144,7 @@ export const tokens: Record<Mode, DesignTokens> = {
       secondaryContrast: "#ffffff",
       success: "#16a34a",
       warning: "#f59e0b",
+      tax: "#9984c7ff",
       error: "#dc2626",
       errorLightBg: "#FDEFF0",
       successLightBg: "#EFF9F3",
@@ -149,6 +154,7 @@ export const tokens: Record<Mode, DesignTokens> = {
       bgPaper: "#ffffff",
       text: "#0f172a",
       textMuted: "#475569",
+      labelIcon: "#94a3b8",
       divider: "#e2e8f0",
       inputBorder: "rgba(0, 0, 0, 0.23)",
       tabBorder: "rgba(0, 0, 0, 0.23)",
@@ -166,7 +172,7 @@ export const tokens: Record<Mode, DesignTokens> = {
   },
   dark: {
     spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
-    radius: { sm: 4, md: 8, lg: 12, xl: 16, table: 8 },
+    radius: { optionCard: 2, sm: 4, md: 8, button: 12, lg: 12, xl: 16, table: 8 },
     border: {
       default: 1,
       focused: 2,
@@ -204,7 +210,7 @@ export const tokens: Record<Mode, DesignTokens> = {
       h4: 24,
       h5: 20,
       h6: 18,
-      body: 16,
+      body: 14,
       small: 14,
     },
     palette: {
@@ -214,6 +220,7 @@ export const tokens: Record<Mode, DesignTokens> = {
       secondaryContrast: "#0b1220",
       success: "#22c55e",
       warning: "#fbbf24",
+      tax: "#a78bfa",
       error: "#ef4444",
       errorLightBg: "rgba(239, 68, 68, 0.16)",
       successLightBg: "rgba(34, 197, 94, 0.16)",
@@ -223,6 +230,7 @@ export const tokens: Record<Mode, DesignTokens> = {
       bgPaper: "#0f172a",
       text: "#f1f5f9",
       textMuted: "#94a3b8",
+      labelIcon: "#94a3b8",
       divider: "#1f2937",
       inputBorder: "rgba(255, 255, 255, 0.23)",
       tabBorder: "rgba(255, 255, 255, 0.23)",

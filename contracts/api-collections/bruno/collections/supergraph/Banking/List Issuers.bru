@@ -1,0 +1,44 @@
+meta {
+  name: List Issuers
+  type: graphql
+  seq: 2
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query Issuers {
+    issuers {
+      id
+      name
+      domain
+      compeCode
+      ispb
+      countryCode
+      logoKey
+      logoAsset {
+        id
+      }
+    }
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Has issuers array", function() {
+    const data = res.getBody();
+    expect(data.data).to.have.property("issuers");
+    expect(data.data.issuers).to.be.an("array");
+  });
+}

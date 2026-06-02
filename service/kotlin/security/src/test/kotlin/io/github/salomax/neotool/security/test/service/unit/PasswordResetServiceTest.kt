@@ -6,6 +6,8 @@ import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.AccountRepository
+import io.github.salomax.neotool.security.repo.GroupMembershipRepository
+import io.github.salomax.neotool.security.repo.GroupRepository
 import io.github.salomax.neotool.security.repo.PasswordResetAttemptRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.UserRepository
@@ -66,6 +68,8 @@ class PasswordResetServiceTest {
         val principalRepository: PrincipalRepository = mock()
         val accountRepository: AccountRepository = mock()
         val accountMembershipRepository: AccountMembershipRepository = mock()
+        val groupRepository: GroupRepository = mock()
+        val groupMembershipRepository: GroupMembershipRepository = mock()
         emailVerificationService = mock()
         authenticationService =
             AuthenticationService(
@@ -73,6 +77,8 @@ class PasswordResetServiceTest {
                 principalRepository,
                 accountRepository,
                 accountMembershipRepository,
+                groupRepository,
+                groupMembershipRepository,
                 jwtTokenIssuer,
                 jwtTokenValidator,
                 emailService,

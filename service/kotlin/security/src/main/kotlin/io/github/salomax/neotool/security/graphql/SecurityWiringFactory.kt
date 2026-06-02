@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.security.graphql
 
+import graphql.language.ObjectValue
+import graphql.language.VariableReference
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
@@ -10,6 +12,8 @@ import io.github.salomax.neotool.common.graphql.GraphQLPayloadDataFetcher.create
 import io.github.salomax.neotool.common.graphql.GraphQLPayloadException
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
 import io.github.salomax.neotool.common.graphql.payload.GraphQLError
+import io.github.salomax.neotool.common.graphql.payload.GraphQLPayload
+import io.github.salomax.neotool.common.graphql.payload.SuccessPayload
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
@@ -23,6 +27,7 @@ import io.github.salomax.neotool.security.graphql.dataloader.RolePermissionsData
 import io.github.salomax.neotool.security.graphql.dataloader.UserGroupsDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.UserPermissionsDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.UserRolesDataLoader
+import io.github.salomax.neotool.security.graphql.dto.AccountDTO
 import io.github.salomax.neotool.security.graphql.dto.AuthorizationResultDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupDTO
@@ -41,13 +46,16 @@ import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.dto.UserEdgeDTO
+import io.github.salomax.neotool.security.graphql.dto.UserPreferencesDTO
 import io.github.salomax.neotool.security.graphql.mapper.GroupManagementMapper
 import io.github.salomax.neotool.security.graphql.mapper.RoleManagementMapper
 import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
+import io.github.salomax.neotool.security.graphql.resolver.AccountResolver
 import io.github.salomax.neotool.security.graphql.resolver.GroupManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.PermissionManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.RoleManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.UserManagementResolver
+import io.github.salomax.neotool.security.graphql.resolver.UserPreferencesResolver
 import jakarta.inject.Singleton
 import java.util.concurrent.CompletableFuture
 
@@ -56,6 +64,8 @@ import java.util.concurrent.CompletableFuture
  */
 @Singleton
 class SecurityWiringFactory(
+    private val userPreferencesResolver: UserPreferencesResolver,
+    private val accountResolver: AccountResolver,
     private val authResolver: SecurityAuthResolver,
     private val emailVerificationResolver: EmailVerificationResolver,
     private val authorizationResolver: io.github.salomax.neotool.security.graphql.resolver.AuthorizationResolver,
@@ -139,6 +149,32 @@ class SecurityWiringFactory(
         }
     }
 
+    private fun wasInputFieldProvided(
+        env: DataFetchingEnvironment,
+        inputArgumentName: String,
+        fieldName: String,
+    ): Boolean {
+        val argument =
+            env.field.arguments.firstOrNull { it.name == inputArgumentName }
+                ?: return false
+
+        return when (val argumentValue = argument.value) {
+            is VariableReference -> {
+                val variableValue = env.variables[argumentValue.name] as? Map<*, *>
+                variableValue?.containsKey(fieldName) == true
+            }
+
+            is ObjectValue -> argumentValue.objectFields.any { it.name == fieldName }
+            else -> false
+        }
+    }
+
+    private fun <T> unwrapPayload(payload: GraphQLPayload<T>): T =
+        when (payload) {
+            is SuccessPayload -> payload.data
+            else -> throw GraphQLPayloadException(payload.errors)
+        }
+
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder =
         type
             .dataFetcher(
@@ -161,6 +197,18 @@ class SecurityWiringFactory(
                     emailVerificationResolver.myVerificationStatus(userId)
                 },
             ).dataFetcher(
+                "userPreferences",
+                createValidatedDataFetcher(emptyList()) { env ->
+                    val principal = env.principal()
+                    userPreferencesResolver.userPreferences(principal)
+                },
+            ).dataFetcher(
+                "myAccounts",
+                createValidatedDataFetcher(emptyList()) { env ->
+                    val principal = env.principal()
+                    accountResolver.myAccounts(principal)
+                },
+            ).dataFetcher(
                 "checkPermission",
                 createValidatedDataFetcher { env ->
                     env.withPermission(SecurityPermissions.SECURITY_USER_VIEW) { _ ->
@@ -168,6 +216,15 @@ class SecurityWiringFactory(
                         val permission = getRequiredString(env, "permission")
                         val resourceId = env.getArgument<String?>("resourceId")
                         authorizationResolver.checkPermission(userId, permission, resourceId)
+                    }
+                },
+            ).dataFetcher(
+                "isUserActiveMemberOfAccount",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(SecurityPermissions.SECURITY_ACCOUNT_MEMBERSHIP_VIEW) { _ ->
+                        val userId = getRequiredString(env, "userId")
+                        val accountId = getRequiredString(env, "accountId")
+                        authorizationResolver.isUserActiveMemberOfAccount(userId, accountId)
                     }
                 },
             ).dataFetcher(
@@ -259,13 +316,21 @@ class SecurityWiringFactory(
         type
             .dataFetcher(
                 "signIn",
-                createMutationDataFetcher<SignInPayloadDTO>("signIn") { input ->
-                    authResolver.signIn(input)
+                createValidatedDataFetcher(listOf("input"), "signIn") { env ->
+                    val input =
+                        env.getArgument<Map<String, Any?>>("input")
+                            ?: throw IllegalArgumentException("Input is required")
+                    val rememberMeProvided = wasInputFieldProvided(env, "input", "rememberMe")
+                    unwrapPayload(authResolver.signIn(input, rememberMeProvided))
                 },
             ).dataFetcher(
                 "signInWithOAuth",
-                createMutationDataFetcher<SignInPayloadDTO>("signInWithOAuth") { input ->
-                    authResolver.signInWithOAuth(input)
+                createValidatedDataFetcher(listOf("input"), "signInWithOAuth") { env ->
+                    val input =
+                        env.getArgument<Map<String, Any?>>("input")
+                            ?: throw IllegalArgumentException("Input is required")
+                    val rememberMeProvided = wasInputFieldProvided(env, "input", "rememberMe")
+                    unwrapPayload(authResolver.signInWithOAuth(input, rememberMeProvided))
                 },
             ).dataFetcher(
                 "signUp",
@@ -315,6 +380,40 @@ class SecurityWiringFactory(
                     val userId = principal.userId ?: throw IllegalArgumentException("User ID required")
                     val locale = env.getArgument<String>("locale") ?: "en"
                     emailVerificationResolver.resendVerificationEmail(userId, locale)
+                },
+            ).dataFetcher(
+                "updateUserPreferences",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val input =
+                        env.getArgument<Map<String, Any?>>("input")
+                            ?: throw IllegalArgumentException("input is required")
+                    userPreferencesResolver.updateUserPreferences(input, principal)
+                },
+            ).dataFetcher(
+                "updateUserAvatar",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val input =
+                        env.getArgument<Map<String, Any?>>("input")
+                            ?: throw IllegalArgumentException("input is required")
+                    userManagementResolver.updateUserAvatar(input, principal)
+                },
+            ).dataFetcher(
+                "removeUserAvatar",
+                createValidatedDataFetcher(emptyList()) { env ->
+                    val principal = env.principal()
+                    userManagementResolver.removeUserAvatar(principal)
+                },
+            ).dataFetcher(
+                "updateAccount",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val accountId = getRequiredString(env, "accountId")
+                    val input =
+                        env.getArgument<Map<String, Any?>>("input")
+                            ?: throw IllegalArgumentException("input is required")
+                    accountResolver.updateAccount(accountId, input, principal)
                 },
             ).dataFetcher(
                 "enableUser",
@@ -491,6 +590,13 @@ class SecurityWiringFactory(
                     },
                 )
                 type.dataFetcher(
+                    "avatarProvider",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        val user = env.getSource<UserDTO>()
+                        user?.avatarProvider
+                    },
+                )
+                type.dataFetcher(
                     "enabled",
                     createValidatedDataFetcher { env: DataFetchingEnvironment ->
                         val user = env.getSource<UserDTO>()
@@ -579,6 +685,68 @@ class SecurityWiringFactory(
                                     )
                             }
                         }
+                    },
+                )
+            }.type("UserPreferences") { type ->
+                type.dataFetcher(
+                    "language",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<UserPreferencesDTO>()?.language
+                    },
+                )
+                type.dataFetcher(
+                    "theme",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<UserPreferencesDTO>()?.theme
+                    },
+                )
+                type.dataFetcher(
+                    "blurBalances",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<UserPreferencesDTO>()?.blurBalances
+                    },
+                )
+                type.dataFetcher(
+                    "firstDayOfWeek",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<UserPreferencesDTO>()?.firstDayOfWeek
+                    },
+                )
+                type.dataFetcher(
+                    "keepMeConnected",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<UserPreferencesDTO>()?.keepMeConnected
+                    },
+                )
+            }.type("Account") { type ->
+                type.dataFetcher(
+                    "id",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<AccountDTO>()?.id
+                    },
+                )
+                type.dataFetcher(
+                    "accountName",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<AccountDTO>()?.accountName
+                    },
+                )
+                type.dataFetcher(
+                    "accountType",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<AccountDTO>()?.accountType
+                    },
+                )
+                type.dataFetcher(
+                    "accountStatus",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<AccountDTO>()?.accountStatus
+                    },
+                )
+                type.dataFetcher(
+                    "isOwner",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<AccountDTO>()?.isOwner
                     },
                 )
             }.type("SignInPayload") { type ->

@@ -11,29 +11,43 @@ import {
 export interface MetricSparklineProps {
   historical: number[];
   color: string;
-  height?: number;
+  height?: number | string;
+  isAnimationActive?: boolean;
+  /** Recharts Area curve interpolation. Default `monotone`. */
+  curveType?: React.ComponentProps<typeof Area>["type"];
 }
 
 export const MetricSparkline = React.memo(function MetricSparkline({
   historical,
   color,
   height = 100,
+  isAnimationActive = true,
+  curveType = "monotone",
 }: MetricSparklineProps) {
   const chartId = React.useId().replace(/:/g, "_");
 
+  const seriesValues = React.useMemo(() => {
+    if (historical.length === 1) {
+      const v = historical[0];
+      if (v == null || !Number.isFinite(v)) return [];
+      return [v, v];
+    }
+    return historical;
+  }, [historical]);
+
   const chartData = React.useMemo(
     () =>
-      historical.map((value, index) => ({
+      seriesValues.map((value, index) => ({
         index,
         value,
       })),
-    [historical]
+    [seriesValues],
   );
 
   const chartDomain = React.useMemo(() => {
-    if (historical.length === 0) return ["auto", "auto"];
-    const min = Math.min(...historical);
-    const max = Math.max(...historical);
+    if (seriesValues.length === 0) return ["auto", "auto"];
+    const min = Math.min(...seriesValues);
+    const max = Math.max(...seriesValues);
 
     const range = max - min;
     if (range === 0) {
@@ -43,9 +57,9 @@ export const MetricSparkline = React.memo(function MetricSparkline({
 
     const margin = range * 0.2;
     return [min - margin, max + margin];
-  }, [historical]);
+  }, [seriesValues]);
 
-  if (historical.length < 2) {
+  if (historical.length < 1) {
     return null;
   }
 
@@ -89,13 +103,13 @@ export const MetricSparkline = React.memo(function MetricSparkline({
           />
           <YAxis domain={chartDomain as [number, number]} hide />
           <Area
-            type="monotone"
+            type={curveType}
             dataKey="value"
             stroke={`url(#${chartId}-stroke)`}
             fill={`url(#${chartId}-fill)`}
             strokeWidth={2}
             baseValue={chartDomain[0] as number}
-            isAnimationActive
+            isAnimationActive={isAnimationActive}
           />
         </RechartsAreaChart>
       </ResponsiveContainer>

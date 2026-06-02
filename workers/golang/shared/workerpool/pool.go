@@ -11,13 +11,17 @@ type WorkItem interface {
 	Process(ctx context.Context) error
 }
 
-// WorkerPool manages a pool of workers that process work items
+// WorkerPool manages a pool of workers that process work items.
+// Errors from individual tasks are collected and available via Errors() after Wait().
 type WorkerPool struct {
-	size      int
-	workQueue chan WorkItem
-	workersWg sync.WaitGroup
+	size        int
+	workQueue   chan WorkItem
+	workersWg   sync.WaitGroup
 	workersDone chan bool
-	logger    *slog.Logger
+	logger      *slog.Logger
+
+	mu   sync.Mutex
+	errs []error
 }
 
 // NewWorkerPool creates a new worker pool
@@ -26,10 +30,10 @@ func NewWorkerPool(size int, queueBufferMultiplier int, logger *slog.Logger) *Wo
 		queueBufferMultiplier = 2 // Default: 2x worker count
 	}
 	return &WorkerPool{
-		size:       size,
-		workQueue:  make(chan WorkItem, size*queueBufferMultiplier),
+		size:        size,
+		workQueue:   make(chan WorkItem, size*queueBufferMultiplier),
 		workersDone: make(chan bool, 1),
-		logger:     logger,
+		logger:      logger,
 	}
 }
 
@@ -37,7 +41,6 @@ func NewWorkerPool(size int, queueBufferMultiplier int, logger *slog.Logger) *Wo
 func (wp *WorkerPool) Start(ctx context.Context, workerFunc func(ctx context.Context, item WorkItem) error) {
 	wp.logger.Info("Starting worker pool", "size", wp.size)
 
-	// Start worker goroutines
 	for i := 0; i < wp.size; i++ {
 		wp.workersWg.Add(1)
 		workerID := i + 1
@@ -47,13 +50,9 @@ func (wp *WorkerPool) Start(ctx context.Context, workerFunc func(ctx context.Con
 		}(workerID)
 	}
 
-	// Monitor worker completion
 	go func() {
-		// Wait for all workers to actually finish processing
 		wp.workersWg.Wait()
 		wp.logger.Info("All workers completed")
-
-		// Signal that all workers are done
 		wp.workersDone <- true
 	}()
 }
@@ -79,7 +78,14 @@ func (wp *WorkerPool) Wait() {
 	<-wp.workersDone
 }
 
-// worker processes work items from the queue
+// Errors returns all task errors collected during processing.
+// Must be called after Wait() to ensure all workers have finished.
+func (wp *WorkerPool) Errors() []error {
+	wp.mu.Lock()
+	defer wp.mu.Unlock()
+	return wp.errs
+}
+
 func (wp *WorkerPool) worker(ctx context.Context, workerID int, workerFunc func(ctx context.Context, item WorkItem) error) {
 	wp.logger.Info("Worker started", "worker_id", workerID)
 	defer wp.logger.Info("Worker stopped", "worker_id", workerID)
@@ -87,24 +93,21 @@ func (wp *WorkerPool) worker(ctx context.Context, workerID int, workerFunc func(
 	for {
 		select {
 		case <-ctx.Done():
-			// Context cancelled - exit immediately
 			return
 
 		case item, ok := <-wp.workQueue:
 			if !ok {
-				// Work queue closed - exit gracefully
 				return
 			}
 
-			// Process the work item
 			if err := workerFunc(ctx, item); err != nil {
 				wp.logger.Error("Worker failed to process item",
 					"worker_id", workerID,
 					"error", err)
-				// Continue processing other items
+				wp.mu.Lock()
+				wp.errs = append(wp.errs, err)
+				wp.mu.Unlock()
 			}
 		}
 	}
 }
-
-

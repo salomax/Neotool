@@ -5,7 +5,7 @@ namespaces:
   user-profiles:
     description: "User profile images"
     # Access control: PRIVATE (owner-only) or PUBLIC (accessible without owner check)
-    visibility: PRIVATE
+    visibility: PUBLIC
     # Storage key pattern with placeholders for namespace, ownerId and assetId
     keyTemplate: "{namespace}/{ownerId}/{assetId}"  
     # 2 MB - Maximum file size allowed for uploads in this namespace
@@ -43,8 +43,46 @@ namespaces:
       - image/svg+xml
     uploadTtlSeconds: 900  # 15 minutes
 
+  transaction-imports:
+    description: "Transaction import files (OFX, CSV). For service-to-service uploads, ownerId is the accountId (tenant), not userId."
+    visibility: PRIVATE
+    allowedActors:
+      - SERVICE
+    keyTemplate: "{namespace}/{ownerId}/{assetId}"
+    maxSizeBytes: 3145728  # 3 MB
+    allowedMimeTypes:
+      - application/x-ofx
+      - text/x-ofx
+      - text/csv
+      - application/csv
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      - application/vnd.ms-excel
+      - application/octet-stream  # fallback for browsers that don't detect OFX MIME
+      - application/pdf
+    uploadTtlSeconds: 900  # 15 min presigned PUT URL; presigned GET uses global default (1h), sufficient for consumer processing
+
   attachments:
     description: "Generic file attachments (documents, PDFs, etc.)"
+    visibility: PRIVATE
+    keyTemplate: "{namespace}/{ownerId}/{assetId}"
+    maxSizeBytes: 2097152  # 2 MB
+    allowedMimeTypes:
+      - image/jpeg
+      - image/png
+      - image/webp
+      - application/pdf
+      - application/msword
+      - application/vnd.openxmlformats-officedocument.wordprocessingml.document
+      - application/vnd.ms-excel
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      - application/vnd.ms-powerpoint
+      - application/vnd.openxmlformats-officedocument.presentationml.presentation
+      - text/plain
+      - text/csv
+    uploadTtlSeconds: 900  # 15 minutes
+
+  banking-attachments:
+    description: "Transactions or holdings file attachments (documents, PDFs, etc.)"
     visibility: PRIVATE
     keyTemplate: "{namespace}/{ownerId}/{assetId}"
     maxSizeBytes: 2097152  # 2 MB

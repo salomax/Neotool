@@ -48,19 +48,19 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
   const items: BottomNavItem[] = [
     {
       id: "home",
-      label: t("routes.home", "Home"),
+      label: t("routes.home"),
       icon: <HomeIcon />,
       path: "/",
     },
     {
       id: "data",
-      label: t("routes.financialData", "Data"),
+      label: t("routes.financialData"),
       icon: <AccountBalanceIcon />,
       path: "/financial-data",
     },
     {
       id: "profile",
-      label: isAuthenticated ? t("routes.profile", "Profile") : t("appHeader.signIn", "Sign In"),
+      label: isAuthenticated ? t("routes.profile") : t("appHeader.signIn"),
       icon: isAuthenticated ? (
         <Avatar
           sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
@@ -75,7 +75,7 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
     },
     {
       id: "menu",
-      label: t("routes.menu", "Menu"),
+      label: t("routes.menu"),
       icon: <MenuIcon />,
       action: onMoreClick,
     },

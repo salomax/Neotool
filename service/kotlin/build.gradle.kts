@@ -13,7 +13,9 @@ plugins {
 }
 
 allprojects {
-    if (project.hasProperty("workspaceRoot")) {
+    // Exclude root project to avoid Nx "Unable to parse dependency" errors - root project
+    // has no Nx project node, so root->subproject dependencies cannot be resolved
+    if (project != rootProject && project.hasProperty("workspaceRoot")) {
         apply(plugin = "dev.nx.gradle.project-graph")
     }
     group = "io.github.salomax.neotool"
@@ -131,7 +133,8 @@ subprojects {
             reports {
                 filters {
                     excludes {
-                        classes(
+                        val classExclusions =
+                            mutableListOf(
                             "io.micronaut.core.io.service.SoftServiceLoader",
                             "io.micronaut.core.io.service.ServiceLoader",
                             "*Application",
@@ -146,11 +149,15 @@ subprojects {
                             "*Test",
                             "*DTO",
                             "*Config*",
-                            "*domain.*",
                             "*mapper.*",
                             "*Kt",
                             "io.github.salomax.neotool.comms.events.*",
+                            "*DataLoader*",
                         )
+                        if (project.path != ":banking") {
+                            classExclusions += "*domain.*"
+                        }
+                        classes(*classExclusions.toTypedArray())
                     }
                 }
 

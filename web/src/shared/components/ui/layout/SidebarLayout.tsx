@@ -39,7 +39,7 @@ export interface SidebarLayoutProps extends LayoutComponentProps {
   side?: 'left' | 'right';
   /**
    * Top offset for the fixed sidebar, useful when there is a fixed header.
-   * Default: 73 (AppHeader height)
+   * Default: 80 (AppHeader min height)
    */
   headerHeight?: number | string;
   /**
@@ -132,7 +132,7 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
   
   // Sidebar styles
   const sidebarStyles: React.CSSProperties = React.useMemo(() => {
-    const edgePosition: Partial<React.CSSProperties> = isLeft ? { left: `${RAIL_W}px` } : { right: `${RAIL_W}px` };
+    const edgePosition: Partial<React.CSSProperties> = isLeft ? { left: `${RAIL_W}px` } : { right: 0 };
     
     return {
       position: 'fixed',

@@ -2,16 +2,15 @@
 
 import * as React from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import { TextField, Select, MenuItem, Stack } from "@mui/material";
+import { TextField, Select, MenuItem, Stack, TextFieldProps } from "@mui/material";
 import { NumericFormat } from "react-number-format";
 import {
   getLocaleSeparators,
   getCurrencyDefaultFractionDigits,
 } from "@/shared/utils/locale";
 
-export interface CurrencyFieldProps {
+export interface CurrencyFieldProps extends Omit<TextFieldProps, 'name' | 'onChange' | 'value' | 'defaultValue'> {
   name: string;
-  label?: string;
   currency?: string; // ISO code, e.g., 'USD', 'BRL'
   currencyChoices?: string[]; // show selector if provided
   locale?: string; // e.g., 'en-US', 'pt-BR'
@@ -19,8 +18,6 @@ export interface CurrencyFieldProps {
   max?: number;
   step?: number;
   allowNegative?: boolean;
-  helperText?: React.ReactNode;
-  fullWidth?: boolean;
   onCurrencyChange?: (_code: string) => void;
   /** Fixed number of fraction digits for display & rounding (e.g., 0, 1, 2). If undefined, uses currency default. */
   fractionDigits?: number;
@@ -40,6 +37,9 @@ export const CurrencyField: React.FC<CurrencyFieldProps> = ({
   fullWidth = true,
   onCurrencyChange,
   fractionDigits,
+  InputProps,
+  size = "medium",
+  ...otherProps
 }) => {
   const { control } = useFormContext();
   const [cur, setCur] = React.useState(currency);
@@ -53,7 +53,7 @@ export const CurrencyField: React.FC<CurrencyFieldProps> = ({
   const Selector =
     currencyChoices && currencyChoices.length > 0 ? (
       <Select
-        size="small"
+        size="medium"
         value={cur}
         onChange={(e) => {
           setCur(e.target.value as string);
@@ -78,10 +78,11 @@ export const CurrencyField: React.FC<CurrencyFieldProps> = ({
           <Stack direction="row" spacing={1} alignItems="center">
             {Selector}
             <NumericFormat
+              {...otherProps}
               customInput={(props) => {
                 const { 
                   name, min, max, step, disabled, color, width, height, 
-                  size, style, className, id, tabIndex, autoFocus, 
+                  size: inputSize, style, className, id, tabIndex, autoFocus, 
                   autoComplete, autoCorrect, autoCapitalize, spellCheck,
                   placeholder, required, readOnly, form,
                   ...restProps 
@@ -89,14 +90,17 @@ export const CurrencyField: React.FC<CurrencyFieldProps> = ({
                 return (
                   <TextField
                     {...restProps}
+                    size={typeof inputSize === "string" ? inputSize : size}
                     {...(label && { label })}
                     fullWidth={fullWidth}
                     error={!!fieldState.error}
                     helperText={fieldState.error?.message ?? helperText}
                     InputProps={{
+                      ...InputProps,
                       inputProps: {
                         step: computedStep,
                         style: { textAlign: "right" },
+                        ...InputProps?.inputProps,
                       },
                     }}
                   />

@@ -1,0 +1,725 @@
+name;domain;sector
+carrefour;carrefour.com.br;alimentacao
+atacadao;atacadao.com.br;alimentacao
+assai;assai.com.br;alimentacao
+pao de acucar;paodeacucar.com;alimentacao
+extra mercado;extramercado.com.br;alimentacao
+sams club;samsclub.com.br;alimentacao
+makro;makro.com.br;alimentacao
+spani;spani.com.br;alimentacao
+condor;supercondor.com.br;alimentacao
+muffato;supermuffato.com.br;alimentacao
+angeloni;angeloni.com.br;alimentacao
+giassi;giassi.com.br;alimentacao
+zaffari;zaffari.com.br;alimentacao
+prezunic;prezunic.com.br;alimentacao
+zona sul;zonasul.com.br;alimentacao
+supermercado bahamas;bahamas.com.br;alimentacao
+bretas;bretas.com.br;alimentacao
+verdemar;verdemar.com.br;alimentacao
+bh supermercados;bhsupermercados.com.br;alimentacao
+hirota;hirota.com.br;alimentacao
+hortifruti;hortifruti.com.br;alimentacao
+oba hortifruti;oba.com.br;alimentacao
+natural da terra;naturaldaterra.com.br;alimentacao
+saint marche;saintmarche.com.br;alimentacao
+sonda;sonda.com.br;alimentacao
+comper;comper.com.br;alimentacao
+nacional supermercados;supernacional.com.br;alimentacao
+ifood;ifood.com.br;delivery
+rappi;rappi.com.br;delivery
+uber eats;ubereats.com;delivery
+mcdonalds;mcdonalds.com.br;restaurante
+mc donalds;mcdonalds.com.br;restaurante
+burger king;burgerking.com.br;restaurante
+subway;subway.com;restaurante
+kfc;kfc.com.br;restaurante
+pizza hut;pizzahut.com.br;restaurante
+dominos;dominos.com.br;restaurante
+bobs;bobs.com.br;restaurante
+giraffas;giraffas.com.br;restaurante
+habibs;habibs.com.br;restaurante
+spoleto;spoleto.com.br;restaurante
+madero;restaurantemadero.com.br;restaurante
+china in box;chinainbox.com.br;restaurante
+ragazzo;ragazzo.com.br;restaurante
+jeronimo;jeronimo.com.br;restaurante
+frango assado;edefrangoassado.com.br;restaurante
+outback;outback.com.br;restaurante
+starbucks;starbucks.com.br;restaurante
+oakberry;oakberry.com;restaurante
+taco bell;tacobell.com;restaurante
+five guys;fiveguys.com;restaurante
+popeyes;popeyes.com;restaurante
+dunkin;dunkin.com.br;restaurante
+koni;koni.com.br;restaurante
+baked potato;bakedpotato.com.br;restaurante
+rei do mate;reidomate.com.br;restaurante
+casa do pao de queijo;casadopaodequeijo.com.br;restaurante
+fran's cafe;franscafe.com.br;restaurante
+blend burguer;blendburguer.com.br;restaurante
+coco bambu;cocobambu.com.br;restaurante
+vivenda do camarao;vivendadocamarao.com.br;restaurante
+almanara;almanara.com.br;restaurante
+fogo de chao;fogodechao.com;restaurante
+pobre juan;pobrejuan.com.br;restaurante
+gendai;gendai.com.br;restaurante
+camarada camarao;camaradacamarao.com.br;restaurante
+patroni pizza;patronipizza.com.br;restaurante
+parme;parme.com.br;restaurante
+montana grill;montanagrill.com.br;restaurante
+divino fogao;divinofogao.com.br;restaurante
+chilis;chilis.com.br;restaurante
+applebees;applebees.com.br;restaurante
+hard rock cafe;hardrock.com;restaurante
+sushiloko;sushiloko.com.br;restaurante
+temakeria;temakeria.com.br;restaurante
+hokkai;hokkai.com.br;restaurante
+bibi sucos;bibisucos.com.br;restaurante
+ráscal;rascal.com.br;restaurante
+rascal;rascal.com.br;restaurante
+ofner;ofner.com.br;restaurante
+arabia;arabia.com.br;restaurante
+barbacoa;barbacoa.com.br;restaurante
+rubaiyat;rubaiyat.com.br;restaurante
+le pain quotidien;lepainquotidien.com;restaurante
+mr cheney;mrcheney.com.br;restaurante
+forneria san paolo;forneriasanpaolo.com.br;restaurante
+yogoberry;yogoberry.com.br;restaurante
+pitaya;pitaya.com.br;restaurante
+bella paulista;bellapaulista.com.br;restaurante
+tenda do morango;tendadomorango.com.br;restaurante
+cook'n roll;cooknroll.com.br;restaurante
+d'accorsi;daccorsi.com.br;restaurante
+bullguer;bullguer.com.br;restaurante
+lanchonete da cidade;lanchoneteadacidade.com.br;restaurante
+fifties;fifties.com.br;restaurante
+braz pizzaria;pizzariabraz.com.br;restaurante
+familia mancini;familiamancini.com.br;restaurante
+viena;viena.com.br;restaurante
+amor aos pedacos;amoraospedacos.com.br;restaurante
+freddo;freddo.com.br;restaurante
+bacio di latte;baciodilatte.com;restaurante
+mil frutas;milfrutas.com.br;restaurante
+haagen-dazs;haagendazs.com;restaurante
+hooters;hooters.com.br;restaurante
+tgi fridays;tgifridays.com.br;restaurante
+pf changs;pfchangs.com.br;restaurante
+nagayama;nagayama.com.br;restaurante
+shoji;shojirestaurante.com.br;restaurante
+salad creations;saladcreations.com.br;restaurante
+copa cafe;copacafe.com.br;restaurante
+quitandinha;quitandinha.com.br;restaurante
+cumbuca;restaurantecumbuca.com.br;restaurante
+santa massa;santamassa.com.br;restaurante
+nonno ruggero;nonnoruggero.com.br;restaurante
+pizza ao quadrado;pizzaaoquadrado.com.br;restaurante
+wraps;wrapsbrasil.com.br;restaurante
+telepizza;telepizza.com.br;restaurante
+pizzaria speranza;pizzariasperanza.com.br;restaurante
+bom bocado;bombocado.com.br;restaurante
+paris 6;paris6.com.br;restaurante
+le vin;levin.com.br;restaurante
+suplicy;suplicy.com.br;restaurante
+havanna;havanna.com.br;restaurante
+confeitaria colombo;confeitariacolombo.com.br;restaurante
+cacau show;cacaushow.com.br;restaurante
+kopenhagen;kopenhagen.com.br;restaurante
+mundo verde;mundoverde.com.br;restaurante
+crepe mania;crepemania.com.br;restaurante
+porcao;porcao.com.br;restaurante
+rafain;rafain.com.br;restaurante
+ribs;ribs.com.br;restaurante
+tordesilhas;tordesilhas.com.br;restaurante
+mocoto;mocoto.com.br;restaurante
+spot;restaurantespot.com.br;restaurante
+mani;manirestaurante.com.br;restaurante
+paris beirut;parisbeirut.com.br;restaurante
+sushi leblon;sushileblon.com.br;restaurante
+aoyama;aoyama.com.br;restaurante
+bubba gump;bubbagump.com;restaurante
+roasty;roasty.com.br;restaurante
+uber;uber.com;transporte
+99;99app.com;transporte
+indrive;indrive.com;transporte
+cabify;cabify.com;transporte
+ipiranga;ipiranga.com.br;transporte
+shell;shell.com.br;transporte
+br distribuidora;br.com.br;transporte
+ale combustiveis;alecombustiveis.com.br;transporte
+vibra energia;vibraenergia.com.br;transporte
+sem parar;semparar.com.br;transporte
+conectcar;conectcar.com.br;transporte
+veloe;veloe.com.br;transporte
+estapar;estapar.com.br;transporte
+indigo;indigoneo.com.br;transporte
+localiza;localiza.com;transporte
+movida;movida.com.br;transporte
+unidas;unidas.com.br;transporte
+hertz;hertz.com.br;transporte
+avis;avis.com.br;transporte
+budget;budget.com.br;transporte
+sptrans;sptrans.com.br;transporte
+metro sp;metro.sp.gov.br;transporte
+cptm;cptm.sp.gov.br;transporte
+supervia;supervia.com.br;transporte
+metro rio;metrorio.com.br;transporte
+buser;buser.com.br;transporte
+flixbus;flixbus.com.br;transporte
+itapemirim;itapemirim.com.br;transporte
+cometa;viacao-cometa.com.br;transporte
+raizen;raizen.com.br;transporte
+texaco;texaco.com.br;transporte
+via facil;viafacil.com.br;transporte
+ecovias;ecovias.com.br;transporte
+multipark;multipark.com.br;transporte
+riocard;riocard.com.br;transporte
+vlt rio;vltrio.com.br;transporte
+trensurb;trensurb.gov.br;transporte
+urbs;urbs.curitiba.pr.gov.br;transporte
+otimo;otimo.com.br;transporte
+tembici;tembici.com.br;transporte
+grow;grow.com.br;transporte
+real expresso;realexpresso.com.br;transporte
+util;util.com.br;transporte
+1001;autoviacao1001.com.br;transporte
+gontijo;gontijo-turismo.com.br;transporte
+penha;viacaopenha.com.br;transporte
+pluma;pluma.com.br;transporte
+catarinense;catarinense.net;transporte
+netflix;netflix.com;streaming
+disney+;disneyplus.com;streaming
+disney plus;disneyplus.com;streaming
+amazon prime;primevideo.com;streaming
+prime video;primevideo.com;streaming
+hbo max;max.com;streaming
+max;max.com;streaming
+globoplay;globoplay.globo.com;streaming
+paramount+;paramountplus.com;streaming
+paramount plus;paramountplus.com;streaming
+apple tv;apple.com;streaming
+youtube premium;youtube.com;streaming
+crunchyroll;crunchyroll.com;streaming
+telecine;telecine.com.br;streaming
+looke;looke.com.br;streaming
+mubi;mubi.com;streaming
+spotify;spotify.com;streaming
+deezer;deezer.com;streaming
+apple music;apple.com;streaming
+amazon music;music.amazon.com;streaming
+tidal;tidal.com;streaming
+audible;audible.com;streaming
+storytel;storytel.com;streaming
+sky;sky.com.br;streaming
+premiere;premierfc.globo.com;streaming
+dazn;dazn.com;streaming
+cinemark;cinemark.com.br;streaming
+cinepolis;cinepolis.com.br;streaming
+uci cinemas;ucicinemas.com.br;streaming
+cinesystem;cinesystem.com.br;streaming
+kinoplex;kinoplex.com.br;streaming
+ingresso.com;ingresso.com;streaming
+sympla;sympla.com.br;streaming
+eventbrite;eventbrite.com.br;streaming
+ticketmaster;ticketmaster.com.br;streaming
+drogasil;drogasil.com.br;saude
+droga raia;drogaraia.com.br;saude
+drogaria sao paulo;drogariasaopaulo.com.br;saude
+ultrafarma;ultrafarma.com.br;saude
+pague menos;paguemenos.com.br;saude
+panvel;panvel.com.br;saude
+nissei;nissei.com.br;saude
+extrafarma;extrafarma.com.br;saude
+drogal;drogal.com.br;saude
+araujo;araujo.com.br;saude
+dpsp;dpsp.com.br;saude
+unimed;unimed.com.br;saude
+amil;amil.com.br;saude
+bradesco saude;bradescosaude.com.br;saude
+sulamerica saude;sulamerica.com.br;saude
+hapvida;hapvida.com.br;saude
+notre dame intermedica;gndi.com.br;saude
+prevent senior;preventsenior.com.br;saude
+golden cross;goldencross.com.br;saude
+fleury;fleury.com.br;saude
+dasa;dasa.com.br;saude
+hermes pardini;hermespardini.com.br;saude
+sabin;sabin.com.br;saude
+lavoisier;lavoisier.com.br;saude
+alta exames;altaexames.com.br;saude
+einstein;einstein.br;saude
+sirio libanes;hospitalsiriolibanes.org.br;saude
+rede d'or;rededor.com.br;saude
+bp beneficencia portuguesa;bp.org.br;saude
+odontoprev;odontoprev.com.br;saude
+uniodonto;uniodonto.com.br;saude
+dr. consulta;drconsulta.com;saude
+doctoralia;doctoralia.com.br;saude
+conexa saude;conexasaude.com.br;saude
+smartfit;smartfit.com.br;saude
+bodytech;bodytech.com.br;saude
+bio ritmo;bioritmoacademia.com.br;saude
+bluefit;bluefit.com.br;saude
+golds gym;goldsgym.com.br;saude
+gympass;gympass.com;saude
+wellhub;wellhub.com;saude
+drogaria venancio;drogariasvenancio.com.br;saude
+farma conde;farmaconde.com.br;saude
+onofre;onofre.com.br;saude
+omint;omint.com.br;saude
+assim saude;assimdigital.com.br;saude
+porto seguro saude;portoseguro.com.br;saude
+cassi;cassi.com.br;saude
+geap;geap.com.br;saude
+alice saude;alice.com.br;saude
+sami saude;samisaude.com.br;saude
+hcor;hcor.com.br;saude
+moinhos de vento;hmv.org.br;saude
+oswaldo cruz;haoc.com.br;saude
+hospital nove de julho;hospitalnovejulho.com.br;saude
+psicologia viva;psicologiaviva.com.br;saude
+zenklub;zenklub.com;saude
+vittude;vittude.com;saude
+totalpass;totalpass.com.br;saude
+cia athletica;ciaathletica.com.br;saude
+oticas carol;oticascarol.com.br;saude
+oticas diniz;oticasdiniz.com.br;saude
+oticas penha;oticaspenha.com.br;saude
+grandvision;grandvision.com.br;saude
+formula e acao;formulaeacao.com.br;saude
+duolingo;duolingo.com;educacao
+udemy;udemy.com;educacao
+coursera;coursera.org;educacao
+alura;alura.com.br;educacao
+descomplica;descomplica.com.br;educacao
+hotmart;hotmart.com;educacao
+eduzz;eduzz.com;educacao
+kiwify;kiwify.com.br;educacao
+rocketseat;rocketseat.com.br;educacao
+dio;dio.me;educacao
+pluralsight;pluralsight.com;educacao
+skillshare;skillshare.com;educacao
+linkedin learning;linkedin.com;educacao
+estacio;estacio.br;educacao
+anhanguera;anhanguera.com;educacao
+unopar;unopar.com.br;educacao
+unip;unip.br;educacao
+fgv;fgv.br;educacao
+insper;insper.edu.br;educacao
+espm;espm.br;educacao
+mackenzie;mackenzie.br;educacao
+faap;faap.br;educacao
+ibmec;ibmec.br;educacao
+wizard;wizard.com.br;educacao
+fisk;fisk.com.br;educacao
+ccaa;ccaa.com.br;educacao
+cna;cna.com.br;educacao
+cultura inglesa;culturainglesa.com.br;educacao
+berlitz;berlitz.com.br;educacao
+yazigi;yazigi.com.br;educacao
+senai;senai.br;educacao
+senac;senac.br;educacao
+sebrae;sebrae.com.br;educacao
+saraiva;saraiva.com.br;educacao
+livraria cultura;livrariacultura.com.br;educacao
+kalunga;kalunga.com.br;educacao
+maple bear;maplebear.com.br;educacao
+coc;coc.com.br;educacao
+anglo;colegioeanglo.com.br;educacao
+objetivo;objetivo.br;educacao
+dante alighieri;dante.com.br;educacao
+santa cruz;colegiosantacruz.com.br;educacao
+bandeirantes;bandeirantes.com.br;educacao
+etapa;etapa.com.br;educacao
+marista;marista.edu.br;educacao
+salesiano;salesiano.edu.br;educacao
+bernoulli;bernoulli.com.br;educacao
+positivo;colegiopositivo.com.br;educacao
+pitagoras;pitagoras.com.br;educacao
+poliedro;sistemapoliedro.com.br;educacao
+eleva;elevaeducacao.com.br;educacao
+ph cursinho;ph.com.br;educacao
+cogna;cogna.com.br;educacao
+cruzeiro do sul;cruzeirodosul.edu.br;educacao
+sao judas;saojudas.br;educacao
+belas artes;belasartes.br;educacao
+puc;pucsp.br;educacao
+uniseb;uniseb.com.br;educacao
+ampli;ampli.com.br;educacao
+domestika;domestika.org;educacao
+masterclass;masterclass.com;educacao
+babbel;babbel.com;educacao
+open english;openenglish.com;educacao
+rosetta stone;rosettastone.com;educacao
+empiricus;empiricus.com.br;educacao
+hashtag treinamentos;hashtagtreinamentos.com.br;educacao
+enel;enel.com.br;utilities
+eletropaulo;enel.com.br;utilities
+cemig;cemig.com.br;utilities
+copel;copel.com;utilities
+cpfl;cpfl.com.br;utilities
+light;light.com.br;utilities
+energisa;energisa.com.br;utilities
+celesc;celesc.com.br;utilities
+neoenergia;neoenergia.com;utilities
+coelba;coelba.com.br;utilities
+elektro;elektro.com.br;utilities
+edp;edp.com.br;utilities
+ceee;ceee.com.br;utilities
+equatorial;equatorialenergia.com.br;utilities
+sabesp;sabesp.com.br;utilities
+cedae;cedae.com.br;utilities
+sanepar;sanepar.com.br;utilities
+embasa;embasa.com.br;utilities
+caesb;caesb.df.gov.br;utilities
+copasa;copasa.com.br;utilities
+cagece;cagece.com.br;utilities
+corsan;corsan.com.br;utilities
+casan;casan.com.br;utilities
+saneago;saneago.com.br;utilities
+aegea;aegea.com.br;utilities
+brk ambiental;brkambiental.com.br;utilities
+comgas;comgas.com.br;utilities
+ceg;ceg.com.br;utilities
+gasmig;gasmig.com.br;utilities
+naturgy;naturgy.com.br;utilities
+bahiagas;bahiagas.com.br;utilities
+claro;claro.com.br;utilities
+vivo;vivo.com.br;utilities
+tim;tim.com.br;utilities
+oi;oi.com.br;utilities
+algar telecom;algartelecom.com.br;utilities
+brisanet;brisanet.com.br;utilities
+celpe;celpe.com.br;utilities
+cosern;cosern.com.br;utilities
+coelce;coelce.com.br;utilities
+celg;celg.com.br;utilities
+rge;rge.com.br;utilities
+caern;caern.com.br;utilities
+deso;deso.com.br;utilities
+sanesul;sanesul.com.br;utilities
+caema;caema.com.br;utilities
+cosama;cosama.com.br;utilities
+agespisa;agespisa.com.br;utilities
+scgas;scgas.com.br;utilities
+copergas;copergas.com.br;utilities
+algas;algas.com.br;utilities
+supergasbras;supergasbras.com.br;utilities
+ultragaz;ultragaz.com.br;utilities
+copagaz;copagaz.com.br;utilities
+liquigas;liquigas.com.br;utilities
+starlink;starlink.com;utilities
+unifique;unifique.com.br;utilities
+desktop;desktop.com.br;utilities
+surf telecom;surftelecom.com.br;utilities
+porto seguro seguros;portoseguro.com.br;utilities
+bradesco seguros;bradescoseguros.com.br;utilities
+mapfre;mapfre.com.br;utilities
+allianz;allianz.com.br;utilities
+liberty seguros;libertyseguros.com.br;utilities
+hdi seguros;hdiseguros.com.br;utilities
+tokio marine;tokiomarine.com.br;utilities
+zurich;zurich.com.br;utilities
+sompo;sompo.com.br;utilities
+amazon;amazon.com.br;ecommerce
+mercado livre;mercadolivre.com.br;ecommerce
+mercadolivre;mercadolivre.com.br;ecommerce
+mercado pago;mercadopago.com.br;ecommerce
+mercadopago;mercadopago.com.br;ecommerce
+shopee;shopee.com.br;ecommerce
+americanas;americanas.com.br;ecommerce
+submarino;submarino.com.br;ecommerce
+shoptime;shoptime.com.br;ecommerce
+magazine luiza;magazineluiza.com.br;ecommerce
+magalu;magazineluiza.com.br;ecommerce
+casas bahia;casasbahia.com.br;ecommerce
+ponto;pontofrio.com.br;ecommerce
+ponto frio;pontofrio.com.br;ecommerce
+netshoes;netshoes.com.br;ecommerce
+zattini;zattini.com.br;ecommerce
+dafiti;dafiti.com.br;ecommerce
+shein;shein.com;ecommerce
+temu;temu.com;ecommerce
+aliexpress;aliexpress.com;ecommerce
+wish;wish.com;ecommerce
+ebay;ebay.com;ecommerce
+etsy;etsy.com;ecommerce
+enjoei;enjoei.com.br;ecommerce
+olx;olx.com.br;ecommerce
+elo7;elo7.com.br;ecommerce
+fastshop;fastshop.com.br;ecommerce
+kabum;kabum.com.br;ecommerce
+terabyte;terabyteshop.com.br;ecommerce
+pichau;pichau.com.br;ecommerce
+beleza na web;belezanaweb.com.br;ecommerce
+epoca cosmeticos;epocacosmeticos.com.br;ecommerce
+iherb;iherb.com;ecommerce
+natue;natue.com.br;ecommerce
+renner;lojasrenner.com.br;moda
+cea;cea.com.br;moda
+riachuelo;riachuelo.com.br;moda
+zara;zara.com;moda
+hm;hm.com;moda
+marisa;marisa.com.br;moda
+hering;hering.com.br;moda
+farm;farmrio.com;moda
+animale;animale.com.br;moda
+le lis blanc;lelisblanc.com.br;moda
+mixed;mixed.com.br;moda
+colcci;colcci.com.br;moda
+osklen;osklen.com;moda
+ellus;ellus.com.br;moda
+forum;forum.com.br;moda
+richards;richards.com.br;moda
+reserva;reserva.com.br;moda
+malwee;malwee.com.br;moda
+lupo;lupo.com.br;moda
+nike;nike.com.br;moda
+adidas;adidas.com.br;moda
+puma;puma.com;moda
+new balance;newbalance.com.br;moda
+under armour;underarmour.com;moda
+vans;vans.com;moda
+converse;converse.com;moda
+calvin klein;calvinklein.com.br;moda
+tommy hilfiger;tommy.com;moda
+lacoste;lacoste.com;moda
+ralph lauren;ralphlauren.com;moda
+levi's;levi.com;moda
+guess;guess.com;moda
+gap;gap.com;moda
+arezzo;arezzo.com.br;moda
+schutz;schutz.com.br;moda
+anacapri;anacapri.com.br;moda
+havaianas;havaianas.com;moda
+melissa;melissa.com.br;moda
+piccadilly;piccadilly.com.br;moda
+ramarim;ramarim.com.br;moda
+santa lolla;santalolla.com.br;moda
+via uno;viauno.com.br;moda
+dumond;dumond.com.br;moda
+cia maritima;ciamaritima.com.br;moda
+blue man;blueman.com.br;moda
+salinas;salinasswimwear.com.br;moda
+chilli beans;chillibeans.com.br;moda
+oakley;oakley.com;moda
+ray-ban;ray-ban.com;moda
+nubank;nubank.com.br;financas
+itau;itau.com.br;financas
+bradesco;bradesco.com.br;financas
+santander;santander.com.br;financas
+banco do brasil;bb.com.br;financas
+caixa;caixa.gov.br;financas
+btg pactual;btgpactual.com;financas
+xp investimentos;xp.com.br;financas
+inter;bancointer.com.br;financas
+c6 bank;c6bank.com.br;financas
+picpay;picpay.com;financas
+pagseguro;pagseguro.com;financas
+paypal;paypal.com;financas
+stone;stone.com.br;financas
+cielo;cielo.com.br;financas
+rede;userede.com.br;financas
+getnet;getnet.com.br;financas
+sicredi;sicredi.com.br;financas
+sicoob;sicoob.com.br;financas
+cresol;cresol.com.br;financas
+unicred;unicred.com.br;financas
+neon;neon.com.br;financas
+next;next.me;financas
+agibank;agibank.com.br;financas
+pan;bancopan.com.br;financas
+bmg;bancobmg.com.br;financas
+daycoval;daycoval.com.br;financas
+safra;safra.com.br;financas
+bv;bancobv.com.br;financas
+original;bancoriginal.com.br;financas
+modal;bancomodal.com.br;financas
+banrisul;banrisul.com.br;financas
+brb;brb.com.br;financas
+banese;banese.com.br;financas
+mercantil;mercantil.com.br;financas
+creditas;creditas.com;financas
+serasa;serasa.com.br;financas
+wise;wise.com;financas
+remessa online;remessaonline.com.br;financas
+nomad;nomadglobal.com;financas
+avenue;avenue.us;financas
+rico;rico.com.vc;financas
+clear;clear.com.br;financas
+nuinvest;nuinvest.com.br;financas
+warren;warren.com.br;financas
+toro investimentos;toroinvestimentos.com.br;financas
+genial;genialinvestimentos.com.br;financas
+orama;orama.com.br;financas
+guide;guideinvestimentos.com.br;financas
+agora;agorainvestimentos.com.br;financas
+american express;americanexpress.com;financas
+western union;westernunion.com;financas
+latam;latam.com;viagens
+gol;voegol.com.br;viagens
+azul;voeazul.com.br;viagens
+tap;flytap.com;viagens
+american airlines;aa.com;viagens
+united;united.com;viagens
+delta;delta.com;viagens
+air france;airfrance.com;viagens
+klm;klm.com;viagens
+iberia;iberia.com;viagens
+emirates;emirates.com;viagens
+turkish airlines;turkishairlines.com;viagens
+copa airlines;copaair.com;viagens
+airbnb;airbnb.com;viagens
+booking;booking.com;viagens
+expedia;expedia.com.br;viagens
+decolar;decolar.com;viagens
+despegar;despegar.com;viagens
+trivago;trivago.com.br;viagens
+hotels.com;hotels.com;viagens
+cvc;cvc.com.br;viagens
+viajanet;viajanet.com.br;viagens
+maxmilhas;maxmilhas.com.br;viagens
+smiles;smiles.com.br;viagens
+latam pass;latampass.com;viagens
+tudoazul;tudoazul.com;viagens
+accor;accor.com;viagens
+ibis;ibis.com;viagens
+novotel;novotel.com;viagens
+hilton;hilton.com;viagens
+marriott;marriott.com;viagens
+hyatt;hyatt.com;viagens
+best western;bestwestern.com;viagens
+intercontinental;ihg.com;viagens
+holiday inn;ihg.com;viagens
+radisson;radisson.com;viagens
+golden tulip;goldentulip.com;viagens
+windsor;windsorhoteis.com.br;viagens
+blue tree;bluetree.com.br;viagens
+club med;clubmed.com.br;viagens
+steam;store.steampowered.com;games
+playstation;playstation.com;games
+xbox;xbox.com;games
+nintendo;nintendo.com.br;games
+epic games;epicgames.com;games
+riot games;riotgames.com;games
+blizzard;blizzard.com;games
+ea games;ea.com;games
+ubisoft;ubisoft.com;games
+rockstar games;rockstargames.com;games
+google play;play.google.com;tecnologia
+apple;apple.com;tecnologia
+icloud;apple.com;tecnologia
+microsoft;microsoft.com;tecnologia
+google one;one.google.com;tecnologia
+adobe;adobe.com;tecnologia
+canva;canva.com;tecnologia
+figma;figma.com;tecnologia
+dropbox;dropbox.com;tecnologia
+github;github.com;tecnologia
+openai;openai.com;tecnologia
+chatgpt;openai.com;tecnologia
+samsung;samsung.com.br;tecnologia
+dell;dell.com;tecnologia
+lenovo;lenovo.com;tecnologia
+hp;hp.com;tecnologia
+positivo tecnologia;positivotecnologia.com.br;tecnologia
+motorola;motorola.com.br;tecnologia
+xiaomi;mi.com/br;tecnologia
+logitech;logitech.com;tecnologia
+razer;razer.com;tecnologia
+nordvpn;nordvpn.com;tecnologia
+expressvpn;expressvpn.com;tecnologia
+twitch;twitch.tv;games
+discord;discord.com;games
+zoom;zoom.us;tecnologia
+notion;notion.so;tecnologia
+aws;aws.amazon.com;tecnologia
+digitalocean;digitalocean.com;tecnologia
+cloudflare;cloudflare.com;tecnologia
+leroy merlin;leroymerlin.com.br;casa
+tokstok;tokstok.com.br;casa
+ikea;ikea.com/br;casa
+madeiramadeira;madeiramadeira.com.br;casa
+camicado;camicado.com.br;casa
+westwing;westwing.com.br;casa
+mobly;mobly.com.br;casa
+telhanorte;telhanorte.com.br;casa
+quero-quero;queroquero.com.br;casa
+havan;havan.com.br;casa
+colombo;colombo.com.br;casa
+tramontina;tramontina.com.br;casa
+ri happy;rihappy.com.br;casa
+pbkids;pbkids.com.br;casa
+lego;lego.com;casa
+brastemp;brastemp.com.br;casa
+consul;consul.com.br;casa
+electrolux;electrolux.com.br;casa
+bosch;bosch.com.br;casa
+philips;philips.com.br;casa
+multilaser;multilaser.com.br;casa
+mondial;mondial.com.br;casa
+britania;britania.com.br;casa
+arno;arno.com.br;casa
+oster;osterbrasil.com.br;casa
+tok stok;tokstok.com.br;casa
+casa e video;casaevideo.com.br;casa
+etna;etna.com.br;casa
+cassol;cassol.com.br;casa
+c&c;cec.com.br;casa
+petlove;petlove.com.br;pet
+petz;petz.com.br;pet
+cobasi;cobasi.com.br;pet
+zee dog;zee.dog;pet
+pet center;petcenter.com.br;pet
+doghero;doghero.com.br;pet
+pet anjo;petanjo.com;pet
+dr. pet;drpet.com.br;pet
+agrocat;agrocat.com.br;pet
+purina;purina.com.br;pet
+royal canin;royalcanin.com;pet
+hills;hillspet.com;pet
+golden;goldenalimentos.com.br;pet
+premier pet;premierpet.com.br;pet
+guabi;guabi.com.br;pet
+biofresh;biofresh.com.br;pet
+ração total;racaototal.com.br;pet
+granplus;granplus.com.br;pet
+tudo de bicho;tudodebicho.com.br;pet
+agropet;agropet.com.br;pet
+mundo animal;mundoanimal.com.br;pet
+vetshop;vetshop.com.br;pet
+aminopet;aminopet.com.br;pet
+petyard;petyard.com.br;pet
+o boticario;boticario.com.br;beleza
+natura;natura.com.br;beleza
+avon;avon.com.br;beleza
+sephora;sephora.com.br;beleza
+loreal;loreal.com.br;beleza
+eudora;eudora.com.br;beleza
+vult;vult.com.br;beleza
+quem disse berenice;quemdisseberenice.com.br;beleza
+ruby rose;rubyrose.com.br;beleza
+mac cosmetics;maccosmetics.com.br;beleza
+maybelline;maybelline.com.br;beleza
+nivea;nivea.com.br;beleza
+neutrogena;neutrogena.com.br;beleza
+la roche-posay;laroche-posay.com.br;beleza
+cerave;cerave.com.br;beleza
+vichy;vichy.com.br;beleza
+wella;wella.com;beleza
+schwarzkopf;schwarzkopf.com.br;beleza
+garnier;garnier.com.br;beleza
+salon line;salonline.com.br;beleza
+ikesaki;ikesaki.com.br;beleza
+studio 35;studio35.com.br;beleza
+jequiti;jequiti.com.br;beleza
+mary kay;marykay.com.br;beleza
+hinode;hinode.com.br;beleza
+amway;amway.com.br;beleza
+gillette;gillette.com.br;beleza
+dove;dove.com/br;beleza
+nars;narscosmetics.com;beleza
+urban decay;urbandecay.com;beleza
+anastasia beverly hills;anastasia.net;beleza
+the ordinary;theordinary.com;beleza
+beauty color;beautycolor.com.br;beleza

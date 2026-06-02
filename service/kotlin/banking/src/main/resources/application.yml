@@ -75,10 +75,8 @@ datasources:
         prepareThreshold: 0
         tcpKeepAlive: true
 
-# JPA disabled until the module has @Entity classes (common brings in Hibernate JPA)
 jpa:
   default:
-    enabled: false
     properties:
       hibernate:
         hbm2ddl:
@@ -100,6 +98,101 @@ graphql:
   graphiql:
     enabled: true
     path: /graphiql
+  # Apollo Router URL for service-to-service calls (e.g. assets upload).
+  # Required when outbound GraphQL calls are used.
+  router:
+    url: ${GRAPHQL_ROUTER_URL:http://localhost:4000/graphql}
+
+# Service principal credentials (for outbound service-to-service calls via Apollo Router).
+# Register via: neotool service register neotool-banking-service --permissions ... --output-env
+security:
+  service:
+    url: ${SECURITY_SERVICE_URL:http://localhost:8080}
+    id: ${SECURITY_SERVICE_ID:}
+    secret: ${SECURITY_SERVICE_SECRET:}
+
+# Assets service — for import file storage (presigned upload/download).
+# Set ASSETS_SERVICE_URL in deployment (e.g. http://assets-service or http://localhost:port).
+banking:
+  assets-service:
+    url: ${ASSETS_SERVICE_URL:}
+    graphql-path: /graphql
+    import-namespace: ${ASSETS_IMPORT_NAMESPACE:transaction-imports}
+    bill-import-namespace: ${ASSETS_BILL_IMPORT_NAMESPACE:transaction-imports}
+    merchant-logo-namespace: ${ASSETS_MERCHANT_LOGO_NAMESPACE:institution-logos}
+    bill-download-ttl-seconds: ${ASSETS_BILL_DOWNLOAD_TTL_SECONDS:7200}
+  merchant-logo:
+    token: ${LOGO_DEV_TOKEN:}
+    backfill:
+      enabled: ${BANKING_MERCHANT_LOGO_BACKFILL_ENABLED:false}
+      fixed-delay: ${BANKING_MERCHANT_LOGO_BACKFILL_FIXED_DELAY:PT24H}
+      batch-size: ${BANKING_MERCHANT_LOGO_BACKFILL_BATCH_SIZE:25}
+  financialdata-service:
+    url: ${FINANCIALDATA_SERVICE_URL}
+    target-audience: ${FINANCIALDATA_SERVICE_AUDIENCE}
+    listed-prices-export-path: ${FINANCIALDATA_LISTED_PRICES_EXPORT_PATH}
+    fund-navs-export-path: ${FINANCIALDATA_FUND_NAVS_EXPORT_PATH:/internal/market-data/fund-navs/export}
+  market-data-sync:
+    listed-prices:
+      bulk-enabled: ${BANKING_MARKET_DATA_SYNC_LISTED_PRICES_BULK_ENABLED:true}
+      batch-size: ${BANKING_MARKET_DATA_SYNC_LISTED_PRICES_BATCH_SIZE:1000}
+      connect-timeout-seconds: ${BANKING_MARKET_DATA_SYNC_LISTED_PRICES_CONNECT_TIMEOUT_SECONDS:10}
+      read-timeout-seconds: ${BANKING_MARKET_DATA_SYNC_LISTED_PRICES_READ_TIMEOUT_SECONDS:600}
+    fund-navs:
+      bulk-enabled: ${BANKING_MARKET_DATA_SYNC_FUND_NAVS_BULK_ENABLED:true}
+      batch-size: ${BANKING_MARKET_DATA_SYNC_FUND_NAVS_BATCH_SIZE:1000}
+      connect-timeout-seconds: ${BANKING_MARKET_DATA_SYNC_FUND_NAVS_CONNECT_TIMEOUT_SECONDS:10}
+      read-timeout-seconds: ${BANKING_MARKET_DATA_SYNC_FUND_NAVS_READ_TIMEOUT_SECONDS:600}
+  pdf-import:
+    deterministic-enabled: ${BANKING_PDF_IMPORT_DETERMINISTIC_ENABLED:false}
+  bill-import:
+    deterministic-enabled: ${BANKING_BILL_IMPORT_DETERMINISTIC_ENABLED:${banking.pdf-import.deterministic-enabled}}
+
+# Kafka — import file requested / job completed (set KAFKA_BROKERS in deployment).
+# Use host:port format (example: localhost:9094), without http://
+# Set kafka.enabled=true in dev/staging to auto-create topics at startup.
+kafka:
+  enabled: ${KAFKA_ENABLED:true}
+  bootstrap:
+    servers: ${KAFKA_BROKERS}
+  topics:
+    import-file-requested: banking.import.file-requested
+    import-file-requested-dlt: banking.import.file-requested.DLT
+    import-job-completed: banking.import.job-completed
+    market-data-job-succeeded: financial-data.market-data.job-succeeded
+    portfolio-recalculation-requested: banking.portfolio-recalculation.requested
+    pdf:
+      extractor-submitted: ${KAFKA_TOPIC_PDF_EXTRACTOR_SUBMITTED:pdf-extractor.submitted}
+      extractor-extracted: ${KAFKA_TOPIC_PDF_EXTRACTOR_EXTRACTED:pdf-extractor.extracted}
+      extractor-dlq: ${KAFKA_TOPIC_PDF_EXTRACTOR_DLQ:pdf-extractor.dlq}
+      banking-reader-done: ${KAFKA_TOPIC_PDF_BANKING_READER_DONE:assistant.banking-pdf-reader.done}
+      banking-reader-failed: ${KAFKA_TOPIC_PDF_BANKING_READER_FAILED:assistant.banking-pdf-reader.failed}
+      banking-reader-requested: ${KAFKA_TOPIC_PDF_BANKING_READER_REQUESTED:assistant.banking-reader.requested}
+  consumers:
+    import-file:
+      group-id: banking-import-consumer
+      max-poll-records: 1  # process one import at a time per partition
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+    import-status:
+      group-id: ${KAFKA_IMPORT_STATUS_GROUP_ID:banking-service-import-status}
+    market-data-sync:
+      enabled: ${KAFKA_MARKET_DATA_SYNC_ENABLED:true}
+      group-id: ${KAFKA_MARKET_DATA_SYNC_GROUP_ID:banking-market-data-sync}
+    portfolio-recalculation:
+      enabled: ${KAFKA_PORTFOLIO_RECALCULATION_ENABLED:true}
+      group-id: ${KAFKA_PORTFOLIO_RECALCULATION_GROUP_ID:banking-portfolio-recalculation}
+    pdf-status:
+      enabled: ${KAFKA_PDF_STATUS_ENABLED:true}
+      group-id: ${KAFKA_PDF_STATUS_GROUP_ID:banking-service-bill-import-status}
+    bill-import-status:
+      enabled: ${KAFKA_BILL_IMPORT_STATUS_ENABLED:true}
+      group-id: ${KAFKA_BILL_IMPORT_STATUS_GROUP_ID:banking-service-bill-import-status}
+  producers:
+    default:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.micronaut.serde.kafka.KafkaSerdeSerializer
 
 # JWT Configuration (Validator Only)
 jwt:

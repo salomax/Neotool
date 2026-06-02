@@ -1,0 +1,11 @@
+Data,Descricao,Valor,Tipo
+2026-03-01,Salario,5000.00,CREDIT
+2026-03-05,Aluguel,-1500.00,DEBIT
+2026-03-10,Supermercado,-320.50,DEBIT
+2026-03-12,Conta de Luz,-180.00,DEBIT
+2026-03-15,Farmacia,-95.30,DEBIT
+2026-03-18,Restaurante,-85.00,DEBIT
+2026-03-20,Transferencia Recebida,200.00,CREDIT
+2026-03-22,Uber,-45.00,DEBIT
+2026-03-25,Streaming,-29.90,DEBIT
+2026-03-28,Reembolso Empresa,150.00,CREDIT

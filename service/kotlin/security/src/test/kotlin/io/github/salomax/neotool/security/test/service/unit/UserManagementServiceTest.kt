@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.common.error.NotFoundException
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.OrderDirection
@@ -1048,6 +1049,78 @@ class UserManagementServiceTest {
             }.also { exception ->
                 assertThat(exception.message).contains("cannot be blank")
             }
+        }
+    }
+
+    @Nested
+    @DisplayName("Avatar Management")
+    inner class AvatarManagementTests {
+        @Test
+        fun `should update avatar for email user`() {
+            val userId = UUID.randomUUID()
+            val existing =
+                UserEntity(
+                    id = userId,
+                    email = "email-user@test.com",
+                    passwordHash = "hashed",
+                    avatarProvider = null,
+                )
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(existing))
+            whenever(userRepository.update(any())).thenAnswer { it.arguments[0] as UserEntity }
+
+            val result =
+                userManagementService.updateAvatar(
+                    userId,
+                    "https://assets.test.local/public/user-profiles/test-avatar",
+                )
+
+            assertThat(result.avatarUrl)
+                .isEqualTo("https://assets.test.local/public/user-profiles/test-avatar")
+            assertThat(existing.avatarUpdatedAt).isNotNull()
+            verify(userRepository).update(existing)
+        }
+
+        @Test
+        fun `should reject avatar update for oauth user`() {
+            val userId = UUID.randomUUID()
+            val existing =
+                UserEntity(
+                    id = userId,
+                    email = "oauth-user@test.com",
+                    passwordHash = null,
+                    avatarProvider = "google",
+                )
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(existing))
+
+            assertThrows<ValidationException> {
+                userManagementService.updateAvatar(
+                    userId,
+                    "https://assets.test.local/public/user-profiles/test-avatar",
+                )
+            }.also { ex ->
+                assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.AVATAR_UPLOAD_NOT_ALLOWED_FOR_OAUTH_USERS)
+            }
+            verify(userRepository, never()).update(any())
+        }
+
+        @Test
+        fun `should accept avatar update without domain validation`() {
+            val userId = UUID.randomUUID()
+            val existing =
+                UserEntity(
+                    id = userId,
+                    email = "email-user@test.com",
+                    passwordHash = "hashed",
+                    avatarProvider = null,
+                )
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(existing))
+            whenever(userRepository.update(any())).thenAnswer { it.arguments[0] as UserEntity }
+
+            val result = userManagementService.updateAvatar(userId, "https://evil.example.com/image.png")
+
+            assertThat(result.avatarUrl).isEqualTo("https://evil.example.com/image.png")
+            assertThat(existing.avatarUpdatedAt).isNotNull()
+            verify(userRepository).update(existing)
         }
     }
 

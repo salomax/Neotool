@@ -2,12 +2,13 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Container, Box, Typography, CircularProgress } from "@mui/material";
+import { Container, Box, Typography } from "@mui/material";
 import { VerificationPrompt } from "@/shared/components/auth/VerificationPrompt";
 import { useAuth } from "@/shared/providers";
 import { Logo } from "@/shared/ui/brand";
 import { Paper } from "@/shared/components/ui/layout/Paper";
 import { Stack } from "@/shared/components/ui/layout/Stack";
+import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
 import { verifyEmailTranslations } from "./i18n";
 
@@ -78,13 +79,14 @@ export default function VerifyEmailPage() {
                 <Box
                   sx={{
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 2,
                     py: 2,
                   }}
                 >
-                  <CircularProgress size={24} />
+                  <LoadingSpinner minHeight={0} size={72} message={t("loading")} />
                   <Typography color="text.secondary">{t("loading")}</Typography>
                 </Box>
               </Stack>

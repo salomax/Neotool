@@ -60,6 +60,7 @@ open class UserEntity(
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
             avatarUrl = this.avatarUrl,
+            avatarProvider = this.avatarProvider,
             version = this.version,
         )
     }

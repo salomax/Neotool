@@ -124,12 +124,17 @@ class SqlResultMapper(
      */
     fun getInstant(columnName: String): Instant? {
         val value = getValue(columnName) ?: return null
-        return when (value) {
-            is Instant -> value
-            is Timestamp -> value.toInstant()
-            is OffsetDateTime -> value.toInstant()
-            is LocalDateTime -> value.atZone(ZoneOffset.UTC).toInstant()
-            else -> null
-        }
+        return value.asInstantOrNull()
+    }
+}
+
+internal fun Any?.asInstantOrNull(): Instant? {
+    val value = this ?: return null
+    return when (value) {
+        is Instant -> value
+        is Timestamp -> value.toInstant()
+        is OffsetDateTime -> value.toInstant()
+        is LocalDateTime -> value.atZone(ZoneOffset.UTC).toInstant()
+        else -> null
     }
 }

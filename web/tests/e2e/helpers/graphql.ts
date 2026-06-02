@@ -1,12 +1,53 @@
 /**
- * GraphQL operation helpers for E2E tests
+ * GraphQL operation helpers for E2E tests.
+ *
+ * Non-2xx responses include the response body in the thrown error when possible
+ * (validation failures often return HTTP 400 with JSON or plain text).
  */
 
+import { expect } from '@playwright/test';
 import { currentConfig } from '../config/environments';
 
 export interface GraphQLResponse<T = any> {
   data?: T;
-  errors?: Array<{ message: string; path?: string[] }>;
+  errors?: Array<{
+    message: string;
+    path?: string[];
+    extensions?: Record<string, unknown>;
+  }>;
+}
+
+/**
+ * Asserts GraphQL errors indicate a missing resource (message or standard extension codes).
+ * Use for E2E against router or banking: Apollo may preserve `extensions.code` even when
+ * the top-level message is generic in some setups.
+ */
+export function expectGraphqlNotFoundError(
+  errors: GraphQLResponse['errors'] | undefined
+): asserts errors is NonNullable<GraphQLResponse['errors']> {
+  expect(errors).toBeDefined();
+  expect(errors!.length).toBeGreaterThan(0);
+  const blob = JSON.stringify(errors);
+  const messageOk = /not found|não encontrad/i.test(blob);
+  const codeOk = /"(TRANSACTION_NOT_FOUND|RESOURCE_NOT_FOUND|NOT_FOUND)"/.test(blob);
+  expect(
+    messageOk || codeOk,
+    `Expected a not-found GraphQL error (message or known extension code). Got: ${blob.slice(0, 800)}`
+  ).toBe(true);
+}
+
+export interface AuthSessionUser {
+  id: string;
+  email: string;
+  displayName: string | null;
+  roles: Array<{ id: string; name: string }>;
+  permissions: Array<{ id: string; name: string }>;
+}
+
+export interface AuthSession {
+  token: string;
+  refreshToken: string | null;
+  user: AuthSessionUser;
 }
 
 /**
@@ -34,12 +75,37 @@ export async function executeGraphQL<T = any>(
     }),
   });
 
+  const bodyText = await response.text();
+
   if (!response.ok) {
-    throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}`);
+    let detail = bodyText.trim();
+    if (detail.length > 4000) {
+      detail = `${detail.slice(0, 4000)}…`;
+    }
+    try {
+      const parsed = JSON.parse(bodyText) as {
+        errors?: Array<{ message: string }>;
+      };
+      if (parsed.errors?.length) {
+        detail = parsed.errors.map((e) => e.message).join('; ');
+      }
+    } catch {
+      /* keep truncated raw body */
+    }
+    throw new Error(
+      `GraphQL request failed: ${response.status} ${response.statusText}${detail ? ` — ${detail}` : ''}`,
+    );
   }
 
-  const result = await response.json();
-  
+  let result: GraphQLResponse<T>;
+  try {
+    result = JSON.parse(bodyText) as GraphQLResponse<T>;
+  } catch {
+    throw new Error(
+      `GraphQL response was not valid JSON (${response.status}): ${bodyText.slice(0, 500)}`,
+    );
+  }
+
   if (result.errors) {
     console.error('GraphQL errors:', result.errors);
   }
@@ -48,36 +114,62 @@ export async function executeGraphQL<T = any>(
 }
 
 /**
- * Sign in and get authentication token
+ * Sign in and return the session payload used by the frontend auth provider.
  */
-export async function signIn(email: string, password: string): Promise<string> {
+export async function signInWithSession(
+  email: string,
+  password: string,
+  rememberMe = true
+): Promise<AuthSession> {
   const mutation = `
     mutation SignIn($input: SignInInput!) {
       signIn(input: $input) {
         token
+        refreshToken
         user {
           id
           email
+          displayName
+          roles {
+            id
+            name
+          }
+          permissions {
+            id
+            name
+          }
         }
       }
     }
   `;
 
   const result = await executeGraphQL<{
-    signIn: { token: string; user: { id: string; email: string } };
+    signIn: AuthSession;
   }>(mutation, {
     input: {
       email,
       password,
-      rememberMe: false,
+      rememberMe,
     },
   });
 
-  if (result.errors || !result.data?.signIn?.token) {
+  if (result.errors || !result.data?.signIn?.token || !result.data?.signIn?.user) {
     throw new Error(`Sign in failed: ${result.errors?.[0]?.message || 'Unknown error'}`);
   }
 
-  return result.data.signIn.token;
+  return result.data.signIn;
+}
+
+/**
+ * Sign in and get only the access token.
+ */
+export async function signIn(
+  email: string,
+  password: string,
+  rememberMe = false
+): Promise<string> {
+  const session = await signInWithSession(email, password, rememberMe);
+  return session.token;
 }
 
 /**
@@ -165,7 +257,6 @@ export async function disableUser(userId: string, token: string): Promise<void> 
  */
 export async function createRole(
   name: string,
-  description: string | null,
   token: string
 ): Promise<{ id: string; name: string }> {
   const mutation = `

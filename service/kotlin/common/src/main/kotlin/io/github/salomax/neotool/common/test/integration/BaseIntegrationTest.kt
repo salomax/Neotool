@@ -1,0 +1,115 @@
+package io.github.salomax.neotool.common.test.integration
+
+import io.micronaut.context.ApplicationContext
+import io.micronaut.http.client.HttpClient
+import io.micronaut.http.client.annotation.Client
+import io.micronaut.json.JsonMapper
+import io.micronaut.test.support.TestPropertyProvider
+import jakarta.inject.Inject
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.TestInstance
+import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.PostgreSQLContainer
+import org.testcontainers.junit.jupiter.Testcontainers
+import org.testcontainers.kafka.KafkaContainer
+import java.sql.DriverManager
+import kotlin.reflect.full.isSuperclassOf
+
+/**
+ * Base integration test class that sets up Testcontainers and provides common utilities
+ */
+@Testcontainers
+@TestInstance(TestInstance.Lifecycle.PER_CLASS) // keep container running per class
+abstract class BaseIntegrationTest : TestPropertyProvider {
+    override fun getProperties(): MutableMap<String, String> {
+        val props = mutableMapOf<String, String>()
+
+        if (PostgresIntegrationTest::class.isSuperclassOf(this::class)) {
+            val postgres = PostgresTestContainer.container // init container
+            props += PostgresTestContainer.micronautProps()
+        }
+
+        if (KafkaIntegrationTest::class.isSuperclassOf(this::class)) {
+            val kafka = KafkaTestContainer.container // init container
+            props += KafkaTestContainer.micronautProps()
+        }
+
+        if (MinIOIntegrationTest::class.isSuperclassOf(this::class)) {
+            val minio = MinIOTestContainer.container // init container
+            props += MinIOTestContainer.micronautProps()
+        }
+
+        return props
+    }
+
+    fun getPgContainer(): PostgreSQLContainer<*> = PostgresTestContainer.container
+
+    fun getKafkaContainer(): KafkaContainer = KafkaTestContainer.container
+
+    fun getMinIOContainer(): GenericContainer<*> = MinIOTestContainer.container
+
+//  fun getRedisContainer(): RedisContainer = TODO()
+
+    @Inject
+    lateinit var applicationContext: ApplicationContext
+
+    @Inject
+    @field:Client("/")
+    lateinit var httpClient: HttpClient
+
+    @Inject
+    lateinit var json: JsonMapper
+
+    fun getServerPort(): Int {
+        return applicationContext.getProperty("micronaut.server.port", Int::class.java).orElse(8080)
+    }
+
+    @BeforeEach
+    open fun setUp() {
+        // Test PG test container
+        if (PostgresIntegrationTest::class.isSuperclassOf(this::class)) {
+            val pgContainer = PostgresTestContainer.container
+            assertThat(pgContainer.isRunning).isTrue()
+            assertThat(pgContainer.jdbcUrl).isNotNull()
+            assertThat(pgContainer.firstMappedPort).isGreaterThan(0)
+
+            // Use 'SELECT 1' check to verify database connection
+            DriverManager.getConnection(pgContainer.jdbcUrl, pgContainer.username, pgContainer.password).use { conn ->
+                conn.createStatement().use { st ->
+                    st.executeQuery("SELECT 1").use { rs ->
+                        assertTrue(rs.next())
+                        assertEquals(1, rs.getInt(1))
+                    }
+                }
+            }
+        }
+
+        // Test Kafka test container
+        if (KafkaIntegrationTest::class.isSuperclassOf(this::class)) {
+            val kafkaContainer = KafkaTestContainer.container
+            assertThat(kafkaContainer.isRunning).isTrue()
+            assertThat(kafkaContainer.bootstrapServers).isNotNull()
+            assertThat(kafkaContainer.bootstrapServers).isNotEmpty()
+            assertThat(kafkaContainer.firstMappedPort).isGreaterThan(0)
+        }
+
+        // Test MinIO test container
+        if (MinIOIntegrationTest::class.isSuperclassOf(this::class)) {
+            val minioContainer = MinIOTestContainer.container
+            assertThat(minioContainer.isRunning).isTrue()
+            assertThat(minioContainer.host).isNotNull()
+            assertThat(minioContainer.getMappedPort(9000)).isGreaterThan(0)
+            assertThat(minioContainer.getMappedPort(9001)).isGreaterThan(0)
+        }
+    }
+
+    @AfterEach
+    fun tearDown() {
+        // Clean up test data if needed
+        // This can be customized per test class
+    }
+}

@@ -36,10 +36,29 @@ extend type Query {
   ratingIssuers: [RatingIssuer!]!
   # Economic indicators
   economicIndicators(label: String): [EconomicIndicator!]!
+  # Latest value per indicator+variation (used by banking for fixed-income valuation).
+  indicatorsLatest: [EconomicIndicatorLatestItem!]!
   # Fixed income comparison: 2×3 grid of equivalent rates (product group × rate model)
   fixedIncomeComparison(input: FixedIncomeComparisonInput!): FixedIncomeComparisonResult!
   # Institution discovery dashboard: popular list with top metrics per institution
   popularInstitutions(anoMes: String): [PopularInstitution!]!
+  # Investment fund queries (CVM)
+  searchInvestmentFundsAutocomplete(query: String!): InvestmentFundAutocompleteConnection!
+  investmentFunds(query: String, assetType: InvestmentFundAssetType, isActive: Boolean, first: Int, after: String): InvestmentFundConnection!
+  investmentFund(id: ID!): InvestmentFund
+  investmentFundMarketSnapshots(cnpjs: [String!]!): [InvestmentFundMarketSnapshot!]!
+  # Daily NAV series for a CVM fund by CNPJ (chronological). Empty when unknown CNPJ or no rows in range.
+  fundNavSeries(cnpj: String!, from: Date!, to: Date!): [FundDailyNav!]!
+  fundDailyNavs(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, cnpjs: [String!]): FundDailyNavConnection!
+
+  # B3 investment asset queries (equities, FIIs, options)
+  searchInvestmentAssetsAutocomplete(query: String!, assetType: B3AssetType): ListedAssetAutocompleteConnection!
+  investmentAssets(query: String, assetType: B3AssetType, isActive: Boolean, first: Int, after: String): ListedAssetConnection!
+  investmentAssetByTicker(ticker: String!): ListedAsset
+  investmentAssetsByTickers(tickers: [String!]!): [ListedAsset!]!
+  listedAssetDailyPrices(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, tickers: [String!]): ListedAssetDailyPriceConnection!
+  economicIndicatorVariationPoints(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, indicators: [String!], variations: [String!]): EconomicIndicatorPointConnection!
+  assetCorporateEvents(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, tickers: [String!], isins: [String!]): AssetCorporateEventConnection!
 }
 
 # Enums
@@ -321,6 +340,34 @@ type EconomicIndicatorPoint {
   value: Float!
 }
 
+type EconomicIndicatorPointConnection {
+  edges: [EconomicIndicatorPointEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type EconomicIndicatorPointEdge {
+  node: EconomicIndicatorPointNode!
+  cursor: String!
+}
+
+type EconomicIndicatorPointNode {
+  indicator: String!
+  variation: String!
+  unit: String
+  referenceDate: Date!
+  publicationDate: Date
+  value: Float!
+  updatedAt: DateTime!
+}
+
+# Flat list of latest value per indicator+variation (for banking valuation).
+type EconomicIndicatorLatestItem {
+  indicator: String!
+  variation: String!
+  latest: EconomicIndicatorPoint
+}
+
 # Fixed income comparison (simulator)
 enum FixedIncomeProduct {
   CDB
@@ -419,4 +466,194 @@ type FixedIncomeTaxBracket {
   fromCalendarDays: Int!
   toCalendarDays: Int
   rateDecimal: Float!
+}
+
+# Investment funds (CVM)
+enum InvestmentFundAssetType {
+  FIXED_INCOME_FUND
+  EQUITY_FUND
+  MULTI_MARKET_FUND
+  FOREX_FUND
+  MUTUAL_FUND
+  PGBL
+  VGBL
+}
+
+type InvestmentFund {
+  id: ID!
+  name: String!
+  cnpj: String!
+  assetType: String!
+  isActive: Boolean!
+  latestNav: FundDailyNav
+  priceHistory(from: Date, to: Date, last: Int): [FundDailyNav!]!
+}
+
+type FundDailyNav {
+  date: Date!
+  closePrice: Float!
+  totalNetAssets: Float
+}
+
+type FundDailyNavConnection {
+  edges: [FundDailyNavSyncEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type FundDailyNavSyncEdge {
+  node: FundDailyNavNode!
+  cursor: String!
+}
+
+type FundDailyNavNode {
+  cnpj: String!
+  date: Date!
+  closePrice: Float!
+  totalNetAssets: Float
+  updatedAt: DateTime!
+}
+
+enum FundTaxProfile {
+  COME_COTAS_LONG
+  COME_COTAS_SHORT
+  VARIABLE_INCOME_15
+  PENSION
+  UNKNOWN
+}
+
+type InvestmentFundMarketSnapshot {
+  cnpj: String!
+  assetType: String!
+  taxProfile: FundTaxProfile!
+  latestNav: FundDailyNav
+}
+
+type InvestmentFundConnection {
+  edges: [InvestmentFundEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type InvestmentFundEdge {
+  node: InvestmentFund!
+  cursor: String!
+}
+
+type InvestmentFundAutocompleteConnection {
+  suggestions: [InvestmentFundAutocompleteItem!]!
+}
+
+type InvestmentFundAutocompleteItem {
+  id: ID!
+  name: String!
+  cnpj: String!
+  assetType: String!
+  isActive: Boolean!
+}
+
+# B3 investment assets (equities, FIIs, options)
+enum B3AssetType {
+  EQUITY       # Ações
+  FII          # Fundos de Investimento Imobiliário
+  OPTION_CALL  # Opções de Compra
+  OPTION_PUT   # Opções de Venda
+}
+
+type ListedAsset {
+  id: ID!
+  ticker: String!
+  name: String!
+  assetType: String!
+  exchange: String
+  isActive: Boolean!
+  logoAsset: Asset
+  latestPrice: AssetDailyPrice
+  priceHistory(from: Date, to: Date, last: Int): [AssetDailyPrice!]!
+}
+
+type AssetDailyPrice {
+  date: Date!
+  openPrice: Float
+  highPrice: Float
+  lowPrice: Float
+  closePrice: Float!
+  avgPrice: Float
+  volume: Float
+  trades: Int
+}
+
+type ListedAssetDailyPriceConnection {
+  edges: [ListedAssetDailyPriceEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type ListedAssetDailyPriceEdge {
+  node: ListedAssetDailyPriceNode!
+  cursor: String!
+}
+
+type ListedAssetDailyPriceNode {
+  ticker: String!
+  isinCode: String
+  date: Date!
+  openPrice: Float
+  highPrice: Float
+  lowPrice: Float
+  closePrice: Float!
+  avgPrice: Float
+  volume: Float
+  trades: Int
+  updatedAt: DateTime!
+}
+
+type AssetCorporateEventConnection {
+  edges: [AssetCorporateEventEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type AssetCorporateEventEdge {
+  node: AssetCorporateEventNode!
+  cursor: String!
+}
+
+type AssetCorporateEventNode {
+  ticker: String
+  isinCode: String!
+  eventType: String!
+  factor: Float
+  priceUnit: Float
+  tradingStart: Date
+  tradingEnd: Date
+  subscriptionDate: Date
+  lastDatePrior: Date!
+  approvedOn: Date!
+  remarks: String
+  updatedAt: DateTime!
+}
+
+type ListedAssetConnection {
+  edges: [ListedAssetEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type ListedAssetEdge {
+  node: ListedAsset!
+  cursor: String!
+}
+
+type ListedAssetAutocompleteConnection {
+  suggestions: [ListedAssetAutocompleteItem!]!
+}
+
+type ListedAssetAutocompleteItem {
+  id: ID!
+  ticker: String!
+  name: String!
+  assetType: String!
+  isActive: Boolean!
+  logoAsset: Asset
 }

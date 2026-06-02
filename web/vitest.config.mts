@@ -190,7 +190,7 @@ export default defineConfig({
         // Exclude barrel/index files (pure exports)
         'src/**/index.ts',
         // Exclude Next.js boilerplate (better tested via E2E)
-        'src/middleware.ts',
+        'src/proxy.ts',
         'src/app/layout.tsx',
         'src/app/page.tsx',
         'src/app/not-found.tsx',
@@ -235,7 +235,6 @@ export default defineConfig({
         // Exclude form layout components (pure presentational)
         'src/shared/components/ui/forms/FormSkeleton.tsx',
         'src/shared/components/ui/forms/components/FormActions.tsx',
-        'src/shared/components/ui/forms/components/FormErrorBanner.tsx',
         'src/shared/components/ui/forms/components/FormLayout.tsx',
         'src/shared/components/ui/forms/components/FormRow.tsx',
         'src/shared/components/ui/forms/components/FormSection.tsx',
@@ -263,7 +262,6 @@ export default defineConfig({
         'src/shared/components/ui/forms/form/AutocompleteField.tsx', // Thin wrapper around MUI Autocomplete
         // Exclude thin wrapper form field components (react-hook-form Controller wrappers with minimal logic)
         'src/shared/components/ui/forms/form/DatePickers.tsx', // Thin wrapper around MUI DatePicker with dayjs conversion
-        'src/shared/components/ui/forms/form/Form.tsx', // Pure wrapper around useForm/FormProvider
         'src/shared/components/ui/forms/form/FormField.tsx', // Thin wrapper around Controller + TextField
         'src/shared/components/ui/forms/form/FormMessage.tsx', // Pure presentational Alert component
         'src/shared/components/ui/forms/form/MaskedField.tsx', // Thin wrapper around InputMask + Controller

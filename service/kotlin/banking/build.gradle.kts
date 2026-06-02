@@ -1,5 +1,6 @@
 plugins {
     id("org.jetbrains.kotlin.jvm")
+    id("org.jetbrains.kotlin.plugin.jpa")
     id("io.micronaut.application")
     id("io.micronaut.aot")
     id("com.google.devtools.ksp")
@@ -27,6 +28,7 @@ dependencies {
     testImplementation(testFixtures(project(":common")))
 
     // KSP processors
+    ksp("io.micronaut.data:micronaut-data-processor")
     ksp("io.micronaut:micronaut-inject-kotlin")
     ksp("io.micronaut.serde:micronaut-serde-processor")
     kspTest("io.micronaut:micronaut-inject-kotlin")
@@ -42,7 +44,8 @@ dependencies {
     implementation("io.micronaut.graphql:micronaut-graphql")
     implementation("com.graphql-java:graphql-java-extended-scalars:21.0")
 
-    // Database (JPA/Hibernate added when first @Entity is created)
+    // Database
+    implementation("io.micronaut.data:micronaut-data-hibernate-jpa")
     implementation("io.micronaut.sql:micronaut-jdbc-hikari")
     implementation("org.postgresql:postgresql")
     runtimeOnly("org.flywaydb:flyway-core")
@@ -50,15 +53,26 @@ dependencies {
 
     // Jackson for JSON
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 
     // YAML parsing
     implementation("org.yaml:snakeyaml:2.2")
+
+    // Excel extraction (XLSX/XLS)
+    implementation("org.apache.poi:poi-ooxml:5.2.5")
+
+    // Kafka (import file requested / job completed topics and consumer)
+    implementation("io.micronaut.kafka:micronaut-kafka")
+
+    // Reactor (in-process event bus for import job status SSE)
+    implementation("io.projectreactor:reactor-core")
 
     // Logging
     runtimeOnly("ch.qos.logback:logback-classic")
 
     // Testing
     testImplementation("io.micronaut.test:micronaut-test-junit5")
+    testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.junit.jupiter:junit-jupiter-params")
     testImplementation("io.mockk:mockk:1.13.13")
@@ -68,6 +82,8 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:kafka")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
 }
@@ -148,4 +164,47 @@ tasks.withType<Jar> {
 // Strip version from shadow JAR filename so Dockerfile doesn't need updating on each release
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     archiveVersion.set("")
+}
+
+// Banking-specific Kover exclusions:
+// keep coverage gate focused on business logic in domain classes.
+afterEvaluate {
+    extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
+        reports {
+            filters {
+                includes {
+                    classes(
+                        "io.github.salomax.neotool.banking.domain.*Service*",
+                        "io.github.salomax.neotool.banking.domain.*Processor*",
+                        "io.github.salomax.neotool.banking.domain.*Parser*",
+                        "io.github.salomax.neotool.banking.domain.*Reader*",
+                        "io.github.salomax.neotool.banking.domain.*Router*",
+                        "io.github.salomax.neotool.banking.domain.*Registry*",
+                        "io.github.salomax.neotool.banking.domain.*Gate*",
+                        "io.github.salomax.neotool.banking.domain.*Policy*",
+                        "io.github.salomax.neotool.banking.domain.*Detector*",
+                        "io.github.salomax.neotool.banking.domain.*Classifier*",
+                        "io.github.salomax.neotool.banking.domain.*Client",
+                    )
+                }
+                excludes {
+                    classes(
+                        "io.github.salomax.neotool.banking.domain.*Repository*",
+                        "io.github.salomax.neotool.banking.domain.*Port*",
+                        "io.github.salomax.neotool.banking.domain.*Mapper*",
+                        "io.github.salomax.neotool.banking.domain.*Exception*",
+                        "io.github.salomax.neotool.banking.domain.*Command*",
+                        "io.github.salomax.neotool.banking.domain.*Input*",
+                        "io.github.salomax.neotool.banking.domain.*Output*",
+                        "io.github.salomax.neotool.banking.domain.*Data*",
+                        "io.github.salomax.neotool.banking.domain.*Item*",
+                        "io.github.salomax.neotool.banking.service.import.ImportEventBus",
+                        "io.github.salomax.neotool.banking.service.import.ImportJobStatusPayload",
+                        "io.github.salomax.neotool.banking.shared.BankingPermissions",
+                        "io.github.salomax.neotool.banking.domain.import.nfce.DefaultNfceHttpFetcher",
+                    )
+                }
+            }
+        }
+    }
 }

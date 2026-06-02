@@ -1519,6 +1519,18 @@ class {Module}WiringFactory(
 
 ## Common Errors and How to Avoid Them
 
+### ❌ GraphQL DateTime Rule (Important)
+
+For GraphQL fields declared as `DateTime`, resolver DTOs must expose `OffsetDateTime` (not `Instant`).
+
+- If domain model uses `Instant`, convert in resolver mapping:
+  `instant.atOffset(ZoneOffset.UTC)`
+- Symptom when forgetting this conversion:
+  `Can't serialize value (...): Expected something we can convert to 'java.time.OffsetDateTime' but was 'Instant'`
+- Common protection is enabled in `common` scalar wiring, but resolver/DTO mapping should still prefer `OffsetDateTime`
+  for explicitness and consistency.
+
+
 ### ❌ Error: Missing @Singleton Annotation
 
 ```kotlin

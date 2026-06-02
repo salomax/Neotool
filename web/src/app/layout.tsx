@@ -12,7 +12,7 @@ import Providers from "./providers";
 // Lazy load AppShell to reduce initial bundle size
 const AppShell = dynamic(() => import("@/shared/ui/shell/AppShell").then(mod => ({ default: mod.AppShell })), {
   loading: () => {
-    const { LoadingSpinner } = require("@/shared/components/ui/primitives/LoadingSpinner");
+    const { LoadingSpinner } = require("@/shared/components/ui/primitives/");
     return (
       <Box
         sx={{
@@ -22,7 +22,7 @@ const AppShell = dynamic(() => import("@/shared/ui/shell/AppShell").then(mod => 
           justifyContent: "center",
         }}
       >
-        <LoadingSpinner message="Loading application..." />
+        <LoadingSpinner />
       </Box>
     );
   }

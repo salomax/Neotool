@@ -23,6 +23,7 @@ import {
   IconButton,
   InputAdornment,
   Slider as MuiSlider,
+  useTheme,
 } from "@mui/material";
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
@@ -286,6 +287,7 @@ export function FixedIncomeSimulatorForm({
   const ns = "fixedIncomeComparison" as const;
   const today = formatDate(new Date());
   const reqMsg = t(`${ns}.validationRequired`);
+  const theme = useTheme();
 
   const {
     cdiPercent,
@@ -813,6 +815,10 @@ export function FixedIncomeSimulatorForm({
               textTransform: "uppercase",
                 fontSize: 12,
               mt: 1,
+              boxShadow: theme.custom.shadow(4, theme.palette.primary.main),
+              "&:hover": {
+                boxShadow: theme.custom.shadow(4, theme.palette.primary.main),
+              },
             }}
           >
             {t(`${ns}.simulate`)}
