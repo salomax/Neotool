@@ -6,6 +6,7 @@ import { useQuery } from "@apollo/client/react";
 import { alpha, Box, Button, Container, Divider, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { Page } from "@/shared/components/ui/layout";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { useTranslation } from "@/shared/i18n";
@@ -25,6 +26,7 @@ import { Label } from "@/shared/components/ui";
 import { InvestmentSummary } from "./components/InvestmentSummary";
 import { InvestmentGrid } from "./components/grid/InvestmentGrid";
 import { usePendingActionsDrawer } from "@/shared/store/pendingActionsDrawer";
+import { ImportInvestmentsDrawer } from "./import/ImportInvestmentsDrawer";
 
 export default function PersonalFinanceInvestmentsPage() {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -36,6 +38,8 @@ export default function PersonalFinanceInvestmentsPage() {
   const [selectedAccountId, setSelectedAccountId] = React.useState<string | null | undefined>(undefined);
   const [holdingSearchQuery, setHoldingSearchQuery] = React.useState("");
   const [summaryFetching, setSummaryFetching] = React.useState(false);
+  const [isImportDrawerOpen, setIsImportDrawerOpen] = React.useState(false);
+  const [gridRefreshVersion, setGridRefreshVersion] = React.useState(0);
   const openPendingActionsDrawer = usePendingActionsDrawer((state) => state.openDrawer);
 
   usePageTitle(t("dashboard.actions.investmentsPortfolio.title"));
@@ -282,7 +286,18 @@ export default function PersonalFinanceInvestmentsPage() {
         <SidebarLayout side="left" size="sm" fullHeight sidebar={sidebar}>
           <Page>
             <Container maxWidth="xl" sx={{ py: 4 }}>
+              <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<UploadFileIcon />}
+                  onClick={() => setIsImportDrawerOpen(true)}
+                  data-testid="open-investment-import-drawer"
+                >
+                  {t("investments.import.pageButton")}
+                </Button>
+              </Stack>
               <InvestmentGrid
+                key={`investment-grid-${gridRefreshVersion}`}
                 selectedAccountId={effectiveSelectedAccountId}
                 bankAccounts={bankAccounts}
                 investmentAccounts={investmentAccounts}
@@ -298,6 +313,11 @@ export default function PersonalFinanceInvestmentsPage() {
         onClose={handleCloseAccountDrawer}
         accountToEdit={editingAccount}
         onCreated={(account) => setSelectedAccountId(account.id)}
+      />
+      <ImportInvestmentsDrawer
+        open={isImportDrawerOpen}
+        onClose={() => setIsImportDrawerOpen(false)}
+        onImportCompleted={() => setGridRefreshVersion((prev) => prev + 1)}
       />
 
     </>

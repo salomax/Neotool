@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.repo.investment
 
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.model.investment.AssetEntity
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
@@ -21,4 +22,12 @@ interface AssetEntityRepository : JpaRepository<AssetEntity, UUID> {
     fun findByIsinCode(isinCode: String): AssetEntity?
 
     fun findByFundCnpj(fundCnpj: String): AssetEntity?
+
+    fun findByProviderId(providerId: String): AssetEntity?
+
+    fun findByNameAndAssetTypeAndIssuerName(
+        name: String,
+        assetType: AssetType,
+        issuerName: String?,
+    ): AssetEntity?
 }

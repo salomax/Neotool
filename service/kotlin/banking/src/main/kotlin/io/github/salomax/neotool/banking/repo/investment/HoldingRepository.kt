@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.banking.repo.investment
 
 import io.github.salomax.neotool.banking.domain.investment.Holding
+import io.github.salomax.neotool.banking.domain.investment.AssetType
+import java.time.LocalDate
 import java.util.UUID
 
 /**
@@ -48,6 +50,13 @@ interface HoldingRepository {
     fun findByProviderInvestmentId(
         financialAccountId: UUID,
         providerInvestmentId: String,
+    ): Holding?
+
+    fun findByAssetTypeAndIssuerNameAndMaturityDate(
+        financialAccountId: UUID,
+        assetType: AssetType,
+        issuerName: String,
+        maturityDate: LocalDate,
     ): Holding?
 
     fun save(holding: Holding): Holding

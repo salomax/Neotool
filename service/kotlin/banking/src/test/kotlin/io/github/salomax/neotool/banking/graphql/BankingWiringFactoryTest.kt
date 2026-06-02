@@ -15,6 +15,7 @@ import io.github.salomax.neotool.banking.service.investment.InvestmentQueryServi
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
+import io.github.salomax.neotool.banking.graphql.investmentimport.InvestmentImportResolver
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantConnectionDTO
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantPageInfoDTO
@@ -53,6 +54,7 @@ class BankingWiringFactoryTest {
     private lateinit var bankingUserPreferencesResolver: BankingUserPreferencesResolver
     private lateinit var importResolver: ImportResolver
     private lateinit var pdfImportResolver: BillImportResolver
+    private lateinit var investmentImportResolver: InvestmentImportResolver
     private lateinit var attachmentResolver: AttachmentResolver
     private lateinit var productResolver: ProductResolver
     private lateinit var investmentResolver: InvestmentResolver
@@ -76,6 +78,7 @@ class BankingWiringFactoryTest {
         bankingUserPreferencesResolver = mock()
         importResolver = mock()
         pdfImportResolver = mock()
+        investmentImportResolver = mock()
         attachmentResolver = mock()
         productResolver = mock()
         investmentResolver = mock()
@@ -111,6 +114,7 @@ class BankingWiringFactoryTest {
                 investmentQueryService,
                 importResolver,
                 pdfImportResolver,
+                investmentImportResolver,
                 attachmentResolver,
                 productResolver,
                 recurringPaymentResolver,

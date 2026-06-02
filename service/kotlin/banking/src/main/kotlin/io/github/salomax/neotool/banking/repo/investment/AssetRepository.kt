@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.repo.investment
 
 import io.github.salomax.neotool.banking.domain.investment.Asset
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import java.util.UUID
 
 /**
@@ -21,6 +22,14 @@ interface AssetRepository {
     fun findByIsinCode(isinCode: String): Asset?
 
     fun findByFundCnpj(fundCnpj: String): Asset?
+
+    fun findByProviderId(providerId: String): Asset?
+
+    fun findByNameAndTypeAndIssuer(
+        name: String,
+        assetType: AssetType,
+        issuerName: String?,
+    ): Asset?
 
     /** Upsert by ticker (equities/FIIs/ETFs). */
     fun save(asset: Asset): Asset

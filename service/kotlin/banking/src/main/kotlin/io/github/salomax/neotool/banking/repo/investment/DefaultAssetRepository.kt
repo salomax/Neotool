@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.repo.investment
 
 import io.github.salomax.neotool.banking.domain.investment.Asset
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.model.investment.AssetMapper
 import io.micronaut.transaction.annotation.Transactional
@@ -32,6 +33,16 @@ open class DefaultAssetRepository(
 
     override fun findByFundCnpj(fundCnpj: String): Asset? =
         entityRepository.findByFundCnpj(fundCnpj)?.let(AssetMapper::toDomain)
+
+    override fun findByProviderId(providerId: String): Asset? =
+        entityRepository.findByProviderId(providerId)?.let(AssetMapper::toDomain)
+
+    override fun findByNameAndTypeAndIssuer(
+        name: String,
+        assetType: AssetType,
+        issuerName: String?,
+    ): Asset? =
+        entityRepository.findByNameAndAssetTypeAndIssuerName(name, assetType, issuerName)?.let(AssetMapper::toDomain)
 
     @Transactional
     override fun save(asset: Asset): Asset {

@@ -31,6 +31,47 @@
       "recordFund": "Novo fundo",
       "recordEquity": "Nova Ação, FII ou opção"
     },
+    "import": {
+      "pageButton": "Importar posições (B3)",
+      "drawer": {
+        "titleUpload": "Importar posições (B3)",
+        "titlePreview": "Revisar posições",
+        "titleResult": "Importação concluída",
+        "titleError": "Erro na importação",
+        "uploadHint": "Arraste ou selecione o arquivo .xlsx exportado da B3.",
+        "dragDrop": "Arraste o arquivo .xlsx ou clique para selecionar",
+        "dragDropSubtitle": "Somente arquivos .xlsx, até 10 MB",
+        "submitUpload": "Enviar arquivo",
+        "submittingUpload": "Enviando...",
+        "onlyXlsx": "Formato não suportado. Envie um arquivo .xlsx exportado da B3.",
+        "maxSize": "Arquivo muito grande. Limite: 10 MB.",
+        "genericError": "Não foi possível concluir a importação.",
+        "retry": "Tentar novamente",
+        "close": "Fechar",
+        "confirming": "Confirmando importação...",
+        "successMessage": "Importação concluída! {{count}} posições importadas com sucesso.",
+        "accountSectionTitle": "Conta de investimento por instituição",
+        "accountAmbiguousHint": "Mais de uma conta possível. Selecione a conta correta.",
+        "columns": {
+          "status": "Status",
+          "product": "Produto",
+          "indexer": "Indexador",
+          "issueDate": "Emissão",
+          "maturityDate": "Vencimento",
+          "principal": "Principal",
+          "skip": "Pular"
+        },
+        "conflictTitle": "Conflito detectado",
+        "conflictQuantity": "Quantidade",
+        "conflictCurrentValue": "Valor atual",
+        "conflictMaturity": "Vencimento",
+        "conflictUpdate": "Atualizar posição",
+        "conflictKeep": "Manter existente",
+        "missingPrincipal": "sem principal",
+        "unresolvedConflicts": "conflitos pendentes",
+        "confirmPositions": "Confirmar {{count}} posições"
+      }
+    },
     "grid": {
       "emptyDescription": "Nenhuma posição registrada",
       "firstInvestmentCta": "+ Investimento",
