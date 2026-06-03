@@ -1,3 +1,13 @@
+## 0.5.2 (2026-06-03)
+
+### 🚀 Features
+
+- **config:** disable Kafka integration in application.yml ([9895b39c](https://github.com/invistus/invistus/commit/9895b39c))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.5.1 (2026-06-02)
 
 This was a version bump only for financialdata to align it with other projects, there were no code changes.
