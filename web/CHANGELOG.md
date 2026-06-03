@@ -1,3 +1,13 @@
+## 0.7.6 (2026-06-03)
+
+### 🚀 Features
+
+- **financial-data:** improve loading state handling in NationalIndicatorsClient ([4e74bd5b](https://github.com/invistus/invistus/commit/4e74bd5b))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.5 (2026-06-03)
 
 ### 🚀 Features
