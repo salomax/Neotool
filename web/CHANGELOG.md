@@ -1,3 +1,13 @@
+## 0.7.4 (2026-06-03)
+
+### 🚀 Features
+
+- **errors:** enhance error handling with GraphQL validation messages ([84125cdb](https://github.com/invistus/invistus/commit/84125cdb))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.3 (2026-06-02)
 
 This was a version bump only for neotool-web to align it with other projects, there were no code changes.
