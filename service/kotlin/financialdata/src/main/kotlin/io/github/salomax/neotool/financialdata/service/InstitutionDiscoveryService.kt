@@ -40,18 +40,28 @@ open class InstitutionDiscoveryService(
      * If [anoMes] is null, uses the latest quarter globally.
      */
     open fun getPopularInstitutions(anoMes: String?): List<PopularInstitution> {
+        val t0 = System.currentTimeMillis()
+        logger.info { "[perf] getPopularInstitutions start anoMes=$anoMes" }
+
+        val t1 = System.currentTimeMillis()
         val targetAnoMes = anoMes ?: quarterService.getLatestQuarter()
+        logger.info { "[perf] getLatestQuarter: ${System.currentTimeMillis() - t1}ms → targetAnoMes=$targetAnoMes" }
+
         if (targetAnoMes == null) {
             logger.debug { "No quarter available for popular institutions" }
             return emptyList()
         }
 
+        val t2 = System.currentTimeMillis()
         val rows = popularInstitutionCustomRepository.findPopularWithResolvedInstitutions(targetAnoMes)
+        logger.info { "[perf] findPopularWithResolvedInstitutions: ${System.currentTimeMillis() - t2}ms → ${rows.size} rows" }
+
         if (rows.isEmpty()) return emptyList()
         val (year, month) = parseYearMonth(targetAnoMes)
 
         val popularBacenCodInsts = rows.map { it.bacenCodInst }.toSet()
 
+        val t3 = System.currentTimeMillis()
         val metricRankingsByMetricAndInstitution =
             topInstitutionRankingRepository
                 .findTopMetricsForInstitutions(
@@ -59,8 +69,11 @@ open class InstitutionDiscoveryService(
                     bacenCodInsts = popularBacenCodInsts,
                     limit = topMetricsFetchLimit,
                 ).associateBy { it.metric to it.bacenCodInst }
+        logger.info { "[perf] findTopMetricsForInstitutions: ${System.currentTimeMillis() - t3}ms" }
 
+        val t4 = System.currentTimeMillis()
         val restrictions = restrictionService.getRestrictionsForInstitutions(rows.map { it.bacenCodInst })
+        logger.info { "[perf] getRestrictionsForInstitutions: ${System.currentTimeMillis() - t4}ms" }
 
         return rows.map { row ->
             val restriction = restrictions[row.bacenCodInst] ?: DataRestriction.NOT_RESTRICTED
@@ -108,6 +121,8 @@ open class InstitutionDiscoveryService(
                 institution = summary,
                 popularInstitutionTopMetrics = popularInstitutionTopMetrics,
             )
+        }.also {
+            logger.info { "[perf] getPopularInstitutions total: ${System.currentTimeMillis() - t0}ms → ${it.size} institutions" }
         }
     }
 
