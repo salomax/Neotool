@@ -30,16 +30,28 @@ body:graphql {
   mutation SignIn($input: SignInInput!) {
     signIn(input: $input) {
       token
+      refreshToken
       user {
         id
         email
-        permissions {
+        displayName
+        avatarUrl
+        avatarProvider
+        roles {
+          id
           name
+          __typename
         }
+        permissions {
+          id
+          name
+          __typename
+        }
+        __typename
       }
+      __typename
     }
   }
-  
 }
 
 body:graphql:vars {
