@@ -94,6 +94,9 @@ datasources:
         # ssl: true
         # sslmode: require
 
+kafka:
+  enabled: false
+
 jpa:
   default:
     properties:
