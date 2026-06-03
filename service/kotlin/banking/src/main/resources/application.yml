@@ -154,7 +154,7 @@ banking:
 kafka:
   enabled: ${KAFKA_ENABLED:true}
   bootstrap:
-    servers: ${KAFKA_BROKERS}
+    servers: ${KAFKA_BOOTSTRAP_SERVERS}
   topics:
     import-file-requested: banking.import.file-requested
     import-file-requested-dlt: banking.import.file-requested.DLT
