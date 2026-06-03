@@ -1,3 +1,14 @@
+## 0.4.2 (2026-06-03)
+
+### 🩹 Fixes
+
+- **banking:** rename KAFKA_BROKERS to KAFKA_BOOTSTRAP_SERVERS in application.yml ([d319bfc4](https://github.com/invistus/invistus/commit/d319bfc4))
+
+### ❤️ Thank You
+
+- Claude Sonnet 4.6
+- Marcos Salomao @salomax
+
 ## 0.4.1 (2026-06-02)
 
 This was a version bump only for banking to align it with other projects, there were no code changes.
