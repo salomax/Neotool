@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import i18n from '@/shared/i18n/config';
 import { cleanErrorMessage, extractErrorCode, extractErrorMessage, extractErrorParameters } from '../error';
 
@@ -62,6 +62,10 @@ describe('error utilities', () => {
       await i18n.changeLanguage('en');
     });
 
+    afterEach(async () => {
+      await i18n.changeLanguage('en');
+    });
+
     it('should return default message for null error', () => {
       expect(extractErrorMessage(null)).toBe('An error occurred');
     });
@@ -90,7 +94,7 @@ describe('error utilities', () => {
           { message: 'GraphQL error message' },
         ],
       };
-      expect(extractErrorMessage(error)).toBe('An error occurred');
+      expect(extractErrorMessage(error)).toBe('GraphQL error message');
     });
 
     it('should extract and clean message from GraphQL errors with prefix', () => {
@@ -99,7 +103,7 @@ describe('error utilities', () => {
           { message: 'Exception while fetching data (/query) : GraphQL error' },
         ],
       };
-      expect(extractErrorMessage(error)).toBe('An error occurred');
+      expect(extractErrorMessage(error)).toBe('GraphQL error');
     });
 
     it('should extract and translate connection error from network error', () => {
@@ -147,7 +151,7 @@ describe('error utilities', () => {
         },
       };
       // GraphQL errors should be preferred even if network error is a connection error
-      expect(extractErrorMessage(error)).toBe('An error occurred');
+      expect(extractErrorMessage(error)).toBe('GraphQL error');
     });
 
     it('should extract message from error.message property', () => {
@@ -168,7 +172,7 @@ describe('error utilities', () => {
         graphQLErrors: [],
         message: 'Fallback message',
       };
-      expect(extractErrorMessage(error)).toBe('An error occurred');
+      expect(extractErrorMessage(error)).toBe('Fallback message');
     });
 
     it('should clean extracted messages', () => {
@@ -241,6 +245,49 @@ describe('error utilities', () => {
         ],
       };
       expect(extractErrorMessage(error)).toBe('The service is temporarily unavailable. Please try again in a few moments.');
+    });
+
+    it('should translate Apollo ServerError with validation errors in bodyText', () => {
+      const error = {
+        message: 'Response not successful: Received status code 400',
+        statusCode: 400,
+        bodyText: JSON.stringify({
+          errors: [
+            {
+              message: 'Cannot query field "avatarProvider" on type "User".',
+              extensions: { code: 'GRAPHQL_VALIDATION_FAILED' },
+            },
+          ],
+        }),
+      };
+      expect(extractErrorMessage(error)).toBe(
+        "We couldn't complete your request. Please try again. If the problem persists, contact support."
+      );
+    });
+
+    it('should translate generic Apollo HTTP status messages', () => {
+      const error = {
+        message: 'Response not successful: Received status code 400',
+        statusCode: 400,
+        bodyText: '',
+      };
+      expect(extractErrorMessage(error)).toBe(
+        "We couldn't reach the server. Please try again in a few moments."
+      );
+    });
+
+    it('should translate GRAPHQL_VALIDATION_FAILED by error code', () => {
+      const error = {
+        graphQLErrors: [
+          {
+            message: 'Cannot query field "avatarProvider" on type "User".',
+            extensions: { code: 'GRAPHQL_VALIDATION_FAILED' },
+          },
+        ],
+      };
+      expect(extractErrorMessage(error)).toBe(
+        "We couldn't complete your request. Please try again. If the problem persists, contact support."
+      );
     });
   });
 

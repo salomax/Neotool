@@ -52,11 +52,96 @@ function getTranslatedError(key: string, fallback: string): string {
   return fallback;
 }
 
+type GraphQLErrorEntry = {
+  message?: string;
+  extensions?: {
+    code?: string;
+    parameters?: Record<string, unknown>;
+  };
+};
+
+function isServerErrorLike(
+  error: unknown
+): error is { bodyText: string; message?: string; statusCode?: number } {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'bodyText' in error &&
+    typeof (error as { bodyText?: unknown }).bodyText === 'string'
+  );
+}
+
+function parseGraphQLErrorsFromBodyText(bodyText: string | undefined): GraphQLErrorEntry[] {
+  if (!bodyText) return [];
+
+  try {
+    const parsed = JSON.parse(bodyText) as { errors?: unknown };
+    if (!Array.isArray(parsed.errors)) return [];
+    return parsed.errors.filter(
+      (entry): entry is GraphQLErrorEntry => !!entry && typeof entry === 'object'
+    );
+  } catch {
+    return [];
+  }
+}
+
+function appendGraphQLErrors(target: GraphQLErrorEntry[], errors: unknown): void {
+  if (!Array.isArray(errors)) return;
+
+  for (const error of errors) {
+    if (error && typeof error === 'object') {
+      target.push(error as GraphQLErrorEntry);
+    }
+  }
+}
+
+/**
+ * Collects GraphQL errors from Apollo Client 3/4 error shapes, including
+ * ServerError.bodyText payloads returned on non-200 HTTP responses.
+ */
+function collectGraphQLErrors(error: unknown): GraphQLErrorEntry[] {
+  if (!error || typeof error !== 'object') return [];
+
+  const err = error as Record<string, unknown>;
+  const collected: GraphQLErrorEntry[] = [];
+
+  appendGraphQLErrors(collected, err.graphQLErrors);
+  appendGraphQLErrors(collected, err.errors);
+  appendGraphQLErrors(collected, (err.response as { errors?: unknown } | undefined)?.errors);
+  appendGraphQLErrors(
+    collected,
+    (err.networkError as { result?: { errors?: unknown } } | undefined)?.result?.errors
+  );
+
+  if (isServerErrorLike(err)) {
+    appendGraphQLErrors(collected, parseGraphQLErrorsFromBodyText(err.bodyText));
+  }
+
+  const networkError = err.networkError;
+  if (networkError && typeof networkError === 'object') {
+    const networkErr = networkError as Record<string, unknown>;
+    appendGraphQLErrors(collected, networkErr.graphQLErrors);
+    appendGraphQLErrors(
+      collected,
+      (networkErr.result as { errors?: unknown } | undefined)?.errors
+    );
+    if (isServerErrorLike(networkErr)) {
+      appendGraphQLErrors(collected, parseGraphQLErrorsFromBodyText(networkErr.bodyText));
+    }
+  }
+
+  if (err.cause && err.cause !== error) {
+    appendGraphQLErrors(collected, collectGraphQLErrors(err.cause));
+  }
+
+  return collected;
+}
+
 function extractCodeFromErrorArray(errors: unknown): string | undefined {
   if (!Array.isArray(errors)) return undefined;
 
   for (const error of errors) {
-    const code = (error as any)?.extensions?.code;
+    const code = (error as GraphQLErrorEntry)?.extensions?.code;
     if (typeof code === 'string' && code.trim().length > 0) {
       return code;
     }
@@ -69,7 +154,7 @@ function extractParametersFromErrorArray(errors: unknown): Record<string, unknow
   if (!Array.isArray(errors)) return undefined;
 
   for (const error of errors) {
-    const parameters = (error as any)?.extensions?.parameters;
+    const parameters = (error as GraphQLErrorEntry)?.extensions?.parameters;
     if (parameters && typeof parameters === 'object' && !Array.isArray(parameters)) {
       return parameters as Record<string, unknown>;
     }
@@ -79,15 +164,44 @@ function extractParametersFromErrorArray(errors: unknown): Record<string, unknow
 }
 
 function hasGraphQLErrorShape(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const err = error as any;
+  return collectGraphQLErrors(error).length > 0;
+}
+
+function isGenericHttpStatusMessage(message: string | null | undefined): boolean {
+  if (!message) return false;
+  return /^Response not successful: Received status code \d{3}$/i.test(message.trim());
+}
+
+function isTechnicalGraphQLErrorMessage(message: string | null | undefined): boolean {
+  if (!message) return false;
 
   return (
-    Array.isArray(err.graphQLErrors) ||
-    Array.isArray(err.response?.errors) ||
-    Array.isArray(err.networkError?.result?.errors) ||
-    Array.isArray(err.errors)
+    /^Cannot query field /i.test(message) ||
+    /^Field ".+" of type /i.test(message) ||
+    /^Unknown (argument|type|field)/i.test(message)
   );
+}
+
+function translateByErrorCode(
+  code: string,
+  parameters: Record<string, unknown> | undefined,
+  fallback: string
+): string | undefined {
+  const normalizedCode = normalizeErrorCode(code);
+  const translationKey = `errors.${normalizedCode}`;
+
+  try {
+    if (i18n.isInitialized) {
+      const translated = i18n.t(translationKey, { ns: 'common', ...(parameters ?? {}) });
+      if (translated !== translationKey) {
+        return translated;
+      }
+    }
+  } catch {
+    // Ignore translation failures and fall back below.
+  }
+
+  return fallback;
 }
 
 const LEGACY_CODE_ALIASES: Record<string, string> = {
@@ -105,29 +219,13 @@ function normalizeErrorCode(code: string): string {
  * @returns GraphQL error code (e.g. "INVALID_CREDENTIALS"), if present
  */
 export function extractErrorCode(error: unknown): string | undefined {
-  if (!error || typeof error !== 'object') return undefined;
-
-  const err = error as any;
-
-  return (
-    extractCodeFromErrorArray(err.graphQLErrors) ??
-    extractCodeFromErrorArray(err.response?.errors) ??
-    extractCodeFromErrorArray(err.networkError?.result?.errors) ??
-    extractCodeFromErrorArray(err.errors)
-  );
+  const graphqlErrors = collectGraphQLErrors(error);
+  return extractCodeFromErrorArray(graphqlErrors);
 }
 
 export function extractErrorParameters(error: unknown): Record<string, unknown> | undefined {
-  if (!error || typeof error !== 'object') return undefined;
-
-  const err = error as any;
-
-  return (
-    extractParametersFromErrorArray(err.graphQLErrors) ??
-    extractParametersFromErrorArray(err.response?.errors) ??
-    extractParametersFromErrorArray(err.networkError?.result?.errors) ??
-    extractParametersFromErrorArray(err.errors)
-  );
+  const graphqlErrors = collectGraphQLErrors(error);
+  return extractParametersFromErrorArray(graphqlErrors);
 }
 
 /**
@@ -241,38 +339,47 @@ export function extractErrorMessage(
   }
 
   const defaultTranslated = getTranslatedError('errors.default', defaultMessage);
+  const graphqlErrors = collectGraphQLErrors(error);
   const errorCode = extractErrorCode(error);
   if (errorCode) {
-    const normalizedCode = normalizeErrorCode(errorCode);
-    const parameters = extractErrorParameters(error);
-    const translationKey = `errors.${normalizedCode}`;
-
-    try {
-      if (i18n.isInitialized) {
-        const translated = i18n.t(translationKey, { ns: 'common', ...(parameters ?? {}) });
-        if (translated !== translationKey) {
-          return translated;
-        }
-      }
-    } catch (_err) {
-      // Ignore translation failures and use safe default message below.
+    const translated = translateByErrorCode(errorCode, extractErrorParameters(error), defaultTranslated);
+    if (translated !== defaultTranslated) {
+      return translated;
     }
 
     if (typeof error === 'object' && error !== null) {
-      const err = error as any;
+      const err = error as Record<string, unknown>;
       const rawMessage =
-        (Array.isArray(err.graphQLErrors) && err.graphQLErrors.length > 0 && err.graphQLErrors[0]?.message) ||
-        err.networkError?.message ||
-        err.networkError?.error?.message ||
-        err.message;
+        graphqlErrors[0]?.message ||
+        (err.networkError as { message?: string } | undefined)?.message ||
+        (err.networkError as { error?: { message?: string } } | undefined)?.error?.message ||
+        (typeof err.message === 'string' ? err.message : undefined);
 
       const cleaned = cleanErrorMessage(rawMessage);
       if (isConnectionError(cleaned)) {
         return getConnectionErrorMessage(cleaned);
       }
+
+      if (cleaned && !isTechnicalGraphQLErrorMessage(cleaned)) {
+        return cleaned;
+      }
     }
 
     return defaultTranslated;
+  }
+
+  if (graphqlErrors.length > 0) {
+    const firstMessage = graphqlErrors[0]?.message;
+    const cleaned = cleanErrorMessage(firstMessage);
+
+    if (cleaned && !isTechnicalGraphQLErrorMessage(cleaned) && !isConnectionError(cleaned)) {
+      return cleaned;
+    }
+
+    return getTranslatedError(
+      'errors.GRAPHQL_VALIDATION_FAILED',
+      getTranslatedError('errors.HTTP_REQUEST_FAILED', defaultTranslated)
+    );
   }
 
   let rawMessage: string | undefined;
@@ -305,11 +412,22 @@ export function extractErrorMessage(
 
   // Clean the message to remove technical prefixes
   const cleaned = cleanErrorMessage(rawMessage);
-  
+
+  if (isGenericHttpStatusMessage(cleaned)) {
+    return getTranslatedError('errors.HTTP_REQUEST_FAILED', defaultTranslated);
+  }
+
   // Check if this is a connection error and convert to user-friendly translated message
   // Only treat as connection error if the message actually indicates a connection issue
   if (isConnectionError(cleaned)) {
     return getConnectionErrorMessage(cleaned);
+  }
+
+  if (isTechnicalGraphQLErrorMessage(cleaned)) {
+    return getTranslatedError(
+      'errors.GRAPHQL_VALIDATION_FAILED',
+      getTranslatedError('errors.HTTP_REQUEST_FAILED', defaultTranslated)
+    );
   }
 
   if (hasGraphQLErrorShape(error)) {

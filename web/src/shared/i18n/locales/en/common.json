@@ -151,6 +151,8 @@
     "connectionTimeout": "The request took too long to complete. Please check your connection and try again.",
     "serviceUnavailable": "The service is temporarily unavailable. Please try again in a few moments.",
     "gatewayTimeout": "The server is taking too long to respond. Please try again later.",
+    "GRAPHQL_VALIDATION_FAILED": "We couldn't complete your request. Please try again. If the problem persists, contact support.",
+    "HTTP_REQUEST_FAILED": "We couldn't reach the server. Please try again in a few moments.",
     "SUBREQUEST_HTTP_ERROR": "The service is temporarily unavailable. Please try again in a few moments.",
     "ASSET_UPLOAD_URL_EXPIRED": "Upload URL has expired",
     "AUTH_INVALID_CREDENTIALS": "Invalid email or password",

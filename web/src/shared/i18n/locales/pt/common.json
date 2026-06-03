@@ -151,6 +151,8 @@
     "connectionTimeout": "A solicitação demorou muito para ser concluída. Por favor, verifique sua conexão e tente novamente.",
     "serviceUnavailable": "O serviço está temporariamente indisponível. Por favor, tente novamente em alguns instantes.",
     "gatewayTimeout": "O servidor está demorando muito para responder. Por favor, tente novamente mais tarde.",
+    "GRAPHQL_VALIDATION_FAILED": "Não foi possível concluir sua solicitação. Tente novamente. Se o problema persistir, entre em contato com o suporte.",
+    "HTTP_REQUEST_FAILED": "Não foi possível contatar o servidor. Tente novamente em alguns instantes.",
     "SUBREQUEST_HTTP_ERROR": "O serviço está temporariamente indisponível. Por favor, tente novamente em alguns instantes.",
     "ASSET_UPLOAD_URL_EXPIRED": "A URL de upload expirou",
     "AUTH_INVALID_CREDENTIALS": "E-mail ou senha inválidos",
