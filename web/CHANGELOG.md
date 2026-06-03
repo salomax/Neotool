@@ -1,3 +1,13 @@
+## 0.7.5 (2026-06-03)
+
+### 🚀 Features
+
+- **i18n:** enhance language support and error handling ([f6ae14e2](https://github.com/invistus/invistus/commit/f6ae14e2))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.4 (2026-06-03)
 
 ### 🚀 Features
