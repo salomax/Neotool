@@ -40,7 +40,16 @@ describe("I18n Configuration", () => {
     });
 
     it("should have Portuguese as fallback language", () => {
-      expect(i18n.options.fallbackLng).toEqual(['pt']);
+      expect(i18n.options.fallbackLng).toMatchObject({ default: ['pt'], 'pt-BR': ['pt'] });
+    });
+
+    it("should resolve pt-BR common translations from pt bundle", async () => {
+      await i18n.changeLanguage('pt-BR');
+      const translated = i18n.t('errors.connectionError', { ns: 'common' });
+      expect(translated).toBe(
+        'Não foi possível conectar ao servidor. Por favor, verifique sua conexão com a internet ou aguarde alguns instantes.'
+      );
+      await i18n.changeLanguage('pt');
     });
   });
 

@@ -33,22 +33,35 @@ export function cleanErrorMessage(message: string | null | undefined): string {
 }
 
 /**
- * Gets a translated error message from i18n, with fallback to English if i18n is not initialized.
- * 
+ * Normalizes i18next language codes (e.g. pt-BR → pt) for resource lookup.
+ */
+function resolveTranslationLanguage(): 'pt' | 'en' {
+  // Prefer the active language over resolvedLanguage — resolvedLanguage can lag after changeLanguage.
+  const raw = (i18n.language || i18n.resolvedLanguage || 'pt').toLowerCase();
+  if (raw.startsWith('en')) return 'en';
+  return 'pt';
+}
+
+/**
+ * Gets a translated error message from i18n in the user's locale.
+ *
  * @param key - The translation key (e.g., "errors.connectionError")
  * @param fallback - Fallback message if translation is not available
  * @returns Translated error message
  */
 function getTranslatedError(key: string, fallback: string): string {
+  const lng = resolveTranslationLanguage();
+
   try {
-    if (i18n.isInitialized) {
-      const translated = i18n.t(key, { ns: 'common' });
-      // If translation returns the key itself, it means the key wasn't found
-      return translated !== key ? translated : fallback;
+    const translate = i18n.getFixedT(lng, 'common');
+    const translated = translate(key, { defaultValue: fallback });
+    if (translated && translated !== key) {
+      return translated;
     }
-  } catch (error) {
-    // If i18n is not initialized or fails, use fallback
+  } catch {
+    // If i18n fails, use locale-aware fallback below.
   }
+
   return fallback;
 }
 
@@ -189,13 +202,16 @@ function translateByErrorCode(
 ): string | undefined {
   const normalizedCode = normalizeErrorCode(code);
   const translationKey = `errors.${normalizedCode}`;
+  const lng = resolveTranslationLanguage();
 
   try {
-    if (i18n.isInitialized) {
-      const translated = i18n.t(translationKey, { ns: 'common', ...(parameters ?? {}) });
-      if (translated !== translationKey) {
-        return translated;
-      }
+    const translate = i18n.getFixedT(lng, 'common');
+    const translated = translate(translationKey, {
+      defaultValue: fallback,
+      ...(parameters ?? {}),
+    });
+    if (translated && translated !== translationKey) {
+      return translated;
     }
   } catch {
     // Ignore translation failures and fall back below.
@@ -236,14 +252,15 @@ export function extractErrorParameters(error: unknown): Record<string, unknown> 
  */
 function isConnectionError(message: string | null | undefined): boolean {
   if (!message) return false;
-  
+
   const lowerMessage = message.toLowerCase();
-  
-  // Common connection error patterns
+
+  // Common connection error patterns (browser, Apollo, and OS-level)
   const connectionErrorPatterns = [
     'tcp connect error',
     'http fetch failed',
     'network error',
+    'networkerror',
     'connection refused',
     'connection timeout',
     'connection reset',
@@ -258,9 +275,39 @@ function isConnectionError(message: string | null | undefined): boolean {
     'econnreset',
     'service unavailable',
     'gateway timeout',
+    'attempting to fetch resource',
+    'load failed',
+    'err_connection',
+    'err_network',
   ];
-  
-  return connectionErrorPatterns.some(pattern => lowerMessage.includes(pattern));
+
+  return connectionErrorPatterns.some((pattern) => lowerMessage.includes(pattern));
+}
+
+/**
+ * Detects fetch/network failures across browser Error types and Apollo wrappers.
+ */
+function isNetworkFailure(error: unknown, message?: string | null): boolean {
+  const inspect = (value: unknown): boolean => {
+    if (!value || typeof value !== 'object') return false;
+    if (value instanceof Error) {
+      if (value.name === 'NetworkError' || value.name === 'TypeError') {
+        return isConnectionError(value.message);
+      }
+    }
+    return false;
+  };
+
+  if (inspect(error)) return true;
+
+  if (error && typeof error === 'object') {
+    const err = error as Record<string, unknown>;
+    if (inspect(err.networkError) || inspect(err.cause)) {
+      return true;
+    }
+  }
+
+  return isConnectionError(message);
 }
 
 /**
@@ -270,42 +317,40 @@ function isConnectionError(message: string | null | undefined): boolean {
  * @returns A user-friendly translated error message
  */
 function getConnectionErrorMessage(message: string | null | undefined): string {
+  const isPt = resolveTranslationLanguage() === 'pt';
+
+  const connectionFallback = isPt
+    ? 'Não foi possível conectar ao servidor. Por favor, verifique sua conexão com a internet ou aguarde alguns instantes.'
+    : 'We were unable to connect to the server. Please check your internet connection or wait a few moments.';
+  const timeoutFallback = isPt
+    ? 'A solicitação demorou muito para ser concluída. Por favor, verifique sua conexão e tente novamente.'
+    : 'The request took too long to complete. Please check your connection and try again.';
+  const unavailableFallback = isPt
+    ? 'O serviço está temporariamente indisponível. Por favor, tente novamente em alguns instantes.'
+    : 'The service is temporarily unavailable. Please try again in a few moments.';
+  const gatewayFallback = isPt
+    ? 'O servidor está demorando muito para responder. Por favor, tente novamente mais tarde.'
+    : 'The server is taking too long to respond. Please try again later.';
+
   if (!message) {
-    return getTranslatedError(
-      'errors.connectionError',
-      'We were unable to connect to the server. Please check your internet connection or wait a few moments.'
-    );
+    return getTranslatedError('errors.connectionError', connectionFallback);
   }
-  
-  // Check for specific error types to provide more context
+
   const lowerMessage = message.toLowerCase();
-  
+
   if (lowerMessage.includes('timeout') || lowerMessage.includes('timed out')) {
-    return getTranslatedError(
-      'errors.connectionTimeout',
-      'The request took too long to complete. Please check your connection and try again.'
-    );
+    return getTranslatedError('errors.connectionTimeout', timeoutFallback);
   }
-  
+
   if (lowerMessage.includes('service unavailable') || lowerMessage.includes('503')) {
-    return getTranslatedError(
-      'errors.serviceUnavailable',
-      'The service is temporarily unavailable. Please try again in a few moments.'
-    );
+    return getTranslatedError('errors.serviceUnavailable', unavailableFallback);
   }
-  
+
   if (lowerMessage.includes('gateway timeout') || lowerMessage.includes('504')) {
-    return getTranslatedError(
-      'errors.gatewayTimeout',
-      'The server is taking too long to respond. Please try again later.'
-    );
+    return getTranslatedError('errors.gatewayTimeout', gatewayFallback);
   }
-  
-  // Default connection error message
-  return getTranslatedError(
-    'errors.connectionError',
-    'We were unable to connect to the server. Please check your internet connection or wait a few moments.'
-  );
+
+  return getTranslatedError('errors.connectionError', connectionFallback);
 }
 
 /**
@@ -356,11 +401,7 @@ export function extractErrorMessage(
         (typeof err.message === 'string' ? err.message : undefined);
 
       const cleaned = cleanErrorMessage(rawMessage);
-      if (isConnectionError(cleaned)) {
-        return getConnectionErrorMessage(cleaned);
-      }
-
-      if (cleaned && !isTechnicalGraphQLErrorMessage(cleaned)) {
+      if (cleaned && !isTechnicalGraphQLErrorMessage(cleaned) && !isConnectionError(cleaned)) {
         return cleaned;
       }
     }
@@ -417,9 +458,7 @@ export function extractErrorMessage(
     return getTranslatedError('errors.HTTP_REQUEST_FAILED', defaultTranslated);
   }
 
-  // Check if this is a connection error and convert to user-friendly translated message
-  // Only treat as connection error if the message actually indicates a connection issue
-  if (isConnectionError(cleaned)) {
+  if (isNetworkFailure(error, cleaned)) {
     return getConnectionErrorMessage(cleaned);
   }
 

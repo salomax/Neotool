@@ -13,9 +13,17 @@ if (!i18n.isInitialized) {
       resources: {
         en: { common: en },
         pt: { common: pt },
+        "pt-BR": { common: pt },
+        "en-US": { common: en },
       },
       lng: "pt",
-      fallbackLng: "pt", // Changed to pt to force Portuguese fallback
+      supportedLngs: ["pt", "pt-BR", "en", "en-US"],
+      nonExplicitSupportedLngs: true,
+      fallbackLng: {
+        default: ["pt"],
+        "pt-BR": ["pt"],
+        "en-US": ["en"],
+      },
       ns: ["common"],
       defaultNS: "common",
       interpolation: { escapeValue: false },

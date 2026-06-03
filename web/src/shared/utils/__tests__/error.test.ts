@@ -58,7 +58,7 @@ describe('error utilities', () => {
   });
 
   describe('extractErrorMessage', () => {
-    beforeAll(async () => {
+    beforeEach(async () => {
       await i18n.changeLanguage('en');
     });
 
@@ -311,6 +311,20 @@ describe('error utilities', () => {
     it('should return undefined when no code is present', () => {
       const error = { graphQLErrors: [{ message: 'Invalid email or password' }] };
       expect(extractErrorCode(error)).toBeUndefined();
+    });
+  });
+
+  describe('extractErrorMessage (Portuguese locale)', () => {
+    beforeEach(async () => {
+      await i18n.changeLanguage('pt');
+    });
+
+    it('should translate Firefox NetworkError in Portuguese', () => {
+      const error = new Error('NetworkError when attempting to fetch resource.');
+      error.name = 'NetworkError';
+      expect(extractErrorMessage(error)).toBe(
+        'Não foi possível conectar ao servidor. Por favor, verifique sua conexão com a internet ou aguarde alguns instantes.'
+      );
     });
   });
 
