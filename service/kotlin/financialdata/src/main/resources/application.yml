@@ -1,6 +1,9 @@
 micronaut:
   application:
     name: neotool-financial-data-service
+  caches:
+    popular-institutions:
+      expire-after-write: 24h
   executors:
     blocking:
       virtual: true

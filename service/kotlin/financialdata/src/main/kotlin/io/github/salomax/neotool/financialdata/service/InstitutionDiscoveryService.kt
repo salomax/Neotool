@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.financialdata.service
 
+import io.micronaut.cache.annotation.Cacheable
 import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
 import io.github.salomax.neotool.financialdata.domain.DataRestriction
@@ -39,6 +40,7 @@ open class InstitutionDiscoveryService(
      * rankings in one flow, then assembles per-institution metrics.
      * If [anoMes] is null, uses the latest quarter globally.
      */
+    @Cacheable("popular-institutions")
     open fun getPopularInstitutions(anoMes: String?): List<PopularInstitution> {
         val t0 = System.currentTimeMillis()
         logger.info { "[perf] getPopularInstitutions start anoMes=$anoMes" }
