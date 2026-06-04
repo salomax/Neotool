@@ -10,8 +10,6 @@
 --
 --              Built CONCURRENTLY to avoid locking the table in production.
 
-SET search_path TO financial_data, public;
-
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_bacen_inst_report_data_account_covering
     ON financial_data.bacen_inst_report_data (account_id, inst_report_id)
     INCLUDE (saldo, saldo_ajustado);
