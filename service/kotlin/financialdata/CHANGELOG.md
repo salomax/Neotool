@@ -1,3 +1,13 @@
+## 0.5.3 (2026-06-03)
+
+### 🚀 Features
+
+- **financial-data:** add performance logging to getPopularInstitutions method ([aac78f27](https://github.com/invistus/invistus/commit/aac78f27))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.5.2 (2026-06-03)
 
 ### 🚀 Features
