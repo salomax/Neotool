@@ -1,3 +1,13 @@
+## 0.5.5 (2026-06-04)
+
+### 💅 Refactors
+
+- **financial-data:** remove unnecessary search_path setting in index migration ([72a03fda](https://github.com/invistus/invistus/commit/72a03fda))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.5.4 (2026-06-04)
 
 ### 🚀 Features
