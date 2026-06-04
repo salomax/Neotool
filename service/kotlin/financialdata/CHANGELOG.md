@@ -1,3 +1,13 @@
+## 0.5.4 (2026-06-04)
+
+### 🚀 Features
+
+- **financial-data:** implement caching for popular institutions query ([4c3184dc](https://github.com/invistus/invistus/commit/4c3184dc))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.5.3 (2026-06-03)
 
 ### 🚀 Features
