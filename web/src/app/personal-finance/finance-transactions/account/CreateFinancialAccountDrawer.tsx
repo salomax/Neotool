@@ -309,6 +309,7 @@ export function CreateFinancialAccountDrawer({
   // Queries
   const { data: issuersData, loading: issuersLoading } = useQuery<{ issuers: Issuer[] }>(ISSUERS, {
     skip: !open,
+    errorPolicy: 'all',
   });
 
   const [createAccount, { loading: creating, error: createError }] = useMutation<{

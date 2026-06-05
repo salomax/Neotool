@@ -24,6 +24,7 @@ export default function NationalIndicatorsClient() {
 
     const { indicators, loading } = useEconomicIndicators();
     const { indicatorsLatest, loading: loadingLatest, error: errorLatest } = useIndicatorsLatest();
+    const isIndicatorsLoading = loading || loadingLatest;
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedTab, setSelectedTab] = useState("all");
 
@@ -230,6 +231,7 @@ export default function NationalIndicatorsClient() {
                 ))}
              </Container>
 
+            {!isIndicatorsLoading && (
             <Container maxWidth="xl" sx={{ pb: 6 }}>
                 <Box sx={{ mt: 2, pt: 4, borderTop: 1, borderColor: "divider" }}>
                     <Typography variant="h6" fontWeight={600}>
@@ -277,6 +279,7 @@ export default function NationalIndicatorsClient() {
                     </Typography>
                 </Box>
             </Container>
+            )}
         </Page>
     );
 }

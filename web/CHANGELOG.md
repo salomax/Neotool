@@ -1,3 +1,33 @@
+## 0.7.8 (2026-06-05)
+
+### 🚀 Features
+
+- **investments:** add bulk dismiss functionality to PendingActionsDrawer ([d31e1144](https://github.com/invistus/invistus/commit/d31e1144))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
+## 0.7.7 (2026-06-05)
+
+### 🩹 Fixes
+
+- **graphql:** handle null entity case in AssetGraphQLFactory ([eef96f6d](https://github.com/invistus/invistus/commit/eef96f6d))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
+## 0.7.6 (2026-06-03)
+
+### 🚀 Features
+
+- **financial-data:** improve loading state handling in NationalIndicatorsClient ([4e74bd5b](https://github.com/invistus/invistus/commit/4e74bd5b))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.5 (2026-06-03)
 
 ### 🚀 Features

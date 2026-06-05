@@ -152,6 +152,7 @@ export function CreateInvestmentAccountDrawer({
   const { data: issuersData, loading: issuersLoading } = useQuery<{ issuers: Issuer[] }>(ISSUERS, {
     variables: { categories: issuerCategories },
     skip: !open,
+    errorPolicy: 'all',
   });
 
   const selectedIssuer = React.useMemo(() => {

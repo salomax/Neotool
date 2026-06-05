@@ -24,6 +24,9 @@ dependencies {
     implementation("jakarta.annotation:jakarta.annotation-api")
     implementation("jakarta.persistence:jakarta.persistence-api:3.1.0")
 
+    // Cache
+    implementation("io.micronaut.cache:micronaut-cache-caffeine")
+
     // KSP processors
     ksp("io.micronaut:micronaut-inject-kotlin")
     ksp("io.micronaut.data:micronaut-data-processor")

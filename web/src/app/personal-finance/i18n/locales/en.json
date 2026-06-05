@@ -331,6 +331,7 @@
       "registerCoupon": "Record coupon",
       "markSeen": "Mark as seen",
       "dismiss": "Dismiss",
+      "dismissAll": "Dismiss all",
       "viewAccount": "View account",
       "age": {
         "today": "Today",

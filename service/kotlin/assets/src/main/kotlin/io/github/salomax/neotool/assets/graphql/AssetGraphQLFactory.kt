@@ -111,11 +111,12 @@ class AssetGraphQLFactory(
                     }
 
                     when (entity) {
+                        null -> null
                         is AssetDTO ->
                             schema.getObjectType("Asset")
                                 ?: throw IllegalStateException("Asset type not found in schema")
                         else -> throw IllegalStateException(
-                            "Unknown federated type for entity: ${entity?.javaClass?.name}",
+                            "Unknown federated type for entity: ${entity.javaClass.name}",
                         )
                     }
                 }

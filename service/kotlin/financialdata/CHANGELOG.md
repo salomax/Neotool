@@ -1,3 +1,43 @@
+## 0.5.5 (2026-06-04)
+
+### 💅 Refactors
+
+- **financial-data:** remove unnecessary search_path setting in index migration ([72a03fda](https://github.com/invistus/invistus/commit/72a03fda))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
+## 0.5.4 (2026-06-04)
+
+### 🚀 Features
+
+- **financial-data:** implement caching for popular institutions query ([4c3184dc](https://github.com/invistus/invistus/commit/4c3184dc))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
+## 0.5.3 (2026-06-03)
+
+### 🚀 Features
+
+- **financial-data:** add performance logging to getPopularInstitutions method ([aac78f27](https://github.com/invistus/invistus/commit/aac78f27))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
+## 0.5.2 (2026-06-03)
+
+### 🚀 Features
+
+- **config:** disable Kafka integration in application.yml ([9895b39c](https://github.com/invistus/invistus/commit/9895b39c))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.5.1 (2026-06-02)
 
 This was a version bump only for financialdata to align it with other projects, there were no code changes.
