@@ -1,3 +1,13 @@
+## 0.7.8 (2026-06-05)
+
+### 🚀 Features
+
+- **investments:** add bulk dismiss functionality to PendingActionsDrawer ([d31e1144](https://github.com/invistus/invistus/commit/d31e1144))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.7 (2026-06-05)
 
 ### 🩹 Fixes

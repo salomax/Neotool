@@ -1158,6 +1158,24 @@ input CreatePromptInput
   performanceMetrics: JSON
 }
 
+input CreateRecurringPaymentFromTransactionInput
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID
+  name: String
+  type: TransactionType
+  expectedAmount: Float
+  currencyCode: String
+  categoryId: ID
+  merchantId: ID
+  frequency: RecurringFrequency
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int
+  firstDueDate: Date
+  notes: String
+}
+
 input CreateRecurringPaymentInput
   @join__type(graph: BANKING)
 {
@@ -2789,7 +2807,7 @@ type Mutation
   deleteRecurringPayment(id: ID!): Boolean! @join__field(graph: BANKING)
   confirmRecurringPayment(id: ID!, paymentDate: Date!): RecurringPayment! @join__field(graph: BANKING)
   linkTransactionToRecurring(transactionId: ID!, recurringPaymentId: ID!): Transaction! @join__field(graph: BANKING)
-  createRecurringPaymentFromTransaction(transactionId: ID!, input: CreateRecurringPaymentInput!): RecurringPayment! @join__field(graph: BANKING)
+  createRecurringPaymentFromTransaction(transactionId: ID!, input: CreateRecurringPaymentFromTransactionInput!): RecurringPayment! @join__field(graph: BANKING)
   importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult! @join__field(graph: BANKING)
   importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult! @join__field(graph: BANKING)
   resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport! @join__field(graph: BANKING)
@@ -4727,7 +4745,9 @@ input UpdateProductVariantInput
 input UpdateRecurringPaymentInput
   @join__type(graph: BANKING)
 {
+  financialAccountId: ID
   name: String
+  creditDebitType: CreditDebitType
   expectedAmount: Float
   categoryId: ID
   merchantId: ID
