@@ -22,7 +22,14 @@ export function ApplyRuleToHistoricalDialog({
   const { t } = useTranslation(personalFinanceTranslations);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { p: 2 } }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      PaperProps={{ sx: { p: 2 } }}
+      data-testid="apply-rule-to-history-dialog"
+    >
       <Box sx={{ px: 2, pt: 2 }}>
         <Typography variant="h6" sx={{ mb: 0.5 }}>
           {t('financeTransactions.applyRuleToHistoryPrompt.title')}
@@ -38,11 +45,19 @@ export function ApplyRuleToHistoricalDialog({
             variant="contained"
             loading={loading}
             fullWidth
+            data-testid="apply-rule-to-history-confirm"
             sx={{ mb: 1 }}
           >
             {t('financeTransactions.applyRuleToHistoryPrompt.confirm')}
           </Button>
-          <Button onClick={onClose} variant="text" color="primary" disabled={loading} fullWidth>
+          <Button
+            onClick={onClose}
+            variant="text"
+            color="primary"
+            disabled={loading}
+            fullWidth
+            data-testid="apply-rule-to-history-cancel"
+          >
             {t('financeTransactions.applyRuleToHistoryPrompt.cancel')}
           </Button>
         </Box>
@@ -50,4 +65,3 @@ export function ApplyRuleToHistoricalDialog({
     </Dialog>
   );
 }
-

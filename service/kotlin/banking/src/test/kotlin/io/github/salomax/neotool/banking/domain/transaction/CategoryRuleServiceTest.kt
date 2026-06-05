@@ -20,7 +20,9 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.math.BigDecimal
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
 @DisplayName("TransactionRuleService")
@@ -420,6 +422,38 @@ class CategoryRuleServiceTest {
     }
 
     @Nested
+    @DisplayName("historical matching")
+    inner class HistoricalMatchingTests {
+        private val ruleId = UUID.randomUUID()
+
+        @Test
+        fun `countHistoricalMatches uses the same case-insensitive exact matcher as rule application`() {
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(
+                    id = ruleId,
+                    accountId = accountId,
+                    pattern = "PIX FULANO",
+                    patternType = PatternType.EXACT,
+                    applicableTo = CategoryApplicableTo.INCOME,
+                ),
+            )
+            whenever(transactionRepository.findByAccount(accountId)).thenReturn(
+                listOf(
+                    transaction(
+                        description = "Pix Fulano",
+                        creditDebitType = CreditDebitType.CREDIT,
+                        source = TransactionSource.CSV,
+                    ),
+                ),
+            )
+
+            val result = service.countHistoricalMatches(ruleId, accountId)
+
+            assertThat(result).isEqualTo(1)
+        }
+    }
+
+    @Nested
     @DisplayName("delete")
     inner class DeleteTests {
         private val ruleId = UUID.randomUUID()
@@ -528,6 +562,26 @@ class CategoryRuleServiceTest {
         isImplicit = isImplicit,
         matchCount = matchCount,
         deletedAt = null,
+        createdAt = Instant.now(),
+        updatedAt = Instant.now(),
+    )
+
+    private fun transaction(
+        description: String,
+        creditDebitType: CreditDebitType = CreditDebitType.DEBIT,
+        source: TransactionSource = TransactionSource.MANUAL,
+        type: TransactionType = TransactionType.OTHER_EXPENSE,
+    ) = Transaction(
+        id = UUID.randomUUID(),
+        financialAccountId = UUID.randomUUID(),
+        accountId = accountId,
+        createdByUserId = UUID.randomUUID(),
+        creditDebitType = creditDebitType,
+        type = type,
+        source = source,
+        amount = BigDecimal("10.00"),
+        date = LocalDate.now(),
+        description = description,
         createdAt = Instant.now(),
         updatedAt = Instant.now(),
     )

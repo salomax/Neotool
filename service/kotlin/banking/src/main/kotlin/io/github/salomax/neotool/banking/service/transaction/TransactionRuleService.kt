@@ -15,7 +15,6 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleNotFoundException
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.model.domain.transaction.TransactionDescriptionNormalizer
 import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeResult
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionRuleInput
@@ -195,7 +194,7 @@ open class TransactionRuleService(
         sample: String,
     ): Boolean {
         validatePattern(patternType, pattern)
-        return matchesPattern(pattern.trim(), patternType, sample)
+        return TransactionRuleMatcher.matches(sample, pattern.trim(), patternType)
     }
 
     fun reorder(
@@ -294,18 +293,6 @@ open class TransactionRuleService(
         return BulkCategorizeResult(affectedCount = affectedCount, errors = emptyList())
     }
 
-    private fun matchesPattern(
-        pattern: String,
-        patternType: PatternType,
-        sample: String,
-    ): Boolean =
-        when (patternType) {
-            PatternType.CONTAINS -> containsWholeWord(sample.lowercase(), pattern.lowercase())
-            PatternType.STARTS_WITH -> sample.startsWith(pattern, ignoreCase = true)
-            PatternType.EXACT -> sample.equals(pattern, ignoreCase = true)
-            PatternType.REGEX -> Regex(pattern, RegexOption.IGNORE_CASE).containsMatchIn(sample)
-        }
-
     private fun matchesRule(
         tx: Transaction,
         rule: TransactionRule,
@@ -319,37 +306,8 @@ open class TransactionRuleService(
                 CategoryApplicableTo.EXPENSE
             }
         if (rule.applicableTo != CategoryApplicableTo.ANY && rule.applicableTo != side) return false
-
-        val normalized = TransactionDescriptionNormalizer.normalize(tx.description)
-        val pattern = rule.pattern
-
-        return when (rule.patternType) {
-            PatternType.CONTAINS -> containsWholeWord(normalized, pattern.lowercase())
-            PatternType.STARTS_WITH -> normalized.startsWith(pattern)
-            PatternType.EXACT -> normalized == pattern
-            PatternType.REGEX ->
-                try {
-                    normalized.matches(Regex(pattern, RegexOption.IGNORE_CASE))
-                } catch (_: Exception) {
-                    false
-                }
-        }
+        return TransactionRuleMatcher.matches(tx.description, rule.pattern, rule.patternType)
     }
-
-    /**
-     * Checks if [text] contains [word] as a whole word — not as part of another word.
-     * Both [text] and [word] must be pre-lowercased.
-     *
-     * Examples:
-     *   "clauber" contains "uber"  → false  (letter before 'u')
-     *   "uber eats" contains "uber" → true
-     *   "uber*trip" contains "uber" → true   ('*' is not a letter)
-     *   "uber99" contains "uber"   → true    ('9' is not a letter)
-     */
-    private fun containsWholeWord(
-        text: String,
-        word: String,
-    ): Boolean = Regex("(?<![a-z])${Regex.escape(word)}(?![a-z])").containsMatchIn(text)
 
     private fun requireCategoryAccessible(
         categoryId: UUID,
