@@ -12,6 +12,7 @@ import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../i18n";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
+import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
 import { QueryErrorState } from "@/shared/components/ui/feedback";
 import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
 import { FinancialAccountSelector } from "../finance-transactions/account/FinancialAccountSelector";
@@ -41,6 +42,7 @@ export default function PersonalFinanceInvestmentsPage() {
   const [isImportDrawerOpen, setIsImportDrawerOpen] = React.useState(false);
   const [gridRefreshVersion, setGridRefreshVersion] = React.useState(0);
   const openPendingActionsDrawer = usePendingActionsDrawer((state) => state.openDrawer);
+  const isB3ImportEnabled = useFeatureFlagEnabled("b3-import-feature");
 
   usePageTitle(t("dashboard.actions.investmentsPortfolio.title"));
 
@@ -286,16 +288,18 @@ export default function PersonalFinanceInvestmentsPage() {
         <SidebarLayout side="left" size="sm" fullHeight sidebar={sidebar}>
           <Page>
             <Container maxWidth="xl" sx={{ py: 4 }}>
-              <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2 }}>
-                <Button
-                  variant="outlined"
-                  startIcon={<UploadFileIcon />}
-                  onClick={() => setIsImportDrawerOpen(true)}
-                  data-testid="open-investment-import-drawer"
-                >
-                  {t("investments.import.pageButton")}
-                </Button>
-              </Stack>
+              {isB3ImportEnabled && (
+                <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2 }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<UploadFileIcon />}
+                    onClick={() => setIsImportDrawerOpen(true)}
+                    data-testid="open-investment-import-drawer"
+                  >
+                    {t("investments.import.pageButton")}
+                  </Button>
+                </Stack>
+              )}
               <InvestmentGrid
                 key={`investment-grid-${gridRefreshVersion}`}
                 selectedAccountId={effectiveSelectedAccountId}
@@ -314,11 +318,13 @@ export default function PersonalFinanceInvestmentsPage() {
         accountToEdit={editingAccount}
         onCreated={(account) => setSelectedAccountId(account.id)}
       />
-      <ImportInvestmentsDrawer
-        open={isImportDrawerOpen}
-        onClose={() => setIsImportDrawerOpen(false)}
-        onImportCompleted={() => setGridRefreshVersion((prev) => prev + 1)}
-      />
+      {isB3ImportEnabled && (
+        <ImportInvestmentsDrawer
+          open={isImportDrawerOpen}
+          onClose={() => setIsImportDrawerOpen(false)}
+          onImportCompleted={() => setGridRefreshVersion((prev) => prev + 1)}
+        />
+      )}
 
     </>
   );

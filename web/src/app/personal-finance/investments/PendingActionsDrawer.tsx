@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
+import CheckIcon from "@mui/icons-material/Check";
 import { Box, Divider, Stack } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
@@ -9,6 +10,7 @@ import { EmptyState, LoadingState, QueryErrorState } from "@/shared/components/u
 import { useAuth } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../i18n";
+import { Button } from "@/shared/components/ui/primitives/Button";
 import {
   DismissPendingActionDocument,
   type DismissPendingActionMutation,
@@ -101,9 +103,24 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
     });
   }, [client, refetchActions]);
 
+  const [bulkDismissLoading, setBulkDismissLoading] = React.useState(false);
+
   const handleDismiss = async (id: string) => {
     await dismissAction({ variables: { id } });
     await refresh();
+  };
+
+  const handleDismissAll = async () => {
+    if (sorted.length === 0 || dismissLoading || bulkDismissLoading) return;
+    const ids = sorted.map((row) => row.id);
+    setBulkDismissLoading(true);
+    try {
+      await Promise.all(ids.map((id) => dismissAction({ variables: { id } })));
+    } catch {
+    } finally {
+      setBulkDismissLoading(false);
+      await refresh();
+    }
   };
 
   const openMaturityDrawer = (row: PendingActionRowData) => {
@@ -221,7 +238,7 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
                   <PendingActionRow
                     key={row.id}
                     row={row}
-                    dismissLoading={dismissLoading}
+                    dismissLoading={dismissLoading || bulkDismissLoading}
                     onDismiss={() => void handleDismiss(row.id)}
                     primaryActionLabel={primary.label}
                     primaryActionTestId={primary.testId}
@@ -233,8 +250,20 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
           ) : null}
         </Drawer.Body>
         <Drawer.Footer>
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-            <Drawer.CancelButton onClick={onClose}>{t("actions.close")}</Drawer.CancelButton>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+            <Button
+              type="button"
+              variant="outlined"
+              startIcon={<CheckIcon fontSize="small" />}
+              disabled={sorted.length === 0 || dismissLoading}
+              loading={bulkDismissLoading}
+              onClick={() => void handleDismissAll()}
+            >
+              {t("investments.pendingActions.dismissAll")}
+            </Button>
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <Drawer.CancelButton onClick={onClose}>{t("actions.close")}</Drawer.CancelButton>
+            </Box>
           </Box>
         </Drawer.Footer>
       </Drawer>
