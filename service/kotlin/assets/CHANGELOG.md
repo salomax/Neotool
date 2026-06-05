@@ -1,3 +1,13 @@
+## 0.3.6 (2026-06-05)
+
+### 🩹 Fixes
+
+- **graphql:** handle null entity case in AssetGraphQLFactory ([eef96f6d](https://github.com/invistus/invistus/commit/eef96f6d))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.3.5 (2026-06-02)
 
 This was a version bump only for assets to align it with other projects, there were no code changes.
