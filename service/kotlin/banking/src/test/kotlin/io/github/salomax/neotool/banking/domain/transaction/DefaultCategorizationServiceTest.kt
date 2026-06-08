@@ -186,6 +186,32 @@ class DefaultCategorizationServiceTest {
         }
 
         @Test
+        fun `matches EXACT pattern regardless of stored pattern case`() {
+            val matchedRule =
+                rule(
+                    pattern = "PIX FULANO",
+                    patternType = PatternType.EXACT,
+                    applicableTo = CategoryApplicableTo.INCOME,
+                )
+            whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
+            whenever(
+                categoryRepository.findById(matchedRule.categoryId!!),
+            ).thenReturn(category(matchedRule.categoryId!!))
+
+            val suggestion = service.suggest(accountId, "Pix Fulano", CreditDebitType.CREDIT)
+
+            assertThat(suggestion).isEqualTo(
+                RuleSuggestion(
+                    ruleId = requireNotNull(matchedRule.id),
+                    categoryId = matchedRule.categoryId,
+                    merchantId = null,
+                    appliedRuleIds = listOf(requireNotNull(matchedRule.id)),
+                ),
+            )
+            verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
+        }
+
+        @Test
         fun `matches REGEX pattern`() {
             val matchedRule =
                 rule(
@@ -244,6 +270,23 @@ class DefaultCategorizationServiceTest {
             )
             verify(ruleRepository, never()).incrementMatchCount(requireNotNull(invalidRegexRule.id))
             verify(ruleRepository).incrementMatchCount(requireNotNull(validRule.id))
+        }
+
+        @Test
+        fun `contains does not match substring inside a longer word`() {
+            val matchedRule =
+                rule(
+                    pattern = "UBER",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                )
+            whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
+
+            val suggestion = service.suggest(accountId, "CLAUBER", CreditDebitType.DEBIT)
+
+            assertThat(suggestion).isNull()
+            verify(ruleRepository, never()).incrementMatchCount(any())
+            verifyNoInteractions(categoryRepository)
         }
 
         @Test

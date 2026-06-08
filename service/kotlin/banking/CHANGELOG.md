@@ -1,3 +1,13 @@
+## 0.4.3 (2026-06-05)
+
+### 💅 Refactors
+
+- **transaction-rules:** centralize pattern matching logic in TransactionRuleMatcher ([3da0b09e](https://github.com/invistus/invistus/commit/3da0b09e))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.4.2 (2026-06-03)
 
 ### 🩹 Fixes

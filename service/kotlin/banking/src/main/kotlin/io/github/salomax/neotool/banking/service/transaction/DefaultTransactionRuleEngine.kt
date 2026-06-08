@@ -75,7 +75,6 @@ class DefaultTransactionRuleEngine(
         creditDebitType: CreditDebitType,
         incrementMatchCount: Boolean,
     ): RuleSuggestion? {
-        val normalized = normalize(description)
         val side =
             if (creditDebitType == CreditDebitType.CREDIT) {
                 CategoryApplicableTo.INCOME
@@ -92,7 +91,7 @@ class DefaultTransactionRuleEngine(
 
         for (rule in rules) {
             if (!isApplicable(rule.applicableTo, side)) continue
-            if (!TransactionRulePatternMatcher.matches(normalized, rule.pattern, rule.patternType)) continue
+            if (!TransactionRuleMatcher.matches(description, rule.pattern, rule.patternType)) continue
 
             val resolvedCategoryId =
                 if (rule.categoryId != null) {

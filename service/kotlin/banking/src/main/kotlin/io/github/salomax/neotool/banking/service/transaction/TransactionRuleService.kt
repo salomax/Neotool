@@ -306,7 +306,6 @@ open class TransactionRuleService(
                 CategoryApplicableTo.EXPENSE
             }
         if (rule.applicableTo != CategoryApplicableTo.ANY && rule.applicableTo != side) return false
-
         return TransactionRulePatternMatcher.matchesDescription(
             description = tx.description,
             pattern = rule.pattern,
