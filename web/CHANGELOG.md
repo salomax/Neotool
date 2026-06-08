@@ -1,3 +1,13 @@
+## 0.7.10 (2026-06-08)
+
+### 🚀 Features
+
+- **banking:** introduce investment import types and mutations ([6b9778ba](https://github.com/invistus/invistus/commit/6b9778ba))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.9 (2026-06-05)
 
 ### 💅 Refactors

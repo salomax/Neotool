@@ -1,3 +1,14 @@
+## 0.5.0 (2026-06-08)
+
+### 🚀 Features
+
+- **banking:** introduce investment import types and mutations ([6b9778ba](https://github.com/invistus/invistus/commit/6b9778ba))
+- **banking:** add BILL_PAYMENT transaction type and corresponding migration ([a4e75435](https://github.com/invistus/invistus/commit/a4e75435))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.4.3 (2026-06-05)
 
 ### 💅 Refactors
