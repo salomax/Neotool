@@ -86,6 +86,15 @@ function resolveAsyncImportError(
     return { message: cleanErrorMessage(parsed.message), details: null };
   }
 
+  // rawDetails is JSON but has no recognizable user-facing structure (e.g. array of row errors).
+  // Never show raw JSON to end users.
+  try {
+    JSON.parse(rawDetails);
+    return { message: fallbackMessage, details: null };
+  } catch {
+    // Not JSON — may be a plain-text message worth showing after cleanup.
+  }
+
   return { message: cleanErrorMessage(rawDetails), details: null };
 }
 

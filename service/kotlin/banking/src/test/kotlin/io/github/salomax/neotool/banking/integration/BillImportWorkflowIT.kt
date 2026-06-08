@@ -239,6 +239,60 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
         assertThat(imported).hasSize(9)
     }
 
+    @Test
+    fun `reimport after deleting all transactions reimports all 10 transactions`() {
+        val job = movePendingJobToAwaitingReview()
+        val jobId = requireNotNull(job.id)
+        val command = confirmCommand(jobId, excluded = null)
+
+        billImportService.confirmBillImport(accountId, userId, command)
+        val firstBatch = transactionRepository.findByAccount(accountId).filter { it.importJobId == jobId }
+        assertThat(firstBatch).hasSize(10)
+
+        firstBatch.forEach { tx -> transactionRepository.softDelete(requireNotNull(tx.id), accountId) }
+
+        val resetJob = billImportJobRepository.update(
+            currentJob(jobId).copy(
+                status = BillImportJobStatus.AWAITING_REVIEW,
+                completedAt = null,
+                updatedAt = Instant.now(),
+            ),
+        )
+        assertThat(resetJob.status).isEqualTo(BillImportJobStatus.AWAITING_REVIEW)
+
+        billImportService.confirmBillImport(accountId, userId, command)
+
+        val liveTxs = transactionRepository.findByAccount(accountId).filter { it.importJobId == jobId }
+        assertThat(liveTxs).hasSize(10)
+    }
+
+    @Test
+    fun `reimport after deleting one transaction reimports only that transaction`() {
+        val job = movePendingJobToAwaitingReview()
+        val jobId = requireNotNull(job.id)
+        val command = confirmCommand(jobId, excluded = null)
+
+        billImportService.confirmBillImport(accountId, userId, command)
+        val firstBatch = transactionRepository.findByAccount(accountId).filter { it.importJobId == jobId }
+        assertThat(firstBatch).hasSize(10)
+
+        val txToDelete = firstBatch.first()
+        transactionRepository.softDelete(requireNotNull(txToDelete.id), accountId)
+
+        billImportJobRepository.update(
+            currentJob(jobId).copy(
+                status = BillImportJobStatus.AWAITING_REVIEW,
+                completedAt = null,
+                updatedAt = Instant.now(),
+            ),
+        )
+
+        billImportService.confirmBillImport(accountId, userId, command)
+
+        val liveTxs = transactionRepository.findByAccount(accountId).filter { it.importJobId == jobId }
+        assertThat(liveTxs).hasSize(10)
+    }
+
     private fun createCardAccount(
         name: String,
         lastFour: String,
