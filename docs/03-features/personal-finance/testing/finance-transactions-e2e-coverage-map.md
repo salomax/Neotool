@@ -38,7 +38,7 @@ Map the documented requirements and business rules against the existing E2E suit
 | Transactions | Create `POSTED` income and expense transactions | `02-transactions` | `TX-H-01`, `TX-H-02`, `MS-H-01`, `MS-H-02` | Covered | Validates table presence and summary impact |
 | Transactions | `PENDING` and `FUTURE` behavior | `02-transactions`, `04-monthly-summaries` | `TX-H-03`, `TX-H-04`, `TX-H-07`, `TX-H-08`, `MS-A-02`, `MS-A-03` | Covered | Inclusion/exclusion rules in balance are covered |
 | Transactions | Edit description and amount | `02-transactions` | `TX-H-05`, `TX-H-06`, `TX-A-08`, `TX-A-09`, `MS-H-04` | Covered | Covers both increasing and decreasing amounts |
-| Transactions | Manual transaction soft delete | `02-transactions` | `TX-H-09`, `MS-H-03`, `TX-N-09` | Covered | Covers removal and double-delete error |
+| Transactions | Transaction soft delete (manual or imported) | `02-transactions` | `TX-H-09`, `IM-H-04a`, `MS-H-03`, `TX-N-09` | Covered | Covers manual UI delete, imported OFX delete, and double-delete error |
 | Transactions | Block `amount <= 0` | `02-transactions` | `TX-N-02`, `TX-N-03`, `TX-N-05` | Covered | UI and indirect GraphQL coverage |
 | Transactions | 5-year date window | `02-transactions` | `TX-N-04` | Covered | Client-side rule reflected in the suite |
 | Transactions | `date >= initialBalanceDate` outside `BALANCE_ADJUSTMENT` | `02-transactions` | no specific E2E | No E2E coverage | No test for `TRANSACTION_BEFORE_INITIAL_BALANCE` |

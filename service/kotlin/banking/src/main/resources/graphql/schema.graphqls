@@ -940,6 +940,101 @@ input InstallmentInfoInput {
 }
 
 # ============================================================================
+# Investment Import Types
+# ============================================================================
+
+enum InvestmentImportJobStatus {
+  AWAITING_REVIEW
+  IMPORTING
+  DONE
+  FAILED
+}
+
+enum ConflictResolution {
+  UPDATE
+  KEEP_EXISTING
+}
+
+input SubmitInvestmentImportInput {
+  fileName: String!
+  fileBase64: String!
+}
+
+input ConfirmInvestmentImportInput {
+  jobId: ID!
+  institutionMappings: [InstitutionAccountMappingInput!]!
+  rowPatches: [InvestmentImportRowPatchInput!]!
+}
+
+input InstitutionAccountMappingInput {
+  reviewInstitutionId: String!
+  financialAccountId: ID!
+}
+
+input InvestmentImportRowPatchInput {
+  rowIndex: Int!
+  principal: Float
+  conflictResolution: ConflictResolution
+  skip: Boolean!
+}
+
+type InvestmentImportJob {
+  id: ID!
+  status: InvestmentImportJobStatus!
+  fileName: String
+  createdAt: DateTime!
+  errorMessage: String
+  errorCode: String
+  errorParameters: JSON
+  reviewPayload: InvestmentImportReview
+}
+
+type InvestmentImportReview {
+  source: String
+  institutions: [InvestmentImportReviewInstitution!]!
+}
+
+type InvestmentImportReviewInstitution {
+  reviewInstitutionId: String!
+  institutionName: String!
+  matchedFinancialAccountId: ID
+  matchAmbiguous: Boolean!
+  matchCandidates: [InvestmentImportAccountCandidate!]!
+  rows: [InvestmentImportReviewRow!]!
+}
+
+type InvestmentImportAccountCandidate {
+  financialAccountId: ID!
+  accountName: String!
+}
+
+type InvestmentImportReviewRow {
+  rowIndex: Int!
+  productName: String!
+  assetTypeCode: String!
+  issuerName: String
+  providerCode: String
+  indexerLabel: String
+  issueDate: String
+  maturityDate: String
+  quantity: Float
+  principal: Float
+  currentValue: Float
+  requiresPrincipal: Boolean!
+  conflictingHoldingId: ID
+  conflictDiff: InvestmentImportConflictDiff
+}
+
+type InvestmentImportConflictDiff {
+  existingQuantity: Float
+  fileQuantity: Float
+  existingCurrentValue: Float
+  fileCurrentValue: Float
+  existingMaturityDate: String
+  fileMaturityDate: String
+}
+
+# ============================================================================
 # Transaction Import Types
 # ============================================================================
 
@@ -2376,6 +2471,7 @@ extend type Query {
   pendingReviewImports(financialAccountId: ID): [TransactionImport!]!
   billImportJob(jobId: ID!): BillImportJob
   billImportJobs(financialAccountId: ID): [BillImportJob!]!
+  investmentImportJob(id: ID!): InvestmentImportJob
   """
   All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
   ordered by closing date descending.
@@ -2528,6 +2624,8 @@ extend type Mutation {
   cancelImportReview(jobId: ID!): Boolean!
   submitBillImport(input: SubmitBillImportInput!): BillImportJob!
   confirmBillImport(input: ConfirmBillImportInput!): BillImportJob!
+  submitInvestmentImport(input: SubmitInvestmentImportInput!): InvestmentImportJob!
+  confirmInvestmentImport(input: ConfirmInvestmentImportInput!): InvestmentImportJob!
   """
   Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
   Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.

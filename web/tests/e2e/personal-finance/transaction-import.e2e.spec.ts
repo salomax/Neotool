@@ -1,7 +1,7 @@
 /**
  * E2E tests — Transaction Import
  *
- * Coverage: IM-H-01..06 | IM-A-01..08 | IM-N-01..06
+ * Coverage: IM-H-01..06, IM-H-04a | IM-A-01..08 | IM-N-01..06
  * Security coverage is in security.e2e.spec.ts (SEC-IM-01..02).
  *
  * ──────────────────────────────────────────────────────────────────────────────
@@ -153,6 +153,45 @@ async function importTransactionsFileViaGraphql(
   const job = result.data?.importTransactionsFile.import;
   expect(job?.id).toBeTruthy();
   return job!;
+}
+
+async function getTransactionsWithSource(
+  financialAccountId: string,
+  token: string,
+  options?: { month?: number; year?: number; first?: number },
+): Promise<Array<{ id: string; source: string; description: string }>> {
+  const result = await executeGraphQL<{
+    transactions: { edges: Array<{ node: { id: string; source: string; description: string } }> };
+  }>(
+    `
+      query TransactionsWithSource(
+        $financialAccountId: ID
+        $month: Int
+        $year: Int
+        $first: Int
+      ) {
+        transactions(
+          financialAccountId: $financialAccountId
+          month: $month
+          year: $year
+          first: $first
+        ) {
+          edges {
+            node {
+              id
+              source
+              description
+            }
+          }
+        }
+      }
+    `,
+    { financialAccountId, ...options, first: options?.first ?? 50 },
+    token,
+  );
+
+  expect(result.errors).toBeUndefined();
+  return result.data?.transactions.edges.map((e) => e.node) ?? [];
 }
 
 async function waitForImportJobTerminal(
@@ -608,6 +647,42 @@ test.describe("Transaction Import — happy path", () => {
         deleteTransaction(tx.id, pfUser.token).catch(() => {}),
       ),
     );
+  });
+
+  test("IM-H-04a: imported OFX transaction can be soft-deleted", async ({
+    pfUser,
+    bankAccount,
+  }) => {
+    const uniqueOfx = buildUniqueOfxFixture();
+    try {
+      const job = await importTransactionsFileViaGraphql(
+        bankAccount.id,
+        pfUser.token,
+        uniqueOfx,
+      );
+      const terminal = await waitForImportJobTerminal(job.id, pfUser.token);
+      expect(terminal.status).toBe("COMPLETED");
+      expect(terminal.importedCount ?? 0).toBeGreaterThan(0);
+
+      const txs = await getTransactionsWithSource(
+        bankAccount.id,
+        pfUser.token,
+        importFixtureTransactionQuery(50),
+      );
+      const imported = txs.find((tx) => tx.source === "OFX");
+      expect(imported).toBeDefined();
+
+      await deleteTransaction(imported!.id, pfUser.token);
+
+      const after = await getTransactionsWithSource(
+        bankAccount.id,
+        pfUser.token,
+        importFixtureTransactionQuery(50),
+      );
+      expect(after.some((tx) => tx.id === imported!.id)).toBe(false);
+    } finally {
+      fs.unlinkSync(uniqueOfx);
+    }
   });
 
   test("IM-H-04: OFX import creates transactions in the account", async ({

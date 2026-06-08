@@ -1428,7 +1428,7 @@ class TransactionServiceTest {
         }
 
         @Test
-        fun `throws when transaction source is not MANUAL`() {
+        fun `soft-deletes imported transaction and returns true`() {
             val txId = UUID.randomUUID()
             val existing =
                 Transaction(
@@ -1446,9 +1446,12 @@ class TransactionServiceTest {
                     updatedAt = now,
                 )
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(transactionRepository.softDelete(txId, accountId)).thenReturn(true)
 
-            val ex = assertThrows<IllegalStateException> { service.delete(txId, accountId) }
-            assertThat(ex.message).contains("MANUAL").contains("OFB")
+            val result = service.delete(txId, accountId)
+
+            assertThat(result).isTrue
+            verify(transactionRepository).softDelete(txId, accountId)
         }
     }
 

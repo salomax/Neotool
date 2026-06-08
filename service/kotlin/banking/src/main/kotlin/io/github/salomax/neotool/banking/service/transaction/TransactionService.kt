@@ -997,9 +997,6 @@ open class TransactionService(
         val exists =
             transactionRepository.findById(id, accountId)
                 ?: throw NotFoundException(BankingErrorCode.TRANSACTION_NOT_FOUND, field = "id")
-        check(exists.source == TransactionSource.MANUAL) {
-            "Only MANUAL transactions can be deleted; OFB-synced transactions must be hidden via the provider"
-        }
         val deleted = transactionRepository.softDelete(id, accountId)
         if (deleted) {
             creditCardBillService.recomputeBill(exists.billId, accountId)

@@ -92,7 +92,7 @@ class DefaultTransactionRuleEngine(
 
         for (rule in rules) {
             if (!isApplicable(rule.applicableTo, side)) continue
-            if (!matches(normalized, rule.pattern, rule.patternType)) continue
+            if (!TransactionRulePatternMatcher.matches(normalized, rule.pattern, rule.patternType)) continue
 
             val resolvedCategoryId =
                 if (rule.categoryId != null) {
@@ -211,23 +211,6 @@ class DefaultTransactionRuleEngine(
     }
 
     internal fun normalize(s: String): String = TransactionDescriptionNormalizer.normalize(s)
-
-    private fun matches(
-        normalized: String,
-        pattern: String,
-        type: PatternType,
-    ): Boolean =
-        when (type) {
-            PatternType.CONTAINS -> normalized.contains(pattern)
-            PatternType.STARTS_WITH -> normalized.startsWith(pattern)
-            PatternType.EXACT -> normalized == pattern
-            PatternType.REGEX ->
-                try {
-                    normalized.matches(Regex(pattern, RegexOption.IGNORE_CASE))
-                } catch (_: Exception) {
-                    false
-                }
-        }
 
     private fun isApplicable(
         ruleApplicableTo: CategoryApplicableTo,
