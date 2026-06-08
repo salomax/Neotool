@@ -1,3 +1,13 @@
+## 0.6.0 (2026-06-08)
+
+### 🚀 Features
+
+- **banking:** implement partial unique index for transactions and enhance bill import job handling ([147df615](https://github.com/invistus/invistus/commit/147df615))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.5.1 (2026-06-08)
 
 ### 💅 Refactors
