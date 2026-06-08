@@ -1,3 +1,13 @@
+## 0.5.1 (2026-06-08)
+
+### 💅 Refactors
+
+- **banking:** simplify bill import job conflict handling and remove unused method ([dea0ed9c](https://github.com/invistus/invistus/commit/dea0ed9c))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.5.0 (2026-06-08)
 
 ### 🚀 Features
