@@ -1,3 +1,13 @@
+## 0.6.1 (2026-06-09)
+
+### 💅 Refactors
+
+- **banking:** enhance transaction pattern matching and improve test coverage ([b5acc2e7](https://github.com/invistus/invistus/commit/b5acc2e7))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.6.0 (2026-06-08)
 
 ### 🚀 Features
