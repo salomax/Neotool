@@ -25,14 +25,15 @@ internal object TransactionRulePatternMatcher {
         normalizedDescription: String,
         pattern: String,
         patternType: PatternType,
-    ): Boolean =
-        when (patternType) {
+    ): Boolean {
+        val normalizedPattern = TransactionDescriptionNormalizer.normalize(pattern)
+        return when (patternType) {
             PatternType.CONTAINS ->
-                containsWholeWord(normalizedDescription, pattern.lowercase())
+                containsWholeWord(normalizedDescription, normalizedPattern)
             PatternType.STARTS_WITH ->
-                normalizedDescription.startsWith(pattern, ignoreCase = true)
+                normalizedDescription.startsWith(normalizedPattern)
             PatternType.EXACT ->
-                normalizedDescription.equals(pattern, ignoreCase = true)
+                normalizedDescription == normalizedPattern
             PatternType.REGEX ->
                 try {
                     normalizedDescription.matches(Regex(pattern, RegexOption.IGNORE_CASE))
@@ -40,10 +41,11 @@ internal object TransactionRulePatternMatcher {
                     false
                 }
         }
+    }
 
     /**
      * Checks if [text] contains [word] as a whole word — not as part of another word.
-     * Both [text] and [word] must be pre-lowercased.
+     * Both [text] and [word] must already be normalized and lowercased.
      */
     private fun containsWholeWord(
         text: String,
