@@ -1,3 +1,13 @@
+## 0.7.0 (2026-06-10)
+
+### 🚀 Features
+
+- **banking:** add temporary diagnostic logging for transaction rule matching ([0c992489](https://github.com/invistus/invistus/commit/0c992489))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.6.1 (2026-06-09)
 
 ### 💅 Refactors
