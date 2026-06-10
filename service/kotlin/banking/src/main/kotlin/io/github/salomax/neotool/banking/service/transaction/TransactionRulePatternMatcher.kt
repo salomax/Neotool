@@ -2,12 +2,15 @@ package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.PatternType
 import io.github.salomax.neotool.banking.model.domain.transaction.TransactionDescriptionNormalizer
+import mu.KotlinLogging
 
 /**
  * Shared pattern-matching rules for transaction rules.
  * Used by [DefaultTransactionRuleEngine] (import/create) and [TransactionRuleService] (preview/historical).
  */
 internal object TransactionRulePatternMatcher {
+    // [RULE-DEBUG] temporary diagnostic logger — remove after investigation
+    private val logger = KotlinLogging.logger {}
     fun matchesDescription(
         description: String?,
         pattern: String,
@@ -27,7 +30,9 @@ internal object TransactionRulePatternMatcher {
         patternType: PatternType,
     ): Boolean {
         val normalizedPattern = TransactionDescriptionNormalizer.normalize(pattern)
-        return when (patternType) {
+        // [RULE-DEBUG] temporary diagnostic log — remove after investigation
+        logger.info { "[RULE-DEBUG] matches: normalizedDesc='$normalizedDescription' normalizedPattern='$normalizedPattern' type=$patternType" }
+        val result = when (patternType) {
             PatternType.CONTAINS ->
                 containsWholeWord(normalizedDescription, normalizedPattern)
             PatternType.STARTS_WITH ->
@@ -41,6 +46,8 @@ internal object TransactionRulePatternMatcher {
                     false
                 }
         }
+        logger.info { "[RULE-DEBUG] matches result=$result" }
+        return result
     }
 
     /**
