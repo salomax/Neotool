@@ -1,3 +1,7 @@
+## 0.7.1 (2026-06-10)
+
+This was a version bump only for banking to align it with other projects, there were no code changes.
+
 ## 0.7.0 (2026-06-10)
 
 ### 🚀 Features
