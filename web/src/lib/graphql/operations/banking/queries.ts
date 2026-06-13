@@ -51,6 +51,8 @@ export const FINANCIAL_ACCOUNTS = gql`
         year
         month
       }
+      initialBalance
+      initialBalanceDate
       createdAt
       updatedAt
     }

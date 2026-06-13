@@ -12,6 +12,7 @@ import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.model.dto.account.BankDataPatch
 import io.github.salomax.neotool.banking.model.dto.account.CardDataPatch
 import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
+import io.github.salomax.neotool.banking.model.dto.account.UpdateField
 import io.github.salomax.neotool.banking.model.dto.account.UpdateFinancialAccountCommand
 import io.github.salomax.neotool.banking.model.dto.account.resolve
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
@@ -20,6 +21,7 @@ import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionEntityRepository
+import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import io.github.salomax.neotool.common.error.CommonErrorCode
@@ -45,6 +47,7 @@ open class FinancialAccountService(
     private val transactionEntityRepository: TransactionEntityRepository,
     private val creditCardBillEntityRepository: CreditCardBillEntityRepository,
     private val monthlyBalanceSnapshotEntityRepository: MonthlyBalanceSnapshotEntityRepository,
+    private val snapshotComputationService: SnapshotComputationService,
 ) {
     companion object {
         private const val MAX_FINANCIAL_ACCOUNT_NAME_LENGTH = 255
@@ -341,7 +344,15 @@ open class FinancialAccountService(
                 updatedAt = now,
             )
 
-        return financialAccountRepository.update(updated)
+        val saved = financialAccountRepository.update(updated)
+        handleInitialBalanceUpdate(
+            financialAccountId = financialAccountId,
+            command = command,
+            accountId = accountId,
+            userId = userId,
+            currencyCode = saved.currencyCode,
+        )
+        return saved
     }
 
     @Transactional
@@ -476,4 +487,124 @@ open class FinancialAccountService(
 
     private fun supportsMultiCard(type: FinancialAccountType): Boolean =
         type == FinancialAccountType.CREDIT || type == FinancialAccountType.PAYMENT
+
+    private fun handleInitialBalanceUpdate(
+        financialAccountId: UUID,
+        command: UpdateFinancialAccountCommand,
+        accountId: UUID,
+        userId: UUID,
+        currencyCode: String,
+    ) {
+        if (command.type != FinancialAccountType.BANK) return
+
+        when (val initialBalanceField = command.initialBalance) {
+            UpdateField.Absent -> return
+            is UpdateField.Present -> {
+                val existingTx =
+                    transactionEntityRepository
+                        .findInitialBalanceTransaction(financialAccountId.toString())
+                        .orElse(null)
+                val newBalance = initialBalanceField.value
+
+                if (newBalance == null) {
+                    if (existingTx != null) {
+                        val deletedAt = Instant.now()
+                        existingTx.deletedAt = deletedAt
+                        existingTx.updatedAt = deletedAt
+                        transactionEntityRepository.update(existingTx)
+                        snapshotComputationService.recomputeChain(
+                            financialAccountId = financialAccountId,
+                            accountId = accountId,
+                            fromYear = existingTx.date.year,
+                            fromMonth = existingTx.date.monthValue,
+                        )
+                    }
+                    return
+                }
+
+                require(newBalance.compareTo(BigDecimal.ZERO) != 0) {
+                    "initialBalance must be non-zero when provided"
+                }
+                val newDate = resolveInitialBalanceDate(command, existingTx?.date)
+                validateInitialBalanceDate(newDate)
+                val newCreditDebitType =
+                    if (newBalance > BigDecimal.ZERO) {
+                        CreditDebitType.CREDIT
+                    } else {
+                        CreditDebitType.DEBIT
+                    }
+                val newAmount = newBalance.abs()
+
+                if (existingTx != null) {
+                    val oldDate = existingTx.date
+                    existingTx.amount = newAmount
+                    existingTx.creditDebitType = newCreditDebitType
+                    existingTx.date = newDate
+                    existingTx.updatedAt = Instant.now()
+                    transactionEntityRepository.update(existingTx)
+                    val recomputeFrom = minOf(oldDate, newDate)
+                    snapshotComputationService.recomputeChain(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        fromYear = recomputeFrom.year,
+                        fromMonth = recomputeFrom.monthValue,
+                    )
+                    return
+                }
+
+                transactionService.create(
+                    CreateTransactionCommand(
+                        financialAccountId = financialAccountId,
+                        creditDebitType = newCreditDebitType,
+                        type = TransactionType.BALANCE_ADJUSTMENT,
+                        amount = newAmount,
+                        date = newDate,
+                        description = "Saldo inicial",
+                        status = TransactionStatus.POSTED,
+                        currencyCode = currencyCode,
+                    ),
+                    accountId,
+                    userId,
+                )
+            }
+        }
+    }
+
+    private fun resolveInitialBalanceDate(
+        command: UpdateFinancialAccountCommand,
+        existingDate: java.time.LocalDate?,
+    ): java.time.LocalDate =
+        when (val initialBalanceDateField = command.initialBalanceDate) {
+            is UpdateField.Present ->
+                requireNotNull(initialBalanceDateField.value) {
+                    "initialBalanceDate is required when initialBalance is provided"
+                }
+            UpdateField.Absent ->
+                requireNotNull(existingDate) {
+                    "initialBalanceDate is required when initialBalance is provided"
+                }
+        }
+
+    private fun validateInitialBalanceDate(date: java.time.LocalDate) {
+        val minAllowedDate = DateWindowPolicy.minAllowedDate()
+        if (date.isBefore(minAllowedDate)) {
+            throw ValidationException(
+                errorCode = BankingErrorCode.TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW,
+                field = "initialBalanceDate",
+                parameters =
+                    mapOf(
+                        "minAllowedDate" to minAllowedDate.toString(),
+                        "windowYears" to DateWindowPolicy.MAX_PAST_YEARS,
+                    ),
+            )
+        }
+        val today = java.time.LocalDate.now()
+        if (date.isAfter(today)) {
+            throw ValidationException(
+                errorCode = BankingErrorCode.TRANSACTION_DATE_IN_FUTURE,
+                field = "initialBalanceDate",
+                parameters = mapOf("maxDate" to today.toString()),
+            )
+        }
+    }
 }

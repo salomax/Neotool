@@ -8,6 +8,7 @@ import io.micronaut.data.jpa.repository.JpaRepository
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
+import java.util.Optional
 import java.util.UUID
 
 /**
@@ -215,6 +216,32 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
         nativeQuery = true,
     )
     fun findEarliestBalanceAdjustmentDate(financialAccountId: String): LocalDate?
+
+    @Query(
+        """
+        SELECT * FROM banking.transactions
+         WHERE financial_account_id = CAST(:financialAccountId AS uuid)
+           AND type = 'BALANCE_ADJUSTMENT'
+           AND deleted_at IS NULL
+         ORDER BY created_at ASC
+         LIMIT 1
+        """,
+        nativeQuery = true,
+    )
+    fun findInitialBalanceTransaction(financialAccountId: String): Optional<TransactionEntity>
+
+    @Query(
+        """
+        SELECT DISTINCT ON (financial_account_id) *
+          FROM banking.transactions
+         WHERE financial_account_id = ANY(CAST(:financialAccountIds AS uuid[]))
+           AND type = 'BALANCE_ADJUSTMENT'
+           AND deleted_at IS NULL
+         ORDER BY financial_account_id, created_at ASC
+        """,
+        nativeQuery = true,
+    )
+    fun findInitialBalanceTransactions(financialAccountIds: List<UUID>): List<TransactionEntity>
 
     @Query(
         """

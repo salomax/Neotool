@@ -15,7 +15,9 @@ import {
   createFinancialAccount,
   getFinancialAccounts,
   getMonthSummary,
+  getTransactions,
   type FinancialAccount,
+  TransactionType,
 } from '../helpers/banking-graphql';
 import { signIntoPage } from '../helpers/navigation';
 
@@ -42,6 +44,21 @@ function dateOffsetBr(daysFromToday: number): string {
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
   return `${day}/${month}/${date.getFullYear()}`;
+}
+
+function isoToBr(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function currentMonthIsoAtDay(day: number): string {
+  const now = new Date();
+  const safeDay = Math.max(1, Math.min(day, now.getDate()));
+  const monthDate = new Date(now.getFullYear(), now.getMonth(), safeDay);
+  const yyyy = monthDate.getFullYear();
+  const mm = String(monthDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(monthDate.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
@@ -177,12 +194,73 @@ test.describe('Financial Accounts — happy path', () => {
     await pfPage.expectAccountNotInSelector(bankAccount.name);
   });
 
-  test('FA-H-07: edits initial balance — change is reflected in the account', async ({
-    page: _page,
-    pfUser: _pfUser,
-    bankAccount: _bankAccount,
+  test('FA-H-07: edits initial balance amount/date — BALANCE_ADJUSTMENT is updated', async ({
+    page,
+    pfUser,
+    bankAccount,
   }) => {
-    test.skip(true, 'Initial balance is not editable via the account form (field hidden in edit mode). Pending feature design.');
+    const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio H07');
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+
+    const drawer = await pfPage.openEditAccountDrawer(bankAccount.name, bankAccount.id);
+    const newBalance = 1350;
+    const newInitialBalanceDateIso = currentMonthIsoAtDay(2);
+    await drawer.fillInitialBalance(newBalance);
+    await drawer.fillInitialBalanceDate(isoToBr(newInitialBalanceDateIso));
+    await drawer.submit();
+    await drawer.waitForClose();
+
+    const txs = await getTransactions(bankAccount.id, pfUser.token, {
+      year: Number(newInitialBalanceDateIso.slice(0, 4)),
+      month: Number(newInitialBalanceDateIso.slice(5, 7)),
+      first: 80,
+    });
+    const initialBalanceTx = txs.find((tx) => tx.type === TransactionType.BalanceAdjustment);
+    expect(initialBalanceTx).toBeDefined();
+    expect(initialBalanceTx!.amount).toBe(newBalance);
+    expect(initialBalanceTx!.date.slice(0, 10)).toBe(newInitialBalanceDateIso);
+
+    const now = new Date();
+    const summary = await getMonthSummary(
+      bankAccount.id,
+      now.getFullYear(),
+      now.getMonth() + 1,
+      pfUser.token,
+    );
+    expect(summary.closingBalance).toBe(newBalance);
+  });
+
+  test('FA-H-07b: clears initial balance in edit mode — BALANCE_ADJUSTMENT is removed', async ({
+    page,
+    pfUser,
+    bankAccount,
+  }) => {
+    const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio H07b');
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+
+    const drawer = await pfPage.openEditAccountDrawer(bankAccount.name, bankAccount.id);
+    await drawer.clearInitialBalance();
+    await drawer.submit();
+    await drawer.waitForClose();
+
+    const now = new Date();
+    const txs = await getTransactions(bankAccount.id, pfUser.token, {
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+      first: 80,
+    });
+    expect(txs.find((tx) => tx.type === TransactionType.BalanceAdjustment)).toBeUndefined();
+
+    const summary = await getMonthSummary(
+      bankAccount.id,
+      now.getFullYear(),
+      now.getMonth() + 1,
+      pfUser.token,
+    );
+    expect(summary.openingBalance).toBe(0);
+    expect(summary.closingBalance).toBe(0);
   });
 
   test('FA-H-08: soft-deletes an account — it disappears from the selector', async ({

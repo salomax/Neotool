@@ -88,4 +88,6 @@ data class UpdateFinancialAccountCommand(
     val includeCashInAllocation: UpdateField<Boolean> = UpdateField.Absent,
     val bankData: BankDataPatch? = null,
     val cardData: CardDataPatch? = null,
+    val initialBalance: UpdateField<BigDecimal> = UpdateField.Absent,
+    val initialBalanceDate: UpdateField<LocalDate> = UpdateField.Absent,
 )

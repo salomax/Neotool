@@ -17,6 +17,7 @@ import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillEntityRe
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionEntityRepository
 import io.github.salomax.neotool.banking.service.account.FinancialAccountService
+import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.NotFoundException
@@ -32,11 +33,13 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
+import java.util.Optional
 import java.util.UUID
 
 @DisplayName("FinancialAccountService")
@@ -47,6 +50,7 @@ class FinancialAccountServiceTest {
     private lateinit var transactionEntityRepository: TransactionEntityRepository
     private lateinit var creditCardBillEntityRepository: CreditCardBillEntityRepository
     private lateinit var monthlyBalanceSnapshotEntityRepository: MonthlyBalanceSnapshotEntityRepository
+    private lateinit var snapshotComputationService: SnapshotComputationService
     private lateinit var service: FinancialAccountService
 
     private val accountId = UUID.randomUUID()
@@ -62,6 +66,7 @@ class FinancialAccountServiceTest {
         transactionEntityRepository = mock()
         creditCardBillEntityRepository = mock()
         monthlyBalanceSnapshotEntityRepository = mock()
+        snapshotComputationService = mock()
         service =
             FinancialAccountService(
                 financialAccountRepository = financialAccountRepository,
@@ -70,6 +75,7 @@ class FinancialAccountServiceTest {
                 transactionEntityRepository = transactionEntityRepository,
                 creditCardBillEntityRepository = creditCardBillEntityRepository,
                 monthlyBalanceSnapshotEntityRepository = monthlyBalanceSnapshotEntityRepository,
+                snapshotComputationService = snapshotComputationService,
             )
     }
 
@@ -378,6 +384,24 @@ class FinancialAccountServiceTest {
                 createdAt = Instant.now(),
                 updatedAt = Instant.now(),
             )
+
+        private fun initialBalanceTransaction(
+            amount: BigDecimal = BigDecimal("500.00"),
+            creditDebitType: CreditDebitType = CreditDebitType.CREDIT,
+            date: LocalDate = today,
+        ) = io.github.salomax.neotool.banking.model.transaction.TransactionEntity(
+            id = UUID.randomUUID(),
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            createdByUserId = userId,
+            creditDebitType = creditDebitType,
+            type = TransactionType.BALANCE_ADJUSTMENT,
+            amount = amount,
+            date = date,
+            description = "Saldo inicial",
+            createdAt = Instant.now().minusSeconds(60),
+            updatedAt = Instant.now().minusSeconds(60),
+        )
 
         private fun existingCardAccount() =
             FinancialAccount(
@@ -723,6 +747,107 @@ class FinancialAccountServiceTest {
             assertThat(result.cardData!!.isMultiCard).isFalse()
             assertThat(result.cardData!!.maskedNumber).isEqualTo("3344")
             assertThat(result.cardLastFourDigits).isEqualTo("3344")
+        }
+
+        @Test
+        fun `creates initial balance transaction when update sets balance on account without one`() {
+            val existing = existingBankAccount()
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existing)
+            whenever(financialAccountRepository.update(any())).thenAnswer { it.arguments[0] as FinancialAccount }
+            whenever(transactionEntityRepository.findInitialBalanceTransaction(financialAccountId.toString()))
+                .thenReturn(Optional.empty())
+
+            service.update(
+                financialAccountId = financialAccountId,
+                command =
+                    UpdateFinancialAccountCommand(
+                        type = FinancialAccountType.BANK,
+                        subtype = FinancialAccountSubtype.CONTA_CORRENTE,
+                        issuerId = issuerId,
+                        initialBalance = UpdateField.Present(BigDecimal("250.00")),
+                        initialBalanceDate = UpdateField.Present(today.minusDays(2)),
+                    ),
+                accountId = accountId,
+                userId = userId,
+            )
+
+            val transactionCommandCaptor = argumentCaptor<CreateTransactionCommand>()
+            verify(transactionService).create(transactionCommandCaptor.capture(), eq(accountId), eq(userId))
+            assertThat(transactionCommandCaptor.firstValue.type).isEqualTo(TransactionType.BALANCE_ADJUSTMENT)
+            assertThat(transactionCommandCaptor.firstValue.amount).isEqualByComparingTo("250.00")
+            assertThat(transactionCommandCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
+            assertThat(transactionCommandCaptor.firstValue.date).isEqualTo(today.minusDays(2))
+            verify(snapshotComputationService, never()).recomputeChain(any(), any(), any(), any())
+        }
+
+        @Test
+        fun `updates existing initial balance transaction and recomputes from earliest affected month`() {
+            val existing = existingBankAccount()
+            val existingTx = initialBalanceTransaction(date = today.minusMonths(2))
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existing)
+            whenever(financialAccountRepository.update(any())).thenAnswer { it.arguments[0] as FinancialAccount }
+            whenever(transactionEntityRepository.findInitialBalanceTransaction(financialAccountId.toString()))
+                .thenReturn(Optional.of(existingTx))
+            whenever(transactionEntityRepository.update(any())).thenAnswer { it.arguments[0] }
+
+            service.update(
+                financialAccountId = financialAccountId,
+                command =
+                    UpdateFinancialAccountCommand(
+                        type = FinancialAccountType.BANK,
+                        subtype = FinancialAccountSubtype.CONTA_CORRENTE,
+                        issuerId = issuerId,
+                        initialBalance = UpdateField.Present(BigDecimal("-700.00")),
+                        initialBalanceDate = UpdateField.Present(today.minusMonths(3)),
+                    ),
+                accountId = accountId,
+                userId = userId,
+            )
+
+            assertThat(existingTx.amount).isEqualByComparingTo("700.00")
+            assertThat(existingTx.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
+            assertThat(existingTx.date).isEqualTo(today.minusMonths(3))
+            verify(transactionEntityRepository, times(1)).update(existingTx)
+            verify(snapshotComputationService).recomputeChain(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                fromYear = today.minusMonths(3).year,
+                fromMonth = today.minusMonths(3).monthValue,
+            )
+            verify(transactionService, never()).create(any(), any(), any())
+        }
+
+        @Test
+        fun `clears existing initial balance transaction and recomputes from removed month`() {
+            val existing = existingBankAccount()
+            val existingTx = initialBalanceTransaction(date = today.minusMonths(1))
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existing)
+            whenever(financialAccountRepository.update(any())).thenAnswer { it.arguments[0] as FinancialAccount }
+            whenever(transactionEntityRepository.findInitialBalanceTransaction(financialAccountId.toString()))
+                .thenReturn(Optional.of(existingTx))
+            whenever(transactionEntityRepository.update(any())).thenAnswer { it.arguments[0] }
+
+            service.update(
+                financialAccountId = financialAccountId,
+                command =
+                    UpdateFinancialAccountCommand(
+                        type = FinancialAccountType.BANK,
+                        subtype = FinancialAccountSubtype.CONTA_CORRENTE,
+                        issuerId = issuerId,
+                        initialBalance = UpdateField.Present(null),
+                    ),
+                accountId = accountId,
+                userId = userId,
+            )
+
+            assertThat(existingTx.deletedAt).isNotNull()
+            verify(snapshotComputationService).recomputeChain(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                fromYear = today.minusMonths(1).year,
+                fromMonth = today.minusMonths(1).monthValue,
+            )
+            verify(transactionService, never()).create(any(), any(), any())
         }
     }
 

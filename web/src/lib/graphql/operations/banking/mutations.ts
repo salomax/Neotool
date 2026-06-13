@@ -44,6 +44,8 @@ export const CREATE_FINANCIAL_ACCOUNT = gql`
       connectionStatus
       consentExpiresAt
       lastSyncAt
+      initialBalance
+      initialBalanceDate
       createdAt
       updatedAt
     }
@@ -93,6 +95,8 @@ export const UPDATE_FINANCIAL_ACCOUNT = gql`
       connectionStatus
       consentExpiresAt
       lastSyncAt
+      initialBalance
+      initialBalanceDate
       createdAt
       updatedAt
     }

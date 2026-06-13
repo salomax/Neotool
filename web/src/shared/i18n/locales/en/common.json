@@ -228,6 +228,7 @@
     "IMPORT_FILE_FORMAT_NOT_SUPPORTED": "Import file format is not supported.",
     "PDF_PASSWORD_REQUIRED": "This PDF is password-protected and requires a valid password.",
     "IMPORT_OFX_DESTINATION_MISMATCH": "This OFX belongs to a credit card bill and cannot be imported as a bank statement. Use the card bill import flow.",
+    "TRANSACTION_DATE_IN_FUTURE": "The transaction date cannot be in the future.",
     "TRANSACTION_BEFORE_INITIAL_BALANCE": "The transaction date must be on or after the account initial balance date.",
     "ATTACHMENT_LIMIT_REACHED": "Maximum number of attachments reached for this record.",
     "ATTACHMENT_NOT_FOUND": "Attachment not found.",

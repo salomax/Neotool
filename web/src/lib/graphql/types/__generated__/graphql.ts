@@ -1299,6 +1299,10 @@ export type FinancialAccount = {
   includeCashInAllocation: Scalars['Boolean']['output'];
   includeInDashboard: Scalars['Boolean']['output'];
   includeInNetWorth: Scalars['Boolean']['output'];
+  /** Signed initial balance amount (positive = credit, negative = debit/overdraft). Null if no initial balance was set on this account. */
+  initialBalance: Maybe<Scalars['Float']['output']>;
+  /** Reference date of the initial balance. Null when initialBalance is null. */
+  initialBalanceDate: Maybe<Scalars['Date']['output']>;
   /** Linked issuer from the issuers seed list. Null when a custom institution is used. */
   issuer: Maybe<Issuer>;
   /** Custom institution name. Set when issuerId is null. Use issuer.name when issuer is present. */
@@ -4815,6 +4819,10 @@ export type UpdateFinancialAccountInput = {
   includeCashInAllocation?: InputMaybe<Scalars['Boolean']['input']>;
   includeInDashboard?: InputMaybe<Scalars['Boolean']['input']>;
   includeInNetWorth?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Signed initial balance. Positive = credit (opening balance), negative = debit (overdraft). Non-zero when provided. Pass null to remove the existing initial balance. Only applicable to BANK accounts. */
+  initialBalance?: InputMaybe<Scalars['Float']['input']>;
+  /** Reference date for the initial balance. Required when initialBalance is provided. */
+  initialBalanceDate?: InputMaybe<Scalars['Date']['input']>;
   issuerId?: InputMaybe<Scalars['ID']['input']>;
   issuerName?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;

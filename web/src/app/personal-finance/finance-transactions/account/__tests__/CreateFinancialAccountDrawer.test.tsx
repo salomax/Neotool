@@ -481,6 +481,103 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
     await waitFor(() => expect(submitButton).toBeEnabled());
   });
 
+  it('hydrates initial balance fields in bank edit mode and submits updated values', async () => {
+    const user = userEvent.setup();
+    render(
+      <ThemeProvider theme={theme}>
+        <CreateFinancialAccountDrawer
+          open
+          onClose={vi.fn()}
+          accountToEdit={{
+            id: 'acc-balance-1',
+            type: 'BANK',
+            subtype: 'CONTA_CORRENTE',
+            name: 'Conta com saldo',
+            issuerName: 'Banco Manual',
+            currencyCode: 'BRL',
+            includeInNetWorth: true,
+            includeInDashboard: true,
+            initialBalance: 150,
+            initialBalanceDate: '2026-01-15',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          } as any}
+        />
+      </ThemeProvider>,
+    );
+
+    const initialBalanceInput = await screen.findByLabelText('financeTransactions.createAccount.step2.fields.initialBalance');
+    expect(initialBalanceInput).toBeInTheDocument();
+    const initialBalanceDateInput = await screen.findByLabelText(
+      /financeTransactions\.createAccount\.step2\.fields\.initialBalanceDate/i,
+    );
+    expect(initialBalanceDateInput).toHaveValue('2026-01-15');
+
+    await user.clear(initialBalanceInput);
+    await user.type(initialBalanceInput, '275');
+    await user.clear(initialBalanceDateInput);
+    await user.type(initialBalanceDateInput, '2026-01-20');
+
+    await user.click(screen.getByRole('button', { name: 'financeTransactions.actions.save' }));
+
+    await waitFor(() => {
+      expect(mockUpdateAccount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: expect.objectContaining({
+            id: 'acc-balance-1',
+            input: expect.objectContaining({
+              initialBalance: 275,
+              initialBalanceDate: '2026-01-20',
+            }),
+          }),
+        }),
+      );
+    });
+  });
+
+  it('sends null initialBalance when clearing an existing bank initial balance in edit mode', async () => {
+    const user = userEvent.setup();
+    render(
+      <ThemeProvider theme={theme}>
+        <CreateFinancialAccountDrawer
+          open
+          onClose={vi.fn()}
+          accountToEdit={{
+            id: 'acc-balance-2',
+            type: 'BANK',
+            subtype: 'CONTA_CORRENTE',
+            name: 'Conta com saldo',
+            issuerName: 'Banco Manual',
+            currencyCode: 'BRL',
+            includeInNetWorth: true,
+            includeInDashboard: true,
+            initialBalance: 150,
+            initialBalanceDate: '2026-01-15',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          } as any}
+        />
+      </ThemeProvider>,
+    );
+
+    const initialBalanceInput = await screen.findByLabelText('financeTransactions.createAccount.step2.fields.initialBalance');
+    await user.clear(initialBalanceInput);
+    await user.click(screen.getByRole('button', { name: 'financeTransactions.actions.save' }));
+
+    await waitFor(() => {
+      expect(mockUpdateAccount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: expect.objectContaining({
+            id: 'acc-balance-2',
+            input: expect.objectContaining({
+              initialBalance: null,
+            }),
+          }),
+        }),
+      );
+    });
+  });
+
   it('hydrates multi-card toggle in edit mode and keeps last-four hidden', async () => {
     render(
       <ThemeProvider theme={theme}>

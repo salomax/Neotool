@@ -232,6 +232,13 @@ export class CreateAccountDrawer {
     const input = this.drawerPanel().getByTestId('initial-balance-input');
     await input.clear();
     await input.fill(String(amount));
+    await input.press('Tab');
+  }
+
+  async clearInitialBalance(): Promise<void> {
+    const input = this.drawerPanel().getByTestId('initial-balance-input');
+    await input.clear();
+    await input.press('Tab');
   }
 
   async fillBankData(params: { branchCode?: string; accountNumber?: string }): Promise<void> {
@@ -256,14 +263,13 @@ export class CreateAccountDrawer {
    * Clicks the wrapper to focus the first segment, then types digits to advance through day/month/year.
    */
   async fillInitialBalanceDate(dateStr: string): Promise<void> {
-    const [dd, mm, yyyy] = dateStr.split('/');
-    if (!dd || !mm || !yyyy) {
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
       throw new Error(`Invalid date format for fillInitialBalanceDate: ${dateStr}`);
     }
-    // .first() avoids strict-mode violation: data-testid is on both wrapper div and hidden native input
-    const container = this.drawerPanel().getByTestId('initial-balance-date-input').first();
-    await container.click();
-    await this.page.keyboard.type(dd + mm + yyyy);
+    const input = this.drawerPanel().getByTestId('initial-balance-date-input').first();
+    await input.click();
+    await input.fill(dateStr);
+    await input.press('Tab');
   }
 
   static formatDateBr(date: Date): string {

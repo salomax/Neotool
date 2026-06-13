@@ -33,7 +33,7 @@ import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { FinancialAccount, Issuer } from '@/lib/graphql/types/__generated__/graphql';
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../constants/dateWindow';
-import { formatDateOnly, toStartOfDayLocal } from '@/shared/utils/date/dateOnly';
+import { formatDateOnly, parseDateOnly, toStartOfDayLocal } from '@/shared/utils/date/dateOnly';
 import { extractErrorCode, extractErrorMessage } from '@/shared/utils/error';
 import { FormStack } from '@/shared/components/ui/forms/components';
 import { ConfirmDialog } from '@/shared/components/ui/feedback/dialogs';
@@ -431,8 +431,8 @@ export function CreateFinancialAccountDrawer({
           creditLimit: accountToEdit.cardData?.creditLimit ?? undefined,
           closingDay: accountToEdit.cardData?.closingDay ?? undefined,
           dueDay: accountToEdit.cardData?.dueDay ?? undefined,
-          initialBalance: undefined,
-          initialBalanceDate: null,
+          initialBalance: accountToEdit.initialBalance ?? undefined,
+          initialBalanceDate: parseDateOnly(accountToEdit.initialBalanceDate),
         },
         { keepDefaultValues: false },
       );
@@ -564,9 +564,12 @@ export function CreateFinancialAccountDrawer({
       ...(data.issuerId === 'custom' ? { issuerName } : { issuerId: data.issuerId }),
     };
 
+    const hadExistingInitialBalance = accountToEdit?.initialBalance != null;
     if (data.initialBalance !== undefined) {
       input.initialBalance = data.initialBalance;
       input.initialBalanceDate = data.initialBalanceDate ? formatDateOnly(data.initialBalanceDate) : undefined;
+    } else if (accountToEdit?.id && hadExistingInitialBalance) {
+      input.initialBalance = null;
     }
 
     if (data.type === 'BANK') {
@@ -720,7 +723,7 @@ export function CreateFinancialAccountDrawer({
             <TextField name="name" label={t('financeTransactions.createAccount.step2.fields.accountName')} inputProps={{ 'data-testid': 'account-name-input' }} size="medium" />
 
             {/* Initial Balance — only for bank accounts */}
-            {effectiveSelectedType !== 'CARD' && !isEditing && (
+            {effectiveSelectedType !== 'CARD' && (
               <Stack direction="row" spacing={2}>
                 <MoneyInput
                   name="initialBalance"

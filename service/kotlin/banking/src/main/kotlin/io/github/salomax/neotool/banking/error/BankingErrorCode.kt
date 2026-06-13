@@ -136,6 +136,11 @@ enum class BankingErrorCode(
         "Transaction date must be within the last 10 years",
         422,
     ),
+    TRANSACTION_DATE_IN_FUTURE(
+        "TRANSACTION_DATE_IN_FUTURE",
+        "Transaction date cannot be in the future",
+        422,
+    ),
     TRANSACTION_BEFORE_INITIAL_BALANCE(
         "TRANSACTION_BEFORE_INITIAL_BALANCE",
         "Transaction date is before the account's initial balance date",
