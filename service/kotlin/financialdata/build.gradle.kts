@@ -8,7 +8,9 @@ plugins {
 }
 
 micronaut {
-    version("4.10.2")
+    version("4.10.6")
+    runtime("netty")
+    testRuntime("junit5")
     processing {
         incremental(true)
         annotations("io.github.salomax.neotool.financialdata.*")

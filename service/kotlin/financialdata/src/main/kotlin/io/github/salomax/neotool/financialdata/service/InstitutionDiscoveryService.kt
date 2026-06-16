@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.financialdata.service
 
-import io.micronaut.cache.annotation.Cacheable
 import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.financialdata.domain.BacenInstitutionSummary
 import io.github.salomax.neotool.financialdata.domain.DataRestriction
@@ -10,6 +9,7 @@ import io.github.salomax.neotool.financialdata.domain.PopularInstitutionTopMetri
 import io.github.salomax.neotool.financialdata.domain.TopInstitutionMetric
 import io.github.salomax.neotool.financialdata.repo.PopularInstitutionCustomRepository
 import io.github.salomax.neotool.financialdata.repo.TopInstitutionRankingRepository
+import io.micronaut.cache.annotation.Cacheable
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 
@@ -56,7 +56,10 @@ open class InstitutionDiscoveryService(
 
         val t2 = System.currentTimeMillis()
         val rows = popularInstitutionCustomRepository.findPopularWithResolvedInstitutions(targetAnoMes)
-        logger.info { "[perf] findPopularWithResolvedInstitutions: ${System.currentTimeMillis() - t2}ms → ${rows.size} rows" }
+        logger.info {
+            "[perf] findPopularWithResolvedInstitutions: " +
+                "${System.currentTimeMillis() - t2}ms → ${rows.size} rows"
+        }
 
         if (rows.isEmpty()) return emptyList()
         val (year, month) = parseYearMonth(targetAnoMes)
@@ -123,8 +126,11 @@ open class InstitutionDiscoveryService(
                 institution = summary,
                 popularInstitutionTopMetrics = popularInstitutionTopMetrics,
             )
-        }.also {
-            logger.info { "[perf] getPopularInstitutions total: ${System.currentTimeMillis() - t0}ms → ${it.size} institutions" }
+        }.also { institutions ->
+            logger.info {
+                "[perf] getPopularInstitutions total: " +
+                    "${System.currentTimeMillis() - t0}ms → ${institutions.size} institutions"
+            }
         }
     }
 

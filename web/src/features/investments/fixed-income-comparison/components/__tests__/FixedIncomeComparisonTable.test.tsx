@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import { FixedIncomeProductGroup, FixedIncomeRateModel } from "@/lib/graphql/types/__generated__/graphql";
+import { FixedIncomeProduct, FixedIncomeProductGroup, FixedIncomeRateModel } from "@/lib/graphql/types/__generated__/graphql";
 import { FixedIncomeComparisonTable } from "../FixedIncomeComparisonTable";
 
 vi.mock("@/shared/i18n", () => ({
@@ -18,7 +18,7 @@ describe("FixedIncomeComparisonTable", () => {
       <FixedIncomeComparisonTable
         result={{
           summary: {
-            baseProduct: "CDB",
+            baseProduct: FixedIncomeProduct.Cdb,
             baseProductGroup: FixedIncomeProductGroup.TaxableIr,
             baseRateModel: FixedIncomeRateModel.Cdi,
             baseEquivalentRateBps: 10000,

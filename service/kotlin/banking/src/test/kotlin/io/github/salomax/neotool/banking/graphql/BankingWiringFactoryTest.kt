@@ -11,7 +11,6 @@ import io.github.salomax.neotool.banking.graphql.investmentimport.InvestmentImpo
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantConnectionDTO
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantPageInfoDTO
-import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
 import io.github.salomax.neotool.banking.graphql.pendingaction.PendingActionResolver
 import io.github.salomax.neotool.banking.graphql.preferences.AccountPreferencesResolver
 import io.github.salomax.neotool.banking.graphql.preferences.BankingUserPreferencesResolver

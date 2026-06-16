@@ -1,10 +1,10 @@
 import React from "react";
 import { render } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import { FixedIncomeProductGroup } from "@/lib/graphql/types/__generated__/graphql";
+import { FixedIncomeProduct, FixedIncomeProductGroup, FixedIncomeRateModel } from "@/lib/graphql/types/__generated__/graphql";
 import { FixedIncomePerformanceChart } from "../FixedIncomePerformanceChart";
 
-const lineChartSpy = vi.fn(() => null);
+const lineChartSpy = vi.fn((_props: unknown) => null);
 
 vi.mock("@/shared/i18n", () => ({
   useTranslation: () => ({
@@ -30,9 +30,9 @@ describe("FixedIncomePerformanceChart", () => {
           __typename: "FixedIncomeComparisonResult",
           summary: {
             __typename: "FixedIncomeSummary",
-            baseProduct: "CDB",
+            baseProduct: FixedIncomeProduct.Cdb,
             baseProductGroup: FixedIncomeProductGroup.TaxableIr,
-            baseRateModel: "CDI",
+            baseRateModel: FixedIncomeRateModel.Cdi,
             baseEquivalentRateBps: 10000,
             baseRateDisplay: "100% CDI",
             principal: 10000,
@@ -85,7 +85,7 @@ describe("FixedIncomePerformanceChart", () => {
 
     const props = lineChartSpy.mock.calls[0]?.[0] as {
       series: Array<{ id: string }>;
-    };
-    expect(props.series.map((item) => item.id)).toEqual(["taxable", "committed", "exempt"]);
+    } | undefined;
+    expect(props?.series.map((item) => item.id)).toEqual(["taxable", "committed", "exempt"]);
   });
 });

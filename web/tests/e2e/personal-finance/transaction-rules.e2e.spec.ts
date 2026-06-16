@@ -60,7 +60,7 @@ function uniqueTestMarker(prefix: string): string {
 function normalizeDescription(value: string): string {
   return value
     .normalize('NFD')
-    .replace(/[^\u0000-\u007F]/g, '')
+    .replace(/[^\p{ASCII}]/gu, '')
     .replace(/[^a-zA-Z0-9\s*]/g, ' ')
     .toLowerCase()
     .trim()

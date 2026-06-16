@@ -114,13 +114,9 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
     if (sorted.length === 0 || dismissLoading || bulkDismissLoading) return;
     const ids = sorted.map((row) => row.id);
     setBulkDismissLoading(true);
-    try {
-      await Promise.all(ids.map((id) => dismissAction({ variables: { id } })));
-    } catch {
-    } finally {
-      setBulkDismissLoading(false);
-      await refresh();
-    }
+    await Promise.allSettled(ids.map((id) => dismissAction({ variables: { id } })));
+    setBulkDismissLoading(false);
+    await refresh();
   };
 
   const openMaturityDrawer = (row: PendingActionRowData) => {
