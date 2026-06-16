@@ -1,15 +1,18 @@
 import { Stack, Typography, useTheme } from '@mui/material';
 import { AccountBalance as BankIcon } from '@mui/icons-material';
 import { memo } from 'react';
+import type { FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import { FinancialAccountSubtype, FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';
-import type { FinancialAccount, Transaction } from '@/lib/graphql/types/__generated__/graphql';
+import type { Transaction } from '@/lib/graphql/types/__generated__/graphql';
 import { CardNetworkIcon } from '@/shared/components/ui/icons/CardNetworkIcon';
 import { Logo } from '@/shared/components/ui/primitives';
 import { FINANCE_TABLE_BODY_FONT_SIZE } from '@/shared/components/ui/data-display/Table';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 
-function isCardAccount(account: FinancialAccount): boolean {
+type FinancialAccountListItem = NonNullable<FinancialAccountsQuery['financialAccounts']>[number];
+
+function isCardAccount(account: FinancialAccountListItem): boolean {
   if (account.type === FinancialAccountType.Bank) return false;
   if (account.cardData) return true;
   return (
@@ -25,7 +28,7 @@ interface CardDisplayState {
   showMultipleCardsLabel: boolean;
 }
 
-function getCardDisplayState(account: FinancialAccount, transaction: Transaction): CardDisplayState {
+function getCardDisplayState(account: FinancialAccountListItem, transaction: Transaction): CardDisplayState {
   const txRaw = transaction.cardIdentifier || '';
   const txDigits = txRaw.replace(/\D/g, '').slice(-4);
   if (txDigits.length === 4) {
@@ -46,7 +49,7 @@ function getCardDisplayState(account: FinancialAccount, transaction: Transaction
 }
 
 interface TransactionAccountCellProps {
-  account: FinancialAccount;
+  account: FinancialAccountListItem;
   transaction: Transaction;
 }
 

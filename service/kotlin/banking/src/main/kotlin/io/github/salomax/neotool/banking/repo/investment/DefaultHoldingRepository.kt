@@ -1,8 +1,7 @@
 package io.github.salomax.neotool.banking.repo.investment
 
-import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.AssetType
-import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
+import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.model.investment.HoldingMapper
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton

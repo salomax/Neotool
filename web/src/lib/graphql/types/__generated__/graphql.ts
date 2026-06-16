@@ -750,6 +750,17 @@ export type ConfirmHoldingMaturityResult = {
   pendingAction: AccountPendingAction;
 };
 
+export type ConfirmInvestmentImportInput = {
+  institutionMappings: Array<InvestmentImportInstitutionMappingInput>;
+  jobId: Scalars['ID']['input'];
+  rowPatches: Array<InvestmentImportRowPatchInput>;
+};
+
+export enum ConflictResolution {
+  KeepExisting = 'KEEP_EXISTING',
+  Update = 'UPDATE'
+}
+
 export enum ConnectionStatus {
   Connected = 'CONNECTED',
   ConsentExpired = 'CONSENT_EXPIRED',
@@ -959,6 +970,22 @@ export type CreatePromptInput = {
   variablesSchema?: InputMaybe<Scalars['JSON']['input']>;
 };
 
+export type CreateRecurringPaymentFromTransactionInput = {
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  currencyCode?: InputMaybe<Scalars['String']['input']>;
+  dayOfMonth?: InputMaybe<Scalars['Int']['input']>;
+  expectedAmount?: InputMaybe<Scalars['Float']['input']>;
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  firstDueDate?: InputMaybe<Scalars['Date']['input']>;
+  frequency?: InputMaybe<RecurringFrequency>;
+  intervalDays?: InputMaybe<Scalars['Int']['input']>;
+  merchantId?: InputMaybe<Scalars['ID']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  remindDaysBefore?: InputMaybe<Scalars['Int']['input']>;
+  type?: InputMaybe<TransactionType>;
+};
+
 export type CreateRecurringPaymentInput = {
   categoryId?: InputMaybe<Scalars['ID']['input']>;
   creditDebitType: CreditDebitType;
@@ -971,22 +998,6 @@ export type CreateRecurringPaymentInput = {
   intervalDays?: InputMaybe<Scalars['Int']['input']>;
   merchantId?: InputMaybe<Scalars['ID']['input']>;
   name: Scalars['String']['input'];
-  notes?: InputMaybe<Scalars['String']['input']>;
-  remindDaysBefore?: InputMaybe<Scalars['Int']['input']>;
-  type?: InputMaybe<TransactionType>;
-};
-
-export type CreateRecurringPaymentFromTransactionInput = {
-  categoryId?: InputMaybe<Scalars['ID']['input']>;
-  currencyCode?: InputMaybe<Scalars['String']['input']>;
-  dayOfMonth?: InputMaybe<Scalars['Int']['input']>;
-  expectedAmount?: InputMaybe<Scalars['Float']['input']>;
-  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
-  firstDueDate?: InputMaybe<Scalars['Date']['input']>;
-  frequency?: InputMaybe<RecurringFrequency>;
-  intervalDays?: InputMaybe<Scalars['Int']['input']>;
-  merchantId?: InputMaybe<Scalars['ID']['input']>;
-  name?: InputMaybe<Scalars['String']['input']>;
   notes?: InputMaybe<Scalars['String']['input']>;
   remindDaysBefore?: InputMaybe<Scalars['Int']['input']>;
   type?: InputMaybe<TransactionType>;
@@ -1299,7 +1310,10 @@ export type FinancialAccount = {
   includeCashInAllocation: Scalars['Boolean']['output'];
   includeInDashboard: Scalars['Boolean']['output'];
   includeInNetWorth: Scalars['Boolean']['output'];
-  /** Signed initial balance amount (positive = credit, negative = debit/overdraft). Null if no initial balance was set on this account. */
+  /**
+   * Signed initial balance amount (positive = credit, negative = debit/overdraft).
+   * Null if no initial balance was set on this account.
+   */
   initialBalance: Maybe<Scalars['Float']['output']>;
   /** Reference date of the initial balance. Null when initialBalance is null. */
   initialBalanceDate: Maybe<Scalars['Date']['output']>;
@@ -1917,6 +1931,88 @@ export type InvestmentHoldingPerformance = {
   xirrSince: Maybe<Scalars['Date']['output']>;
 };
 
+export type InvestmentImportAccountCandidate = {
+  __typename: 'InvestmentImportAccountCandidate';
+  accountName: Scalars['String']['output'];
+  financialAccountId: Scalars['ID']['output'];
+};
+
+export type InvestmentImportConflictDiff = {
+  __typename: 'InvestmentImportConflictDiff';
+  existingCurrentValue: Maybe<Scalars['Float']['output']>;
+  existingMaturityDate: Maybe<Scalars['String']['output']>;
+  existingQuantity: Maybe<Scalars['Float']['output']>;
+  fileCurrentValue: Maybe<Scalars['Float']['output']>;
+  fileMaturityDate: Maybe<Scalars['String']['output']>;
+  fileQuantity: Maybe<Scalars['Float']['output']>;
+};
+
+export type InvestmentImportInstitutionMappingInput = {
+  financialAccountId: Scalars['ID']['input'];
+  reviewInstitutionId: Scalars['String']['input'];
+};
+
+export type InvestmentImportJob = {
+  __typename: 'InvestmentImportJob';
+  createdAt: Scalars['DateTime']['output'];
+  errorCode: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use errorCode/errorParameters for i18n */
+  errorMessage: Maybe<Scalars['String']['output']>;
+  errorParameters: Maybe<Scalars['JSON']['output']>;
+  fileName: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  reviewPayload: Maybe<InvestmentImportReview>;
+  status: InvestmentImportJobStatus;
+};
+
+export enum InvestmentImportJobStatus {
+  AwaitingReview = 'AWAITING_REVIEW',
+  Done = 'DONE',
+  Failed = 'FAILED',
+  Importing = 'IMPORTING'
+}
+
+export type InvestmentImportReview = {
+  __typename: 'InvestmentImportReview';
+  institutions: Array<InvestmentImportReviewInstitution>;
+  source: Maybe<Scalars['String']['output']>;
+};
+
+export type InvestmentImportReviewInstitution = {
+  __typename: 'InvestmentImportReviewInstitution';
+  institutionName: Scalars['String']['output'];
+  matchAmbiguous: Scalars['Boolean']['output'];
+  matchCandidates: Array<InvestmentImportAccountCandidate>;
+  matchedFinancialAccountId: Maybe<Scalars['ID']['output']>;
+  reviewInstitutionId: Scalars['String']['output'];
+  rows: Array<InvestmentImportReviewRow>;
+};
+
+export type InvestmentImportReviewRow = {
+  __typename: 'InvestmentImportReviewRow';
+  assetTypeCode: Scalars['String']['output'];
+  conflictDiff: Maybe<InvestmentImportConflictDiff>;
+  conflictingHoldingId: Maybe<Scalars['ID']['output']>;
+  currentValue: Maybe<Scalars['Float']['output']>;
+  indexerLabel: Maybe<Scalars['String']['output']>;
+  issueDate: Maybe<Scalars['String']['output']>;
+  issuerName: Maybe<Scalars['String']['output']>;
+  maturityDate: Maybe<Scalars['String']['output']>;
+  principal: Maybe<Scalars['Float']['output']>;
+  productName: Scalars['String']['output'];
+  providerCode: Maybe<Scalars['String']['output']>;
+  quantity: Maybe<Scalars['Float']['output']>;
+  requiresPrincipal: Scalars['Boolean']['output'];
+  rowIndex: Scalars['Int']['output'];
+};
+
+export type InvestmentImportRowPatchInput = {
+  conflictResolution?: InputMaybe<ConflictResolution>;
+  principal?: InputMaybe<Scalars['Float']['input']>;
+  rowIndex: Scalars['Int']['input'];
+  skip?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
 export type InvestmentPortfolioSummary = {
   __typename: 'InvestmentPortfolioSummary';
   byAssetGroup: Array<AssetGroupSummary>;
@@ -2279,6 +2375,7 @@ export type Mutation = {
   confirmCouponPayment: ConfirmCouponPaymentResult;
   /** Confirm fixed-income maturity: records MATURITY, closes the holding, completes the pending action, optional cash credit. */
   confirmHoldingMaturity: ConfirmHoldingMaturityResult;
+  confirmInvestmentImport: InvestmentImportJob;
   confirmRecurringPayment: RecurringPayment;
   /**
    * Step 1: Create asset upload and get pre-signed URL.
@@ -2423,6 +2520,7 @@ export type Mutation = {
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
   submitBillImport: BillImportJob;
+  submitInvestmentImport: InvestmentImportJob;
   /** Transfere uma posição (total ou parcial) entre contas de custódia do mesmo usuário, preservando custo médio. */
   transferCustody: TransferCustodyResult;
   /** Triggers a manual portfolio quota recalculation. Optionally scoped to a financialAccountId and recalculateFrom date (ISO-8601). Defaults to all INVESTMENT accounts recalculating from 10 years ago. */
@@ -2537,6 +2635,11 @@ export type MutationConfirmCouponPaymentArgs = {
 
 export type MutationConfirmHoldingMaturityArgs = {
   command: ConfirmHoldingMaturityInput;
+};
+
+
+export type MutationConfirmInvestmentImportArgs = {
+  input: ConfirmInvestmentImportInput;
 };
 
 
@@ -2839,6 +2942,11 @@ export type MutationSignUpArgs = {
 
 export type MutationSubmitBillImportArgs = {
   input: SubmitBillImportInput;
+};
+
+
+export type MutationSubmitInvestmentImportArgs = {
+  input: SubmitInvestmentImportInput;
 };
 
 
@@ -3371,6 +3479,8 @@ export type Query = {
   dashboardPeriodSummary: DashboardPeriodSummary;
   economicIndicatorVariationPoints: EconomicIndicatorPointConnection;
   economicIndicators: Array<EconomicIndicator>;
+  /** Single financial account by ID (scoped to the authenticated account). */
+  financialAccount: Maybe<FinancialAccount>;
   /** All financial accounts belonging to the authenticated user's account. */
   financialAccounts: Array<FinancialAccount>;
   fixedIncomeComparison: FixedIncomeComparisonResult;
@@ -3416,6 +3526,7 @@ export type Query = {
    * Zero-quantity (closed) positions are always excluded.
    */
   investmentHoldings: Array<InvestmentHolding>;
+  investmentImportJob: Maybe<InvestmentImportJob>;
   /** Investment portfolio summary for one investment account or the consolidated view. */
   investmentPortfolioSummary: InvestmentPortfolioSummary;
   /** Single investment transaction by id. */
@@ -3661,6 +3772,11 @@ export type QueryEconomicIndicatorsArgs = {
 };
 
 
+export type QueryFinancialAccountArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type QueryFixedIncomeComparisonArgs = {
   input: FixedIncomeComparisonInput;
 };
@@ -3780,6 +3896,11 @@ export type QueryInvestmentHoldingPerformanceArgs = {
 export type QueryInvestmentHoldingsArgs = {
   assetClass?: InputMaybe<InvestmentHoldingAssetClass>;
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryInvestmentImportJobArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -4425,6 +4546,11 @@ export type SubmitBillImportInput = {
   password?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type SubmitInvestmentImportInput = {
+  fileBase64: Scalars['String']['input'];
+  fileName: Scalars['String']['input'];
+};
+
 export type Subscription = {
   __typename: 'Subscription';
   messageStream: CompletionChunk;
@@ -4819,7 +4945,11 @@ export type UpdateFinancialAccountInput = {
   includeCashInAllocation?: InputMaybe<Scalars['Boolean']['input']>;
   includeInDashboard?: InputMaybe<Scalars['Boolean']['input']>;
   includeInNetWorth?: InputMaybe<Scalars['Boolean']['input']>;
-  /** Signed initial balance. Positive = credit (opening balance), negative = debit (overdraft). Non-zero when provided. Pass null to remove the existing initial balance. Only applicable to BANK accounts. */
+  /**
+   * Signed initial balance. Positive = credit (opening balance), negative = debit (overdraft).
+   * Non-zero when provided. Pass null to remove the existing initial balance.
+   * Only applicable to BANK accounts.
+   */
   initialBalance?: InputMaybe<Scalars['Float']['input']>;
   /** Reference date for the initial balance. Required when initialBalance is provided. */
   initialBalanceDate?: InputMaybe<Scalars['Date']['input']>;

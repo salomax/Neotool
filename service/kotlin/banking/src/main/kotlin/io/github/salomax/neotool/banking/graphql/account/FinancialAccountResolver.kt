@@ -15,9 +15,9 @@ import io.github.salomax.neotool.banking.model.dto.account.CardDataPatch
 import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
 import io.github.salomax.neotool.banking.model.dto.account.UpdateField
 import io.github.salomax.neotool.banking.model.dto.account.UpdateFinancialAccountCommand
+import io.github.salomax.neotool.banking.model.transaction.TransactionEntity
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionEntityRepository
-import io.github.salomax.neotool.banking.model.transaction.TransactionEntity
 import io.github.salomax.neotool.banking.service.account.FinancialAccountDataSinceService
 import io.github.salomax.neotool.banking.service.account.FinancialAccountService
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
@@ -45,24 +45,21 @@ class FinancialAccountResolver(
         val accounts = service.listByAccount(accountId)
 
         val issuerIds = accounts.mapNotNull { it.issuerId }.toSet()
-        val issuersById = issuerRepository.findByIds(issuerIds).associateBy { it.id!! }
-        val financialAccountIds = accounts.mapNotNull { it.id }
-        val dataSinceByAccountId = dataSinceService.findDataSinceByFinancialAccountIds(financialAccountIds)
-        val initialBalanceTxByAccountId =
-            if (financialAccountIds.isEmpty()) {
+        val issuersById =
+            if (issuerIds.isEmpty()) {
                 emptyMap()
             } else {
-                transactionEntityRepository
-                    .findInitialBalanceTransactions(financialAccountIds)
-                    .associateBy { requireNotNull(it.financialAccountId) }
+                issuerRepository.findByIds(issuerIds).associateBy { requireNotNull(it.id) }
             }
+        val financialAccountIds = accounts.mapNotNull { it.id }
+        val dataSinceByAccountId = dataSinceService.findDataSinceByFinancialAccountIds(financialAccountIds)
 
         return accounts.map { account ->
             val financialAccountId = requireNotNull(account.id) { "Financial account id is required" }
 
             account.toDTO(
                 issuer = issuersById[account.issuerId],
-                initialBalanceTx = initialBalanceTxByAccountId[financialAccountId],
+                initialBalanceTx = null,
                 dataSince =
                     dataSinceByAccountId[financialAccountId]?.let {
                         YearMonthDTO(
@@ -72,6 +69,33 @@ class FinancialAccountResolver(
                     },
             )
         }
+    }
+
+    fun getById(
+        id: String,
+        principal: RequestPrincipal,
+    ): FinancialAccountDTO? {
+        val accountId = principal.resolveAccountId()
+        val financialAccountId = UUID.fromString(id)
+        val account = service.findById(financialAccountId, accountId) ?: return null
+        val issuer = account.issuerId?.let { issuerRepository.findById(it) }
+        val initialBalanceTx =
+            transactionEntityRepository.findInitialBalanceTransaction(
+                financialAccountId.toString(),
+            ).orElse(null)
+        val dataSince =
+            dataSinceService.findDataSinceByFinancialAccountIds(listOf(financialAccountId))[financialAccountId]?.let {
+                YearMonthDTO(
+                    year = it.year,
+                    month = it.monthValue,
+                )
+            }
+
+        return account.toDTO(
+            issuer = issuer,
+            initialBalanceTx = initialBalanceTx,
+            dataSince = dataSince,
+        )
     }
 
     fun create(
@@ -103,7 +127,10 @@ class FinancialAccountResolver(
         val command = input.toUpdateCommand()
         val saved = service.update(financialAccountId, command, accountId, userId)
         val issuer = saved.issuerId?.let { issuerRepository.findById(it) }
-        val initialBalanceTx = transactionEntityRepository.findInitialBalanceTransaction(financialAccountId.toString()).orElse(null)
+        val initialBalanceTx =
+            transactionEntityRepository.findInitialBalanceTransaction(
+                financialAccountId.toString(),
+            ).orElse(null)
         return saved.toDTO(issuer = issuer, initialBalanceTx = initialBalanceTx, dataSince = null)
     }
 

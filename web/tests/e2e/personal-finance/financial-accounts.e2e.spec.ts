@@ -1,7 +1,7 @@
 /**
  * E2E tests — Financial Accounts
  *
- * Coverage: FA-H-01..09  |  FA-A-01..09  |  FA-N-01..12
+ * Coverage: FA-H-01..10 (+ FA-H-01a, FA-H-07a..07e)  |  FA-A-01..10 (+ FA-A-10a)  |  FA-N-01..16
  * Security coverage is in security.e2e.spec.ts (SEC-FA-01..04).
  *
  * Each test creates its own account via the UI to exercise the full creation flow.
@@ -13,6 +13,8 @@ import { test, expect } from '../fixtures/personal-finance';
 import { FinanceTransactionsPage } from '../pages/personal-finance/FinanceTransactionsPage';
 import {
   createFinancialAccount,
+  dateInMonth,
+  formatLocalIsoDate,
   getFinancialAccounts,
   getMonthSummary,
   getTransactions,
@@ -59,6 +61,20 @@ function currentMonthIsoAtDay(day: number): string {
   const mm = String(monthDate.getMonth() + 1).padStart(2, '0');
   const dd = String(monthDate.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function yearMonthFromIso(isoDate: string): { year: number; month: number } {
+  return {
+    year: Number(isoDate.slice(0, 4)),
+    month: Number(isoDate.slice(5, 7)),
+  };
+}
+
+function yearsAgoIso(years: number, extraDayOffset = 0): string {
+  const now = new Date();
+  return formatLocalIsoDate(
+    new Date(now.getFullYear() - years, now.getMonth(), now.getDate() + extraDayOffset),
+  );
 }
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
@@ -112,6 +128,40 @@ test.describe('Financial Accounts — happy path', () => {
     await drawer.waitForClose();
 
     await pfPage.expectAccountInSelector(name);
+  });
+
+  test('FA-H-01a: create bank account with initial balance persists BALANCE_ADJUSTMENT and monthly summary', async ({
+    page,
+    pfUser,
+  }) => {
+    const pfPage = await openFinancialAccountsPage(page);
+    const drawer = await pfPage.openCreateAccountDrawer('BANK');
+    const name = uniqueName('Conta Corrente H01a');
+    const initialBalance = 1234;
+    const initialBalanceDateIso = dateInMonth(-1, 12);
+    const { year, month } = yearMonthFromIso(initialBalanceDateIso);
+
+    await drawer.createBankAccount({
+      name,
+      initialBalance,
+      initialBalanceDate: isoToBr(initialBalanceDateIso),
+    });
+    await drawer.waitForClose();
+
+    await pfPage.expectAccountInSelector(name);
+    const created = await expectPersistedAccount(pfUser.token, (account) => account.name === name);
+    const txs = await getTransactions(created.id, pfUser.token, { year, month, first: 80 });
+    const initialBalanceTxs = txs.filter((tx) => tx.type === TransactionType.BalanceAdjustment);
+
+    expect(initialBalanceTxs).toHaveLength(1);
+    expect(initialBalanceTxs[0]!.amount).toBe(initialBalance);
+    expect(initialBalanceTxs[0]!.date.slice(0, 10)).toBe(initialBalanceDateIso);
+
+    const summary = await getMonthSummary(created.id, year, month, pfUser.token);
+    expect(summary.openingBalance).toBe(0);
+    expect(summary.totalIncome).toBe(0);
+    expect(summary.totalExpenses).toBe(0);
+    expect(summary.closingBalance).toBe(initialBalance);
   });
 
   test('FA-H-02: creates a CREDIT / CREDIT_CARD account with closingDay and dueDay', async ({
@@ -194,6 +244,55 @@ test.describe('Financial Accounts — happy path', () => {
     await pfPage.expectAccountNotInSelector(bankAccount.name);
   });
 
+  test('FA-H-07a: adds initial balance in edit mode when the account was created without one', async ({
+    page,
+    pfUser,
+  }) => {
+    const accountWithoutInitialBalance = await createFinancialAccount(
+      {
+        name: uniqueName('Conta Sem Saldo H07a'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+      },
+      pfUser.token,
+    );
+
+    const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio H07a');
+    await pfPage.selectAccount(accountWithoutInitialBalance.name, accountWithoutInitialBalance.id);
+
+    const drawer = await pfPage.openEditAccountDrawer(
+      accountWithoutInitialBalance.name,
+      accountWithoutInitialBalance.id,
+    );
+    const newBalance = 825;
+    const newInitialBalanceDateIso = currentMonthIsoAtDay(3);
+    await drawer.fillInitialBalance(newBalance);
+    await drawer.fillInitialBalanceDate(isoToBr(newInitialBalanceDateIso));
+    await drawer.submit();
+    await drawer.waitForClose();
+
+    const txs = await getTransactions(accountWithoutInitialBalance.id, pfUser.token, {
+      year: Number(newInitialBalanceDateIso.slice(0, 4)),
+      month: Number(newInitialBalanceDateIso.slice(5, 7)),
+      first: 80,
+    });
+    const initialBalanceTx = txs.find((tx) => tx.type === TransactionType.BalanceAdjustment);
+    expect(initialBalanceTx).toBeDefined();
+    expect(initialBalanceTx!.amount).toBe(newBalance);
+    expect(initialBalanceTx!.date.slice(0, 10)).toBe(newInitialBalanceDateIso);
+
+    const now = new Date();
+    const summary = await getMonthSummary(
+      accountWithoutInitialBalance.id,
+      now.getFullYear(),
+      now.getMonth() + 1,
+      pfUser.token,
+    );
+    expect(summary.openingBalance).toBe(0);
+    expect(summary.closingBalance).toBe(newBalance);
+  });
+
   test('FA-H-07: edits initial balance amount/date — BALANCE_ADJUSTMENT is updated', async ({
     page,
     pfUser,
@@ -261,6 +360,147 @@ test.describe('Financial Accounts — happy path', () => {
     );
     expect(summary.openingBalance).toBe(0);
     expect(summary.closingBalance).toBe(0);
+  });
+
+  test('FA-H-07c: edits initial balance date only — BALANCE_ADJUSTMENT keeps amount and updates date', async ({
+    page,
+    pfUser,
+  }) => {
+    const amount = 910;
+    const originalDateIso = dateInMonth(-1, 10);
+    const newDateIso = dateInMonth(-1, 12);
+    const account = await createFinancialAccount(
+      {
+        name: uniqueName('Conta Saldo Data H07c'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+        initialBalance: amount,
+        initialBalanceDate: originalDateIso,
+      },
+      pfUser.token,
+    );
+    const { year, month } = yearMonthFromIso(newDateIso);
+
+    const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio H07c');
+    await pfPage.selectAccount(account.name, account.id);
+
+    const drawer = await pfPage.openEditAccountDrawer(account.name, account.id);
+    await drawer.fillInitialBalanceDate(isoToBr(newDateIso));
+    await drawer.submit();
+    await drawer.waitForClose();
+
+    const txs = await getTransactions(account.id, pfUser.token, { year, month, first: 80 });
+    const initialBalanceTxs = txs.filter((tx) => tx.type === TransactionType.BalanceAdjustment);
+    expect(initialBalanceTxs).toHaveLength(1);
+    expect(initialBalanceTxs[0]!.amount).toBe(amount);
+    expect(initialBalanceTxs[0]!.date.slice(0, 10)).toBe(newDateIso);
+
+    const summary = await getMonthSummary(account.id, year, month, pfUser.token);
+    expect(summary.openingBalance).toBe(0);
+    expect(summary.closingBalance).toBe(amount);
+  });
+
+  test('FA-H-07d: moves initial balance to previous month — recomputes affected months', async ({
+    page,
+    pfUser,
+  }) => {
+    const amount = 760;
+    const originalDateIso = currentMonthIsoAtDay(3);
+    const previousMonthDateIso = dateInMonth(-1, 15);
+    const account = await createFinancialAccount(
+      {
+        name: uniqueName('Conta Saldo Mês Anterior H07d'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+        initialBalance: amount,
+        initialBalanceDate: originalDateIso,
+      },
+      pfUser.token,
+    );
+    const previousMonth = yearMonthFromIso(previousMonthDateIso);
+    const currentMonth = yearMonthFromIso(currentMonthIsoAtDay(1));
+
+    const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio H07d');
+    await pfPage.selectAccount(account.name, account.id);
+
+    const drawer = await pfPage.openEditAccountDrawer(account.name, account.id);
+    await drawer.fillInitialBalanceDate(isoToBr(previousMonthDateIso));
+    await drawer.submit();
+    await drawer.waitForClose();
+
+    const previousMonthTxs = await getTransactions(account.id, pfUser.token, {
+      year: previousMonth.year,
+      month: previousMonth.month,
+      first: 80,
+    });
+    const currentMonthTxs = await getTransactions(account.id, pfUser.token, {
+      year: currentMonth.year,
+      month: currentMonth.month,
+      first: 80,
+    });
+
+    expect(
+      previousMonthTxs.find((tx) => tx.type === TransactionType.BalanceAdjustment)?.date.slice(0, 10),
+    ).toBe(previousMonthDateIso);
+    expect(currentMonthTxs.find((tx) => tx.type === TransactionType.BalanceAdjustment)).toBeUndefined();
+
+    const previousSummary = await getMonthSummary(
+      account.id,
+      previousMonth.year,
+      previousMonth.month,
+      pfUser.token,
+    );
+    const currentSummary = await getMonthSummary(
+      account.id,
+      currentMonth.year,
+      currentMonth.month,
+      pfUser.token,
+    );
+
+    expect(previousSummary.openingBalance).toBe(0);
+    expect(previousSummary.closingBalance).toBe(amount);
+    expect(currentSummary.openingBalance).toBe(amount);
+    expect(currentSummary.closingBalance).toBe(amount);
+  });
+
+  test('FA-H-07e: edits initial balance amount only — date remains unchanged', async ({
+    page,
+    pfUser,
+  }) => {
+    const originalBalance = 450;
+    const newBalance = 980;
+    const initialBalanceDateIso = dateInMonth(-1, 10);
+    const account = await createFinancialAccount(
+      {
+        name: uniqueName('Conta Saldo Valor H07e'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+        initialBalance: originalBalance,
+        initialBalanceDate: initialBalanceDateIso,
+      },
+      pfUser.token,
+    );
+    const { year, month } = yearMonthFromIso(initialBalanceDateIso);
+
+    const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio H07e');
+    await pfPage.selectAccount(account.name, account.id);
+
+    const drawer = await pfPage.openEditAccountDrawer(account.name, account.id);
+    await drawer.fillInitialBalance(newBalance);
+    await drawer.submit();
+    await drawer.waitForClose();
+
+    const txs = await getTransactions(account.id, pfUser.token, { year, month, first: 80 });
+    const initialBalanceTxs = txs.filter((tx) => tx.type === TransactionType.BalanceAdjustment);
+    expect(initialBalanceTxs).toHaveLength(1);
+    expect(initialBalanceTxs[0]!.amount).toBe(newBalance);
+    expect(initialBalanceTxs[0]!.date.slice(0, 10)).toBe(initialBalanceDateIso);
+
+    const summary = await getMonthSummary(account.id, year, month, pfUser.token);
+    expect(summary.closingBalance).toBe(newBalance);
   });
 
   test('FA-H-08: soft-deletes an account — it disappears from the selector', async ({
@@ -491,6 +731,32 @@ test.describe('Financial Accounts — alternative paths', () => {
     );
     expect(created.name).not.toContain(lastFourDigits);
   });
+
+  test('FA-A-10: edit mode keeps initial balance fields hidden for credit-card accounts', async ({
+    page,
+    creditCardAccount,
+  }) => {
+    const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio A10');
+    await pfPage.selectAccount(creditCardAccount.name, creditCardAccount.id);
+
+    await pfPage.openEditAccountDrawer(creditCardAccount.name, creditCardAccount.id);
+
+    const visibleDrawer = page.locator('[data-testid="create-account-drawer"]:visible').first();
+    await expect(visibleDrawer.getByTestId('initial-balance-input')).toHaveCount(0);
+    await expect(visibleDrawer.getByTestId('initial-balance-date-input')).toHaveCount(0);
+  });
+
+  test('FA-A-10a: create mode hides initial balance fields for credit-card accounts', async ({
+    page,
+  }) => {
+    const pfPage = await openFinancialAccountsPage(page);
+    await pfPage.openCreateAccountDrawer('CARD');
+
+    const visibleDrawer = page.locator('[data-testid="create-account-drawer"]:visible').first();
+    await expect(visibleDrawer.getByTestId('initial-balance-input')).toHaveCount(0);
+    await expect(visibleDrawer.getByTestId('initial-balance-date-input')).toHaveCount(0);
+  });
 });
 
 // =============================================================================
@@ -694,5 +960,99 @@ test.describe('Financial Accounts — negative paths', () => {
     await drawer.removeAccount();
     await drawer.expectStillOpen();
     await drawer.expectDeleteError(/transa[cç](?:[aã]o|[õo]es)|transactions?/i);
+  });
+
+  test('FA-N-14: edit mode rejects initial balance amount without initial balance date', async ({
+    page,
+    pfUser,
+  }) => {
+    const account = await createFinancialAccount(
+      {
+        name: uniqueName('Conta Sem Data N14'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+      },
+      pfUser.token,
+    );
+
+    const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio N14');
+    await pfPage.selectAccount(account.name, account.id);
+
+    const drawer = await pfPage.openEditAccountDrawer(account.name, account.id);
+    await drawer.fillInitialBalance(300);
+
+    const submitButton = page.getByTestId('account-form-submit');
+    await expect(submitButton).toBeDisabled();
+    await drawer.expectStillOpen();
+  });
+
+  test('FA-N-15: edit mode rejects initial balance date in the future', async ({
+    page,
+    pfUser,
+  }) => {
+    const originalDateIso = dateInMonth(-1, 10);
+    const account = await createFinancialAccount(
+      {
+        name: uniqueName('Conta Data Futura Edit N15'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+        initialBalance: 350,
+        initialBalanceDate: originalDateIso,
+      },
+      pfUser.token,
+    );
+    const { year, month } = yearMonthFromIso(originalDateIso);
+
+    const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio N15');
+    await pfPage.selectAccount(account.name, account.id);
+
+    const drawer = await pfPage.openEditAccountDrawer(account.name, account.id);
+    await drawer.fillInitialBalanceDate(dateOffsetBr(1));
+    await drawer.attemptSubmit();
+
+    await drawer.expectFieldError('initial-balance-date-input');
+    await drawer.expectStillOpen();
+
+    const txs = await getTransactions(account.id, pfUser.token, { year, month, first: 80 });
+    const initialBalanceTxs = txs.filter((tx) => tx.type === TransactionType.BalanceAdjustment);
+    expect(initialBalanceTxs).toHaveLength(1);
+    expect(initialBalanceTxs[0]!.date.slice(0, 10)).toBe(originalDateIso);
+  });
+
+  test('FA-N-16: edit mode rejects initial balance date outside moving window', async ({
+    page,
+    pfUser,
+  }) => {
+    const originalDateIso = dateInMonth(-1, 10);
+    const invalidDateIso = yearsAgoIso(10, -1);
+    const account = await createFinancialAccount(
+      {
+        name: uniqueName('Conta Data Antiga Edit N16'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+        initialBalance: 420,
+        initialBalanceDate: originalDateIso,
+      },
+      pfUser.token,
+    );
+    const { year, month } = yearMonthFromIso(originalDateIso);
+
+    const pfPage = await openFinancialAccountsPage(page);
+    await createSupportAccountForEdit(pfPage, 'Conta apoio N16');
+    await pfPage.selectAccount(account.name, account.id);
+
+    const drawer = await pfPage.openEditAccountDrawer(account.name, account.id);
+    await drawer.fillInitialBalanceDate(isoToBr(invalidDateIso));
+    await drawer.attemptSubmit();
+
+    await drawer.expectFieldError('initial-balance-date-input');
+    await drawer.expectStillOpen();
+
+    const txs = await getTransactions(account.id, pfUser.token, { year, month, first: 80 });
+    const initialBalanceTxs = txs.filter((tx) => tx.type === TransactionType.BalanceAdjustment);
+    expect(initialBalanceTxs).toHaveLength(1);
+    expect(initialBalanceTxs[0]!.date.slice(0, 10)).toBe(originalDateIso);
   });
 });

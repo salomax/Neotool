@@ -1,0 +1,4 @@
+interface:
+  display_name: "QA E2E Branch Validation"
+  short_description: "Validate branch changes with Playwright E2E"
+  default_prompt: "Use $qa-e2e-branch-validation to inspect the current branch, map changes to existing Playwright coverage, add missing E2E tests, and run the final suite."

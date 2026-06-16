@@ -191,7 +191,7 @@ export function InvestmentImportPreview({
       jobId,
       institutionMappings: review.institutions.map((institution) => ({
         reviewInstitutionId: institution.reviewInstitutionId,
-        financialAccountId: accountMappings[institution.reviewInstitutionId],
+        financialAccountId: accountMappings[institution.reviewInstitutionId]!,
       })),
       rowPatches: review.institutions.flatMap((institution) =>
         institution.rows.map((row) => ({

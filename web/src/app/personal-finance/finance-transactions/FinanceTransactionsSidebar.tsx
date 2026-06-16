@@ -1,7 +1,8 @@
 'use client';
 
 import { Box, Divider } from '@mui/material';
-import { FinancialAccount, FinancialAccountType, CreditDebitType } from '@/lib/graphql/types/__generated__/graphql';
+import type { FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
+import { FinancialAccountType, CreditDebitType } from '@/lib/graphql/types/__generated__/graphql';
 import { FinancialAccountSelector } from './account/FinancialAccountSelector';
 import { MonthSummary, CategoryFilterSelection, MonthSummaryData } from './summary/MonthSummary';
 import { BillSummaryHeader, BillSummaryData } from './bill/BillSummaryHeader';
@@ -17,7 +18,7 @@ interface AccountSelectorState {
   selectedAccountId: string | null;
   onSelect: (id: string | null) => void;
   onNewAccount: () => void;
-  onEditAccount: (account: FinancialAccount) => void;
+  onEditAccount: (account: NonNullable<FinancialAccountsQuery['financialAccounts']>[number]) => void;
 }
 
 interface CalendarSummaryState {

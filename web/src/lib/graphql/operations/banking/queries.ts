@@ -51,6 +51,62 @@ export const FINANCIAL_ACCOUNTS = gql`
         year
         month
       }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const FINANCIAL_ACCOUNT = gql`
+  query FinancialAccount($id: ID!) {
+    financialAccount(id: $id) {
+      id
+      type
+      subtype
+      name
+      currencyCode
+      includeInNetWorth
+      includeInDashboard
+      includeCashInAllocation
+      themeColor
+      issuerName
+      issuer {
+        id
+        name
+        domain
+        countryCode
+        logoKey
+        logoAsset {
+          id
+          publicUrl
+        }
+      }
+      bankData {
+        branchCode
+        number
+        checkDigit
+        maskedNumber
+      }
+      cardData {
+        maskedNumber
+        bin
+        cardNetwork
+        cardLevel
+        creditLimit
+        availableCreditLimit
+        minimumPaymentPercentage
+        closingDay
+        dueDay
+        linkedBankAccountId
+        isMultiCard
+      }
+      connectionStatus
+      consentExpiresAt
+      lastSyncAt
+      dataSince {
+        year
+        month
+      }
       initialBalance
       initialBalanceDate
       createdAt

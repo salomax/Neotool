@@ -6,8 +6,8 @@ import io.github.salomax.neotool.banking.domain.account.CreditCardNetwork
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
-import java.time.OffsetDateTime
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.util.UUID
 
 data class BankAccountDataDTO(

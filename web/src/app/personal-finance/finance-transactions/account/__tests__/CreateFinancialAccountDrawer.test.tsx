@@ -12,6 +12,7 @@ const mockCreateAccount = vi.fn();
 const mockUpdateAccount = vi.fn();
 const mockDeleteAccount = vi.fn();
 const mockUseQuery = vi.fn();
+const detailAccountFixtures = new Map<string, any>();
 
 vi.mock('@/shared/components/ui/forms/form', async () => {
   const actual = await vi.importActual<typeof import('@/shared/components/ui/forms/form')>('@/shared/components/ui/forms/form');
@@ -155,6 +156,27 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => {
 describe.sequential('CreateFinancialAccountDrawer', () => {
   const theme = createTheme();
 
+  const registerEditAccount = (account: any) => {
+    detailAccountFixtures.set(account.id, account);
+    return {
+      id: account.id,
+      type: account.type,
+      subtype: account.subtype,
+      name: account.name,
+      issuer: account.issuer,
+      issuerName: account.issuerName,
+      currencyCode: account.currencyCode,
+      includeInNetWorth: account.includeInNetWorth,
+      includeInDashboard: account.includeInDashboard,
+      includeCashInAllocation: account.includeCashInAllocation ?? true,
+      themeColor: account.themeColor ?? null,
+      bankData: account.bankData,
+      cardData: account.cardData,
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
+    };
+  };
+
   const renderDrawer = () =>
     render(
       <ThemeProvider theme={theme}>
@@ -164,17 +186,37 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    detailAccountFixtures.clear();
     mockCreateAccount.mockResolvedValue({ data: { createFinancialAccount: { id: 'acc-1', name: 'Conta 1' } } });
     mockUpdateAccount.mockResolvedValue({ data: { updateFinancialAccount: { id: 'acc-1', name: 'Conta 1' } } });
     mockDeleteAccount.mockResolvedValue({ data: { deleteFinancialAccount: true } });
-    mockUseQuery.mockReturnValue({
-      data: {
-        issuers: [
-          { id: 'issuer-1', name: 'Banco Teste', logoAsset: null, compeCode: '001' },
-        ],
-      },
-      loading: false,
-      error: null,
+    mockUseQuery.mockImplementation((query: any, options: any) => {
+      const operationName = query?.definitions?.[0]?.name?.value;
+
+      if (operationName === 'Issuers') {
+        return {
+          data: {
+            issuers: [
+              { id: 'issuer-1', name: 'Banco Teste', logoAsset: null, compeCode: '001' },
+            ],
+          },
+          loading: false,
+          error: null,
+        };
+      }
+
+      if (operationName === 'FinancialAccount') {
+        const id = options?.variables?.id;
+        return {
+          data: {
+            financialAccount: id ? (detailAccountFixtures.get(id) ?? null) : null,
+          },
+          loading: false,
+          error: null,
+        };
+      }
+
+      return { data: undefined, loading: false, error: null };
     });
   });
 
@@ -449,23 +491,24 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
 
   it('keeps custom issuer name when opening edit mode for an account without issuerId', async () => {
     const user = userEvent.setup();
+    const accountToEdit = registerEditAccount({
+      id: 'acc-1',
+      type: 'BANK',
+      subtype: 'CONTA_CORRENTE',
+      name: 'Conta Manual',
+      issuerName: 'Banco Manual',
+      currencyCode: 'BRL',
+      includeInNetWorth: true,
+      includeInDashboard: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     render(
       <ThemeProvider theme={theme}>
         <CreateFinancialAccountDrawer
           open
           onClose={vi.fn()}
-          accountToEdit={{
-            id: 'acc-1',
-            type: 'BANK',
-            subtype: 'CONTA_CORRENTE',
-            name: 'Conta Manual',
-            issuerName: 'Banco Manual',
-            currencyCode: 'BRL',
-            includeInNetWorth: true,
-            includeInDashboard: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          } as any}
+          accountToEdit={accountToEdit as any}
         />
       </ThemeProvider>,
     );
@@ -483,25 +526,26 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
 
   it('hydrates initial balance fields in bank edit mode and submits updated values', async () => {
     const user = userEvent.setup();
+    const accountToEdit = registerEditAccount({
+      id: 'acc-balance-1',
+      type: 'BANK',
+      subtype: 'CONTA_CORRENTE',
+      name: 'Conta com saldo',
+      issuerName: 'Banco Manual',
+      currencyCode: 'BRL',
+      includeInNetWorth: true,
+      includeInDashboard: true,
+      initialBalance: 150,
+      initialBalanceDate: '2026-01-15',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     render(
       <ThemeProvider theme={theme}>
         <CreateFinancialAccountDrawer
           open
           onClose={vi.fn()}
-          accountToEdit={{
-            id: 'acc-balance-1',
-            type: 'BANK',
-            subtype: 'CONTA_CORRENTE',
-            name: 'Conta com saldo',
-            issuerName: 'Banco Manual',
-            currencyCode: 'BRL',
-            includeInNetWorth: true,
-            includeInDashboard: true,
-            initialBalance: 150,
-            initialBalanceDate: '2026-01-15',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          } as any}
+          accountToEdit={accountToEdit as any}
         />
       </ThemeProvider>,
     );
@@ -537,25 +581,26 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
 
   it('sends null initialBalance when clearing an existing bank initial balance in edit mode', async () => {
     const user = userEvent.setup();
+    const accountToEdit = registerEditAccount({
+      id: 'acc-balance-2',
+      type: 'BANK',
+      subtype: 'CONTA_CORRENTE',
+      name: 'Conta com saldo',
+      issuerName: 'Banco Manual',
+      currencyCode: 'BRL',
+      includeInNetWorth: true,
+      includeInDashboard: true,
+      initialBalance: 150,
+      initialBalanceDate: '2026-01-15',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     render(
       <ThemeProvider theme={theme}>
         <CreateFinancialAccountDrawer
           open
           onClose={vi.fn()}
-          accountToEdit={{
-            id: 'acc-balance-2',
-            type: 'BANK',
-            subtype: 'CONTA_CORRENTE',
-            name: 'Conta com saldo',
-            issuerName: 'Banco Manual',
-            currencyCode: 'BRL',
-            includeInNetWorth: true,
-            includeInDashboard: true,
-            initialBalance: 150,
-            initialBalanceDate: '2026-01-15',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          } as any}
+          accountToEdit={accountToEdit as any}
         />
       </ThemeProvider>,
     );
@@ -578,30 +623,71 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
     });
   });
 
-  it('hydrates multi-card toggle in edit mode and keeps last-four hidden', async () => {
+  it('does not send null initialBalance when editing a bank account that never had one', async () => {
+    const user = userEvent.setup();
+    const accountToEdit = registerEditAccount({
+      id: 'acc-balance-3',
+      type: 'BANK',
+      subtype: 'CONTA_CORRENTE',
+      name: 'Conta sem saldo',
+      issuerName: 'Banco Manual',
+      currencyCode: 'BRL',
+      includeInNetWorth: true,
+      includeInDashboard: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     render(
       <ThemeProvider theme={theme}>
         <CreateFinancialAccountDrawer
           open
           onClose={vi.fn()}
-          accountToEdit={{
-            id: 'acc-card-multi',
-            type: 'CREDIT',
-            subtype: 'CREDIT_CARD',
-            name: 'Cartão Multi',
-            issuerName: 'Banco Manual',
-            currencyCode: 'BRL',
-            includeInNetWorth: true,
-            includeInDashboard: true,
-            cardData: {
-              isMultiCard: true,
-              maskedNumber: null,
-              closingDay: 7,
-              dueDay: 15,
-            },
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          } as any}
+          accountToEdit={accountToEdit as any}
+        />
+      </ThemeProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'financeTransactions.actions.save' }));
+
+    await waitFor(() => {
+      expect(mockUpdateAccount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: expect.objectContaining({
+            id: 'acc-balance-3',
+            input: expect.not.objectContaining({
+              initialBalance: null,
+            }),
+          }),
+        }),
+      );
+    });
+  });
+
+  it('hydrates multi-card toggle in edit mode and keeps last-four hidden', async () => {
+    const accountToEdit = registerEditAccount({
+      id: 'acc-card-multi',
+      type: 'CREDIT',
+      subtype: 'CREDIT_CARD',
+      name: 'Cartão Multi',
+      issuerName: 'Banco Manual',
+      currencyCode: 'BRL',
+      includeInNetWorth: true,
+      includeInDashboard: true,
+      cardData: {
+        isMultiCard: true,
+        maskedNumber: null,
+        closingDay: 7,
+        dueDay: 15,
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    render(
+      <ThemeProvider theme={theme}>
+        <CreateFinancialAccountDrawer
+          open
+          onClose={vi.fn()}
+          accountToEdit={accountToEdit as any}
         />
       </ThemeProvider>,
     );
@@ -619,24 +705,25 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     const onDeleted = vi.fn();
+    const accountToEdit = registerEditAccount({
+      id: 'acc-delete-1',
+      type: 'BANK',
+      subtype: 'CONTA_CORRENTE',
+      name: 'Conta para excluir',
+      issuerName: 'Banco Manual',
+      currencyCode: 'BRL',
+      includeInNetWorth: true,
+      includeInDashboard: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     render(
       <ThemeProvider theme={theme}>
         <CreateFinancialAccountDrawer
           open
           onClose={onClose}
           onDeleted={onDeleted}
-          accountToEdit={{
-            id: 'acc-delete-1',
-            type: 'BANK',
-            subtype: 'CONTA_CORRENTE',
-            name: 'Conta para excluir',
-            issuerName: 'Banco Manual',
-            currencyCode: 'BRL',
-            includeInNetWorth: true,
-            includeInDashboard: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          } as any}
+          accountToEdit={accountToEdit as any}
         />
       </ThemeProvider>,
     );
@@ -658,23 +745,24 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
     mockDeleteAccount.mockRejectedValueOnce({
       graphQLErrors: [{ extensions: { code: 'FINANCIAL_ACCOUNT_HAS_TRANSACTIONS' } }],
     });
+    const accountToEdit = registerEditAccount({
+      id: 'acc-delete-2',
+      type: 'BANK',
+      subtype: 'CONTA_CORRENTE',
+      name: 'Conta bloqueada',
+      issuerName: 'Banco Manual',
+      currencyCode: 'BRL',
+      includeInNetWorth: true,
+      includeInDashboard: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
     render(
       <ThemeProvider theme={theme}>
         <CreateFinancialAccountDrawer
           open
           onClose={vi.fn()}
-          accountToEdit={{
-            id: 'acc-delete-2',
-            type: 'BANK',
-            subtype: 'CONTA_CORRENTE',
-            name: 'Conta bloqueada',
-            issuerName: 'Banco Manual',
-            currencyCode: 'BRL',
-            includeInNetWorth: true,
-            includeInDashboard: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          } as any}
+          accountToEdit={accountToEdit as any}
         />
       </ThemeProvider>,
     );

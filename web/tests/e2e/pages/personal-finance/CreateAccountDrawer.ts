@@ -230,14 +230,30 @@ export class CreateAccountDrawer {
 
   async fillInitialBalance(amount: number): Promise<void> {
     const input = this.drawerPanel().getByTestId('initial-balance-input');
-    await input.clear();
-    await input.fill(String(amount));
+    const expectedAmount = Math.round(amount * 100) / 100;
+    await expect(input).toBeVisible();
+    await input.click();
+    await input.press('ControlOrMeta+A');
+    await input.press('Backspace');
+    await input.pressSequentially(String(amount));
+    await expect
+      .poll(async () => {
+        const rawValue = await input.inputValue();
+        const digits = rawValue.replace(/\D/g, '');
+        if (!digits) return null;
+        const sign = rawValue.includes('-') ? -1 : 1;
+        return sign * (Number(digits) / 100);
+      }, { timeout: 5_000 })
+      .toBe(expectedAmount);
     await input.press('Tab');
   }
 
   async clearInitialBalance(): Promise<void> {
     const input = this.drawerPanel().getByTestId('initial-balance-input');
-    await input.clear();
+    await expect(input).toBeVisible();
+    await input.click();
+    await input.press('ControlOrMeta+A');
+    await input.press('Backspace');
     await input.press('Tab');
   }
 
@@ -260,14 +276,14 @@ export class CreateAccountDrawer {
   /**
    * Fills the initial balance date field (MUI X DatePicker v7 segmented input).
    * Expects dateStr in pt-BR format: DD/MM/YYYY.
-   * Clicks the wrapper to focus the first segment, then types digits to advance through day/month/year.
+   * Targets the textbox inside the MUI wrapper — the outer test id is attached to a FormControl div.
    */
   async fillInitialBalanceDate(dateStr: string): Promise<void> {
     if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
       throw new Error(`Invalid date format for fillInitialBalanceDate: ${dateStr}`);
     }
-    const input = this.drawerPanel().getByTestId('initial-balance-date-input').first();
-    await input.click();
+    const input = this.drawerPanel().getByTestId('initial-balance-date-input').getByRole('textbox').first();
+    await expect(input).toBeVisible();
     await input.fill(dateStr);
     await input.press('Tab');
   }

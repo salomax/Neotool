@@ -15,6 +15,7 @@ import {
   FormControlLabel,
   Switch,
   Divider,
+  CircularProgress,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -24,14 +25,15 @@ import { CardNetworkIcon } from '@/shared/components/ui/icons/CardNetworkIcon';
 import { IssuerSelect } from './IssuerSelect';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { FormTextField as TextField, SelectField, MoneyInput, DatePickerField } from '@/shared/components/ui/forms/form';
-import { ISSUERS } from '@/lib/graphql/operations/banking/queries';
+import { FINANCIAL_ACCOUNT, ISSUERS } from '@/lib/graphql/operations/banking/queries';
 import { CREATE_FINANCIAL_ACCOUNT, DELETE_FINANCIAL_ACCOUNT, UPDATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
 import { useToast } from '@/shared/providers';
 import { ErrorAlert } from '@/shared/components/ui/feedback';
 import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
-import { FinancialAccount, Issuer } from '@/lib/graphql/types/__generated__/graphql';
+import { Issuer } from '@/lib/graphql/types/__generated__/graphql';
+import type { FinancialAccountQuery, FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../constants/dateWindow';
 import { formatDateOnly, parseDateOnly, toStartOfDayLocal } from '@/shared/utils/date/dateOnly';
 import { extractErrorCode, extractErrorMessage } from '@/shared/utils/error';
@@ -131,7 +133,7 @@ interface CreateFinancialAccountDrawerProps {
   open: boolean;
   onClose: () => void;
   initialType?: 'BANK' | 'CARD' | null;
-  accountToEdit?: FinancialAccount | null;
+  accountToEdit?: NonNullable<FinancialAccountsQuery['financialAccounts']>[number] | null;
   onBackFromPrefilledType?: () => void;
   /** Pre-fills the last 4 digits field when creating a card inline from import. */
   initialMaskedNumber?: string;
@@ -178,8 +180,23 @@ export function CreateFinancialAccountDrawer({
   const { t } = useTranslation(personalFinanceTranslations);
   const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
   const isEditing = Boolean(accountToEdit?.id);
+  const {
+    data: editAccountData,
+    loading: editAccountLoading,
+    error: editAccountError,
+  } = useQuery<FinancialAccountQuery>(FINANCIAL_ACCOUNT, {
+    variables: accountToEdit?.id ? { id: accountToEdit.id } : undefined,
+    skip: !open || !accountToEdit?.id,
+    errorPolicy: 'all',
+    fetchPolicy: 'cache-first',
+    nextFetchPolicy: 'cache-first',
+  });
+  const loadedEditAccount =
+    editAccountData?.financialAccount?.id === accountToEdit?.id
+      ? (editAccountData?.financialAccount ?? null)
+      : null;
   const resolvedEditType: 'BANK' | 'CARD' | null = isEditing
-    ? (accountToEdit?.type === 'BANK' ? 'BANK' : 'CARD')
+    ? ((loadedEditAccount?.type ?? accountToEdit?.type) === 'BANK' ? 'BANK' : 'CARD')
     : null;
   const effectiveSelectedType = selectedType ?? resolvedEditType;
   const isTypeSelectionStep = !isEditing && step === 1;
@@ -400,39 +417,48 @@ export function CreateFinancialAccountDrawer({
     }
 
     if (accountToEdit?.id) {
-      const resolvedType: 'BANK' | 'CARD' = accountToEdit.type === 'BANK' ? 'BANK' : 'CARD';
+      const resolvedType: 'BANK' | 'CARD' = (loadedEditAccount?.type ?? accountToEdit.type) === 'BANK' ? 'BANK' : 'CARD';
       React.startTransition(() => {
         setStep(2);
         setSelectedType(resolvedType);
       });
 
-      const issuerId = accountToEdit.issuer?.id ?? undefined;
-      const issuerName = (accountToEdit.issuer?.name ?? accountToEdit.issuerName ?? '').trim();
-      const maskedNumberDigits = (accountToEdit.cardData?.maskedNumber ?? '').replace(/\D/g, '').slice(-4) || undefined;
+      if (!loadedEditAccount?.id) {
+        return;
+      }
+
+      const issuerId = loadedEditAccount.issuer?.id ?? undefined;
+      const issuerName = (loadedEditAccount.issuer?.name ?? loadedEditAccount.issuerName ?? '').trim();
+      const maskedNumberDigits = (loadedEditAccount.cardData?.maskedNumber ?? '').replace(/\D/g, '').slice(-4) || undefined;
 
       reset(
         {
           type: resolvedType,
-          subtype: accountToEdit.subtype,
+          subtype: loadedEditAccount.subtype,
           issuerId: issuerId ? issuerId : 'custom',
           issuerName,
-          name: accountToEdit.name ?? '',
-          currencyCode: accountToEdit.currencyCode ?? 'BRL',
-          themeColor: accountToEdit.themeColor ?? '#1976d2',
-          includeInNetWorth: Boolean(accountToEdit.includeInNetWorth),
-          includeInDashboard: Boolean(accountToEdit.includeInDashboard),
-          branchCode: accountToEdit.bankData?.branchCode ?? undefined,
-          accountNumber: accountToEdit.bankData?.number ?? undefined,
-          checkDigit: accountToEdit.bankData?.checkDigit ?? undefined,
-          cardNetwork: accountToEdit.cardData?.cardNetwork ?? undefined,
-          cardLevel: accountToEdit.cardData?.cardLevel ?? undefined,
+          name: loadedEditAccount.name ?? '',
+          currencyCode: loadedEditAccount.currencyCode ?? 'BRL',
+          themeColor: loadedEditAccount.themeColor ?? '#1976d2',
+          includeInNetWorth: Boolean(loadedEditAccount.includeInNetWorth),
+          includeInDashboard: Boolean(loadedEditAccount.includeInDashboard),
+          branchCode: loadedEditAccount.bankData?.branchCode ?? undefined,
+          accountNumber: loadedEditAccount.bankData?.number ?? undefined,
+          checkDigit: loadedEditAccount.bankData?.checkDigit ?? undefined,
+          cardNetwork: loadedEditAccount.cardData?.cardNetwork ?? undefined,
+          cardLevel: loadedEditAccount.cardData?.cardLevel ?? undefined,
           maskedNumber: maskedNumberDigits,
-          multiCard: accountToEdit.cardData?.isMultiCard ?? false,
-          creditLimit: accountToEdit.cardData?.creditLimit ?? undefined,
-          closingDay: accountToEdit.cardData?.closingDay ?? undefined,
-          dueDay: accountToEdit.cardData?.dueDay ?? undefined,
-          initialBalance: accountToEdit.initialBalance ?? undefined,
-          initialBalanceDate: parseDateOnly(accountToEdit.initialBalanceDate),
+          multiCard: loadedEditAccount.cardData?.isMultiCard ?? false,
+          creditLimit: loadedEditAccount.cardData?.creditLimit ?? undefined,
+          closingDay: loadedEditAccount.cardData?.closingDay ?? undefined,
+          dueDay: loadedEditAccount.cardData?.dueDay ?? undefined,
+          initialBalance: loadedEditAccount.initialBalance ?? undefined,
+          initialBalanceDate:
+            parseDateOnly(
+              typeof loadedEditAccount.initialBalanceDate === 'string'
+                ? loadedEditAccount.initialBalanceDate
+                : null,
+            ),
         },
         { keepDefaultValues: false },
       );
@@ -444,7 +470,7 @@ export function CreateFinancialAccountDrawer({
         handleTypeSelect(initialType);
       });
     }
-  }, [accountToEdit, handleTypeSelect, initialType, open, reset]);
+  }, [accountToEdit, handleTypeSelect, initialType, loadedEditAccount, open, reset]);
 
   // Pre-fill inline-import defaults when opening card creation from bill association.
   useEffect(() => {
@@ -564,7 +590,7 @@ export function CreateFinancialAccountDrawer({
       ...(data.issuerId === 'custom' ? { issuerName } : { issuerId: data.issuerId }),
     };
 
-    const hadExistingInitialBalance = accountToEdit?.initialBalance != null;
+    const hadExistingInitialBalance = loadedEditAccount?.initialBalance != null;
     if (data.initialBalance !== undefined) {
       input.initialBalance = data.initialBalance;
       input.initialBalanceDate = data.initialBalanceDate ? formatDateOnly(data.initialBalanceDate) : undefined;
@@ -686,6 +712,24 @@ export function CreateFinancialAccountDrawer({
       ? extractErrorMessage(createError, t('errors.default', { ns: 'common' }))
       : null;
   const formErrorMessage = deleteError ?? mutationErrorMessage;
+  const editLoadErrorMessage =
+    editAccountError
+      ? extractErrorMessage(editAccountError, t('errors.default', { ns: 'common' }))
+      : isEditing && !editAccountLoading && !loadedEditAccount
+        ? t('errors.default', { ns: 'common' })
+        : null;
+
+  const renderEditLoadingState = () => (
+    <Box sx={{ minHeight: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
+      <CircularProgress size={24} />
+    </Box>
+  );
+
+  const renderEditErrorState = () => (
+    <Box sx={{ p: 2 }}>
+      <ErrorAlert error={editLoadErrorMessage} />
+    </Box>
+  );
 
   const renderForm = () => (
     <Box sx={{ p: 0 }}>
@@ -863,7 +907,7 @@ export function CreateFinancialAccountDrawer({
               }
               submitForm="create-financial-account-form"
               cancelDisabled={creating || updating || deleting}
-              submitDisabled={creating || updating || deleting || !isValid}
+              submitDisabled={creating || updating || deleting || !isValid || (isEditing && !loadedEditAccount)}
               deleteDisabled={creating || updating || deleting}
               submitting={creating || updating}
               cancelTestId="account-form-cancel"
@@ -907,7 +951,11 @@ export function CreateFinancialAccountDrawer({
         closeButtonAriaLabel={t('financeTransactions.actions.close')}
       />
       <Drawer.Body>
-        {isTypeSelectionStep ? renderTypeSelection() : renderForm()}
+        {isTypeSelectionStep
+          ? renderTypeSelection()
+          : isEditing && !loadedEditAccount
+            ? (editLoadErrorMessage ? renderEditErrorState() : renderEditLoadingState())
+            : renderForm()}
       </Drawer.Body>
 
       <ConfirmDialog

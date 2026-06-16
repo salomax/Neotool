@@ -20,7 +20,7 @@ import { FINANCIAL_ACCOUNTS } from "@/lib/graphql/operations/banking/queries";
 import {
   FinancialAccountsQuery,
 } from "@/lib/graphql/operations/banking/queries.generated";
-import { FinancialAccount, FinancialAccountType } from "@/lib/graphql/types/__generated__/graphql";
+import { FinancialAccountType } from "@/lib/graphql/types/__generated__/graphql";
 import { CreateInvestmentAccountDrawer } from "./components/CreateInvestmentAccountDrawer";
 import { AssetTypeIcon } from "@/shared/components/ui/icons/AssetTypeIcon";
 import { Label } from "@/shared/components/ui";
@@ -35,7 +35,7 @@ export default function PersonalFinanceInvestmentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isCreateAccountOpen, setIsCreateAccountOpen] = React.useState(false);
-  const [editingAccount, setEditingAccount] = React.useState<FinancialAccount | null>(null);
+  const [editingAccount, setEditingAccount] = React.useState<NonNullable<FinancialAccountsQuery["financialAccounts"]>[number] | null>(null);
   const [selectedAccountId, setSelectedAccountId] = React.useState<string | null | undefined>(undefined);
   const [holdingSearchQuery, setHoldingSearchQuery] = React.useState("");
   const [summaryFetching, setSummaryFetching] = React.useState(false);
@@ -91,7 +91,7 @@ export default function PersonalFinanceInvestmentsPage() {
     setIsCreateAccountOpen(true);
   }, []);
 
-  const handleEditAccount = React.useCallback((account: FinancialAccount) => {
+  const handleEditAccount = React.useCallback((account: NonNullable<FinancialAccountsQuery["financialAccounts"]>[number]) => {
     setEditingAccount(account);
     setIsCreateAccountOpen(true);
   }, []);

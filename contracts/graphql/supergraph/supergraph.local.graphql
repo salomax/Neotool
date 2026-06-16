@@ -878,6 +878,21 @@ type ConfirmHoldingMaturityResult
   pendingAction: AccountPendingAction!
 }
 
+input ConfirmInvestmentImportInput
+  @join__type(graph: BANKING)
+{
+  jobId: ID!
+  institutionMappings: [InvestmentImportInstitutionMappingInput!]!
+  rowPatches: [InvestmentImportRowPatchInput!]!
+}
+
+enum ConflictResolution
+  @join__type(graph: BANKING)
+{
+  UPDATE @join__enumValue(graph: BANKING)
+  KEEP_EXISTING @join__enumValue(graph: BANKING)
+}
+
 enum ConnectionStatus
   @join__type(graph: BANKING)
 {
@@ -1609,6 +1624,17 @@ type FinancialAccount
   Earliest month with account data (transactions or investment portfolio snapshots).
   """
   dataSince: YearMonth
+
+  """
+  Signed initial balance amount (positive = credit, negative = debit/overdraft).
+  Null if no initial balance was set on this account.
+  """
+  initialBalance: Float
+
+  """
+  Reference date of the initial balance. Null when initialBalance is null.
+  """
+  initialBalanceDate: Date
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -2339,6 +2365,99 @@ type InvestmentHoldingPerformance
   dividendsReceived: Float!
 }
 
+type InvestmentImportAccountCandidate
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID!
+  accountName: String!
+}
+
+type InvestmentImportConflictDiff
+  @join__type(graph: BANKING)
+{
+  existingQuantity: Float
+  fileQuantity: Float
+  existingCurrentValue: Float
+  fileCurrentValue: Float
+  existingMaturityDate: String
+  fileMaturityDate: String
+}
+
+input InvestmentImportInstitutionMappingInput
+  @join__type(graph: BANKING)
+{
+  reviewInstitutionId: String!
+  financialAccountId: ID!
+}
+
+type InvestmentImportJob
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  status: InvestmentImportJobStatus!
+  fileName: String
+  createdAt: DateTime!
+  reviewPayload: InvestmentImportReview
+  errorCode: String
+  errorParameters: JSON
+  errorMessage: String @deprecated(reason: "Use errorCode/errorParameters for i18n")
+}
+
+enum InvestmentImportJobStatus
+  @join__type(graph: BANKING)
+{
+  AWAITING_REVIEW @join__enumValue(graph: BANKING)
+  IMPORTING @join__enumValue(graph: BANKING)
+  DONE @join__enumValue(graph: BANKING)
+  FAILED @join__enumValue(graph: BANKING)
+}
+
+type InvestmentImportReview
+  @join__type(graph: BANKING)
+{
+  source: String
+  institutions: [InvestmentImportReviewInstitution!]!
+}
+
+type InvestmentImportReviewInstitution
+  @join__type(graph: BANKING)
+{
+  reviewInstitutionId: String!
+  institutionName: String!
+  matchedFinancialAccountId: ID
+  matchAmbiguous: Boolean!
+  matchCandidates: [InvestmentImportAccountCandidate!]!
+  rows: [InvestmentImportReviewRow!]!
+}
+
+type InvestmentImportReviewRow
+  @join__type(graph: BANKING)
+{
+  rowIndex: Int!
+  productName: String!
+  assetTypeCode: String!
+  issuerName: String
+  providerCode: String
+  indexerLabel: String
+  issueDate: String
+  maturityDate: String
+  quantity: Float
+  principal: Float
+  currentValue: Float
+  requiresPrincipal: Boolean!
+  conflictingHoldingId: ID
+  conflictDiff: InvestmentImportConflictDiff
+}
+
+input InvestmentImportRowPatchInput
+  @join__type(graph: BANKING)
+{
+  rowIndex: Int!
+  principal: Float
+  conflictResolution: ConflictResolution
+  skip: Boolean
+}
+
 type InvestmentPortfolioSummary
   @join__type(graph: BANKING)
 {
@@ -2866,6 +2985,8 @@ type Mutation
   cancelImportReview(jobId: ID!): Boolean! @join__field(graph: BANKING)
   submitBillImport(input: SubmitBillImportInput!): BillImportJob! @join__field(graph: BANKING)
   confirmBillImport(input: ConfirmBillImportInput!): BillImportJob! @join__field(graph: BANKING)
+  submitInvestmentImport(input: SubmitInvestmentImportInput!): InvestmentImportJob! @join__field(graph: BANKING)
+  confirmInvestmentImport(input: ConfirmInvestmentImportInput!): InvestmentImportJob! @join__field(graph: BANKING)
 
   """
   Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
@@ -3515,6 +3636,9 @@ type Query
   """All financial accounts belonging to the authenticated user's account."""
   financialAccounts: [FinancialAccount!]! @join__field(graph: BANKING)
 
+  """Single financial account by ID (scoped to the authenticated account)."""
+  financialAccount(id: ID!): FinancialAccount @join__field(graph: BANKING)
+
   """Current banking user preferences (defaults when no row exists)."""
   bankingUserPreferences: BankingUserPreferences! @join__field(graph: BANKING)
 
@@ -3718,6 +3842,7 @@ type Query
   pendingReviewImports(financialAccountId: ID): [TransactionImport!]! @join__field(graph: BANKING)
   billImportJob(jobId: ID!): BillImportJob @join__field(graph: BANKING)
   billImportJobs(financialAccountId: ID): [BillImportJob!]! @join__field(graph: BANKING)
+  investmentImportJob(id: ID!): InvestmentImportJob @join__field(graph: BANKING)
 
   """
   All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
@@ -4232,6 +4357,13 @@ input SubmitBillImportInput
   password: String
 }
 
+input SubmitInvestmentImportInput
+  @join__type(graph: BANKING)
+{
+  fileName: String!
+  fileBase64: String!
+}
+
 type Subscription
   @join__type(graph: ASSISTANT)
 {
@@ -4714,6 +4846,18 @@ input UpdateFinancialAccountInput
   includeCashInAllocation: Boolean
   bankData: BankAccountDataInput
   cardData: CardDataInput
+
+  """
+  Signed initial balance. Positive = credit (opening balance), negative = debit (overdraft).
+  Non-zero when provided. Pass null to remove the existing initial balance.
+  Only applicable to BANK accounts.
+  """
+  initialBalance: Float
+
+  """
+  Reference date for the initial balance. Required when initialBalance is provided.
+  """
+  initialBalanceDate: Date
 }
 
 input UpdateGroupInput

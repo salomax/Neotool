@@ -117,6 +117,7 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
     try {
       await Promise.all(ids.map((id) => dismissAction({ variables: { id } })));
     } catch {
+      // Partial failures are acceptable; finally still refreshes the list.
     } finally {
       setBulkDismissLoading(false);
       await refresh();

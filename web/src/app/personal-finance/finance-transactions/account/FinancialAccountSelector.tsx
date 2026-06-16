@@ -37,12 +37,15 @@ import { useLogoBorderColor } from '@/shared/hooks/ui/useLogoBorderColor';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
-import { FinancialAccount, FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';
+import { FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';
+import type { FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
+
+type FinancialAccountListItem = NonNullable<FinancialAccountsQuery['financialAccounts']>[number];
 
 // Types
 interface FinancialAccountSelectorProps {
   onNewAccount: () => void;
-  onEditAccount?: (account: FinancialAccount) => void;
+  onEditAccount?: (account: FinancialAccountListItem) => void;
   selectedAccountId?: string | null;
   onSelectAccount: (accountId: string | null) => void;
   accountTypes?: FinancialAccountType[];
@@ -68,7 +71,7 @@ const formatCurrency = (value: number, currency = 'BRL') => {
   }).format(value);
 };
 
-const getCardSubtitle = (account: FinancialAccount, multipleCardsLabel: string): string | null => {
+const getCardSubtitle = (account: FinancialAccountListItem, multipleCardsLabel: string): string | null => {
   if (account.cardData?.isMultiCard) return multipleCardsLabel;
   const raw = account.cardData?.maskedNumber || '';
   const digits = raw.replace(/\D/g, '');
@@ -76,7 +79,7 @@ const getCardSubtitle = (account: FinancialAccount, multipleCardsLabel: string):
   return last4.length === 4 ? `•••• ${last4}` : null;
 };
 
-const isCardAccount = (account: FinancialAccount) => {
+const isCardAccount = (account: FinancialAccountListItem) => {
   if (account.cardData) return true;
   return account.type === FinancialAccountType.Credit;
 };
@@ -153,7 +156,7 @@ export function FinancialAccountSelector({
   const [searchQuery, setSearchQuery] = useState('');
 
   // Data Fetching
-  const { data, loading } = useQuery<{ financialAccounts: FinancialAccount[] }>(FINANCIAL_ACCOUNTS, {
+  const { data, loading } = useQuery<FinancialAccountsQuery>(FINANCIAL_ACCOUNTS, {
     errorPolicy: 'all',
   });
 
@@ -183,10 +186,10 @@ export function FinancialAccountSelector({
   }, [scopedAccounts, searchQuery]);
 
   // Group Accounts by Issuer
-  const groupedAccounts = useMemo<Record<string, FinancialAccount[]>>(() => {
+  const groupedAccounts = useMemo<Record<string, FinancialAccountListItem[]>>(() => {
     if (filteredAccounts.length === 0) return {};
     
-    return filteredAccounts.reduce<Record<string, FinancialAccount[]>>((acc, account) => {
+    return filteredAccounts.reduce<Record<string, FinancialAccountListItem[]>>((acc, account) => {
       const issuerName = account.issuer?.name || account.issuerName || unknownIssuerText;
       if (!acc[issuerName]) {
         acc[issuerName] = [];
@@ -196,7 +199,7 @@ export function FinancialAccountSelector({
     }, {});
   }, [filteredAccounts, unknownIssuerText]);
 
-  const allAccounts: FinancialAccount[] = scopedAccounts;
+  const allAccounts: FinancialAccountListItem[] = scopedAccounts;
   const hasMultipleAccounts = allAccounts.length > 1;
   const singleAccount = allAccounts.length === 1 ? allAccounts[0] : null;
   const canOpenSelector = hasMultipleAccounts;
@@ -205,7 +208,7 @@ export function FinancialAccountSelector({
   // Selected Account Logic
   const resolvedSelectedAccountId = selectedAccountId ?? (autoSelectSingleAccount ? singleAccount?.id : null) ?? null;
   const selectedAccount = resolvedSelectedAccountId
-    ? allAccounts.find((a: FinancialAccount) => a.id === resolvedSelectedAccountId) 
+    ? allAccounts.find((a) => a.id === resolvedSelectedAccountId) 
     : null;
 
   React.useEffect(() => {

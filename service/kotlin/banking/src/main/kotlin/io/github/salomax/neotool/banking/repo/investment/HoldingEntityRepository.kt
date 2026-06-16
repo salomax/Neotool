@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.banking.repo.investment
 
 import io.github.salomax.neotool.banking.model.investment.HoldingEntity
-import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository

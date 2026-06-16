@@ -1,5 +1,6 @@
 'use client';
 
+import type { FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import {
   Box,
   Divider,
@@ -18,7 +19,6 @@ import {
 import {
   CategoryApplicableTo,
   Transaction,
-  FinancialAccount,
 } from '@/lib/graphql/types/__generated__/graphql';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { useCallback, useEffect, useMemo, useRef, useState, Fragment, type MouseEvent } from 'react';
@@ -50,7 +50,7 @@ import { RecurringPaymentForm } from '@/app/personal-finance/recurring-payments/
 
 interface TransactionTableProps {
   transactions: Transaction[];
-  financialAccounts?: FinancialAccount[];
+  financialAccounts?: NonNullable<FinancialAccountsQuery['financialAccounts']>;
   loading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
@@ -143,7 +143,7 @@ export function TransactionTable({
   const colSpan = selectedAccountId ? 7 : 8;
 
   const accountsById = useMemo(() => {
-    const map = new Map<string, FinancialAccount>();
+    const map = new Map<string, NonNullable<FinancialAccountsQuery['financialAccounts']>[number]>();
     for (const account of financialAccounts ?? []) {
       map.set(account.id, account);
     }

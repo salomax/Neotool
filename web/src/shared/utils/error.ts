@@ -126,8 +126,8 @@ function collectGraphQLErrors(error: unknown): GraphQLErrorEntry[] {
     (err.networkError as { result?: { errors?: unknown } } | undefined)?.result?.errors
   );
 
-  if (isServerErrorLike(err)) {
-    appendGraphQLErrors(collected, parseGraphQLErrorsFromBodyText(err.bodyText));
+  if (isServerErrorLike(error)) {
+    appendGraphQLErrors(collected, parseGraphQLErrorsFromBodyText(error.bodyText));
   }
 
   const networkError = err.networkError;
@@ -199,7 +199,7 @@ function translateByErrorCode(
   code: string,
   parameters: Record<string, unknown> | undefined,
   fallback: string
-): string | undefined {
+): string {
   const normalizedCode = normalizeErrorCode(code);
   const translationKey = `errors.${normalizedCode}`;
   const lng = resolveTranslationLanguage();

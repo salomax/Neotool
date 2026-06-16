@@ -126,8 +126,8 @@ class PortfolioFlowEventServiceTest {
     fun `new PENDING job uses PROCESSING job start when it is earlier than the requested date`() {
         val financialAccountId = UUID.randomUUID()
         val accountId = UUID.randomUUID()
-        val processingStart = LocalDate.of(2026, 3, 9)   // 80d ago — the in-flight job's window
-        val eventDate = LocalDate.of(2026, 4, 18)        // 40d ago — the triggering trade date
+        val processingStart = LocalDate.of(2026, 3, 9) // 80d ago — the in-flight job's window
+        val eventDate = LocalDate.of(2026, 4, 18) // 40d ago — the triggering trade date
 
         val processingJob =
             PortfolioRecalculationJob(
@@ -168,8 +168,8 @@ class PortfolioFlowEventServiceTest {
         val financialAccountId = UUID.randomUUID()
         val accountId = UUID.randomUUID()
         // PROCESSING job covers a narrow recent window — the new event is older.
-        val processingStart = LocalDate.of(2026, 5, 8)   // 20d ago
-        val eventDate = LocalDate.of(2026, 3, 9)          // 80d ago — older, so use eventDate
+        val processingStart = LocalDate.of(2026, 5, 8) // 20d ago
+        val eventDate = LocalDate.of(2026, 3, 9) // 80d ago — older, so use eventDate
 
         val processingJob =
             PortfolioRecalculationJob(

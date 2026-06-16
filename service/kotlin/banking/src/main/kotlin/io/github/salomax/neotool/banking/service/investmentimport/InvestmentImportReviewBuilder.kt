@@ -33,7 +33,9 @@ class InvestmentImportReviewBuilder(
 
         val institutions =
             rowsByInstitution.entries.mapIndexed { idx, (normalizedName, institutionRows) ->
-                val readableName = institutionRows.firstOrNull()?.institutionName?.takeIf { it.isNotBlank() } ?: normalizedName
+                val readableName =
+                    institutionRows.firstOrNull()?.institutionName?.takeIf { it.isNotBlank() }
+                        ?: normalizedName
                 val reviewInstitutionId = "inst-${idx + 1}"
                 val accountMatch = resolveAccountMatch(normalizedName, investmentAccounts)
                 val resolvedAccountId = if (accountMatch.ambiguous) null else accountMatch.matchedId

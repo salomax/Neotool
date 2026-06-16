@@ -9,8 +9,8 @@ import { FormProvider, useController, useForm, useFormState, useWatch } from 're
 import { z } from 'zod';
 import { CREATE_FINANCIAL_ACCOUNT, UPDATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
 import { FINANCIAL_ACCOUNTS, ISSUERS } from '@/lib/graphql/operations/banking/queries';
+import type { FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import {
-  FinancialAccount,
   FinancialAccountSubtype,
   FinancialAccountType,
   Issuer,
@@ -28,7 +28,7 @@ import { IssuerSelect } from '../../finance-transactions/account/IssuerSelect';
 interface CreateInvestmentAccountDrawerProps {
   open: boolean;
   onClose: () => void;
-  accountToEdit?: FinancialAccount | null;
+  accountToEdit?: NonNullable<FinancialAccountsQuery['financialAccounts']>[number] | null;
   onCreated?: (account: { id: string; name: string }) => void;
 }
 

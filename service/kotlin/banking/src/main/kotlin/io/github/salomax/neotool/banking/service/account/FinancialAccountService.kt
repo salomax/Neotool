@@ -55,6 +55,11 @@ open class FinancialAccountService(
 
     fun listByAccount(accountId: UUID): List<FinancialAccount> = financialAccountRepository.findByAccountId(accountId)
 
+    fun findById(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): FinancialAccount? = financialAccountRepository.findById(financialAccountId, accountId)
+
     @Transactional
     open fun create(
         command: CreateFinancialAccountCommand,
@@ -74,25 +79,14 @@ open class FinancialAccountService(
         }
         val initialBalance = command.initialBalance
         val initialBalanceDate = command.initialBalanceDate
+        validateInitialBalanceInputForType(
+            type = command.type,
+            initialBalanceProvided = initialBalance != null,
+            initialBalanceDateProvided = initialBalanceDate != null,
+        )
         if (initialBalance != null) {
-            require(initialBalance.compareTo(BigDecimal.ZERO) != 0) {
-                "initialBalance must be non-zero when provided"
-            }
-            require(initialBalanceDate != null) {
-                "initialBalanceDate is required when initialBalance is provided"
-            }
-            val minAllowedDate = DateWindowPolicy.minAllowedDate()
-            if (initialBalanceDate.isBefore(minAllowedDate)) {
-                throw ValidationException(
-                    errorCode = BankingErrorCode.TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW,
-                    field = "initialBalanceDate",
-                    parameters =
-                        mapOf(
-                            "minAllowedDate" to minAllowedDate.toString(),
-                            "windowYears" to DateWindowPolicy.MAX_PAST_YEARS,
-                        ),
-                )
-            }
+            validateInitialBalanceNonZero(initialBalance)
+            validateInitialBalanceDate(requireInitialBalanceDate(initialBalanceDate))
         }
 
         validateAccountShape(
@@ -229,6 +223,11 @@ open class FinancialAccountService(
             type = command.type,
             bankDataProvided = command.bankData != null,
             cardDataProvided = command.cardData != null,
+        )
+        validateInitialBalanceInputForType(
+            type = command.type,
+            initialBalanceProvided = command.initialBalance is UpdateField.Present,
+            initialBalanceDateProvided = command.initialBalanceDate is UpdateField.Present,
         )
 
         val issuer = command.issuerId?.let { issuerRepository.findById(it) }
@@ -495,6 +494,13 @@ open class FinancialAccountService(
         userId: UUID,
         currencyCode: String,
     ) {
+        val initialBalanceProvided = command.initialBalance is UpdateField.Present
+        val initialBalanceDateProvided = command.initialBalanceDate is UpdateField.Present
+        validateInitialBalanceInputForType(
+            type = command.type,
+            initialBalanceProvided = initialBalanceProvided,
+            initialBalanceDateProvided = initialBalanceDateProvided,
+        )
         if (command.type != FinancialAccountType.BANK) return
 
         when (val initialBalanceField = command.initialBalance) {
@@ -512,6 +518,7 @@ open class FinancialAccountService(
                         existingTx.deletedAt = deletedAt
                         existingTx.updatedAt = deletedAt
                         transactionEntityRepository.update(existingTx)
+                        transactionEntityRepository.flush()
                         snapshotComputationService.recomputeChain(
                             financialAccountId = financialAccountId,
                             accountId = accountId,
@@ -522,9 +529,7 @@ open class FinancialAccountService(
                     return
                 }
 
-                require(newBalance.compareTo(BigDecimal.ZERO) != 0) {
-                    "initialBalance must be non-zero when provided"
-                }
+                validateInitialBalanceNonZero(newBalance)
                 val newDate = resolveInitialBalanceDate(command, existingTx?.date)
                 validateInitialBalanceDate(newDate)
                 val newCreditDebitType =
@@ -542,6 +547,7 @@ open class FinancialAccountService(
                     existingTx.date = newDate
                     existingTx.updatedAt = Instant.now()
                     transactionEntityRepository.update(existingTx)
+                    transactionEntityRepository.flush()
                     val recomputeFrom = minOf(oldDate, newDate)
                     snapshotComputationService.recomputeChain(
                         financialAccountId = financialAccountId,
@@ -576,14 +582,38 @@ open class FinancialAccountService(
     ): java.time.LocalDate =
         when (val initialBalanceDateField = command.initialBalanceDate) {
             is UpdateField.Present ->
-                requireNotNull(initialBalanceDateField.value) {
-                    "initialBalanceDate is required when initialBalance is provided"
-                }
+                requireInitialBalanceDate(initialBalanceDateField.value)
             UpdateField.Absent ->
-                requireNotNull(existingDate) {
-                    "initialBalanceDate is required when initialBalance is provided"
-                }
+                requireInitialBalanceDate(existingDate)
         }
+
+    private fun validateInitialBalanceInputForType(
+        type: FinancialAccountType,
+        initialBalanceProvided: Boolean,
+        initialBalanceDateProvided: Boolean,
+    ) {
+        if (type == FinancialAccountType.BANK) return
+        if (!initialBalanceProvided && !initialBalanceDateProvided) return
+        throw ValidationException(
+            errorCode = BankingErrorCode.INITIAL_BALANCE_ONLY_SUPPORTED_FOR_BANK_ACCOUNTS,
+            field = if (initialBalanceProvided) "initialBalance" else "initialBalanceDate",
+        )
+    }
+
+    private fun validateInitialBalanceNonZero(initialBalance: BigDecimal) {
+        if (initialBalance.compareTo(BigDecimal.ZERO) == 0) {
+            throw ValidationException(
+                errorCode = BankingErrorCode.INITIAL_BALANCE_NON_ZERO,
+                field = "initialBalance",
+            )
+        }
+    }
+
+    private fun requireInitialBalanceDate(date: java.time.LocalDate?): java.time.LocalDate =
+        date ?: throw ValidationException(
+            errorCode = BankingErrorCode.INITIAL_BALANCE_DATE_REQUIRED,
+            field = "initialBalanceDate",
+        )
 
     private fun validateInitialBalanceDate(date: java.time.LocalDate) {
         val minAllowedDate = DateWindowPolicy.minAllowedDate()

@@ -153,7 +153,7 @@ export function FixedIncomeComparisonTable({
     });
 
     return { sortedRows, durationWithTotalText, baseRateModel };
-  }, [result, t, ns]);
+  }, [result, t, ns, locale]);
 
   if (loading) {
     return (

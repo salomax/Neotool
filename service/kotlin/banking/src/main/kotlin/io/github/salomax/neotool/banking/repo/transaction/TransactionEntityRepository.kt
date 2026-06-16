@@ -223,25 +223,12 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
          WHERE financial_account_id = CAST(:financialAccountId AS uuid)
            AND type = 'BALANCE_ADJUSTMENT'
            AND deleted_at IS NULL
-         ORDER BY created_at ASC
+         ORDER BY date ASC, created_at ASC, id ASC
          LIMIT 1
         """,
         nativeQuery = true,
     )
     fun findInitialBalanceTransaction(financialAccountId: String): Optional<TransactionEntity>
-
-    @Query(
-        """
-        SELECT DISTINCT ON (financial_account_id) *
-          FROM banking.transactions
-         WHERE financial_account_id = ANY(CAST(:financialAccountIds AS uuid[]))
-           AND type = 'BALANCE_ADJUSTMENT'
-           AND deleted_at IS NULL
-         ORDER BY financial_account_id, created_at ASC
-        """,
-        nativeQuery = true,
-    )
-    fun findInitialBalanceTransactions(financialAccountIds: List<UUID>): List<TransactionEntity>
 
     @Query(
         """

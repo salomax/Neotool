@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.banking.domain.investmentimport.InvestmentImportJob
 import io.github.salomax.neotool.banking.domain.investmentimport.InvestmentImportJobStatus
 import io.github.salomax.neotool.banking.repo.investmentimport.InvestmentImportJobRepository
-import io.github.salomax.neotool.banking.service.investmentimport.InvestmentImportReviewBuilder
 import io.github.salomax.neotool.banking.service.investmentimport.InvestmentImportInputStrategy
+import io.github.salomax.neotool.banking.service.investmentimport.InvestmentImportReviewBuilder
 import io.github.salomax.neotool.banking.service.investmentimport.InvestmentImportSubmissionRequest
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
@@ -22,8 +22,7 @@ class B3ExcelInvestmentImportInputStrategy(
 ) : InvestmentImportInputStrategy {
     override val priority: Int = 100
 
-    override fun supports(fileName: String): Boolean =
-        fileName.endsWith(".xlsx", ignoreCase = true)
+    override fun supports(fileName: String): Boolean = fileName.endsWith(".xlsx", ignoreCase = true)
 
     override fun submit(request: InvestmentImportSubmissionRequest): InvestmentImportJob {
         val parseResult =

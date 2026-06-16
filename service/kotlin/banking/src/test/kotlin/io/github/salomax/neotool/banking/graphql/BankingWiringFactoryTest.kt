@@ -7,8 +7,11 @@ import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
+import io.github.salomax.neotool.banking.graphql.config.BankingWiringFactory
+import io.github.salomax.neotool.banking.graphql.import.ImportResolver
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentResolver
 import io.github.salomax.neotool.banking.graphql.investmentimport.InvestmentImportResolver
-import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
+import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantConnectionDTO
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantPageInfoDTO
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
@@ -177,6 +180,20 @@ class BankingWiringFactoryTest {
             dataFetcher.get(env)
 
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_ACCOUNT_VIEW))
+        }
+
+        @Test
+        fun `financialAccount requires banking_account_view permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Query"]!!["financialAccount"]!!
+            val accountId = UUID.randomUUID().toString()
+
+            val env = envWithToken(arguments = mapOf("id" to accountId))
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_ACCOUNT_VIEW))
+            verify(financialAccountResolver).getById(eq(accountId), any())
         }
 
         @Test

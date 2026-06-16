@@ -17,13 +17,21 @@ open class DefaultInvestmentImportJobRepository(
         id: UUID,
         accountId: UUID,
     ): InvestmentImportJob? =
-        entityRepository.findByIdAndAccountIdAndJobKind(id, accountId, jobKind)?.let(InvestmentImportJobMapper::toDomain)
+        entityRepository.findByIdAndAccountIdAndJobKind(
+            id,
+            accountId,
+            jobKind,
+        )?.let(InvestmentImportJobMapper::toDomain)
 
     override fun findByAccountIdAndFileHash(
         accountId: UUID,
         fileHash: String,
     ): InvestmentImportJob? =
-        entityRepository.findByAccountIdAndFileHashAndJobKind(accountId, fileHash, jobKind)?.let(InvestmentImportJobMapper::toDomain)
+        entityRepository.findByAccountIdAndFileHashAndJobKind(
+            accountId,
+            fileHash,
+            jobKind,
+        )?.let(InvestmentImportJobMapper::toDomain)
 
     @Transactional
     override fun save(job: InvestmentImportJob): InvestmentImportJob {

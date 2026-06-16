@@ -149,9 +149,10 @@ class FinancialAccountServiceTest {
         fun `fails when initial balance is provided without date and does not persist account`() {
             val command = command(initialBalance = BigDecimal("10.00"), initialBalanceDate = null)
 
-            val ex = assertThrows<IllegalArgumentException> { service.create(command, accountId, userId) }
+            val ex = assertThrows<ValidationException> { service.create(command, accountId, userId) }
 
-            assertThat(ex.message).contains("initialBalanceDate is required when initialBalance is provided")
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.INITIAL_BALANCE_DATE_REQUIRED)
+            assertThat(ex.field).isEqualTo("initialBalanceDate")
             verify(financialAccountRepository, never()).save(any())
             verify(transactionService, never()).create(any(), any(), any())
         }
@@ -160,9 +161,30 @@ class FinancialAccountServiceTest {
         fun `fails when initial balance is zero and does not persist account`() {
             val command = command(initialBalance = BigDecimal.ZERO, initialBalanceDate = today)
 
-            val ex = assertThrows<IllegalArgumentException> { service.create(command, accountId, userId) }
+            val ex = assertThrows<ValidationException> { service.create(command, accountId, userId) }
 
-            assertThat(ex.message).contains("initialBalance must be non-zero when provided")
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.INITIAL_BALANCE_NON_ZERO)
+            assertThat(ex.field).isEqualTo("initialBalance")
+            verify(financialAccountRepository, never()).save(any())
+            verify(transactionService, never()).create(any(), any(), any())
+        }
+
+        @Test
+        fun `fails when non-bank account is created with initial balance`() {
+            val command =
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.CREDIT,
+                    subtype = FinancialAccountSubtype.CREDIT_CARD,
+                    name = "Cartao invalido",
+                    issuerName = "Banco Teste",
+                    initialBalance = BigDecimal("10.00"),
+                    initialBalanceDate = today,
+                )
+
+            val ex = assertThrows<ValidationException> { service.create(command, accountId, userId) }
+
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.INITIAL_BALANCE_ONLY_SUPPORTED_FOR_BANK_ACCOUNTS)
+            assertThat(ex.field).isEqualTo("initialBalance")
             verify(financialAccountRepository, never()).save(any())
             verify(transactionService, never()).create(any(), any(), any())
         }
@@ -190,6 +212,21 @@ class FinancialAccountServiceTest {
                 service.create(command, accountId, userId)
             }.also { ex ->
                 assertThat(ex.errorCode).isEqualTo(BankingErrorCode.TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW)
+                assertThat(ex.field).isEqualTo("initialBalanceDate")
+            }
+            verify(financialAccountRepository, never()).save(any())
+            verify(transactionService, never()).create(any(), any(), any())
+        }
+
+        @Test
+        fun `fails when initial balance date is in the future`() {
+            val futureDate = LocalDate.now().plusDays(1)
+            val command = command(initialBalance = BigDecimal("10.00"), initialBalanceDate = futureDate)
+
+            assertThrows<ValidationException> {
+                service.create(command, accountId, userId)
+            }.also { ex ->
+                assertThat(ex.errorCode).isEqualTo(BankingErrorCode.TRANSACTION_DATE_IN_FUTURE)
                 assertThat(ex.field).isEqualTo("initialBalanceDate")
             }
             verify(financialAccountRepository, never()).save(any())
@@ -848,6 +885,33 @@ class FinancialAccountServiceTest {
                 fromMonth = today.minusMonths(1).monthValue,
             )
             verify(transactionService, never()).create(any(), any(), any())
+        }
+
+        @Test
+        fun `rejects initial balance update for non-bank accounts`() {
+            val existing = existingCardAccount()
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existing)
+
+            val ex =
+                assertThrows<ValidationException> {
+                    service.update(
+                        financialAccountId = financialAccountId,
+                        command =
+                            UpdateFinancialAccountCommand(
+                                type = FinancialAccountType.CREDIT,
+                                subtype = FinancialAccountSubtype.CHARGE_CARD,
+                                issuerId = issuerId,
+                                initialBalance = UpdateField.Present(BigDecimal("10.00")),
+                            ),
+                        accountId = accountId,
+                        userId = userId,
+                    )
+                }
+
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.INITIAL_BALANCE_ONLY_SUPPORTED_FOR_BANK_ACCOUNTS)
+            assertThat(ex.field).isEqualTo("initialBalance")
+            verify(transactionEntityRepository, never()).findInitialBalanceTransaction(any())
+            verify(financialAccountRepository, never()).update(any())
         }
     }
 
