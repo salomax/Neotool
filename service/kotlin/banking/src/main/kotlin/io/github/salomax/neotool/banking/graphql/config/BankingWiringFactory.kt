@@ -81,6 +81,17 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "financialAccount",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_ACCOUNT_VIEW) { principal ->
+                        financialAccountResolver.getById(
+                            requireNotNull(env.getArgument<String>("id")) { "financialAccount id is required" },
+                            principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
                 "accountPreferences",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_ACCOUNT_VIEW) { principal ->

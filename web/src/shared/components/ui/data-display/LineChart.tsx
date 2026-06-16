@@ -708,8 +708,8 @@ export const LineChart: React.FC<LineChartProps> = ({
   strokeWidth = 2,
   showArea = true,
   scale = false,
-  scaleMinPadding,
-  scaleMaxPadding,
+  scaleMinPadding = 0.1,
+  scaleMaxPadding = 0.1,
   consolidateDecimal = true,
   colors,
   margin = { top: 0, right: 0, left: 0, bottom: 24 },
@@ -846,17 +846,24 @@ export const LineChart: React.FC<LineChartProps> = ({
       return [min, max] as [number, number];
     }
 
-    const defaultPercent = hasExplicitBounds ? 0 : 0.1;
-    const minPercent = scaleMinPadding ?? axisConfig?.marginPercent ?? defaultPercent;
-    const maxPercent = scaleMaxPadding ?? axisConfig?.marginPercent ?? defaultPercent;
+    const percent = axisConfig?.marginPercent;
+    if (percent != null) {
+      if (min === max) {
+        const padding = (stats?.maxAbs || Math.abs(max) || 1) * percent;
+        return [min - padding, max + padding] as [number, number];
+      }
+      const padding = (max - min) * percent;
+      return [min - padding, max + padding] as [number, number];
+    }
 
     if (min === max) {
-      const base = stats?.maxAbs || Math.abs(max) || 1;
-      return [min - base * minPercent, max + base * maxPercent] as [number, number];
+      const baseRange = stats?.maxAbs || Math.abs(max) || 1;
+      const padding = baseRange * (scaleMinPadding + scaleMaxPadding);
+      return [min - padding, max + padding] as [number, number];
     }
 
     const range = max - min;
-    return [min - range * minPercent, max + range * maxPercent] as [number, number];
+    return [min - range * scaleMinPadding, max + range * scaleMaxPadding] as [number, number];
   }, [axisStats, defaultAxisId, getAxis, scale, scaleMaxPadding, scaleMinPadding]);
 
   const getTickFormatter = React.useCallback((axisId: string | undefined) => {
@@ -1124,8 +1131,8 @@ export const LineChart: React.FC<LineChartProps> = ({
                       key={axis.id}
                       yAxisId={axis.id}
                       orientation="left"
+                      mirror={axis.ticksInside === true || yAxisLabelsInside}
                       padding={axisPadding}
-                      mirror={axis.ticksInside === true ? true : yAxisLabelsInside}
                       tickMargin={axis.ticksInside ? 6 : undefined}
                       axisLine={{ stroke: theme.palette.divider }}
                       tickLine={{ stroke: theme.palette.divider }}
@@ -1144,8 +1151,8 @@ export const LineChart: React.FC<LineChartProps> = ({
                       key={axis.id}
                       yAxisId={axis.id}
                       orientation="right"
+                      mirror={axis.ticksInside === true || yAxisLabelsInside}
                       padding={axisPadding}
-                      mirror={axis.ticksInside === true ? true : yAxisLabelsInside}
                       tickMargin={axis.ticksInside ? 6 : undefined}
                       axisLine={{ stroke: theme.palette.divider }}
                       tickLine={{ stroke: theme.palette.divider }}

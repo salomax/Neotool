@@ -51,12 +51,16 @@ open class InvestmentImportCommitPreparer(
         val patchByRowIndex = command.rowPatches.associateBy { it.rowIndex }
 
         review.institutions.forEach { institution ->
-            val financialAccount = accountByReviewInstitutionId[institution.reviewInstitutionId]
-                ?: throw ValidationException(
-                    CommonErrorCode.INVALID_INPUT,
-                    field = "institutionMappings",
-                    parameters = mapOf("reason" to "Missing mapping for institution: ${institution.institutionName}"),
-                )
+            val financialAccount =
+                accountByReviewInstitutionId[institution.reviewInstitutionId]
+                    ?: throw ValidationException(
+                        CommonErrorCode.INVALID_INPUT,
+                        field = "institutionMappings",
+                        parameters =
+                            mapOf(
+                                "reason" to "Missing mapping for institution: ${institution.institutionName}",
+                            ),
+                    )
             val financialAccountId = requireNotNull(financialAccount.id)
 
             institution.rows.forEach { row ->
@@ -68,7 +72,10 @@ open class InvestmentImportCommitPreparer(
                     throw ValidationException(
                         CommonErrorCode.INVALID_INPUT,
                         field = "rowPatches[${row.rowIndex}].principal",
-                        parameters = mapOf("reason" to "Principal is required for row ${row.rowIndex} (${row.productName})"),
+                        parameters =
+                            mapOf(
+                                "reason" to "Principal is required for row ${row.rowIndex} (${row.productName})",
+                            ),
                     )
                 }
 
@@ -76,20 +83,24 @@ open class InvestmentImportCommitPreparer(
                     throw ValidationException(
                         CommonErrorCode.INVALID_INPUT,
                         field = "rowPatches[${row.rowIndex}].conflictResolution",
-                        parameters = mapOf("reason" to "conflictResolution required for conflicting row ${row.rowIndex}"),
+                        parameters =
+                            mapOf(
+                                "reason" to "conflictResolution required for conflicting row ${row.rowIndex}",
+                            ),
                     )
                 }
 
                 if (patch?.conflictResolution == ConflictResolution.KEEP_EXISTING) return@forEach
 
                 val asset = resolveOrCreateAsset(row)
-                val holding = upsertHolding(
-                    financialAccountId = financialAccountId,
-                    accountId = command.accountId,
-                    assetId = requireNotNull(asset.id),
-                    row = row,
-                    principal = principal,
-                )
+                val holding =
+                    upsertHolding(
+                        financialAccountId = financialAccountId,
+                        accountId = command.accountId,
+                        assetId = requireNotNull(asset.id),
+                        row = row,
+                        principal = principal,
+                    )
 
                 createPurchaseTransactionIfAbsent(
                     command = command,
@@ -209,12 +220,13 @@ open class InvestmentImportCommitPreparer(
                 ),
             )
         } else {
-            val quantity = row.quantity
-                ?: throw ValidationException(
-                    CommonErrorCode.INVALID_INPUT,
-                    field = "rowPatches[${row.rowIndex}].quantity",
-                    parameters = mapOf("reason" to "Quantidade ausente para a linha ${row.rowIndex}"),
-                )
+            val quantity =
+                row.quantity
+                    ?: throw ValidationException(
+                        CommonErrorCode.INVALID_INPUT,
+                        field = "rowPatches[${row.rowIndex}].quantity",
+                        parameters = mapOf("reason" to "Quantidade ausente para a linha ${row.rowIndex}"),
+                    )
 
             holdingRepository.save(
                 Holding(
@@ -247,7 +259,12 @@ open class InvestmentImportCommitPreparer(
         principal: BigDecimal?,
     ) {
         val providerCode = row.providerCode
-        if (!providerCode.isNullOrBlank() && investmentTransactionRepository.existsByProviderTransactionId(financialAccountId, providerCode)) {
+        if (!providerCode.isNullOrBlank() &&
+            investmentTransactionRepository.existsByProviderTransactionId(
+                financialAccountId,
+                providerCode,
+            )
+        ) {
             return
         }
 

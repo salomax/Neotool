@@ -11,14 +11,24 @@ import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.math.BigDecimal
 import java.time.LocalDate
-import java.util.Date
 
 class B3RFExcelParserTest {
     private val parser = B3RFExcelParser()
 
     @Test
     fun `happy path parses b3 rows`() {
-        val headers = listOf("Produto", "Instituição", "Emissor", "Código", "Indexador", "Data de Emissão", "Vencimento", "Quantidade", "Valor Atualizado CURVA")
+        val headers =
+            listOf(
+                "Produto",
+                "Instituição",
+                "Emissor",
+                "Código",
+                "Indexador",
+                "Data de Emissão",
+                "Vencimento",
+                "Quantidade",
+                "Valor Atualizado CURVA",
+            )
         val rows =
             listOf(
                 mapOf(
@@ -127,7 +137,11 @@ class B3RFExcelParserTest {
 
     @Test
     fun `missing produto column throws parse exception`() {
-        val bytes = buildWorkbook(headers = listOf("Instituição", "Quantidade", "Vencimento"), rows = listOf(mapOf("Instituição" to "X")))
+        val bytes =
+            buildWorkbook(
+                headers = listOf("Instituição", "Quantidade", "Vencimento"),
+                rows = listOf(mapOf("Instituição" to "X")),
+            )
 
         assertThatThrownBy { parser.parse(bytes, "b3.xlsx") }
             .isInstanceOf(B3ParseException::class.java)
@@ -135,14 +149,23 @@ class B3RFExcelParserTest {
 
     @Test
     fun `header row can be below first line`() {
-        val bytes = buildWorkbook(headers = listOf("Produto", "Quantidade"), rows = listOf(mapOf("Produto" to "CDB - A", "Quantidade" to "1")), headerRowIndex = 3)
+        val bytes =
+            buildWorkbook(
+                headers = listOf("Produto", "Quantidade"),
+                rows = listOf(mapOf("Produto" to "CDB - A", "Quantidade" to "1")),
+                headerRowIndex = 3,
+            )
         val result = parser.parse(bytes, "b3.xlsx")
         assertThat(result.rows).hasSize(1)
     }
 
     @Test
     fun `date cell string format parses to local date`() {
-        val bytes = buildWorkbook(headers = listOf("Produto", "Data de Emissão"), rows = listOf(mapOf("Produto" to "CDB - A", "Data de Emissão" to "10/01/2024")))
+        val bytes =
+            buildWorkbook(
+                headers = listOf("Produto", "Data de Emissão"),
+                rows = listOf(mapOf("Produto" to "CDB - A", "Data de Emissão" to "10/01/2024")),
+            )
         val result = parser.parse(bytes, "b3.xlsx")
         assertThat(result.rows.first().issueDate).isEqualTo(LocalDate.of(2024, 1, 10))
     }
@@ -160,7 +183,7 @@ class B3RFExcelParserTest {
         val row = sheet.createRow(1)
         row.createCell(0).setCellValue("CDB - A")
         row.createCell(1).apply {
-            setCellValue(Date.from(LocalDate.of(2024, 1, 10).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()))
+            setCellValue(LocalDate.of(2024, 1, 10))
             cellStyle = dateStyle
         }
         val out = ByteArrayOutputStream()

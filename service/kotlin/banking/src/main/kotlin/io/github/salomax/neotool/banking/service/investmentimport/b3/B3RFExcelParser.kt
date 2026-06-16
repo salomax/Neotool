@@ -32,11 +32,15 @@ class B3RFExcelParser {
         workbook.use { wb ->
             val sheetAndName =
                 findRFSheet(wb)
-                    ?: throw B3ParseException("Planilha de Renda Fixa não encontrada. Verifique se o arquivo foi exportado da B3.")
+                    ?: throw B3ParseException(
+                        "Planilha de Renda Fixa não encontrada. Verifique se o arquivo foi exportado da B3.",
+                    )
             val (sheet, sheetName) = sheetAndName
             val headerRowIndex =
                 findHeaderRowIndex(sheet)
-                    ?: throw B3ParseException("Cabeçalho da planilha não encontrado. Verifique se a coluna 'Produto' está presente.")
+                    ?: throw B3ParseException(
+                        "Cabeçalho da planilha não encontrado. Verifique se a coluna 'Produto' está presente.",
+                    )
 
             val columnIndex = buildColumnIndex(sheet.getRow(headerRowIndex))
             if ("productName" !in columnIndex) {
@@ -95,12 +99,18 @@ class B3RFExcelParser {
         val formatter = DataFormatter()
         for (rowNum in 0..minOf(29, sheet.lastRowNum)) {
             val row = sheet.getRow(rowNum) ?: continue
+            val hasProduto =
+                row.any { cell ->
+                    formatter.formatCellValue(cell).trim().equals("Produto", ignoreCase = true)
+                }
+            if (!hasProduto) continue
+
             val matchedColumns =
                 row.count { cell ->
                     val value = formatter.formatCellValue(cell).trim()
                     COLUMN_ALIASES.values.any { aliases -> aliases.any { it.equals(value, ignoreCase = true) } }
                 }
-            if (matchedColumns >= 3) {
+            if (matchedColumns >= 2) {
                 return rowNum
             }
         }
@@ -156,8 +166,7 @@ class B3RFExcelParser {
     private fun isEmptyRow(
         row: Row,
         formatter: DataFormatter,
-    ): Boolean =
-        row.all { formatter.formatCellValue(it).isBlank() }
+    ): Boolean = row.all { formatter.formatCellValue(it).isBlank() }
 
     private fun cellString(
         cell: Cell?,

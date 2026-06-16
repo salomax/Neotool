@@ -1,5 +1,6 @@
 'use client';
 
+import type { FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import React, { useCallback, useState } from 'react';
 import {
   Box,
@@ -19,7 +20,6 @@ import {
 import { useMutation } from '@apollo/client/react';
 import { PAY_BILL } from '@/lib/graphql/operations/banking/mutations';
 import { PayBillMutation, PayBillMutationVariables } from '@/lib/graphql/operations/banking/mutations.generated';
-import { FinancialAccount } from '@/lib/graphql/types/__generated__/graphql';
 import { CreditCardBill } from './billUtils';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
@@ -27,7 +27,7 @@ import { personalFinanceTranslations } from '../../i18n';
 interface PayBillDialogProps {
   open: boolean;
   bill: CreditCardBill | null;
-  bankAccounts: FinancialAccount[];
+  bankAccounts: NonNullable<FinancialAccountsQuery['financialAccounts']>;
   onClose: () => void;
   onSuccess: () => void;
 }

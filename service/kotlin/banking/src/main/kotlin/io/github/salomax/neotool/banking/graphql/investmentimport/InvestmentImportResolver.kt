@@ -157,7 +157,10 @@ class InvestmentImportResolver(
     private fun parseReviewPayloadForGraphQL(job: InvestmentImportJob): InvestmentImportReviewDTO? {
         if (job.status != InvestmentImportJobStatus.AWAITING_REVIEW) return null
         val payload = job.reviewPayload ?: return null
-        val parsed = runCatching { objectMapper.readValue(payload, InvestmentImportReview::class.java) }.getOrNull() ?: return null
+        val parsed =
+            runCatching {
+                objectMapper.readValue(payload, InvestmentImportReview::class.java)
+            }.getOrNull() ?: return null
         return parsed.toDTO()
     }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
-import { FinancialAccount } from '@/lib/graphql/types/__generated__/graphql';
+import type { FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import { BillStatus, CreditCardBill } from '../bill/billUtils';
 
 export type { BillStatus, CreditCardBill };
@@ -37,7 +37,7 @@ function readSessionInt(key: string, fallback: number): number {
   return fallback;
 }
 
-export function useAccountDisplayMode(selectedAccount: FinancialAccount | null): DisplayMode {
+export function useAccountDisplayMode(selectedAccount: NonNullable<FinancialAccountsQuery['financialAccounts']>[number] | null): DisplayMode {
   void selectedAccount;
 
   // Lazy initializers read sessionStorage synchronously on first render,

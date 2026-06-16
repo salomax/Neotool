@@ -6,6 +6,7 @@ import io.github.salomax.neotool.banking.domain.account.CreditCardNetwork
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
+import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -53,6 +54,8 @@ data class FinancialAccountDTO(
     val consentExpiresAt: OffsetDateTime?,
     val lastSyncAt: OffsetDateTime?,
     val dataSince: YearMonthDTO?,
+    val initialBalance: Double?,
+    val initialBalanceDate: LocalDate?,
     val createdAt: OffsetDateTime,
     val updatedAt: OffsetDateTime,
 )

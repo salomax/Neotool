@@ -1658,6 +1658,8 @@ class InvestmentQueryService(
             consentExpiresAt = consentExpiresAt?.atOffset(ZoneOffset.UTC),
             lastSyncAt = lastSyncAt?.atOffset(ZoneOffset.UTC),
             dataSince = null,
+            initialBalance = null,
+            initialBalanceDate = null,
             createdAt = createdAt.atOffset(ZoneOffset.UTC),
             updatedAt = updatedAt.atOffset(ZoneOffset.UTC),
         )

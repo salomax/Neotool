@@ -1,19 +1,20 @@
 'use client';
 
+import type { FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import { Alert, Box, Button } from '@mui/material';
 import { QueryErrorState } from '@/shared/components/ui/feedback';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../i18n';
 import { TransactionTable } from './transaction/TransactionTable';
-import { FinancialAccount, Transaction } from '@/lib/graphql/types/__generated__/graphql';
+import { Transaction } from '@/lib/graphql/types/__generated__/graphql';
 
 interface FinanceTransactionsContentPanelProps {
   transactionsError?: unknown;
   transactionsLoading: boolean;
   transactions: Transaction[];
   onRetryTransactions: () => void;
-  financialAccounts: FinancialAccount[];
+  financialAccounts: NonNullable<FinancialAccountsQuery['financialAccounts']>;
   tableLoading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;

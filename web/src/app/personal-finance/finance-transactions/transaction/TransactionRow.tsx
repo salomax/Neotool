@@ -1,5 +1,6 @@
 'use client';
 
+import type { FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import {
   IconButton,
   Stack,
@@ -18,7 +19,7 @@ import {
   CreditDebitType,
   TransactionType,
 } from '@/lib/graphql/types/__generated__/graphql';
-import type { FinancialAccount, Transaction } from '@/lib/graphql/types/__generated__/graphql';
+import type { Transaction } from '@/lib/graphql/types/__generated__/graphql';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { Amount, TransactionDirectionBadge } from '@/shared/components/ui/data-display';
@@ -58,7 +59,7 @@ export interface TransactionRowCallbacks {
 
 interface TransactionRowProps {
   transaction: Transaction;
-  account: FinancialAccount | null | undefined;
+  account: NonNullable<FinancialAccountsQuery['financialAccounts']>[number] | null | undefined;
   isFirst: boolean;
   isLast: boolean;
   isEditing: boolean;

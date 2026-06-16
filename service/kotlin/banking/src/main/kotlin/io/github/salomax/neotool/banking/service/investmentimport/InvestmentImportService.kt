@@ -108,7 +108,10 @@ open class InvestmentImportService(
         }
 
         val review = parseReviewPayload(job.reviewPayload)
-        val importingJob = repository.update(job.copy(status = InvestmentImportJobStatus.IMPORTING, updatedAt = Instant.now()))
+        val importingJob =
+            repository.update(
+                job.copy(status = InvestmentImportJobStatus.IMPORTING, updatedAt = Instant.now()),
+            )
 
         return try {
             commitPreparer.commit(command, review)

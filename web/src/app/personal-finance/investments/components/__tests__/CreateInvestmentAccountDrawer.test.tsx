@@ -291,14 +291,41 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
 
   it('does not render bank or initial balance fields', () => {
     renderDrawer();
-
-    expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.branchCode')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.bankBranch')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.accountNumber')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.checkDigit')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.initialBalance')).not.toBeInTheDocument();
     expect(
       screen.queryByLabelText(/financeTransactions\.createAccount\.step2\.fields\.initialBalanceDate/i),
     ).not.toBeInTheDocument();
+  });
+
+  it('does not submit bankData for investment accounts', async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+
+    const issuerSelect = screen.getByLabelText('issuer-autocomplete-options');
+    await act(async () => {
+      await user.selectOptions(issuerSelect, 'issuer-xp');
+    });
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'actions.save' }));
+    });
+
+    await waitFor(() => {
+      expect(mockCreateAccount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: {
+            input: expect.objectContaining({
+              issuerId: 'issuer-xp',
+            }),
+          },
+        }),
+      );
+    });
+
+    const submittedInput = mockCreateAccount.mock.calls.at(-1)?.[0]?.variables?.input;
+    expect(submittedInput?.bankData).toBeUndefined();
   });
 
   it('submits INVESTMENT account with selected issuerId and triggers callbacks', async () => {

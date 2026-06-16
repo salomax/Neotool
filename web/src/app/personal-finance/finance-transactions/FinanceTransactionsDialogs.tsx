@@ -1,5 +1,6 @@
 'use client';
 
+import type { FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import { FinancialAccount } from '@/lib/graphql/types/__generated__/graphql';
 import { CreateFinancialAccountDrawer } from './account/CreateFinancialAccountDrawer';
 import { ImportTransactionsDrawer } from './transaction/ImportTransactionsDrawer';
@@ -12,7 +13,7 @@ interface AccountDrawerState {
   isOpen: boolean;
   onClose: () => void;
   initialType: 'BANK' | 'CARD' | null;
-  editingAccount: FinancialAccount | null;
+  editingAccount: NonNullable<FinancialAccountsQuery['financialAccounts']>[number] | null;
   onBack?: () => void;
   onCreated: () => void;
   onDeleted: () => void;
@@ -45,7 +46,7 @@ interface PayBillDialogState {
   isOpen: boolean;
   onClose: () => void;
   selectedBill: CreditCardBill | null;
-  bankAccounts: FinancialAccount[];
+  bankAccounts: NonNullable<FinancialAccountsQuery['financialAccounts']>;
   onSuccess: () => void;
 }
 

@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.repo.investment
 
-import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.AssetType
+import io.github.salomax.neotool.banking.domain.investment.Holding
 import java.time.LocalDate
 import java.util.UUID
 

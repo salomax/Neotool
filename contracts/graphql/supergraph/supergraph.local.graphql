@@ -882,7 +882,7 @@ input ConfirmInvestmentImportInput
   @join__type(graph: BANKING)
 {
   jobId: ID!
-  institutionMappings: [InstitutionAccountMappingInput!]!
+  institutionMappings: [InvestmentImportInstitutionMappingInput!]!
   rowPatches: [InvestmentImportRowPatchInput!]!
 }
 
@@ -1624,6 +1624,17 @@ type FinancialAccount
   Earliest month with account data (transactions or investment portfolio snapshots).
   """
   dataSince: YearMonth
+
+  """
+  Signed initial balance amount (positive = credit, negative = debit/overdraft).
+  Null if no initial balance was set on this account.
+  """
+  initialBalance: Float
+
+  """
+  Reference date of the initial balance. Null when initialBalance is null.
+  """
+  initialBalanceDate: Date
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -2380,6 +2391,13 @@ type InvestmentImportConflictDiff
   fileMaturityDate: String
 }
 
+input InvestmentImportInstitutionMappingInput
+  @join__type(graph: BANKING)
+{
+  reviewInstitutionId: String!
+  financialAccountId: ID!
+}
+
 type InvestmentImportJob
   @join__type(graph: BANKING)
 {
@@ -2387,10 +2405,10 @@ type InvestmentImportJob
   status: InvestmentImportJobStatus!
   fileName: String
   createdAt: DateTime!
-  errorMessage: String
+  reviewPayload: InvestmentImportReview
   errorCode: String
   errorParameters: JSON
-  reviewPayload: InvestmentImportReview
+  errorMessage: String @deprecated(reason: "Use errorCode/errorParameters for i18n")
 }
 
 enum InvestmentImportJobStatus
@@ -2445,7 +2463,7 @@ input InvestmentImportRowPatchInput
   rowIndex: Int!
   principal: Float
   conflictResolution: ConflictResolution
-  skip: Boolean!
+  skip: Boolean
 }
 
 type InvestmentPortfolioSummary
@@ -3625,6 +3643,9 @@ type Query
 
   """All financial accounts belonging to the authenticated user's account."""
   financialAccounts: [FinancialAccount!]! @join__field(graph: BANKING)
+
+  """Single financial account by ID (scoped to the authenticated account)."""
+  financialAccount(id: ID!): FinancialAccount @join__field(graph: BANKING)
 
   """Current banking user preferences (defaults when no row exists)."""
   bankingUserPreferences: BankingUserPreferences! @join__field(graph: BANKING)
@@ -4833,6 +4854,18 @@ input UpdateFinancialAccountInput
   includeCashInAllocation: Boolean
   bankData: BankAccountDataInput
   cardData: CardDataInput
+
+  """
+  Signed initial balance. Positive = credit (opening balance), negative = debit (overdraft).
+  Non-zero when provided. Pass null to remove the existing initial balance.
+  Only applicable to BANK accounts.
+  """
+  initialBalance: Float
+
+  """
+  Reference date for the initial balance. Required when initialBalance is provided.
+  """
+  initialBalanceDate: Date
 }
 
 input UpdateGroupInput

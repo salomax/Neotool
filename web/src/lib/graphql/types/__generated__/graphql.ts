@@ -751,7 +751,7 @@ export type ConfirmHoldingMaturityResult = {
 };
 
 export type ConfirmInvestmentImportInput = {
-  institutionMappings: Array<InstitutionAccountMappingInput>;
+  institutionMappings: Array<InvestmentImportInstitutionMappingInput>;
   jobId: Scalars['ID']['input'];
   rowPatches: Array<InvestmentImportRowPatchInput>;
 };
@@ -1310,6 +1310,13 @@ export type FinancialAccount = {
   includeCashInAllocation: Scalars['Boolean']['output'];
   includeInDashboard: Scalars['Boolean']['output'];
   includeInNetWorth: Scalars['Boolean']['output'];
+  /**
+   * Signed initial balance amount (positive = credit, negative = debit/overdraft).
+   * Null if no initial balance was set on this account.
+   */
+  initialBalance: Maybe<Scalars['Float']['output']>;
+  /** Reference date of the initial balance. Null when initialBalance is null. */
+  initialBalanceDate: Maybe<Scalars['Date']['output']>;
   /** Linked issuer from the issuers seed list. Null when a custom institution is used. */
   issuer: Maybe<Issuer>;
   /** Custom institution name. Set when issuerId is null. Use issuer.name when issuer is present. */
@@ -1946,6 +1953,11 @@ export type InvestmentImportConflictDiff = {
   fileQuantity: Maybe<Scalars['Float']['output']>;
 };
 
+export type InvestmentImportInstitutionMappingInput = {
+  financialAccountId: Scalars['ID']['input'];
+  reviewInstitutionId: Scalars['String']['input'];
+};
+
 export type InvestmentImportJob = {
   __typename: 'InvestmentImportJob';
   createdAt: Scalars['DateTime']['output'];
@@ -2003,7 +2015,7 @@ export type InvestmentImportRowPatchInput = {
   conflictResolution?: InputMaybe<ConflictResolution>;
   principal?: InputMaybe<Scalars['Float']['input']>;
   rowIndex: Scalars['Int']['input'];
-  skip: Scalars['Boolean']['input'];
+  skip?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export type InvestmentPortfolioSummary = {
@@ -3472,6 +3484,8 @@ export type Query = {
   dashboardPeriodSummary: DashboardPeriodSummary;
   economicIndicatorVariationPoints: EconomicIndicatorPointConnection;
   economicIndicators: Array<EconomicIndicator>;
+  /** Single financial account by ID (scoped to the authenticated account). */
+  financialAccount: Maybe<FinancialAccount>;
   /** All financial accounts belonging to the authenticated user's account. */
   financialAccounts: Array<FinancialAccount>;
   fixedIncomeComparison: FixedIncomeComparisonResult;
@@ -3760,6 +3774,11 @@ export type QueryEconomicIndicatorVariationPointsArgs = {
 
 export type QueryEconomicIndicatorsArgs = {
   label?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryFinancialAccountArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -4931,6 +4950,14 @@ export type UpdateFinancialAccountInput = {
   includeCashInAllocation?: InputMaybe<Scalars['Boolean']['input']>;
   includeInDashboard?: InputMaybe<Scalars['Boolean']['input']>;
   includeInNetWorth?: InputMaybe<Scalars['Boolean']['input']>;
+  /**
+   * Signed initial balance. Positive = credit (opening balance), negative = debit (overdraft).
+   * Non-zero when provided. Pass null to remove the existing initial balance.
+   * Only applicable to BANK accounts.
+   */
+  initialBalance?: InputMaybe<Scalars['Float']['input']>;
+  /** Reference date for the initial balance. Required when initialBalance is provided. */
+  initialBalanceDate?: InputMaybe<Scalars['Date']['input']>;
   issuerId?: InputMaybe<Scalars['ID']['input']>;
   issuerName?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;

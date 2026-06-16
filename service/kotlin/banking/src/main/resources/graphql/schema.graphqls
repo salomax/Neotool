@@ -318,6 +318,13 @@ type FinancialAccount {
   lastSyncAt: DateTime
   """Earliest month with account data (transactions or investment portfolio snapshots)."""
   dataSince: YearMonth
+  """
+  Signed initial balance amount (positive = credit, negative = debit/overdraft).
+  Null if no initial balance was set on this account.
+  """
+  initialBalance: Float
+  """Reference date of the initial balance. Null when initialBalance is null."""
+  initialBalanceDate: Date
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -821,6 +828,14 @@ input UpdateFinancialAccountInput {
   includeCashInAllocation: Boolean
   bankData: BankAccountDataInput
   cardData: CardDataInput
+  """
+  Signed initial balance. Positive = credit (opening balance), negative = debit (overdraft).
+  Non-zero when provided. Pass null to remove the existing initial balance.
+  Only applicable to BANK accounts.
+  """
+  initialBalance: Float
+  """Reference date for the initial balance. Required when initialBalance is provided."""
+  initialBalanceDate: Date
 }
 
 """
@@ -1141,6 +1156,97 @@ type BillImportReviewTransaction {
 type InstallmentInfo {
   current: Int!
   total: Int!
+}
+
+enum InvestmentImportJobStatus {
+  AWAITING_REVIEW
+  IMPORTING
+  DONE
+  FAILED
+}
+
+enum ConflictResolution {
+  UPDATE
+  KEEP_EXISTING
+}
+
+input SubmitInvestmentImportInput {
+  fileName: String!
+  fileBase64: String!
+}
+
+input ConfirmInvestmentImportInput {
+  jobId: ID!
+  institutionMappings: [InvestmentImportInstitutionMappingInput!]!
+  rowPatches: [InvestmentImportRowPatchInput!]!
+}
+
+input InvestmentImportInstitutionMappingInput {
+  reviewInstitutionId: String!
+  financialAccountId: ID!
+}
+
+input InvestmentImportRowPatchInput {
+  rowIndex: Int!
+  principal: Float
+  conflictResolution: ConflictResolution
+  skip: Boolean
+}
+
+type InvestmentImportJob {
+  id: ID!
+  status: InvestmentImportJobStatus!
+  fileName: String
+  createdAt: DateTime!
+  reviewPayload: InvestmentImportReview
+  errorCode: String
+  errorParameters: JSON
+  errorMessage: String @deprecated(reason: "Use errorCode/errorParameters for i18n")
+}
+
+type InvestmentImportReview {
+  source: String
+  institutions: [InvestmentImportReviewInstitution!]!
+}
+
+type InvestmentImportReviewInstitution {
+  reviewInstitutionId: String!
+  institutionName: String!
+  matchedFinancialAccountId: ID
+  matchAmbiguous: Boolean!
+  matchCandidates: [InvestmentImportAccountCandidate!]!
+  rows: [InvestmentImportReviewRow!]!
+}
+
+type InvestmentImportAccountCandidate {
+  financialAccountId: ID!
+  accountName: String!
+}
+
+type InvestmentImportReviewRow {
+  rowIndex: Int!
+  productName: String!
+  assetTypeCode: String!
+  issuerName: String
+  providerCode: String
+  indexerLabel: String
+  issueDate: String
+  maturityDate: String
+  quantity: Float
+  principal: Float
+  currentValue: Float
+  requiresPrincipal: Boolean!
+  conflictingHoldingId: ID
+  conflictDiff: InvestmentImportConflictDiff
+}
+
+type InvestmentImportConflictDiff {
+  existingQuantity: Float
+  fileQuantity: Float
+  existingCurrentValue: Float
+  fileCurrentValue: Float
+  existingMaturityDate: String
+  fileMaturityDate: String
 }
 
 # ============================================================================
@@ -2289,6 +2395,8 @@ extend type Query {
   issuers(categories: [IssuerCategory!]): [Issuer!]!
   """All financial accounts belonging to the authenticated user's account."""
   financialAccounts: [FinancialAccount!]!
+  """Single financial account by ID (scoped to the authenticated account)."""
+  financialAccount(id: ID!): FinancialAccount
   """Current banking user preferences (defaults when no row exists)."""
   bankingUserPreferences: BankingUserPreferences!
   """Current account (tenant) preferences (defaults when no row exists)."""

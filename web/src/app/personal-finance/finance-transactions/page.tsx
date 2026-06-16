@@ -19,10 +19,11 @@ import { EmptyFinancialAccountsState } from './account/EmptyFinancialAccountsSta
 import { FINANCIAL_ACCOUNTS, TRANSACTIONS, TRANSACTION_IMPORTS, MONTH_SUMMARY } from '@/lib/graphql/operations/banking/queries';
 import {
   TransactionCategoriesDocument,
+  type FinancialAccountsQuery,
   type TransactionCategoriesQuery,
   TransactionsQuery,
 } from '@/lib/graphql/operations/banking/queries.generated';
-import { CreditDebitType, FinancialAccount, FinancialAccountType, TransactionType } from '@/lib/graphql/types/__generated__/graphql';
+import { CreditDebitType, FinancialAccountType, TransactionType } from '@/lib/graphql/types/__generated__/graphql';
 import { CategoryFilterSelection, MonthSummaryData } from './summary/MonthSummary';
 import { useAccountDisplayMode } from './account/useAccountDisplayMode';
 import { useOnTransactionsImported } from './events';
@@ -55,7 +56,7 @@ export default function FinanceTransactionsPage() {
   const [isCreateDrawerFromImport, setIsCreateDrawerFromImport] = useState(false);
   const [reviewJobIds, setReviewJobIds] = useState<string[] | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const [editingAccount, setEditingAccount] = useState<FinancialAccount | null>(null);
+  const [editingAccount, setEditingAccount] = useState<NonNullable<FinancialAccountsQuery['financialAccounts']>[number] | null>(null);
   const [initialType, setInitialType] = useState<'BANK' | 'CARD' | null>(null);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [isPayBillDialogOpen, setIsPayBillDialogOpen] = useState(false);
@@ -64,7 +65,7 @@ export default function FinanceTransactionsPage() {
   const theme = useTheme();
   const initialTypeResetTimeoutRef = useRef<number | null>(null);
 
-  const { data, loading, error: financialAccountsError, refetch: refetchFinancialAccounts } = useQuery<{ financialAccounts: FinancialAccount[] }>(FINANCIAL_ACCOUNTS, {
+  const { data, loading, error: financialAccountsError, refetch: refetchFinancialAccounts } = useQuery<FinancialAccountsQuery>(FINANCIAL_ACCOUNTS, {
     errorPolicy: 'all',
   });
 
@@ -286,7 +287,7 @@ export default function FinanceTransactionsPage() {
     setIsDrawerOpen(true);
   }, []);
 
-  const handleEditAccount = useCallback((account: FinancialAccount) => {
+  const handleEditAccount = useCallback((account: NonNullable<FinancialAccountsQuery['financialAccounts']>[number]) => {
     setInitialType(null);
     setIsCreateDrawerFromImport(false);
     setEditingAccount(account);

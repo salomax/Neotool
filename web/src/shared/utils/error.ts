@@ -199,7 +199,7 @@ function translateByErrorCode(
   code: string,
   parameters: Record<string, unknown> | undefined,
   fallback: string
-): string | undefined {
+): string {
   const normalizedCode = normalizeErrorCode(code);
   const translationKey = `errors.${normalizedCode}`;
   const lng = resolveTranslationLanguage();

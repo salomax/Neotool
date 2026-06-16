@@ -8,13 +8,16 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
 import io.github.salomax.neotool.banking.model.dto.account.BankDataPatch
 import io.github.salomax.neotool.banking.model.dto.account.CardDataPatch
 import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
 import io.github.salomax.neotool.banking.model.dto.account.UpdateField
 import io.github.salomax.neotool.banking.model.dto.account.UpdateFinancialAccountCommand
+import io.github.salomax.neotool.banking.model.transaction.TransactionEntity
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionEntityRepository
 import io.github.salomax.neotool.banking.service.account.FinancialAccountDataSinceService
 import io.github.salomax.neotool.banking.service.account.FinancialAccountService
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
@@ -34,6 +37,7 @@ import java.util.UUID
 class FinancialAccountResolver(
     private val service: FinancialAccountService,
     private val issuerRepository: IssuerRepository,
+    private val transactionEntityRepository: TransactionEntityRepository,
     private val dataSinceService: FinancialAccountDataSinceService,
 ) {
     fun listByAccount(principal: RequestPrincipal): List<FinancialAccountDTO> {
@@ -41,7 +45,12 @@ class FinancialAccountResolver(
         val accounts = service.listByAccount(accountId)
 
         val issuerIds = accounts.mapNotNull { it.issuerId }.toSet()
-        val issuersById = issuerRepository.findByIds(issuerIds).associateBy { it.id!! }
+        val issuersById =
+            if (issuerIds.isEmpty()) {
+                emptyMap()
+            } else {
+                issuerRepository.findByIds(issuerIds).associateBy { requireNotNull(it.id) }
+            }
         val financialAccountIds = accounts.mapNotNull { it.id }
         val dataSinceByAccountId = dataSinceService.findDataSinceByFinancialAccountIds(financialAccountIds)
 
@@ -50,6 +59,7 @@ class FinancialAccountResolver(
 
             account.toDTO(
                 issuer = issuersById[account.issuerId],
+                initialBalanceTx = null,
                 dataSince =
                     dataSinceByAccountId[financialAccountId]?.let {
                         YearMonthDTO(
@@ -59,6 +69,33 @@ class FinancialAccountResolver(
                     },
             )
         }
+    }
+
+    fun getById(
+        id: String,
+        principal: RequestPrincipal,
+    ): FinancialAccountDTO? {
+        val accountId = principal.resolveAccountId()
+        val financialAccountId = UUID.fromString(id)
+        val account = service.findById(financialAccountId, accountId) ?: return null
+        val issuer = account.issuerId?.let { issuerRepository.findById(it) }
+        val initialBalanceTx =
+            transactionEntityRepository.findInitialBalanceTransaction(
+                financialAccountId.toString(),
+            ).orElse(null)
+        val dataSince =
+            dataSinceService.findDataSinceByFinancialAccountIds(listOf(financialAccountId))[financialAccountId]?.let {
+                YearMonthDTO(
+                    year = it.year,
+                    month = it.monthValue,
+                )
+            }
+
+        return account.toDTO(
+            issuer = issuer,
+            initialBalanceTx = initialBalanceTx,
+            dataSince = dataSince,
+        )
     }
 
     fun create(
@@ -71,7 +108,11 @@ class FinancialAccountResolver(
         val command = input.toCommand()
         val saved = service.create(command, accountId, userId)
         val issuer = saved.issuerId?.let { issuerRepository.findById(it) }
-        return saved.toDTO(issuer = issuer, dataSince = null)
+        val initialBalanceTx =
+            requireNotNull(saved.id).let { financialAccountId ->
+                transactionEntityRepository.findInitialBalanceTransaction(financialAccountId.toString()).orElse(null)
+            }
+        return saved.toDTO(issuer = issuer, initialBalanceTx = initialBalanceTx, dataSince = null)
     }
 
     fun update(
@@ -86,7 +127,11 @@ class FinancialAccountResolver(
         val command = input.toUpdateCommand()
         val saved = service.update(financialAccountId, command, accountId, userId)
         val issuer = saved.issuerId?.let { issuerRepository.findById(it) }
-        return saved.toDTO(issuer = issuer, dataSince = null)
+        val initialBalanceTx =
+            transactionEntityRepository.findInitialBalanceTransaction(
+                financialAccountId.toString(),
+            ).orElse(null)
+        return saved.toDTO(issuer = issuer, initialBalanceTx = initialBalanceTx, dataSince = null)
     }
 
     fun delete(
@@ -101,6 +146,7 @@ class FinancialAccountResolver(
 
     private fun FinancialAccount.toDTO(
         issuer: Issuer?,
+        initialBalanceTx: TransactionEntity?,
         dataSince: YearMonthDTO?,
     ): FinancialAccountDTO =
         FinancialAccountDTO(
@@ -144,6 +190,17 @@ class FinancialAccountResolver(
             consentExpiresAt = consentExpiresAt?.atOffset(ZoneOffset.UTC),
             lastSyncAt = lastSyncAt?.atOffset(ZoneOffset.UTC),
             dataSince = dataSince,
+            initialBalance =
+                initialBalanceTx?.let {
+                    val signedAmount =
+                        if (it.creditDebitType == CreditDebitType.DEBIT) {
+                            it.amount.negate()
+                        } else {
+                            it.amount
+                        }
+                    signedAmount.toDouble()
+                },
+            initialBalanceDate = initialBalanceTx?.date,
             createdAt = createdAt.atOffset(ZoneOffset.UTC),
             updatedAt = updatedAt.atOffset(ZoneOffset.UTC),
         )
@@ -270,6 +327,16 @@ class FinancialAccountResolver(
                             },
                         isMultiCard = it.updateField("isMultiCard") { value -> value as? Boolean },
                     )
+                },
+            initialBalance =
+                updateField("initialBalance") { value ->
+                    (value as? Number)?.let { raw -> BigDecimal(raw.toString()) }
+                },
+            initialBalanceDate =
+                if (containsKey("initialBalanceDate")) {
+                    UpdateField.Present(getDate(this, "initialBalanceDate"))
+                } else {
+                    UpdateField.Absent
                 },
         )
     }
