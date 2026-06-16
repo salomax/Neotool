@@ -1,3 +1,14 @@
+## 0.7.14 (2026-06-16)
+
+### 🚀 Features
+
+- **investment-import:** introduce investment import functionality and initial balance handling ([6a213702](https://github.com/invistus/invistus/commit/6a213702))
+- **financial-accounts:** implement initial balance editing functionality ([6c028152](https://github.com/invistus/invistus/commit/6c028152))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.13 (2026-06-16)
 
 ### 🚀 Features
