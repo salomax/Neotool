@@ -1,3 +1,14 @@
+## 0.7.13 (2026-06-16)
+
+### 🚀 Features
+
+- **financialdata:** update dependencies and improve caching ([89ec6b38](https://github.com/invistus/invistus/commit/89ec6b38))
+- **financialdata:** introduce TAXABLE_IR_NO_IOF product group and update related logic ([65775276](https://github.com/invistus/invistus/commit/65775276))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.12 (2026-06-09)
 
 ### 💅 Refactors

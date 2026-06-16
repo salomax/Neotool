@@ -1,3 +1,14 @@
+## 0.6.0 (2026-06-16)
+
+### 🚀 Features
+
+- **financialdata:** update dependencies and improve caching ([89ec6b38](https://github.com/invistus/invistus/commit/89ec6b38))
+- **financialdata:** introduce TAXABLE_IR_NO_IOF product group and update related logic ([65775276](https://github.com/invistus/invistus/commit/65775276))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.5.6 (2026-06-10)
 
 This was a version bump only for financialdata to align it with other projects, there were no code changes.
