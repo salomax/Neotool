@@ -31,7 +31,11 @@ data class FixedIncomeComparisonInput(
         require(cdiAnnualRateBps != null) { "cdiAnnualRateBps is required" }
         require(ipcaAnnualRateBps != null) { "ipcaAnnualRateBps is required" }
         if (product != null) {
-            require(productGroup(product) == productGroup) { "product does not match productGroup" }
+            val actualProductGroup = productGroup(product)
+            require(
+                actualProductGroup == productGroup ||
+                    (productGroup == ProductGroup.TAXABLE_IR_NO_IOF && actualProductGroup == ProductGroup.TAXABLE_IR),
+            ) { "product does not match productGroup" }
         }
         require(contractedRateBps != null) { "contractedRateBps is required" }
         validateEffectiveAnnualRate()

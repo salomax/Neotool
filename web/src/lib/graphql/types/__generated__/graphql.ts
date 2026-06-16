@@ -1437,7 +1437,8 @@ export enum FixedIncomeProduct {
 
 export enum FixedIncomeProductGroup {
   ExemptIr = 'EXEMPT_IR',
-  TaxableIr = 'TAXABLE_IR'
+  TaxableIr = 'TAXABLE_IR',
+  TaxableIrNoIof = 'TAXABLE_IR_NO_IOF'
 }
 
 export enum FixedIncomeRateModel {

@@ -163,4 +163,27 @@ class EquivalentYieldSolverTest {
         assertThat(ir).isEqualByComparingTo(BigDecimal.ZERO)
         assertThat(net).isEqualByComparingTo(gross)
     }
+
+    @Test
+    fun `computeGrossIrNet applies IOF only for taxable group with IOF`() {
+        val withIof =
+            FixedIncomeComparisonInput(
+                productGroup = ProductGroup.TAXABLE_IR,
+                product = FixedIncomeProduct.CDB,
+                principal = BigDecimal("10000"),
+                startDate = LocalDate.of(2024, 1, 1),
+                endDate = LocalDate.of(2024, 1, 11),
+                rateModel = RateModel.FIXED,
+                contractedRateBps = 1_000,
+                cdiAnnualRateBps = 1_200,
+                ipcaAnnualRateBps = 600,
+            )
+        val noIof = withIof.copy(productGroup = ProductGroup.TAXABLE_IR_NO_IOF)
+
+        val (_, irWithIof, netWithIof) = solver.computeGrossIrNet(withIof)
+        val (_, irNoIof, netNoIof) = solver.computeGrossIrNet(noIof)
+
+        assertThat(netWithIof).isLessThan(netNoIof)
+        assertThat(irWithIof).isLessThan(irNoIof)
+    }
 }

@@ -8,6 +8,7 @@ import { useTranslation, i18n } from "@/shared/i18n";
 import { investmentsTranslations } from "@/shared/i18n/domains/investments";
 import { formatMetricValue } from "@/shared/utils/formatMetricValue";
 import type { FixedIncomeComparisonQuery } from "../api/queries.generated";
+import { FixedIncomeProductGroup } from "@/lib/graphql/types/__generated__/graphql";
 
 export interface FixedIncomeSummaryCardProps {
   result?: FixedIncomeComparisonQuery["fixedIncomeComparison"] | null;
@@ -47,32 +48,30 @@ export function FixedIncomeSummaryCard({
 
   const { summary, rows } = result;
 
-  const oppositeGroup =
-    summary.baseProductGroup === "TAXABLE_IR" ? "EXEMPT_IR" : "TAXABLE_IR";
-
   const comparisonRow =
     rows.find(
       (row) =>
-        row.productGroup === oppositeGroup &&
+        row.productGroup !== summary.baseProductGroup &&
         row.rateModel === summary.baseRateModel
-    ) ?? rows.find((row) => row.productGroup === oppositeGroup);
+    ) ?? rows.find((row) => row.productGroup !== summary.baseProductGroup);
 
   if (!comparisonRow) {
     return null;
   }
 
-  const baseLabelKey =
-    summary.baseProductGroup === "TAXABLE_IR"
-      ? "taxableProductLabel"
-      : "exemptProductLabel";
+  const productGroupLabelKey = (productGroup: FixedIncomeProductGroup) => {
+    switch (productGroup) {
+      case FixedIncomeProductGroup.TaxableIr:
+        return "taxableProductLabel";
+      case FixedIncomeProductGroup.TaxableIrNoIof:
+        return "taxableCommittedProductLabel";
+      default:
+        return "exemptProductLabel";
+    }
+  };
 
-  const targetLabelKey =
-    summary.baseProductGroup === "TAXABLE_IR"
-      ? "exemptProductLabel"
-      : "taxableProductLabel";
-
-  const baseLabel = t(`${ns}.${baseLabelKey}`);
-  const targetLabel = t(`${ns}.${targetLabelKey}`);
+  const baseLabel = t(`${ns}.${productGroupLabelKey(summary.baseProductGroup)}`);
+  const targetLabel = t(`${ns}.${productGroupLabelKey(comparisonRow.productGroup)}`);
 
   const locale = i18n?.language || "pt-BR";
 

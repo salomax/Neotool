@@ -47,8 +47,9 @@ class FixedIncomeComparisonService(
         val baseRateDisplay = contractedRateDisplay(input)
         val baseRealGain = realGainPercent(input.principal, baseNet)
 
+        val rowComparisonGroups = rowComparisonGroupsFor(calendarDays)
         val equivalentRows = mutableListOf<ComparisonRow>()
-        for (group in ProductGroup.entries) {
+        for (group in rowComparisonGroups) {
             for (rateModel in RateModel.entries) {
                 if (group == baseGroup && rateModel == baseRateModel) {
                     continue
@@ -79,7 +80,7 @@ class FixedIncomeComparisonService(
                 isBase = true,
             )
         val rows = listOf(baseRow) + equivalentRows
-        val performanceSeries = buildPerformanceSeries(input, rows)
+        val performanceSeries = buildPerformanceSeries(input, rows, rowComparisonGroups)
         val activeBracket = taxBracketForDays(calendarDays)
         val bracketTable = taxBracketTable()
         val methodology =
@@ -138,9 +139,10 @@ class FixedIncomeComparisonService(
     private fun buildPerformanceSeries(
         input: FixedIncomeComparisonInput,
         rows: List<ComparisonRow>,
+        comparisonGroups: List<ProductGroup>,
     ): List<PerformanceSeries> {
         val dates = timelineDates(input.startDate, input.endDate)
-        return ProductGroup.entries.mapNotNull { group ->
+        return comparisonGroups.mapNotNull { group ->
             val seriesRate =
                 if (group == input.productGroup) {
                     input.contractedRateBps
@@ -171,6 +173,13 @@ class FixedIncomeComparisonService(
             PerformanceSeries(productGroup = group, points = points)
         }
     }
+
+    private fun rowComparisonGroupsFor(calendarDays: Int): List<ProductGroup> =
+        if (taxPolicyService.appliesIof(ProductGroup.TAXABLE_IR, calendarDays)) {
+            listOf(ProductGroup.TAXABLE_IR, ProductGroup.TAXABLE_IR_NO_IOF, ProductGroup.EXEMPT_IR)
+        } else {
+            listOf(ProductGroup.TAXABLE_IR, ProductGroup.EXEMPT_IR)
+        }
 
     private fun timelineDates(
         startDate: LocalDate,
