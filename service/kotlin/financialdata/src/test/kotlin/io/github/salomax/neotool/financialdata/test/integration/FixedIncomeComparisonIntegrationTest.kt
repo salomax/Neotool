@@ -32,7 +32,7 @@ class FixedIncomeComparisonIntegrationTest : BaseIntegrationTest(), PostgresInte
         mapOf("query" to query) + if (variables != null) mapOf("variables" to variables) else emptyMap()
 
     @Test
-    fun `fixedIncomeComparison returns result with 2x3 rows`() {
+    fun `fixedIncomeComparison omits committed lane from rows and series after iof window`() {
         val query =
             """
             query Compare(${'$'}input: FixedIncomeComparisonInput!) {
@@ -130,6 +130,9 @@ class FixedIncomeComparisonIntegrationTest : BaseIntegrationTest(), PostgresInte
         val groups =
             (0 until 2).mapNotNull { data?.get("performanceSeries")?.get(it)?.get("productGroup")?.stringValue }.toSet()
         assertThat(groups).containsExactlyInAnyOrder("TAXABLE_IR", "EXEMPT_IR")
+        val rowGroups =
+            (0 until 6).mapNotNull { data?.get("rows")?.get(it)?.get("productGroup")?.stringValue }.toSet()
+        assertThat(rowGroups).containsExactlyInAnyOrder("TAXABLE_IR", "EXEMPT_IR")
         (0 until 2).forEach { idx ->
             val points = data?.get("performanceSeries")?.get(idx)?.get("points")
             assertThat(points?.isArray).isTrue()
@@ -156,6 +159,64 @@ class FixedIncomeComparisonIntegrationTest : BaseIntegrationTest(), PostgresInte
         assertThat(baseCell).isNotNull()
         assertThat(baseCell?.get("productGroup")?.stringValue).isEqualTo("TAXABLE_IR")
         assertThat(baseCell?.get("rateModel")?.stringValue).isEqualTo("CDI")
+    }
+
+    @Test
+    fun `fixedIncomeComparison keeps committed lane in rows during iof window`() {
+        val query =
+            """
+            query Compare(${'$'}input: FixedIncomeComparisonInput!) {
+              fixedIncomeComparison(input: ${'$'}input) {
+                rows {
+                  productGroup
+                  rateModel
+                }
+                performanceSeries {
+                  productGroup
+                }
+              }
+            }
+            """.trimIndent()
+
+        val variables =
+            mapOf(
+                "input" to
+                    mapOf(
+                        "productGroup" to "TAXABLE_IR",
+                        "principal" to 10000,
+                        "startDate" to "2024-01-01",
+                        "endDate" to "2024-01-11",
+                        "rateModel" to "CDI",
+                        "contractedRateBps" to 10000,
+                        "cdiAnnualRateBps" to 1200,
+                        "ipcaAnnualRateBps" to 600,
+                    ),
+            )
+
+        val response =
+            httpClient.exchangeAsString(
+                HttpRequest.POST("/graphql", graphQLQuery(query, variables))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON),
+            )
+
+        response.shouldBeSuccessful().shouldHaveNonEmptyBody().shouldBeJson()
+
+        val jsonBody: JsonNode = json.read(response)
+        jsonBody["errors"].assertNoErrors()
+
+        val data = jsonBody["data"]?.get("fixedIncomeComparison")
+        assertThat(data).isNotNull()
+        assertThat(data?.get("rows")?.size()).isEqualTo(9)
+        assertThat(data?.get("performanceSeries")?.size()).isEqualTo(3)
+
+        val rowGroups =
+            (0 until 9).mapNotNull { data?.get("rows")?.get(it)?.get("productGroup")?.stringValue }.toSet()
+        val seriesGroups =
+            (0 until 3).mapNotNull { data?.get("performanceSeries")?.get(it)?.get("productGroup")?.stringValue }.toSet()
+
+        assertThat(rowGroups).containsExactlyInAnyOrder("TAXABLE_IR", "TAXABLE_IR_NO_IOF", "EXEMPT_IR")
+        assertThat(seriesGroups).containsExactlyInAnyOrder("TAXABLE_IR", "TAXABLE_IR_NO_IOF", "EXEMPT_IR")
     }
 
     @Test

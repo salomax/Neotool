@@ -8,6 +8,7 @@ import { LineChart } from "@/shared/components/ui/data-display/LineChart";
  import { useTranslation, i18n } from "@/shared/i18n";
  import { investmentsTranslations } from "@/shared/i18n/domains/investments";
  import type { FixedIncomeComparisonQuery } from "../api/queries.generated";
+import { FixedIncomeProductGroup } from "@/lib/graphql/types/__generated__/graphql";
 import { FormSectionLabel } from "./FormSectionLabel";
  
  export interface FixedIncomePerformanceChartProps {
@@ -37,17 +38,23 @@ import { FormSectionLabel } from "./FormSectionLabel";
    }
  
    const taxable = result.performanceSeries.find(
-     (s) => s.productGroup === "TAXABLE_IR"
+     (s) => s.productGroup === FixedIncomeProductGroup.TaxableIr
+   );
+   const committed = result.performanceSeries.find(
+     (s) => s.productGroup === FixedIncomeProductGroup.TaxableIrNoIof
    );
    const exempt = result.performanceSeries.find(
-     (s) => s.productGroup === "EXEMPT_IR"
+     (s) => s.productGroup === FixedIncomeProductGroup.ExemptIr
    );
- 
-   if (!taxable && !exempt) {
+
+   if (!taxable && !committed && !exempt) {
      return null;
    }
- 
-   const seriesMap = new Map<string, { date: string; taxableNet?: number; exemptNet?: number }>();
+
+   const seriesMap = new Map<
+     string,
+     { date: string; taxableNet?: number; committedNet?: number; exemptNet?: number }
+   >();
  
    taxable?.points.forEach((p) => {
      const d = String(p.date);
@@ -62,13 +69,51 @@ import { FormSectionLabel } from "./FormSectionLabel";
      existing.exemptNet = p.netValue;
      seriesMap.set(d, existing);
    });
+
+   committed?.points.forEach((p) => {
+     const d = String(p.date);
+     const existing = seriesMap.get(d) || { date: d };
+     existing.committedNet = p.netValue;
+     seriesMap.set(d, existing);
+   });
  
    const data = Array.from(seriesMap.values()).sort(
      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
    );
  
   const taxableLabel = t(`${ns}.taxableProductLabel`);
+  const committedLabel = t(`${ns}.taxableCommittedProductLabel`);
    const exemptLabel = t(`${ns}.exemptProductLabel`);
+
+  const series = [
+    taxable
+      ? {
+          id: "taxable",
+          name: taxableLabel,
+          dataKey: "taxableNet",
+          yAxisId: "currency-left",
+          color: theme.palette.primary.light,
+        }
+      : null,
+    committed
+      ? {
+          id: "committed",
+          name: committedLabel,
+          dataKey: "committedNet",
+          yAxisId: "currency-left",
+          color: theme.palette.warning.main,
+        }
+      : null,
+    exempt
+      ? {
+          id: "exempt",
+          name: exemptLabel,
+          dataKey: "exemptNet",
+          yAxisId: "currency-left",
+          color: theme.palette.success.light,
+        }
+      : null,
+  ].filter(Boolean);
  
   return (
     <>
@@ -93,10 +138,13 @@ import { FormSectionLabel } from "./FormSectionLabel";
           axes={[
             { id: "currency-left", side: "left", format: "currency", currency: "BRL" },
           ]}
-          series={[
-            { id: "taxable", name: taxableLabel, dataKey: "taxableNet", yAxisId: "currency-left", color: theme.palette.primary.light },
-            { id: "exempt", name: exemptLabel, dataKey: "exemptNet", yAxisId: "currency-left", color: theme.palette.success.light },
-          ]}
+          series={series as Array<{
+            id: string;
+            name: string;
+            dataKey: string;
+            yAxisId: string;
+            color: string;
+          }>}
           showLegend={true}
           showGrid={true}
           showHorizontalGridLines={true}

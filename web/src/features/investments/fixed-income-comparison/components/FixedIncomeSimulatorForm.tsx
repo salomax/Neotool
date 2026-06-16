@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import React from "react";
+import { useEffect, useRef } from "react";
 import {
   useForm,
   FormProvider,
   Controller,
   useWatch,
-  useController,
-  type Control,
-  type UseFormSetError,
-  type UseFormClearErrors,
 } from "react-hook-form";
 import { useLazyQuery } from "@apollo/client/react";
 import {
   Box,
+  Checkbox,
   Divider,
+  FormControlLabel,
+  Tooltip,
   Typography,
   TextField,
   Button,
@@ -29,6 +29,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
 import DoneIcon from "@mui/icons-material/Done";
 import CancelIcon from "@mui/icons-material/Cancel";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import { NumericFormat } from "react-number-format";
 import { useTranslation } from "@/shared/i18n";
@@ -38,8 +39,12 @@ import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useEconomicIndicatorsForSimulator } from "../hooks/useEconomicIndicatorsForSimulator";
 import { PrincipalInput } from "./PrincipalInput";
 import { FormSectionLabel } from "./FormSectionLabel";
+import { DatePickerField } from "@/shared/components/ui/forms/form";
 import { FixedIncomeComparisonDocument } from "../api/queries.generated";
-import type { FixedIncomeProductGroup, FixedIncomeRateModel } from "@/lib/graphql/types/__generated__/graphql";
+import {
+  FixedIncomeProductGroup,
+  FixedIncomeRateModel,
+} from "@/lib/graphql/types/__generated__/graphql";
 import type { FixedIncomeComparisonQuery } from "../api/queries.generated";
 
 const DEFAULT_PRINCIPAL = 50000;
@@ -48,8 +53,8 @@ function percentToBps(value: number): number {
   return Math.round(value * 100);
 }
 
-function defaultEndDate(startDate: string): string {
-  return startDate ? dayjs(startDate).add(1, "year").format("YYYY-MM-DD") : "";
+function defaultEndDate(startDate: Date | null): Date | null {
+  return startDate ? dayjs(startDate).add(1, "year").startOf("day").toDate() : null;
 }
 
 function SelectedBadge() {
@@ -81,18 +86,32 @@ const PROJECTION_SLIDER_MIN = 0;
 const PROJECTION_SLIDER_MAX = 20;
 const PROJECTION_DECIMALS = 2;
 const RATE_MODEL_OPTIONS: { value: FixedIncomeRateModel; labelKey: string }[] = [
-  { value: "CDI" as FixedIncomeRateModel, labelKey: "rateModelCdi" },
-  { value: "FIXED" as FixedIncomeRateModel, labelKey: "rateModelFixed" },
-  { value: "IPCA_PLUS" as FixedIncomeRateModel, labelKey: "rateModelIpca" },
+  { value: FixedIncomeRateModel.Cdi, labelKey: "rateModelCdi" },
+  { value: FixedIncomeRateModel.Fixed, labelKey: "rateModelFixed" },
+  { value: FixedIncomeRateModel.IpcaPlus, labelKey: "rateModelIpca" },
 ];
+
+export function resolveEffectiveProductGroup(
+  productGroup: FixedIncomeProductGroup,
+  includeIof: boolean
+): FixedIncomeProductGroup {
+  if (productGroup === FixedIncomeProductGroup.ExemptIr) {
+    return FixedIncomeProductGroup.ExemptIr;
+  }
+
+  return includeIof
+    ? FixedIncomeProductGroup.TaxableIr
+    : FixedIncomeProductGroup.TaxableIrNoIof;
+}
 
 export interface FixedIncomeSimulatorFormValues {
   productGroup: FixedIncomeProductGroup;
+  includeIof: boolean;
   principal: number | "";
   rateModel: FixedIncomeRateModel;
   contractedRateValue: number | "";
-  startDate: string;
-  endDate: string;
+  startDate: Date | null;
+  endDate: Date | null;
   cdiAnnualPercent: number;
   ipcaAnnualPercent: number;
 }
@@ -103,179 +122,10 @@ export interface FixedIncomeSimulatorFormProps {
   onComparisonLoadingChange?: (loading: boolean) => void;
 }
 
-function formatDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
 /** Map i18n language to number-format locale (for decimal/thousand separators). */
 function getNumberFormatLocale(): string {
   const lang = i18n.language?.toLowerCase() ?? "pt";
   return lang.startsWith("pt") ? "pt-BR" : "en-US";
-}
-
-function getDateInputOrder(): "DMY" | "MDY" {
-  const lang = i18n.language?.toLowerCase() ?? "pt";
-  return lang.startsWith("pt") ? "DMY" : "MDY";
-}
-
-function pad2(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
-function isValidDateParts(year: number, month: number, day: number): boolean {
-  if (year < 1900 || year > 2200) return false;
-  if (month < 1 || month > 12) return false;
-  if (day < 1 || day > 31) return false;
-  const dt = new Date(Date.UTC(year, month - 1, day));
-  return (
-    dt.getUTCFullYear() === year &&
-    dt.getUTCMonth() === month - 1 &&
-    dt.getUTCDate() === day
-  );
-}
-
-function isValidIsoDate(iso: string): boolean {
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return false;
-  const year = Number(m[1]);
-  const month = Number(m[2]);
-  const day = Number(m[3]);
-  return isValidDateParts(year, month, day);
-}
-
-function parseDateInputToIso(value: string): string | null {
-  const trimmed = value.trim();
-  const m = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (!m) return null;
-  const a = Number(m[1]);
-  const b = Number(m[2]);
-  const year = Number(m[3]);
-  const order = getDateInputOrder();
-  const day = order === "DMY" ? a : b;
-  const month = order === "DMY" ? b : a;
-  if (!isValidDateParts(year, month, day)) return null;
-  return `${year}-${pad2(month)}-${pad2(day)}`;
-}
-
-function formatDateInputWhileTyping(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, 8);
-  const a = digits.slice(0, 2);
-  const b = digits.slice(2, 4);
-  const c = digits.slice(4, 8);
-  if (digits.length <= 2) return a;
-  if (digits.length <= 4) return `${a}/${b}`;
-  return `${a}/${b}/${c}`;
-}
-
-function formatIsoToDateInput(iso: string): string {
-  if (!iso) return "";
-  if (!isValidIsoDate(iso)) return "";
-  const order = getDateInputOrder();
-  const d = dayjs(iso);
-  return order === "DMY" ? d.format("DD/MM/YYYY") : d.format("MM/DD/YYYY");
-}
-
-function DateInputField({
-  control,
-  name,
-  label,
-  placeholder,
-  requiredMessage,
-  invalidMessage,
-  minIso,
-  clearAriaLabel,
-  setError,
-  clearErrors,
-}: {
-  control: Control<FixedIncomeSimulatorFormValues>;
-  name: "startDate" | "endDate";
-  label: string;
-  placeholder: string;
-  requiredMessage: string;
-  invalidMessage: string;
-  minIso?: string;
-  clearAriaLabel: string;
-  setError: UseFormSetError<FixedIncomeSimulatorFormValues>;
-  clearErrors: UseFormClearErrors<FixedIncomeSimulatorFormValues>;
-}) {
-  const { field, fieldState } = useController({
-    control,
-    name,
-    rules: {
-      required: requiredMessage,
-      validate: (v) => {
-        if (!v) return requiredMessage;
-        if (!isValidIsoDate(v)) return invalidMessage;
-        if (minIso && isValidIsoDate(minIso)) {
-          const end = dayjs(v);
-          const minEnd = dayjs(minIso);
-          return end.isBefore(minEnd) ? requiredMessage : true;
-        }
-        return true;
-      },
-    },
-  });
-
-  const [localValue, setLocalValue] = useState(() => formatIsoToDateInput(field.value));
-
-  return (
-    <Box sx={{ minWidth: 0 }}>
-      <FormSectionLabel>{label}</FormSectionLabel>
-
-      <TextField
-        fullWidth
-        size="small"
-        value={localValue}
-        onChange={(e) => {
-          clearErrors(name);
-          setLocalValue(formatDateInputWhileTyping(e.target.value));
-        }}
-        onBlur={() => {
-          const iso = localValue ? parseDateInputToIso(localValue) : null;
-          if (!iso) {
-            field.onChange("");
-            setError(name, {
-              type: "validate",
-              message: localValue ? invalidMessage : requiredMessage,
-            });
-            return;
-          }
-          field.onChange(iso);
-          clearErrors(name);
-          setLocalValue(formatIsoToDateInput(iso));
-        }}
-        error={!!fieldState.error}
-        helperText={fieldState.error?.message}
-        placeholder={placeholder}
-        inputProps={{
-          inputMode: "numeric",
-          placeholder,
-          maxLength: 10,
-        }}
-        InputProps={{
-          endAdornment: localValue ? (
-            <InputAdornment position="end">
-              <IconButton
-                aria-label={clearAriaLabel}
-                tabIndex={-1}
-                onClick={() => {
-                  setLocalValue("");
-                  field.onChange("");
-                  clearErrors(name);
-                }}
-                edge="end"
-                size="small"
-                sx={{ mr: -0.5, p: 0.25, color: "text.disabled" }}
-              >
-                <CancelIcon fontSize="inherit" sx={{ fontSize: 16 }} />
-              </IconButton>
-            </InputAdornment>
-          ) : null,
-        }}
-        sx={{ minWidth: 0 }}
-      />
-    </Box>
-  );
 }
 
 export function FixedIncomeSimulatorForm({
@@ -285,7 +135,7 @@ export function FixedIncomeSimulatorForm({
 }: FixedIncomeSimulatorFormProps) {
   const { t } = useTranslation(investmentsTranslations);
   const ns = "fixedIncomeComparison" as const;
-  const today = formatDate(new Date());
+  const today = dayjs().startOf("day").toDate();
   const reqMsg = t(`${ns}.validationRequired`);
   const theme = useTheme();
 
@@ -299,9 +149,10 @@ export function FixedIncomeSimulatorForm({
 
   const methods = useForm<FixedIncomeSimulatorFormValues>({
     defaultValues: {
-      productGroup: "TAXABLE_IR" as FixedIncomeProductGroup,
+      productGroup: FixedIncomeProductGroup.TaxableIr,
+      includeIof: true,
       principal: DEFAULT_PRINCIPAL,
-      rateModel: "CDI" as FixedIncomeRateModel,
+      rateModel: FixedIncomeRateModel.Cdi,
       contractedRateValue: 100.0,
       startDate: today,
       endDate: defaultEndDate(today),
@@ -318,6 +169,13 @@ export function FixedIncomeSimulatorForm({
   const numberFormatLocale = getNumberFormatLocale();
   const { decimal: contractedRateDecimal, group: contractedRateGroup } =
     getLocaleSeparators(numberFormatLocale);
+  const primaryButtonShadow =
+    typeof (theme as { custom?: { shadow?: unknown } }).custom?.shadow === "function"
+      ? (theme as { custom: { shadow: (level: number, color: string) => string } }).custom.shadow(
+          4,
+          theme.palette.primary.main
+        )
+      : theme.shadows[4];
 
   useEffect(() => {
     if (indicatorsLoading) return;
@@ -330,7 +188,7 @@ export function FixedIncomeSimulatorForm({
     if (!startDate || !endDate) return;
     const minEnd = dayjs(startDate).add(1, "day");
     if (dayjs(endDate).isBefore(minEnd)) {
-      setValue("endDate", "");
+      setValue("endDate", null);
     }
   }, [startDate, setValue, endDate]);
 
@@ -350,7 +208,14 @@ export function FixedIncomeSimulatorForm({
   }, [comparisonLoading, onComparisonLoadingChange]);
 
   const handleFormSubmit = (values: FixedIncomeSimulatorFormValues) => {
-    onSubmit?.(values);
+    const effectiveProductGroup = resolveEffectiveProductGroup(
+      values.productGroup,
+      values.includeIof
+    );
+    if (!values.startDate || !values.endDate) {
+      return;
+    }
+    onSubmit?.({ ...values, productGroup: effectiveProductGroup });
     const principal =
       typeof values.principal === "number" && values.principal > 0
         ? values.principal
@@ -358,10 +223,10 @@ export function FixedIncomeSimulatorForm({
     runComparison({
       variables: {
         input: {
-          productGroup: values.productGroup,
+          productGroup: effectiveProductGroup,
           principal,
-          startDate: values.startDate,
-          endDate: values.endDate,
+          startDate: dayjs(values.startDate).format("YYYY-MM-DD"),
+          endDate: dayjs(values.endDate).format("YYYY-MM-DD"),
           rateModel: values.rateModel,
           contractedRateBps: percentToBps(
             values.contractedRateValue === ""
@@ -403,7 +268,7 @@ export function FixedIncomeSimulatorForm({
         <Box
           component="form"
           onSubmit={handleSubmit(handleFormSubmit)}
-          sx={{ display: "flex", flexDirection: "column", gap: 3 }}
+          sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
         >
           {/* Product group - Tipo de Ativo */}
           <Box>
@@ -413,8 +278,8 @@ export function FixedIncomeSimulatorForm({
                 <Button
                   type="button"
                   fullWidth
-                  variant={productGroup === "TAXABLE_IR" ? "contained" : "outlined"}
-                  onClick={() => methods.setValue("productGroup", "TAXABLE_IR" as FixedIncomeProductGroup)}
+                  variant={productGroup === FixedIncomeProductGroup.TaxableIr ? "contained" : "outlined"}
+                  onClick={() => methods.setValue("productGroup", FixedIncomeProductGroup.TaxableIr)}
                   sx={{
                     py: 2,
                     px: 2,
@@ -429,15 +294,15 @@ export function FixedIncomeSimulatorForm({
                   <Typography variant="body2">
                     {t(`${ns}.taxableProductLabel`)}
                   </Typography>
-                  {productGroup === "TAXABLE_IR" && <SelectedBadge />}
+                  {productGroup === FixedIncomeProductGroup.TaxableIr && <SelectedBadge />}
                 </Button>
               </Box>
               <Box>
                 <Button
                   type="button"
                   fullWidth
-                  variant={productGroup === "EXEMPT_IR" ? "contained" : "outlined"}
-                  onClick={() => methods.setValue("productGroup", "EXEMPT_IR" as FixedIncomeProductGroup)}
+                  variant={productGroup === FixedIncomeProductGroup.ExemptIr ? "contained" : "outlined"}
+                  onClick={() => methods.setValue("productGroup", FixedIncomeProductGroup.ExemptIr)}
                   sx={{
                     py: 2,
                     px: 2,
@@ -452,16 +317,54 @@ export function FixedIncomeSimulatorForm({
                   <Typography variant="body2">
                     {t(`${ns}.exemptProductLabel`)}
                   </Typography>
-                  {productGroup === "EXEMPT_IR" && <SelectedBadge />}
+                  {productGroup === FixedIncomeProductGroup.ExemptIr && <SelectedBadge />}
                 </Button>
               </Box>
             </Box>
 
-            <Typography variant="body2" sx={{ color: "text.secondary", mt: 2, pl: 2 }}>
-              {productGroup === "TAXABLE_IR"
-                ? t(`${ns}.incidesIrDescription`)
-                : t(`${ns}.exemptIrDescription`)}
-            </Typography>
+            {productGroup === FixedIncomeProductGroup.TaxableIr && (
+              <Controller
+                name="includeIof"
+                control={methods.control}
+                render={({ field }) => (
+                  <FormControlLabel
+                    sx={{
+                      mt: 1,
+                      ml: 0.5,
+                      alignItems: "center",
+                      "& .MuiFormControlLabel-label": { fontSize: 14 },
+                    }}
+                    control={
+                      <Checkbox
+                        checked={field.value}
+                        onChange={(_, checked) => field.onChange(checked)}
+                        size="small"
+                      />
+                    }
+                    label={
+                      <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
+                        <Typography variant="body2">{t(`${ns}.taxableWithIofLabel`)}</Typography>
+                        <Tooltip title={t(`${ns}.taxableWithIofTooltip`)}>
+                          <IconButton
+                            aria-label={t(`${ns}.taxableWithIofTooltip`)}
+                            size="small"
+                            sx={{ p: 0.25, color: "text.secondary" }}
+                          >
+                            <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    }
+                  />
+                )}
+              />
+            )}
+
+            {productGroup === FixedIncomeProductGroup.ExemptIr && (
+              <Typography variant="body2" sx={{ color: "text.secondary", mt: 2, pl: 2 }}>
+                {t(`${ns}.exemptIrDescription`)}
+              </Typography>
+            )}
           </Box>
 
           <Divider />
@@ -602,7 +505,7 @@ export function FixedIncomeSimulatorForm({
             </Box>
           </Box>
 
-          {/* Dates: MUI DatePicker with app locale (pt-br / en) */}
+          {/* Dates */}
           <Box
             sx={{
               display: "grid",
@@ -611,36 +514,24 @@ export function FixedIncomeSimulatorForm({
               minWidth: 0,
             }}
           >
-            <DateInputField
-              key={startDate || "__empty__"}
-              control={control}
+            <Box sx={{ minWidth: 0 }}>
+              <DatePickerField
               name="startDate"
               label={t(`${ns}.startDate`)}
-              placeholder={t(`${ns}.datePlaceholder`)}
-              requiredMessage={reqMsg}
-              invalidMessage={t(`${ns}.invalidDate`)}
-              clearAriaLabel={t(`${ns}.clearDate`)}
-              setError={methods.setError}
-              clearErrors={methods.clearErrors}
-            />
+                size="small"
+                data-testid="fixed-income-start-date"
+              />
+            </Box>
 
-            <DateInputField
-              key={endDate || "__empty__"}
-              control={control}
+            <Box sx={{ minWidth: 0 }}>
+              <DatePickerField
               name="endDate"
               label={t(`${ns}.endDate`)}
-              placeholder={t(`${ns}.datePlaceholder`)}
-              requiredMessage={reqMsg}
-              invalidMessage={t(`${ns}.invalidDate`)}
-              clearAriaLabel={t(`${ns}.clearDate`)}
-              minIso={
-                isValidIsoDate(startDate)
-                  ? dayjs(startDate).add(1, "day").format("YYYY-MM-DD")
-                  : undefined
-              }
-              setError={methods.setError}
-              clearErrors={methods.clearErrors}
-            />
+                size="small"
+                minDate={startDate ? dayjs(startDate).add(1, "day").toDate() : undefined}
+                data-testid="fixed-income-end-date"
+              />
+            </Box>
           </Box>
 
           {/* Projeções de mercado: input + slider tied to same value (-100 to 100, 2 decimals) */}
@@ -815,9 +706,9 @@ export function FixedIncomeSimulatorForm({
               textTransform: "uppercase",
                 fontSize: 12,
               mt: 1,
-              boxShadow: theme.custom.shadow(4, theme.palette.primary.main),
+              boxShadow: primaryButtonShadow,
               "&:hover": {
-                boxShadow: theme.custom.shadow(4, theme.palette.primary.main),
+                boxShadow: primaryButtonShadow,
               },
             }}
           >

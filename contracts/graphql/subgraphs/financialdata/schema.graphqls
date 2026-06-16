@@ -386,6 +386,7 @@ enum FixedIncomeRateModel {
 
 enum FixedIncomeProductGroup {
   TAXABLE_IR
+  TAXABLE_IR_NO_IOF
   EXEMPT_IR
 }
 

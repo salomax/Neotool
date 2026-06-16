@@ -18,6 +18,7 @@ micronaut {
 dependencies {
     // Project dependencies
     implementation(project(":common"))
+    implementation(project(":common-finance"))
     testImplementation(testFixtures(project(":common")))
 
     // Financial data-specific dependencies

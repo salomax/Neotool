@@ -56,10 +56,20 @@ class EquivalentYieldSolver(
             return targetNet.setScale(SCALE, RoundingMode.HALF_UP)
         }
         val taxRate = taxPolicyService.irBracketRate(calendarDays)
-        val denominator = BigDecimal.ONE.subtract(taxRate)
+        val iofRate =
+            if (taxPolicyService.appliesIof(baseInput.productGroup, calendarDays)) {
+                taxPolicyService.iofRate(calendarDays)
+            } else {
+                BigDecimal.ZERO.setScale(SCALE, RoundingMode.HALF_UP)
+            }
+        val denominator = BigDecimal.ONE.subtract(iofRate).multiply(BigDecimal.ONE.subtract(taxRate))
         if (denominator.compareTo(BigDecimal.ZERO) == 0) return null
-        val numerator = targetNet.subtract(baseInput.principal.multiply(taxRate))
-        return numerator.divide(denominator, SCALE, RoundingMode.HALF_UP)
+        val netGain = targetNet.subtract(baseInput.principal)
+        if (netGain <= BigDecimal.ZERO) {
+            return targetNet.setScale(SCALE, RoundingMode.HALF_UP)
+        }
+        val gain = netGain.divide(denominator, SCALE, RoundingMode.HALF_UP)
+        return baseInput.principal.add(gain).setScale(SCALE, RoundingMode.HALF_UP)
     }
 
     private fun effectiveRateFromGross(
@@ -138,20 +148,7 @@ class EquivalentYieldSolver(
         val businessDays = dayCountService.businessDays(calendarDays)
         val rate = rateModelCalculator.effectiveAnnualRate(input)
         val gross = rateModelCalculator.gross(input.principal, rate, businessDays)
-        val taxable = taxPolicyService.isTaxable(input.productGroup)
-        val tax =
-            if (taxable) {
-                val profit = gross.subtract(input.principal)
-                val bracketRate = taxPolicyService.irBracketRate(calendarDays)
-                if (profit.compareTo(BigDecimal.ZERO) > 0) {
-                    profit.multiply(bracketRate).setScale(SCALE, RoundingMode.HALF_UP)
-                } else {
-                    BigDecimal.ZERO.setScale(SCALE, RoundingMode.HALF_UP)
-                }
-            } else {
-                BigDecimal.ZERO.setScale(SCALE, RoundingMode.HALF_UP)
-            }
-        val net = gross.subtract(tax).setScale(SCALE, RoundingMode.HALF_UP)
-        return Triple(gross, tax, net)
+        val breakdown = taxPolicyService.taxBreakdown(input.principal, gross, input.productGroup, calendarDays)
+        return Triple(gross, breakdown.ir, breakdown.net)
     }
 }
