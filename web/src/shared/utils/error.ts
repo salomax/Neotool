@@ -115,22 +115,22 @@ function appendGraphQLErrors(target: GraphQLErrorEntry[], errors: unknown): void
 function collectGraphQLErrors(error: unknown): GraphQLErrorEntry[] {
   if (!error || typeof error !== 'object') return [];
 
-  const err = error as Record<string, unknown>;
+  const errRecord = error as Record<string, unknown>;
   const collected: GraphQLErrorEntry[] = [];
 
-  appendGraphQLErrors(collected, err.graphQLErrors);
-  appendGraphQLErrors(collected, err.errors);
-  appendGraphQLErrors(collected, (err.response as { errors?: unknown } | undefined)?.errors);
+  appendGraphQLErrors(collected, errRecord.graphQLErrors);
+  appendGraphQLErrors(collected, errRecord.errors);
+  appendGraphQLErrors(collected, (errRecord.response as { errors?: unknown } | undefined)?.errors);
   appendGraphQLErrors(
     collected,
-    (err.networkError as { result?: { errors?: unknown } } | undefined)?.result?.errors
+    (errRecord.networkError as { result?: { errors?: unknown } } | undefined)?.result?.errors
   );
 
   if (isServerErrorLike(error)) {
     appendGraphQLErrors(collected, parseGraphQLErrorsFromBodyText(error.bodyText));
   }
 
-  const networkError = err.networkError;
+  const networkError = errRecord.networkError;
   if (networkError && typeof networkError === 'object') {
     const networkErr = networkError as Record<string, unknown>;
     appendGraphQLErrors(collected, networkErr.graphQLErrors);
@@ -143,8 +143,8 @@ function collectGraphQLErrors(error: unknown): GraphQLErrorEntry[] {
     }
   }
 
-  if (err.cause && err.cause !== error) {
-    appendGraphQLErrors(collected, collectGraphQLErrors(err.cause));
+  if (errRecord.cause && errRecord.cause !== error) {
+    appendGraphQLErrors(collected, collectGraphQLErrors(errRecord.cause));
   }
 
   return collected;
@@ -388,7 +388,7 @@ export function extractErrorMessage(
   const errorCode = extractErrorCode(error);
   if (errorCode) {
     const translated = translateByErrorCode(errorCode, extractErrorParameters(error), defaultTranslated);
-    if (translated !== defaultTranslated) {
+    if (translated && translated !== defaultTranslated) {
       return translated;
     }
 

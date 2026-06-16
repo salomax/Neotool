@@ -142,12 +142,14 @@ class ImportJobServiceTest {
     @DisplayName("initiateFileImport")
     inner class InitiateFileImportTests {
         @Test
-        fun `Level 3 idempotency — same file twice returns same COMPLETED job`() {
+        fun `re-enqueues COMPLETED job — same file reimport always resets and re-processes`() {
             val fileBytes = "OFXHEADER:100\n<OFX>".toByteArray()
             val fileName = "export.ofx"
+            val jobId = UUID.randomUUID()
+            val assetId = UUID.randomUUID()
             val completedJob =
                 ImportJob(
-                    id = UUID.randomUUID(),
+                    id = jobId,
                     financialAccountId = financialAccountId,
                     accountId = accountId,
                     createdByUserId = userId,
@@ -155,10 +157,18 @@ class ImportJobServiceTest {
                     fileName = fileName,
                     fileHash = "any-hash",
                     status = ImportJobStatus.COMPLETED,
+                    totalRows = 5,
+                    importedCount = 5,
+                    skippedCount = 0,
+                    duplicateReviewCount = 0,
+                    errorCount = 0,
+                    completedAt = now,
                     createdAt = now,
                     updatedAt = now,
                 )
             whenever(importJobRepository.findByFileHash(eq(financialAccountId), any())).thenReturn(completedJob)
+            whenever(importJobRepository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(fileStorage.store(eq(accountId), any(), eq(fileName), any())).thenReturn(assetId)
 
             val result =
                 service.initiateFileImport(
@@ -170,11 +180,23 @@ class ImportJobServiceTest {
                     ImportSource.OFX,
                 )
 
-            assertThat(result.id).isEqualTo(completedJob.id)
-            assertThat(result.status).isEqualTo(ImportJobStatus.COMPLETED)
+            assertThat(result.id).isEqualTo(jobId)
+            assertThat(result.status).isEqualTo(ImportJobStatus.PENDING)
+            assertThat(result.importedCount).isNull()
+            assertThat(result.completedAt).isNull()
             verify(importJobRepository, never()).save(any())
-            verify(fileStorage, never()).store(any(), any(), any(), any())
-            verify(importFileProducer, never()).publish(any())
+            verify(fileStorage).store(eq(accountId), any(), eq(fileName), any())
+            verify(importFileProducer).publish(
+                eq(
+                    ImportFileRequestedEvent(
+                        jobId = jobId,
+                        assetId = assetId,
+                        source = ImportSource.OFX,
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                    ),
+                ),
+            )
         }
 
         @Test
@@ -322,7 +344,7 @@ class ImportJobServiceTest {
         }
 
         @Test
-        fun `retries existing COMPLETED job when previous outcome is empty`() {
+        fun `re-enqueues COMPLETED job even when previous outcome was empty`() {
             val fileBytes = "OFXHEADER:100\n<OFX>".toByteArray()
             val fileName = "export.ofx"
             val jobId = UUID.randomUUID()
@@ -362,6 +384,65 @@ class ImportJobServiceTest {
             assertThat(result.id).isEqualTo(jobId)
             assertThat(result.status).isEqualTo(ImportJobStatus.PENDING)
             verify(importJobRepository).update(any())
+            verify(importFileProducer).publish(
+                eq(
+                    ImportFileRequestedEvent(
+                        jobId = jobId,
+                        assetId = assetId,
+                        source = ImportSource.OFX,
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                    ),
+                ),
+            )
+        }
+
+        @Test
+        fun `re-enqueues COMPLETED job with prior successful imports — enables reimport after deletion`() {
+            val fileBytes = "OFXHEADER:100\n<OFX>".toByteArray()
+            val fileName = "export.ofx"
+            val jobId = UUID.randomUUID()
+            val assetId = UUID.randomUUID()
+            val completedWithImports =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.OFX,
+                    fileName = fileName,
+                    fileHash = "any-hash",
+                    status = ImportJobStatus.COMPLETED,
+                    totalRows = 10,
+                    importedCount = 10,
+                    skippedCount = 0,
+                    duplicateReviewCount = 0,
+                    errorCount = 0,
+                    completedAt = now.minusSeconds(60),
+                    createdAt = now.minusSeconds(120),
+                    updatedAt = now.minusSeconds(60),
+                )
+            whenever(importJobRepository.findByFileHash(eq(financialAccountId), any())).thenReturn(completedWithImports)
+            whenever(importJobRepository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(fileStorage.store(eq(accountId), any(), eq(fileName), any())).thenReturn(assetId)
+
+            val result =
+                service.initiateFileImport(
+                    financialAccountId,
+                    accountId,
+                    userId,
+                    fileBytes,
+                    fileName,
+                    ImportSource.OFX,
+                )
+
+            assertThat(result.id).isEqualTo(jobId)
+            assertThat(result.status).isEqualTo(ImportJobStatus.PENDING)
+            assertThat(result.importedCount).isNull()
+            assertThat(result.skippedCount).isNull()
+            assertThat(result.totalRows).isNull()
+            assertThat(result.completedAt).isNull()
+            verify(importJobRepository, never()).save(any())
             verify(importFileProducer).publish(
                 eq(
                     ImportFileRequestedEvent(

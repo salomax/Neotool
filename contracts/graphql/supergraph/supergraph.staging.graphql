@@ -1723,6 +1723,7 @@ enum FixedIncomeProductGroup
   @join__type(graph: FINANCIALDATA)
 {
   TAXABLE_IR @join__enumValue(graph: FINANCIALDATA)
+  TAXABLE_IR_NO_IOF @join__enumValue(graph: FINANCIALDATA)
   EXEMPT_IR @join__enumValue(graph: FINANCIALDATA)
 }
 
@@ -2071,6 +2072,13 @@ input InstallmentInfoInput
 {
   current: Int!
   total: Int!
+}
+
+input InstitutionAccountMappingInput
+  @join__type(graph: BANKING)
+{
+  reviewInstitutionId: String!
+  financialAccountId: ID!
 }
 
 type InstitutionRating

@@ -140,6 +140,32 @@ class FixedIncomeComparisonGoldenTest {
     }
 
     @Test
+    fun `short taxable simulation includes committed lane without IOF`() {
+        val result =
+            service.compare(
+                input(
+                    product = FixedIncomeProduct.CDB,
+                    rateModel = RateModel.CDI,
+                    calendarDays = 10,
+                    contractedRateBps = 10_000,
+                    cdiAnnualRateBps = 1_200,
+                ),
+            )
+
+        assertThat(result.rows.map { it.productGroup }.toSet())
+            .contains(ProductGroup.TAXABLE_IR, ProductGroup.TAXABLE_IR_NO_IOF, ProductGroup.EXEMPT_IR)
+        assertThat(result.performanceSeries.map { it.productGroup }.toSet())
+            .contains(ProductGroup.TAXABLE_IR, ProductGroup.TAXABLE_IR_NO_IOF, ProductGroup.EXEMPT_IR)
+
+        val taxableBase = result.rows.first { it.isBase }
+        val committedRow =
+            result.rows.first {
+                it.productGroup == ProductGroup.TAXABLE_IR_NO_IOF && it.rateModel == RateModel.CDI
+            }
+        assertThat(committedRow.equivalentRateBps).isLessThan(taxableBase.equivalentRateBps)
+    }
+
+    @Test
     fun `scenario 6 CDB CDI 361 days boundary`() {
         val result =
             service.compare(
@@ -192,7 +218,7 @@ class FixedIncomeComparisonGoldenTest {
     }
 
     @Test
-    fun `result has 2x3 rows with base first`() {
+    fun `long taxable simulation omits committed lane from rows and series`() {
         val result =
             service.compare(
                 input(

@@ -25,6 +25,7 @@ repositories { mavenCentral() }
 dependencies {
     // Project dependencies
     implementation(project(":common"))
+    implementation(project(":common-finance"))
     testImplementation(testFixtures(project(":common")))
 
     // KSP processors

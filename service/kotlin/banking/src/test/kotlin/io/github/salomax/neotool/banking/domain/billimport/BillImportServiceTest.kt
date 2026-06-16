@@ -280,10 +280,12 @@ class BillImportServiceTest {
         }
 
         @Test
-        fun `submit duplicate completed file returns conflict`() {
+        fun `submit DONE PDF job re-enqueues for reimport instead of conflicting`() {
+            val existingJobId = UUID.randomUUID()
+            val newAssetId = UUID.randomUUID()
             val existingJob =
                 BillImportJob(
-                    id = UUID.randomUUID(),
+                    id = existingJobId,
                     importType = ImportDocumentType.CREDIT_CARD_BILL,
                     financialAccountId = null,
                     accountId = accountId,
@@ -297,8 +299,12 @@ class BillImportServiceTest {
                     updatedAt = now.minusSeconds(30),
                 )
             whenever(repository.findByAccountIdAndFileHash(eq(accountId), any())).thenReturn(existingJob)
+            whenever(
+                billAssetStorage.uploadPdf(eq(accountId), eq("fatura.pdf"), any()),
+            ).thenReturn(BillImportAssetUploadResult(assetId = newAssetId, downloadUrl = "https://assets/$newAssetId"))
+            whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
 
-            assertThrows<ConflictException> {
+            val result =
                 service.submitBillImport(
                     accountId = accountId,
                     userId = userId,
@@ -307,8 +313,96 @@ class BillImportServiceTest {
                     fileName = "fatura.pdf",
                     fileBytes = validPdfBytes("fatura"),
                 )
-            }
 
+            assertThat(result.id).isEqualTo(existingJobId)
+            assertThat(result.status).isEqualTo(BillImportJobStatus.PENDING)
+            assertThat(result.completedAt).isNull()
+            verify(repository, never()).save(any())
+            verify(repository).update(any())
+            verify(billAssetStorage).uploadPdf(eq(accountId), eq("fatura.pdf"), any())
+            verify(submittedProducer).publish(any())
+        }
+
+        @Test
+        fun `submit DONE OFX bill job resets to AWAITING_REVIEW for reimport`() {
+            val existingJobId = UUID.randomUUID()
+            val existingJob =
+                BillImportJob(
+                    id = existingJobId,
+                    importType = ImportDocumentType.CREDIT_CARD_BILL,
+                    financialAccountId = null,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    status = BillImportJobStatus.DONE,
+                    assetId = UUID.randomUUID(),
+                    fileName = "fatura.ofx",
+                    fileHash = "hash",
+                    completedAt = now.minusSeconds(30),
+                    createdAt = now.minusSeconds(120),
+                    updatedAt = now.minusSeconds(30),
+                )
+            whenever(repository.findByAccountIdAndFileHash(eq(accountId), any())).thenReturn(existingJob)
+            whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
+
+            val fileBytes = loadFixture("/fixtures/ofx/ofx_creditcard_sgml_sample.ofx")
+            val result =
+                service.submitBillImport(
+                    accountId = accountId,
+                    userId = userId,
+                    importType = ImportDocumentType.CREDIT_CARD_BILL,
+                    financialAccountId = null,
+                    fileName = "fatura.ofx",
+                    fileBytes = fileBytes,
+                )
+
+            assertThat(result.id).isEqualTo(existingJobId)
+            assertThat(result.status).isEqualTo(BillImportJobStatus.AWAITING_REVIEW)
+            assertThat(result.completedAt).isNull()
+            assertThat(result.reviewPayload).isNotNull()
+            verify(repository, never()).save(any())
+            verify(repository).update(any())
+            verify(billAssetStorage, never()).uploadPdf(any(), any(), any())
+            verify(submittedProducer, never()).publish(any())
+        }
+
+        @Test
+        fun `submit DONE CSV bill job resets to AWAITING_REVIEW for reimport`() {
+            val existingJobId = UUID.randomUUID()
+            val existingJob =
+                BillImportJob(
+                    id = existingJobId,
+                    importType = ImportDocumentType.CREDIT_CARD_BILL,
+                    financialAccountId = null,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    status = BillImportJobStatus.DONE,
+                    assetId = UUID.randomUUID(),
+                    fileName = "fatura.csv",
+                    fileHash = "hash",
+                    completedAt = now.minusSeconds(30),
+                    createdAt = now.minusSeconds(120),
+                    updatedAt = now.minusSeconds(30),
+                )
+            whenever(repository.findByAccountIdAndFileHash(eq(accountId), any())).thenReturn(existingJob)
+            whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
+
+            val fileBytes = loadFixture("/fixtures/csv/nubank_sample.csv")
+            val result =
+                service.submitBillImport(
+                    accountId = accountId,
+                    userId = userId,
+                    importType = ImportDocumentType.CREDIT_CARD_BILL,
+                    financialAccountId = null,
+                    fileName = "fatura.csv",
+                    fileBytes = fileBytes,
+                )
+
+            assertThat(result.id).isEqualTo(existingJobId)
+            assertThat(result.status).isEqualTo(BillImportJobStatus.AWAITING_REVIEW)
+            assertThat(result.completedAt).isNull()
+            assertThat(result.reviewPayload).isNotNull()
+            verify(repository, never()).save(any())
+            verify(repository).update(any())
             verify(billAssetStorage, never()).uploadPdf(any(), any(), any())
             verify(submittedProducer, never()).publish(any())
         }

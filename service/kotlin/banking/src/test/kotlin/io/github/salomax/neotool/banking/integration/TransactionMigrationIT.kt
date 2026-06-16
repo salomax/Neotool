@@ -72,6 +72,7 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                             "0.19",
                             "0.20",
                             "0.21",
+                            "0.22",
                         )
                 }
                 conn.createStatement().executeQuery(
@@ -165,6 +166,26 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("transactions partial unique index")
     inner class TransactionsUniqueIndexTests {
+        @Test
+        fun `BILL_PAYMENT type is allowed by transactions_type_check`() {
+            val container = getPgContainer()
+            val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+            DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+                conn.createStatement().executeUpdate(
+                    """
+                    INSERT INTO banking.transactions (id, financial_account_id, account_id, created_by_user_id, belongs_to_user_id, credit_debit_type, type, status, source, amount, currency_code, date, description, created_at, updated_at)
+                    VALUES (uuidv7(), '$financialAccountId', '$accountId', '$userId', '$userId', 'DEBIT', 'BILL_PAYMENT', 'POSTED', 'MANUAL', 528.94, 'BRL', CURRENT_DATE, 'Pagamento de fatura', NOW(), NOW())
+                    """.trimIndent(),
+                )
+                conn.createStatement().executeQuery(
+                    "SELECT type FROM banking.transactions WHERE financial_account_id = '$financialAccountId' AND type = 'BILL_PAYMENT'",
+                ).use { rs ->
+                    assertThat(rs.next()).isTrue()
+                    assertThat(rs.getString("type")).isEqualTo("BILL_PAYMENT")
+                }
+            }
+        }
+
         @Test
         fun `two NULLs for provider_transaction_id on same account allowed no conflict`() {
             val container = getPgContainer()

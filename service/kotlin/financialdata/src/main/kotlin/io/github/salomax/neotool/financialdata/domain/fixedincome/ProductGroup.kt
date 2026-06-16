@@ -6,6 +6,7 @@ package io.github.salomax.neotool.financialdata.domain.fixedincome
  */
 enum class ProductGroup {
     TAXABLE_IR,
+    TAXABLE_IR_NO_IOF,
     EXEMPT_IR,
 }
 
@@ -24,5 +25,6 @@ fun productGroup(product: FixedIncomeProduct): ProductGroup =
 fun defaultProductForGroup(group: ProductGroup): FixedIncomeProduct =
     when (group) {
         ProductGroup.TAXABLE_IR -> FixedIncomeProduct.CDB
+        ProductGroup.TAXABLE_IR_NO_IOF -> FixedIncomeProduct.CDB
         ProductGroup.EXEMPT_IR -> FixedIncomeProduct.LCI
     }

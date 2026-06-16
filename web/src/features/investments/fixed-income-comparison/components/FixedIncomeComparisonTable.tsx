@@ -20,7 +20,10 @@ import { useTranslation, i18n } from "@/shared/i18n";
 import { investmentsTranslations } from "@/shared/i18n/domains/investments";
 import { formatMetricValue } from "@/shared/utils/formatMetricValue";
 import type { FixedIncomeComparisonQuery } from "../api/queries.generated";
-import type { FixedIncomeRateModel } from "@/lib/graphql/types/__generated__/graphql";
+import {
+  FixedIncomeProductGroup,
+  type FixedIncomeRateModel,
+} from "@/lib/graphql/types/__generated__/graphql";
 import { FormSectionLabel } from "./FormSectionLabel";
 
 export interface FixedIncomeComparisonTableProps {
@@ -106,15 +109,18 @@ function formatRateDisplay(
 }
 
 function getInvestmentLabel(
-  productGroup: "TAXABLE_IR" | "EXEMPT_IR",
+  productGroup: FixedIncomeProductGroup,
   t: (key: string) => string,
   ns: string
 ): string {
-  const groupLabel =
-    productGroup === "TAXABLE_IR"
-      ? t(`${ns}.taxableProductLabel`)
-      : t(`${ns}.exemptProductLabel`);
-  return groupLabel;
+  switch (productGroup) {
+    case FixedIncomeProductGroup.TaxableIr:
+      return t(`${ns}.taxableProductLabel`);
+    case FixedIncomeProductGroup.TaxableIrNoIof:
+      return t(`${ns}.taxableCommittedProductLabel`);
+    default:
+      return t(`${ns}.exemptProductLabel`);
+  }
 }
 
 export function FixedIncomeComparisonTable({
@@ -135,7 +141,8 @@ export function FixedIncomeComparisonTable({
     const sortedRows = [...rows].sort((a, b) => {
       const order = {
         TAXABLE_IR: 0,
-        EXEMPT_IR: 1,
+        TAXABLE_IR_NO_IOF: 1,
+        EXEMPT_IR: 2,
       } as const;
       const aOrder = order[a.productGroup as keyof typeof order] ?? 99;
       const bOrder = order[b.productGroup as keyof typeof order] ?? 99;
@@ -153,7 +160,7 @@ export function FixedIncomeComparisonTable({
     });
 
     return { sortedRows, durationWithTotalText, baseRateModel };
-  }, [result, t, ns, locale]);
+  }, [locale, result, t, ns]);
 
   if (loading) {
     return (

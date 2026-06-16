@@ -15,6 +15,10 @@ datasources:
     enabled: false
 flyway:
   enabled: false
+  datasources:
+    default:
+      properties:
+        flyway.postgresql.transactional.lock: false
 kafka:
   enabled: false
 redis:

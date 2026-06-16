@@ -591,12 +591,8 @@ open class ImportJobService(
     ): ImportJob {
         return when (existing.status) {
             ImportJobStatus.COMPLETED -> {
-                if (!shouldRetryCompletedEmptyOutcome(existing)) {
-                    existing
-                } else {
-                    val reset = resetForRetry(existing, userId, source, fileName)
-                    enqueueImportJob(reset, financialAccountId, accountId, fileBytes, fileName, source, producer)
-                }
+                val reset = resetForRetry(existing, userId, source, fileName)
+                enqueueImportJob(reset, financialAccountId, accountId, fileBytes, fileName, source, producer)
             }
             ImportJobStatus.PROCESSING -> {
                 val reset = resetForRetry(existing, userId, source, fileName)
@@ -618,27 +614,6 @@ open class ImportJobService(
                     ),
             )
         }
-    }
-
-    private fun shouldRetryCompletedEmptyOutcome(existing: ImportJob): Boolean {
-        val hasOutcomeCounters =
-            existing.totalRows != null ||
-                existing.importedCount != null ||
-                existing.skippedCount != null ||
-                existing.duplicateReviewCount != null ||
-                existing.errorCount != null
-        if (!hasOutcomeCounters) return false
-
-        val imported = existing.importedCount ?: 0
-        val skipped = existing.skippedCount ?: 0
-        val duplicates = existing.duplicateReviewCount ?: 0
-        val errors = existing.errorCount ?: 0
-        val totalRows = existing.totalRows ?: 0
-
-        return imported == 0 &&
-            skipped == 0 &&
-            duplicates == 0 &&
-            (errors > 0 || totalRows == 0)
     }
 
     private fun resetForRetry(

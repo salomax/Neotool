@@ -5,7 +5,7 @@ import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
-import io.github.salomax.neotool.banking.model.domain.investment.policy.BrazilianFixedIncomeTaxRules
+import io.github.salomax.neotool.common.finance.tax.brazil.fixedincome.BrazilianFixedIncomeTaxRules
 import io.github.salomax.neotool.banking.model.dto.investment.HoldingValuationResult
 import jakarta.inject.Singleton
 import mu.KotlinLogging

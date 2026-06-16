@@ -1444,7 +1444,8 @@ export enum FixedIncomeProduct {
 
 export enum FixedIncomeProductGroup {
   ExemptIr = 'EXEMPT_IR',
-  TaxableIr = 'TAXABLE_IR'
+  TaxableIr = 'TAXABLE_IR',
+  TaxableIrNoIof = 'TAXABLE_IR_NO_IOF'
 }
 
 export enum FixedIncomeRateModel {
@@ -1736,6 +1737,11 @@ export type InstallmentInfoInput = {
   total: Scalars['Int']['input'];
 };
 
+export type InstitutionAccountMappingInput = {
+  financialAccountId: Scalars['ID']['input'];
+  reviewInstitutionId: Scalars['String']['input'];
+};
+
 export type InstitutionRating = {
   __typename: 'InstitutionRating';
   customParams: Maybe<Scalars['JSON']['output']>;
@@ -1956,7 +1962,6 @@ export type InvestmentImportJob = {
   __typename: 'InvestmentImportJob';
   createdAt: Scalars['DateTime']['output'];
   errorCode: Maybe<Scalars['String']['output']>;
-  /** @deprecated Use errorCode/errorParameters for i18n */
   errorMessage: Maybe<Scalars['String']['output']>;
   errorParameters: Maybe<Scalars['JSON']['output']>;
   fileName: Maybe<Scalars['String']['output']>;

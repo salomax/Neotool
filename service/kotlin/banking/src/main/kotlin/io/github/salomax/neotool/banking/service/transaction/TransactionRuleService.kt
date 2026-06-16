@@ -25,6 +25,7 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleReposit
 import jakarta.inject.Singleton
 import java.time.Instant
 import java.util.UUID
+import mu.KotlinLogging
 
 @Singleton
 open class TransactionRuleService(
@@ -33,6 +34,7 @@ open class TransactionRuleService(
     private val merchantRepository: MerchantRepository,
     private val transactionRepository: TransactionRepository,
 ) {
+    private val logger = KotlinLogging.logger {}
     /** Returns all user-owned rules (explicit + implicit) for the account. System rules are excluded. */
     fun listUserRules(accountId: UUID): List<TransactionRule> = ruleRepository.findUserRulesForAccount(accountId)
 
@@ -194,7 +196,7 @@ open class TransactionRuleService(
         sample: String,
     ): Boolean {
         validatePattern(patternType, pattern)
-        return TransactionRuleMatcher.matches(sample, pattern.trim(), patternType)
+        return TransactionRulePatternMatcher.matchesDescription(sample, pattern, patternType)
     }
 
     fun reorder(
@@ -223,11 +225,34 @@ open class TransactionRuleService(
         if (rule.accountId != accountId) {
             throw TransactionRuleNotFoundException(ruleId)
         }
-        return transactionRepository.findByAccount(accountId)
-            .asSequence()
-            .filter { tx -> tx.source != TransactionSource.MANUAL }
-            .filter { tx -> tx.type != TransactionType.BALANCE_ADJUSTMENT }
-            .count { tx -> matchesRule(tx, rule) }
+
+        // [RULE-DEBUG] temporary diagnostic logs — remove after investigation
+        logger.info { "[RULE-DEBUG] countHistoricalMatches ruleId=$ruleId pattern='${rule.pattern}' patternType=${rule.patternType} applicableTo=${rule.applicableTo}" }
+        val all = transactionRepository.findByAccount(accountId)
+        logger.info { "[RULE-DEBUG] total transactions: ${all.size}" }
+        val afterSourceFilter = all.filter { it.source != TransactionSource.MANUAL }
+        logger.info { "[RULE-DEBUG] after source!=MANUAL: ${afterSourceFilter.size} (excluded ${all.size - afterSourceFilter.size} MANUAL)" }
+        val afterTypeFilter = afterSourceFilter.filter { it.type != TransactionType.BALANCE_ADJUSTMENT }
+        logger.info { "[RULE-DEBUG] after type!=BALANCE_ADJUSTMENT: ${afterTypeFilter.size}" }
+        var applicableToRejected = 0
+        var patternRejected = 0
+        val matching =
+            afterTypeFilter.filter { tx ->
+                val side =
+                    if (tx.type == TransactionType.TRANSFER) CategoryApplicableTo.TRANSFER
+                    else if (tx.creditDebitType == CreditDebitType.CREDIT) CategoryApplicableTo.INCOME
+                    else CategoryApplicableTo.EXPENSE
+                if (rule.applicableTo != CategoryApplicableTo.ANY && rule.applicableTo != side) {
+                    applicableToRejected++
+                    return@filter false
+                }
+                val matched = TransactionRulePatternMatcher.matchesDescription(tx.description, rule.pattern, rule.patternType)
+                if (!matched) patternRejected++
+                matched
+            }
+        logger.info { "[RULE-DEBUG] applicableTo rejected: $applicableToRejected, pattern rejected: $patternRejected, final count: ${matching.size}" }
+        return matching.size
+        // [RULE-DEBUG] end
     }
 
     fun applyToHistorical(
@@ -306,7 +331,11 @@ open class TransactionRuleService(
                 CategoryApplicableTo.EXPENSE
             }
         if (rule.applicableTo != CategoryApplicableTo.ANY && rule.applicableTo != side) return false
-        return TransactionRuleMatcher.matches(tx.description, rule.pattern, rule.patternType)
+        return TransactionRulePatternMatcher.matchesDescription(
+            description = tx.description,
+            pattern = rule.pattern,
+            patternType = rule.patternType,
+        )
     }
 
     private fun requireCategoryAccessible(

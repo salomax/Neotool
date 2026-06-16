@@ -200,6 +200,18 @@ class CategoryRuleServiceTest {
         fun `matches multi-word pattern as a phrase`() {
             assertThat(service.previewPattern("UBER EATS", PatternType.CONTAINS, "PAG UBER EATS HOJE")).isTrue()
         }
+
+        @Test
+        fun `normalizes special characters in pattern to match imported descriptions`() {
+            // Pattern created from tx.description (e.g. "NUBANK R$ 50.00") must match the
+            // normalized description ("nubank r  50 00") — both $ and . become spaces.
+            assertThat(service.previewPattern("NUBANK R\$ 50.00", PatternType.CONTAINS, "NUBANK R\$ 50.00")).isTrue()
+        }
+
+        @Test
+        fun `normalizes accented characters in pattern`() {
+            assertThat(service.previewPattern("café", PatternType.CONTAINS, "CAFE DO BRASIL")).isTrue()
+        }
     }
 
     @Nested
@@ -450,6 +462,118 @@ class CategoryRuleServiceTest {
             val result = service.countHistoricalMatches(ruleId, accountId)
 
             assertThat(result).isEqualTo(1)
+        }
+
+        @Test
+        fun `countHistoricalMatches normalizes pattern special characters to match imported transactions`() {
+            // Regression: pattern created from tx.description may contain R$, dots, etc.
+            // TransactionDescriptionNormalizer strips those to spaces; the matcher must do
+            // the same on the pattern side — otherwise countHistoricalMatches returns 0 and
+            // the "apply to history" dialog never shows.
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(
+                    id = ruleId,
+                    accountId = accountId,
+                    pattern = "NUBANK R\$ 50.00",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                ),
+            )
+            whenever(transactionRepository.findByAccount(accountId)).thenReturn(
+                listOf(
+                    transaction(
+                        description = "NUBANK R\$ 50.00",
+                        creditDebitType = CreditDebitType.DEBIT,
+                        source = TransactionSource.OFX,
+                    ),
+                    transaction(
+                        description = "OTHER BANK",
+                        creditDebitType = CreditDebitType.DEBIT,
+                        source = TransactionSource.OFX,
+                    ),
+                ),
+            )
+
+            val result = service.countHistoricalMatches(ruleId, accountId)
+
+            assertThat(result).isEqualTo(1)
+        }
+
+        @Test
+        fun `countHistoricalMatches excludes MANUAL transactions`() {
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(
+                    id = ruleId,
+                    accountId = accountId,
+                    pattern = "ifood",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                ),
+            )
+            whenever(transactionRepository.findByAccount(accountId)).thenReturn(
+                listOf(
+                    transaction(description = "iFood", source = TransactionSource.MANUAL),
+                    transaction(description = "iFood", source = TransactionSource.CSV),
+                ),
+            )
+
+            val result = service.countHistoricalMatches(ruleId, accountId)
+
+            assertThat(result).isEqualTo(1)
+        }
+
+        @Test
+        fun `applyToHistorical normalizes pattern special characters when updating transactions`() {
+            val savedCaptor = argumentCaptor<Transaction>()
+            val tx = transaction(
+                description = "NUBANK R\$ 50.00",
+                creditDebitType = CreditDebitType.DEBIT,
+                source = TransactionSource.OFX,
+            )
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(
+                    id = ruleId,
+                    accountId = accountId,
+                    pattern = "NUBANK R\$ 50.00",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                ),
+            )
+            whenever(transactionRepository.findByAccount(accountId)).thenReturn(listOf(tx))
+            whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            val result = service.applyToHistorical(ruleId, accountId)
+
+            assertThat(result.affectedCount).isEqualTo(1)
+            verify(transactionRepository).update(savedCaptor.capture())
+            assertThat(savedCaptor.firstValue.categoryId).isEqualTo(categoryId)
+            assertThat(savedCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
+            verify(ruleRepository).incrementMatchCountBy(ruleId, 1)
+        }
+
+        @Test
+        fun `applyToHistorical does not overwrite manually categorized transactions`() {
+            val manualCategoryId = UUID.randomUUID()
+            val tx = transaction(
+                description = "NUBANK R\$ 50.00",
+                creditDebitType = CreditDebitType.DEBIT,
+                source = TransactionSource.OFX,
+            ).copy(categoryId = manualCategoryId, categorySource = CategorySource.MANUAL)
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(
+                    id = ruleId,
+                    accountId = accountId,
+                    pattern = "NUBANK R\$ 50.00",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                ),
+            )
+            whenever(transactionRepository.findByAccount(accountId)).thenReturn(listOf(tx))
+
+            val result = service.applyToHistorical(ruleId, accountId)
+
+            assertThat(result.affectedCount).isEqualTo(0)
+            verify(transactionRepository, never()).update(any())
         }
     }
 

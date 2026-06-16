@@ -247,6 +247,7 @@ open class ImportProcessor(
                         sourceData = buildSourceData(parsed),
                         categoryId = categorySuggestion?.categoryId,
                         categorySource = categorySuggestion?.let { CategorySource.RULE },
+                        merchantId = categorySuggestion?.merchantId,
                         appliedRuleHistory =
                             categorySuggestion
                                 ?.let { suggestion ->
@@ -255,7 +256,7 @@ open class ImportProcessor(
                                             suggestion = suggestion,
                                             rules = categorizationRules,
                                             appliedCategory = suggestion.categoryId != null,
-                                            appliedMerchant = false,
+                                            appliedMerchant = suggestion.merchantId != null,
                                             appliedDescription = suggestion.descriptionOverride != null,
                                             appliedTags = !suggestion.tagsOverride.isNullOrEmpty(),
                                         )

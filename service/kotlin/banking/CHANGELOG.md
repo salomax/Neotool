@@ -1,3 +1,69 @@
+## 0.7.2 (2026-06-16)
+
+### 🚀 Features
+
+- **financialdata:** update dependencies and improve caching ([89ec6b38](https://github.com/invistus/invistus/commit/89ec6b38))
+- **financialdata:** introduce TAXABLE_IR_NO_IOF product group and update related logic ([65775276](https://github.com/invistus/invistus/commit/65775276))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
+## 0.7.1 (2026-06-10)
+
+This was a version bump only for banking to align it with other projects, there were no code changes.
+
+## 0.7.0 (2026-06-10)
+
+### 🚀 Features
+
+- **banking:** add temporary diagnostic logging for transaction rule matching ([0c992489](https://github.com/invistus/invistus/commit/0c992489))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
+## 0.6.1 (2026-06-09)
+
+### 💅 Refactors
+
+- **banking:** enhance transaction pattern matching and improve test coverage ([b5acc2e7](https://github.com/invistus/invistus/commit/b5acc2e7))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
+## 0.6.0 (2026-06-08)
+
+### 🚀 Features
+
+- **banking:** implement partial unique index for transactions and enhance bill import job handling ([147df615](https://github.com/invistus/invistus/commit/147df615))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
+## 0.5.1 (2026-06-08)
+
+### 💅 Refactors
+
+- **banking:** simplify bill import job conflict handling and remove unused method ([dea0ed9c](https://github.com/invistus/invistus/commit/dea0ed9c))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
+## 0.5.0 (2026-06-08)
+
+### 🚀 Features
+
+- **banking:** introduce investment import types and mutations ([6b9778ba](https://github.com/invistus/invistus/commit/6b9778ba))
+- **banking:** add BILL_PAYMENT transaction type and corresponding migration ([a4e75435](https://github.com/invistus/invistus/commit/a4e75435))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.4.3 (2026-06-05)
 
 ### 💅 Refactors

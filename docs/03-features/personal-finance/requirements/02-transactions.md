@@ -16,7 +16,7 @@ Users can:
 - Categorize and tag each transaction.
 - Attribute a transaction to any account member (by user ID or free-form name).
 - Edit any previously created transaction, including applying the same changes to other transactions with the same description.
-- Soft-delete their own manually entered transactions.
+- Soft-delete their own transactions (manual or imported).
 - Pay a credit card bill from a linked bank account.
 - Import transactions from OFX files, Nubank CSV exports, and NFC-e QR codes (Phase 2.5).
 - View a month-level summary (income, expenses, opening/closing balance) and a category/tag breakdown.
@@ -188,7 +188,7 @@ Non-`BALANCE_ADJUSTMENT` transactions cannot have a `date` earlier than the fina
 
 ### 3.5 Soft delete
 
-Delete sets `deleted_at = NOW()`. Deleted transactions are excluded from all balance computations and list queries (all DB indexes are partial on `deleted_at IS NULL`). Only `MANUAL`-source transactions can be deleted. Attempting to delete a non-`MANUAL` transaction throws a domain error.
+Delete sets `deleted_at = NOW()`. Deleted transactions are excluded from all balance computations and list queries (all DB indexes are partial on `deleted_at IS NULL`). Any source (`MANUAL`, `OPEN_FINANCE`, `OFX`, `CSV`, etc.) may be soft-deleted by the account owner.
 
 ### 3.6 Internal transfers
 
@@ -269,7 +269,7 @@ Categories support at most two levels (root + one subcategory level). `parent_id
 
 1. User clicks delete; confirmation dialog shown.
 2. On confirm: `deleted_at = NOW()`. Bill total recomputed if had `billId`. Snapshot chain recomputed.
-3. Non-`MANUAL` transactions rejected.
+3. Any source may be deleted (manual or imported/synced).
 
 **US-4 — Categorize a transaction (single)**
 
@@ -392,12 +392,10 @@ Frontend polls import job status via SSE (`/api/imports/{jobId}/stream`). Falls 
 
 3. **Transfer creation UX** — the frontend inline form shows a "Transfer" option (not a real `CreditDebitType`) but the backend expects two separate rows. A dedicated transfer mutation may be needed.
 
-4. **Non-MANUAL delete / hide** — the service rejects deletes of non-`MANUAL` transactions but there is no hide/archive mechanism for OFX- or Open Finance-sourced transactions.
+4. **Recurring transactions** — explicitly out of scope. No recurring entry model exists.
 
-5. **Recurring transactions** — explicitly out of scope. No recurring entry model exists.
+5. **Attachment backend implementation** — `AttachmentSection` exists in the frontend but the backend scope is not in the transaction requirements backlog.
 
-6. **Attachment backend implementation** — `AttachmentSection` exists in the frontend but the backend scope is not in the transaction requirements backlog.
+6. **`FUTURE`-status projected balance query scope** — aggregation query for FUTURE transactions is not fully documented in the backlog.
 
-7. **`FUTURE`-status projected balance query scope** — aggregation query for FUTURE transactions is not fully documented in the backlog.
-
-8. **CSV format coverage** — currently only Nubank CSV. Other banks deferred to Phase 3. The `TransactionSource` enum uses a single `CSV` value while the import backlog enumerates bank-specific values; reconciliation needed before implementation.
+7. **CSV format coverage** — currently only Nubank CSV. Other banks deferred to Phase 3. The `TransactionSource` enum uses a single `CSV` value while the import backlog enumerates bank-specific values; reconciliation needed before implementation.

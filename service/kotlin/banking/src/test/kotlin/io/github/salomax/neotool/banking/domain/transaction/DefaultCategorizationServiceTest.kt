@@ -73,6 +73,41 @@ class DefaultCategorizationServiceTest {
         }
 
         @Test
+        fun `matches CONTAINS pattern case-insensitively`() {
+            val matchedRule =
+                rule(
+                    pattern = "UBER",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                )
+            whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
+            whenever(
+                categoryRepository.findById(matchedRule.categoryId!!),
+            ).thenReturn(category(matchedRule.categoryId!!))
+
+            val suggestion = service.suggest(accountId, "PAGAMENTO UBER EATS", CreditDebitType.DEBIT)
+
+            assertThat(suggestion?.categoryId).isEqualTo(matchedRule.categoryId)
+            verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
+        }
+
+        @Test
+        fun `does not match CONTAINS pattern embedded inside another word`() {
+            val matchedRule =
+                rule(
+                    pattern = "UBER",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                )
+            whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
+
+            val suggestion = service.suggest(accountId, "CLAUBER LTDA", CreditDebitType.DEBIT)
+
+            assertThat(suggestion).isNull()
+            verify(ruleRepository, never()).incrementMatchCount(any())
+        }
+
+        @Test
         fun `keeps asterisk in normalized descriptor for matching`() {
             val matchedRule =
                 rule(

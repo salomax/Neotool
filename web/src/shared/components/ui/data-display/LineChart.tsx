@@ -842,7 +842,9 @@ export const LineChart: React.FC<LineChartProps> = ({
     const max = Number(baseMax);
     if (!Number.isFinite(min) || !Number.isFinite(max)) return undefined;
 
-    if (hasExplicitBounds && axisConfig?.marginPercent == null) return [min, max] as [number, number];
+    if (hasExplicitBounds && axisConfig?.marginPercent == null && scaleMinPadding == null && scaleMaxPadding == null) {
+      return [min, max] as [number, number];
+    }
 
     const percent = axisConfig?.marginPercent;
     if (percent != null) {

@@ -7,7 +7,7 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.model.domain.investment.policy.BrazilianBusinessCalendar
-import io.github.salomax.neotool.banking.model.domain.investment.policy.BrazilianFixedIncomeTaxRules
+import io.github.salomax.neotool.common.finance.tax.brazil.fixedincome.BrazilianFixedIncomeTaxRules
 import io.github.salomax.neotool.banking.model.dto.investment.FundValuationResult
 import jakarta.inject.Singleton
 import java.math.BigDecimal

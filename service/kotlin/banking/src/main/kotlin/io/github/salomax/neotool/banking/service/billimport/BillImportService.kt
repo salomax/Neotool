@@ -34,7 +34,6 @@ import io.github.salomax.neotool.banking.service.transaction.CreditCardBillServi
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.common.error.CommonErrorCode
-import io.github.salomax.neotool.common.error.ConflictException
 import io.github.salomax.neotool.common.error.DomainException
 import io.github.salomax.neotool.common.error.ValidationException
 import io.micronaut.transaction.annotation.Transactional
@@ -91,20 +90,8 @@ open class BillImportService(
 
         val fileHash = sha256Hex(fileBytes)
         val existing = repository.findByAccountIdAndFileHash(accountId, fileHash)
-        if (existing != null) {
-            when {
-                existing.status == BillImportJobStatus.DONE ->
-                    throw ConflictException(
-                        errorCode = BankingErrorCode.DUPLICATE_IMPORT,
-                        field = "fileBase64",
-                        parameters =
-                            mapOf(
-                                "existingJobId" to existing.id?.toString().orEmpty(),
-                                "fileHash" to fileHash,
-                            ),
-                    )
-                !isRetryableExistingJob(existing) -> return existing
-            }
+        if (existing != null && !isRetryableExistingJob(existing)) {
+            return existing
         }
 
         val strategy =
@@ -134,7 +121,8 @@ open class BillImportService(
 
     private fun isRetryableExistingJob(existing: BillImportJob): Boolean =
         existing.status == BillImportJobStatus.FAILED ||
-            existing.status == BillImportJobStatus.AWAITING_REVIEW
+            existing.status == BillImportJobStatus.AWAITING_REVIEW ||
+            existing.status == BillImportJobStatus.DONE
 
     open fun getJob(
         jobId: UUID,
