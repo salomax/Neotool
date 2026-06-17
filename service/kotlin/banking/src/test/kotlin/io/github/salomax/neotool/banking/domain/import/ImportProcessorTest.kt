@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.domain.import
 
-import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
@@ -12,7 +11,6 @@ import io.github.salomax.neotool.banking.service.import.ImportProcessor
 import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
-import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -39,7 +37,6 @@ class ImportProcessorTest {
     private lateinit var crossSourceDedupService: CrossSourceDedupService
     private lateinit var transactionRepository: TransactionRepository
     private lateinit var categorizationService: TransactionRuleEngine
-    private lateinit var userRuleApplicationModeService: UserRuleApplicationModeService
     private lateinit var processor: ImportProcessor
 
     private lateinit var jobId: UUID
@@ -57,7 +54,6 @@ class ImportProcessorTest {
         crossSourceDedupService = mock()
         transactionRepository = mock()
         categorizationService = mock()
-        userRuleApplicationModeService = mock()
         whenever(categorizationService.preloadRules(any())).thenReturn(emptyList())
         whenever(categorizationService.suggestFromRulesRecordingMatch(any(), any(), any())).thenReturn(null)
         processor =
@@ -67,7 +63,6 @@ class ImportProcessorTest {
                 crossSourceDedupService = crossSourceDedupService,
                 transactionRepository = transactionRepository,
                 categorizationService = categorizationService,
-                userRuleApplicationModeService = userRuleApplicationModeService,
             )
         jobId = UUID.randomUUID()
         financialAccountId = UUID.randomUUID()
@@ -85,7 +80,6 @@ class ImportProcessorTest {
                 createdAt = now,
                 updatedAt = now,
             )
-        whenever(userRuleApplicationModeService.get(createdByUserId)).thenReturn(RuleApplicationMode.ALWAYS)
     }
 
     private fun parsedRow(
@@ -264,6 +258,24 @@ class ImportProcessorTest {
             verify(categorizationService).suggestFromRulesRecordingMatch(
                 any(),
                 eq("IFOOD*123"),
+                eq(CreditDebitType.DEBIT),
+            )
+        }
+
+        @Test
+        fun `preloads rules once and still consults them for imported rows`() {
+            whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-rule")
+            whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
+            whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
+            whenever(transactionRepository.save(any())).thenAnswer { it.getArgument(0) }
+
+            processor.process(job, listOf(parsedRow(description = "NETFLIX.COM*BR")))
+
+            verify(categorizationService).preloadRules(accountId)
+            verify(categorizationService).suggestFromRulesRecordingMatch(
+                any(),
+                eq("NETFLIX.COM*BR"),
                 eq(CreditDebitType.DEBIT),
             )
         }

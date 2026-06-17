@@ -3,7 +3,6 @@ package io.github.salomax.neotool.banking.service.import
 import io.github.salomax.neotool.banking.domain.import.ImportJob
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
-import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
@@ -17,7 +16,6 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
-import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 import io.github.salomax.neotool.banking.service.transaction.AppliedRuleAuditSupport
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.shared.DateWindowPolicy
@@ -58,7 +56,6 @@ open class ImportProcessor(
     private val crossSourceDedupService: CrossSourceDedupService,
     private val transactionRepository: TransactionRepository,
     private val categorizationService: TransactionRuleEngine,
-    private val userRuleApplicationModeService: UserRuleApplicationModeService,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -97,23 +94,17 @@ open class ImportProcessor(
         val sameSourceDuplicateCache = mutableMapOf<String, Boolean>()
         val fingerprintDuplicateCache = mutableMapOf<String, Boolean>()
 
-        val mode = userRuleApplicationModeService.get(createdByUserId)
-
         val categorizationRules =
-            if (mode == RuleApplicationMode.NEVER) {
+            try {
+                categorizationService.preloadRules(accountId)
+            } catch (e: Exception) {
+                logger.warn(
+                    "Failed to preload category rules; import will continue without " +
+                        "auto-categorization (accountId={})",
+                    accountId,
+                    e,
+                )
                 emptyList()
-            } else {
-                try {
-                    categorizationService.preloadRules(accountId)
-                } catch (e: Exception) {
-                    logger.warn(
-                        "Failed to preload category rules; import will continue without " +
-                            "auto-categorization (accountId={})",
-                        accountId,
-                        e,
-                    )
-                    emptyList()
-                }
             }
 
         rows.forEachIndexed { index, parsed ->
@@ -202,25 +193,21 @@ open class ImportProcessor(
                     }
                 val ruleLookupDescription = parsed.descriptionRaw?.takeIf { it.isNotBlank() } ?: parsed.description
                 val categorySuggestion =
-                    if (mode == RuleApplicationMode.NEVER) {
+                    try {
+                        categorizationService.suggestFromRulesRecordingMatch(
+                            categorizationRules,
+                            ruleLookupDescription,
+                            parsed.creditDebitType,
+                        )
+                    } catch (e: Exception) {
+                        logger.warn(
+                            "Auto-categorization failed for import row; continuing without category " +
+                                "(accountId={}, rowIndex={})",
+                            accountId,
+                            index,
+                            e,
+                        )
                         null
-                    } else {
-                        try {
-                            categorizationService.suggestFromRulesRecordingMatch(
-                                categorizationRules,
-                                ruleLookupDescription,
-                                parsed.creditDebitType,
-                            )
-                        } catch (e: Exception) {
-                            logger.warn(
-                                "Auto-categorization failed for import row; continuing without category " +
-                                    "(accountId={}, rowIndex={})",
-                                accountId,
-                                index,
-                                e,
-                            )
-                            null
-                        }
                     }
                 val transaction =
                     Transaction(

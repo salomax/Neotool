@@ -14,7 +14,6 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
-import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
@@ -39,11 +38,9 @@ import io.github.salomax.neotool.banking.service.billimport.BillImportCommitPrep
 import io.github.salomax.neotool.banking.service.billimport.BillImportService
 import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
-import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
-import io.github.salomax.neotool.common.error.ConflictException
 import io.github.salomax.neotool.common.error.ValidationException
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
@@ -86,7 +83,6 @@ class BillImportServiceTest {
     private lateinit var submittedProducer: PdfExtractorSubmittedProducer
     private lateinit var assistantRequestProducer: AssistantBankingReaderRequestedProducer
     private lateinit var categorizationService: TransactionRuleEngine
-    private lateinit var userRuleApplicationModeService: UserRuleApplicationModeService
     private lateinit var service: BillImportService
 
     private val objectMapper = jacksonObjectMapper().registerModule(JavaTimeModule())
@@ -110,8 +106,6 @@ class BillImportServiceTest {
         billAssetStorage = mock()
         submittedProducer = mock()
         assistantRequestProducer = mock()
-        userRuleApplicationModeService = mock()
-        whenever(userRuleApplicationModeService.get(userId)).thenReturn(RuleApplicationMode.ALWAYS)
         service =
             BillImportService(
                 repository = repository,
@@ -119,7 +113,6 @@ class BillImportServiceTest {
                 transactionRepository = transactionRepository,
                 importFingerprintService = importFingerprintService,
                 categorizationService = categorizationService,
-                userRuleApplicationModeService = userRuleApplicationModeService,
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
                 billImportCommitPreparer = billImportCommitPreparer,
@@ -753,6 +746,112 @@ class BillImportServiceTest {
     }
 
     @Nested
+    @DisplayName("projectReviewPayload")
+    inner class ProjectReviewPayloadTests {
+        @Test
+        fun `projectReviewPayload applies existing rules during review projection`() {
+            val categoryId = UUID.randomUUID()
+            val payload =
+                objectMapper.writeValueAsString(
+                    BillImportReview(
+                        bankName = "Nubank",
+                        cards =
+                            listOf(
+                                BillImportReviewCard(
+                                    reviewCardId = "card-1",
+                                    lastFourDigits = "1234",
+                                    transactions =
+                                        listOf(
+                                            BillImportReviewTransaction(
+                                                date = LocalDate.of(2026, 1, 15),
+                                                description = "IFOOD PEDIDO",
+                                                amount = BigDecimal("42.90"),
+                                                creditDebitType = CreditDebitType.DEBIT,
+                                            ),
+                                        ),
+                                ),
+                            ),
+                    ),
+                )
+            val rules =
+                listOf(
+                    TransactionRule(
+                        id = UUID.randomUUID(),
+                        accountId = accountId,
+                        categoryId = categoryId,
+                        pattern = "ifood",
+                        patternType = PatternType.CONTAINS,
+                        applicableTo = CategoryApplicableTo.EXPENSE,
+                        priority = 50,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
+
+            whenever(categorizationService.preloadRules(accountId)).thenReturn(rules)
+            whenever(
+                categorizationService.suggestFromRules(
+                    same(rules),
+                    eq("IFOOD PEDIDO"),
+                    eq(CreditDebitType.DEBIT),
+                ),
+            ).thenReturn(
+                RuleSuggestion(
+                    ruleId = rules.first().id!!,
+                    categoryId = categoryId,
+                    merchantId = null,
+                ),
+            )
+
+            val result = service.projectReviewPayload(payload, accountId, userId)
+
+            assertThat(result).isNotNull()
+            assertThat(result!!.cards.single().transactions.single().categoryId).isEqualTo(categoryId)
+            assertThat(result.cards.single().transactions.single().categorySource).isEqualTo(CategorySource.RULE)
+            verify(categorizationService).preloadRules(accountId)
+            verify(categorizationService).suggestFromRules(
+                same(rules),
+                eq("IFOOD PEDIDO"),
+                eq(CreditDebitType.DEBIT),
+            )
+        }
+
+        @Test
+        fun `projectReviewPayload returns payload without suggestions when rule preload fails`() {
+            val payload =
+                objectMapper.writeValueAsString(
+                    BillImportReview(
+                        bankName = "Nubank",
+                        cards =
+                            listOf(
+                                BillImportReviewCard(
+                                    reviewCardId = "card-1",
+                                    lastFourDigits = "1234",
+                                    transactions =
+                                        listOf(
+                                            BillImportReviewTransaction(
+                                                date = LocalDate.of(2026, 1, 15),
+                                                description = "IFOOD PEDIDO",
+                                                amount = BigDecimal("42.90"),
+                                                creditDebitType = CreditDebitType.DEBIT,
+                                            ),
+                                        ),
+                                ),
+                            ),
+                    ),
+                )
+            whenever(categorizationService.preloadRules(accountId)).thenThrow(RuntimeException("rules unavailable"))
+
+            val result = service.projectReviewPayload(payload, accountId, userId)
+
+            assertThat(result).isNotNull()
+            assertThat(result!!.cards.single().transactions.single().categoryId).isNull()
+            assertThat(result.cards.single().transactions.single().categorySource).isNull()
+            verify(categorizationService).preloadRules(accountId)
+        }
+    }
+
+    @Nested
     @DisplayName("confirm")
     inner class ConfirmTests {
         @Test
@@ -799,6 +898,159 @@ class BillImportServiceTest {
             verify(creditCardBillService).recomputeBill(billB, accountId)
             verify(snapshotComputationService).recomputeChain(eq(cardA), eq(accountId), eq(2026), eq(1))
             verify(snapshotComputationService).recomputeChain(eq(cardB), eq(accountId), eq(2026), eq(1))
+        }
+
+        @Test
+        fun `confirm applies existing rules even when imported transaction starts uncategorized`() {
+            val jobId = UUID.randomUUID()
+            val cardA = UUID.randomUUID()
+            val billA = UUID.randomUUID()
+            val categoryId = UUID.randomUUID()
+            val rules =
+                listOf(
+                    TransactionRule(
+                        id = UUID.randomUUID(),
+                        accountId = accountId,
+                        categoryId = categoryId,
+                        pattern = "ifood",
+                        patternType = PatternType.CONTAINS,
+                        applicableTo = CategoryApplicableTo.EXPENSE,
+                        priority = 50,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
+            val job = awaitingReviewJob(jobId)
+            val command =
+                ConfirmBillImportCommand(
+                    jobId = jobId,
+                    cards =
+                        listOf(
+                            ConfirmBillReviewCardCommand(
+                                reviewCardId = "card-1",
+                                financialAccountId = cardA,
+                                transactions =
+                                    listOf(
+                                        ConfirmBillReviewTransactionCommand(
+                                            date = LocalDate.of(2026, 1, 15),
+                                            description = "IFOOD PEDIDO",
+                                            amount = BigDecimal("42.90"),
+                                            creditDebitType = CreditDebitType.DEBIT,
+                                            include = true,
+                                        ),
+                                    ),
+                            ),
+                        ),
+                )
+
+            whenever(repository.findById(jobId, accountId)).thenReturn(job)
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(
+                listOf(cardAccount(cardA, "1234")),
+            )
+            whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(categorizationService.preloadRules(accountId)).thenReturn(rules)
+            whenever(
+                categorizationService.suggestFromRulesRecordingMatch(
+                    same(rules),
+                    eq("IFOOD PEDIDO"),
+                    eq(CreditDebitType.DEBIT),
+                ),
+            ).thenReturn(
+                RuleSuggestion(
+                    ruleId = rules.first().id!!,
+                    categoryId = categoryId,
+                    merchantId = null,
+                ),
+            )
+            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
+            doReturn(
+                creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 2, 15)),
+            ).whenever(creditCardBillService).requireBillForAccount(eq(billA), eq(accountId))
+            val savedCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.save(savedCaptor.capture())).thenAnswer {
+                it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+
+            val result = service.confirmBillImport(accountId, userId, command)
+
+            assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
+            assertThat(savedCaptor.firstValue.categoryId).isEqualTo(categoryId)
+            assertThat(savedCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
+            verify(categorizationService).preloadRules(accountId)
+            verify(categorizationService).suggestFromRulesRecordingMatch(
+                same(rules),
+                eq("IFOOD PEDIDO"),
+                eq(CreditDebitType.DEBIT),
+            )
+            verify(categorizationService, never()).learnFromManualAssignment(
+                any(),
+                any(),
+                any(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                any(),
+            )
+        }
+
+        @Test
+        fun `confirm continues without categorization when rule preload fails`() {
+            val jobId = UUID.randomUUID()
+            val cardA = UUID.randomUUID()
+            val billA = UUID.randomUUID()
+            val job = awaitingReviewJob(jobId)
+            val command =
+                ConfirmBillImportCommand(
+                    jobId = jobId,
+                    cards =
+                        listOf(
+                            ConfirmBillReviewCardCommand(
+                                reviewCardId = "card-1",
+                                financialAccountId = cardA,
+                                transactions =
+                                    listOf(
+                                        ConfirmBillReviewTransactionCommand(
+                                            date = LocalDate.of(2026, 1, 15),
+                                            description = "IFOOD PEDIDO",
+                                            amount = BigDecimal("42.90"),
+                                            creditDebitType = CreditDebitType.DEBIT,
+                                            include = true,
+                                        ),
+                                    ),
+                            ),
+                        ),
+                )
+
+            whenever(repository.findById(jobId, accountId)).thenReturn(job)
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(
+                listOf(cardAccount(cardA, "1234")),
+            )
+            whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(categorizationService.preloadRules(accountId)).thenThrow(RuntimeException("rules unavailable"))
+            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
+            doReturn(
+                creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 2, 15)),
+            ).whenever(creditCardBillService).requireBillForAccount(eq(billA), eq(accountId))
+            val savedCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.save(savedCaptor.capture())).thenAnswer {
+                it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+
+            val result = service.confirmBillImport(accountId, userId, command)
+
+            assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
+            assertThat(savedCaptor.firstValue.categoryId).isNull()
+            assertThat(savedCaptor.firstValue.categorySource).isNull()
+            verify(categorizationService).preloadRules(accountId)
+            verify(categorizationService).suggestFromRulesRecordingMatch(
+                eq(emptyList()),
+                eq("IFOOD PEDIDO"),
+                eq(CreditDebitType.DEBIT),
+            )
         }
 
         @Test
