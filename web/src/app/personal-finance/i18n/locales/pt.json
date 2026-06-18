@@ -1554,6 +1554,11 @@
         "title": "Excluir regra?",
         "description": "Esta ação não pode ser desfeita."
       },
+      "form": {
+        "typeOverride": {
+          "emptyOption": "Manter tipo original"
+        }
+      },
       "columns": {
         "context": "Tipo",
         "rule": "Regra",

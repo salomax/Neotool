@@ -389,6 +389,41 @@ class DefaultCategorizationServiceTest {
             verify(ruleRepository).incrementMatchCount(requireNotNull(systemRule.id))
             verify(ruleRepository).incrementMatchCount(requireNotNull(implicitRule.id))
         }
+
+        @Test
+        fun `propagates type override from first matching rule that defines it`() {
+            val transferRule =
+                rule(
+                    id = UUID.randomUUID(),
+                    categoryId = null,
+                    typeOverride = CategoryApplicableTo.TRANSFER,
+                    pattern = "pix joao",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                )
+            val categoryRule =
+                rule(
+                    id = UUID.randomUUID(),
+                    categoryId = categoryId,
+                    pattern = "pix joao",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                )
+            whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(transferRule, categoryRule))
+            whenever(categoryRepository.findById(categoryId)).thenReturn(category(categoryId))
+
+            val suggestion = service.suggest(accountId, "PIX JOAO 123", CreditDebitType.DEBIT)
+
+            assertThat(suggestion).isEqualTo(
+                RuleSuggestion(
+                    ruleId = requireNotNull(transferRule.id),
+                    categoryId = categoryId,
+                    merchantId = null,
+                    typeOverride = CategoryApplicableTo.TRANSFER,
+                    appliedRuleIds = listOf(requireNotNull(transferRule.id), requireNotNull(categoryRule.id)),
+                ),
+            )
+        }
     }
 
     @Nested
@@ -461,6 +496,7 @@ class DefaultCategorizationServiceTest {
             assertThat(saved.isImplicit).isTrue()
             assertThat(saved.isSystem).isFalse()
             assertThat(saved.matchCount).isEqualTo(0)
+            assertThat(saved.typeOverride).isNull()
         }
 
         @Test
@@ -538,6 +574,7 @@ class DefaultCategorizationServiceTest {
         categoryId: UUID? = this.categoryId,
         descriptionOverride: String? = null,
         tagsOverride: List<String>? = null,
+        typeOverride: CategoryApplicableTo? = null,
         pattern: String,
         patternType: PatternType,
         applicableTo: CategoryApplicableTo,
@@ -548,6 +585,7 @@ class DefaultCategorizationServiceTest {
         accountId = accountId,
         categoryId = categoryId,
         merchantId = null,
+        typeOverride = typeOverride,
         descriptionOverride = descriptionOverride,
         tagsOverride = tagsOverride,
         pattern = pattern,

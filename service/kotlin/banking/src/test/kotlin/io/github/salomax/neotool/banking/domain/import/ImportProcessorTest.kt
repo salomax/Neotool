@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.domain.import
 
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
@@ -240,6 +241,34 @@ class ImportProcessorTest {
 
             assertThat(result.imported).hasSize(1)
             assertThat(savedCaptor.firstValue.description).isEqualTo("iFood")
+        }
+
+        @Test
+        fun `applies type override from categorization when suggestion exists`() {
+            whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-type")
+            whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
+            whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
+            val ruleId = UUID.randomUUID()
+            whenever(categorizationService.suggestFromRulesRecordingMatch(any(), any(), any())).thenReturn(
+                RuleSuggestion(
+                    ruleId = ruleId,
+                    categoryId = null,
+                    merchantId = null,
+                    typeOverride = CategoryApplicableTo.TRANSFER,
+                    appliedRuleIds = listOf(ruleId),
+                ),
+            )
+            val savedCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.save(savedCaptor.capture())).thenAnswer { invocation ->
+                invocation.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+
+            val result = processor.process(job, listOf(parsedRow(description = "PIX JOAO 123")))
+
+            assertThat(result.imported).hasSize(1)
+            assertThat(savedCaptor.firstValue.type).isEqualTo(TransactionType.TRANSFER)
+            assertThat(savedCaptor.firstValue.appliedRuleIds).containsExactly(ruleId)
         }
 
         @Test

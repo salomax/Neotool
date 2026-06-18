@@ -13,6 +13,7 @@ data class TransactionRule(
     val accountId: UUID? = null,
     val categoryId: UUID? = null,
     val merchantId: UUID? = null,
+    val typeOverride: CategoryApplicableTo? = null,
     val descriptionOverride: String? = null,
     val tagsOverride: List<String>? = null,
     val pattern: String,
@@ -30,6 +31,7 @@ data class TransactionRule(
         require(
             categoryId != null ||
                 merchantId != null ||
+                typeOverride != null ||
                 descriptionOverride != null ||
                 tagsOverride != null,
         ) {

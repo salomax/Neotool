@@ -7,6 +7,7 @@ export interface TransactionRule {
   pattern: string;
   patternType: PatternType;
   applicableTo: CategoryApplicableTo;
+  typeOverride?: CategoryApplicableTo | null;
   priority: number;
   isSystem: boolean;
   isDisabledForAccount: boolean;
@@ -31,4 +32,3 @@ export interface TransactionRule {
     logoAsset?: { id: string; publicUrl?: string | null } | null;
   } | null;
 }
-

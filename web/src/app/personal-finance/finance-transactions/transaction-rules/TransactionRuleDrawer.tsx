@@ -30,6 +30,7 @@ import {
 } from '@mui/material';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { TagsInput } from '@/shared/components/ui/forms/form/TagsInput';
+import { useTranslation } from '@/shared/i18n';
 import {
   TRANSACTION_CATEGORIES,
   TRANSACTION_TAGS,
@@ -43,9 +44,18 @@ import {
   CREATE_TRANSACTION_RULE,
   UPDATE_TRANSACTION_RULE,
 } from '@/lib/graphql/operations/banking/mutations';
-import { CategoryApplicableTo, PatternType } from '@/lib/graphql/types/__generated__/graphql';
+import {
+  CategoryApplicableTo,
+  CreditDebitType,
+  PatternType,
+  TransactionType,
+  type CreateTransactionRuleInput,
+  type UpdateTransactionRuleInput,
+} from '@/lib/graphql/types/__generated__/graphql';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { useToast } from '@/shared/providers';
+import { TransactionDirectionBadge } from '@/shared/components/ui/data-display';
+import { personalFinanceTranslations } from '../../i18n';
 import type { TransactionRule } from './types';
 import { CategoryIcon } from '../category/CategoryIcon';
 import { CategoryPicker } from '../category/CategoryPicker';
@@ -65,6 +75,14 @@ interface CategoriesData {
 
 interface TransactionTagsData {
   transactionTags: { tag: string }[];
+}
+
+interface CreateTransactionRuleMutationData {
+  createTransactionRule: TransactionRule;
+}
+
+interface UpdateTransactionRuleMutationData {
+  updateTransactionRule: TransactionRule;
 }
 
 interface TransactionRuleDrawerProps {
@@ -95,6 +113,7 @@ interface FormState {
   pattern: string;
   patternType: PatternType;
   applicableTo: CategoryApplicableTo;
+  typeOverride: CategoryApplicableTo | '';
   categoryId: string | null;
   merchantId: string | null;
   descriptionOverride: string;
@@ -106,6 +125,7 @@ const defaultForm = (): FormState => ({
   pattern: '',
   patternType: PatternType.Contains,
   applicableTo: CategoryApplicableTo.Any,
+  typeOverride: '',
   categoryId: null,
   merchantId: null,
   descriptionOverride: '',
@@ -122,12 +142,41 @@ function formFromRule(rule: TransactionRule): FormState {
     pattern: rule.pattern,
     patternType: rule.patternType,
     applicableTo: rule.applicableTo,
+    typeOverride: rule.typeOverride ?? '',
     categoryId: rule.categoryId ?? null,
     merchantId: rule.merchantId ?? null,
     descriptionOverride: rule.descriptionOverride ?? '',
     tagsOverride: normalizeTags(rule.tagsOverride ?? []),
     priority: String(rule.priority),
   };
+}
+
+function getTypeOverrideVisual(applicableTo: CategoryApplicableTo): {
+  creditDebitType: CreditDebitType;
+  transactionType: TransactionType;
+} | null {
+  if (applicableTo === CategoryApplicableTo.Income) {
+    return {
+      creditDebitType: CreditDebitType.Credit,
+      transactionType: TransactionType.Salary,
+    };
+  }
+
+  if (applicableTo === CategoryApplicableTo.Expense) {
+    return {
+      creditDebitType: CreditDebitType.Debit,
+      transactionType: TransactionType.Card,
+    };
+  }
+
+  if (applicableTo === CategoryApplicableTo.Transfer) {
+    return {
+      creditDebitType: CreditDebitType.Credit,
+      transactionType: TransactionType.Transfer,
+    };
+  }
+
+  return null;
 }
 
 function TransactionRuleDrawerInner({
@@ -141,6 +190,7 @@ function TransactionRuleDrawerInner({
 }: TransactionRuleDrawerProps) {
   const toast = useToast();
   const theme = useTheme();
+  const { t } = useTranslation(personalFinanceTranslations);
   const isEdit = !!rule;
 
   const [form, setForm] = useState<FormState>(() => {
@@ -173,19 +223,25 @@ function TransactionRuleDrawerInner({
     fetchPolicy: 'network-only',
   });
 
-  const [createRule, { loading: createLoading }] = useMutation(CREATE_TRANSACTION_RULE, {
+  const [createRule, { loading: createLoading }] = useMutation<
+    CreateTransactionRuleMutationData,
+    { input: CreateTransactionRuleInput }
+  >(CREATE_TRANSACTION_RULE, {
     onCompleted: (data) => {
       toast.success('Regra salva.');
-      const saved = (data as any)?.createTransactionRule as TransactionRule | undefined;
+      const saved = data?.createTransactionRule as TransactionRule | undefined;
       if (saved) onSaved(saved);
     },
     onError: (err) => toast.error(extractErrorMessage(err, 'Não foi possível salvar a regra')),
   });
 
-  const [updateRule, { loading: updateLoading }] = useMutation(UPDATE_TRANSACTION_RULE, {
+  const [updateRule, { loading: updateLoading }] = useMutation<
+    UpdateTransactionRuleMutationData,
+    { id: string; input: UpdateTransactionRuleInput }
+  >(UPDATE_TRANSACTION_RULE, {
     onCompleted: (data) => {
       toast.success('Regra salva.');
-      const saved = (data as any)?.updateTransactionRule as TransactionRule | undefined;
+      const saved = data?.updateTransactionRule as TransactionRule | undefined;
       if (saved) onSaved(saved);
     },
     onError: (err) => toast.error(extractErrorMessage(err, 'Não foi possível salvar a regra')),
@@ -212,6 +268,7 @@ function TransactionRuleDrawerInner({
   const normalizedTagsOverride = normalizeTags(form.tagsOverride);
 
   const hasAction =
+    !!form.typeOverride ||
     !!form.categoryId ||
     !!form.merchantId ||
     trimmedDescriptionOverride.length > 0 ||
@@ -247,11 +304,21 @@ function TransactionRuleDrawerInner({
       updateRule({
         variables: {
           id: rule.id,
-          input,
+          input: {
+            ...input,
+            typeOverride: form.typeOverride || null,
+          },
         },
       });
     } else {
-      createRule({ variables: { input } });
+      createRule({
+        variables: {
+          input: {
+            ...input,
+            typeOverride: form.typeOverride || undefined,
+          },
+        },
+      });
     }
   }, [
     createRule,
@@ -286,12 +353,13 @@ function TransactionRuleDrawerInner({
       : null
     : null;
   const previewResult = shouldShowPreview ? previewData?.previewTransactionRule ?? null : null;
+  const effectiveActionType = form.typeOverride || form.applicableTo;
   const categoryPickerType =
-    form.applicableTo === CategoryApplicableTo.Income
+    effectiveActionType === CategoryApplicableTo.Income
       ? 'CREDIT'
-      : form.applicableTo === CategoryApplicableTo.Expense
+      : effectiveActionType === CategoryApplicableTo.Expense
         ? 'DEBIT'
-        : form.applicableTo === CategoryApplicableTo.Transfer
+        : effectiveActionType === CategoryApplicableTo.Transfer
           ? 'TRANSFER'
           : 'ANY';
 
@@ -401,6 +469,63 @@ function TransactionRuleDrawerInner({
               ))}
             </RadioGroup>
           </Box>
+
+          <FormControl fullWidth sx={{ mb: 3 }}>
+            <Select
+              value={form.typeOverride}
+              onChange={(e) => setField('typeOverride', e.target.value as CategoryApplicableTo | '')}
+              displayEmpty
+              inputProps={{
+                'aria-label': 'Tipo de reclassificacao',
+              }}
+              renderValue={(value) => {
+                if (!value) {
+                  return (
+                    <Typography component="span" variant="body2" color="text.secondary">
+                      {t('financeTransactions.transactionRules.form.typeOverride.emptyOption')}
+                    </Typography>
+                  );
+                }
+
+                const selectedOption = APPLICABLE_TO_OPTIONS.find((opt) => opt.value === value);
+                const visual = getTypeOverrideVisual(value as CategoryApplicableTo);
+
+                return (
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    {visual && (
+                      <TransactionDirectionBadge
+                        creditDebitType={visual.creditDebitType}
+                        transactionType={visual.transactionType}
+                        size={20}
+                      />
+                    )}
+                    <span>{selectedOption?.label ?? value}</span>
+                  </Stack>
+                );
+              }}
+            >
+              <MenuItem value="">
+                {t('financeTransactions.transactionRules.form.typeOverride.emptyOption')}
+              </MenuItem>
+              {APPLICABLE_TO_OPTIONS.filter((opt) => opt.value !== CategoryApplicableTo.Any).map((opt) => (
+                <MenuItem key={opt.value} value={opt.value}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    {(() => {
+                      const visual = getTypeOverrideVisual(opt.value);
+                      return visual ? (
+                        <TransactionDirectionBadge
+                          creditDebitType={visual.creditDebitType}
+                          transactionType={visual.transactionType}
+                          size={20}
+                        />
+                      ) : null;
+                    })()}
+                    <span>{opt.label}</span>
+                  </Stack>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
           <Divider sx={{ mb: 3 }} />
 

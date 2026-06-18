@@ -669,6 +669,7 @@ class TransactionResolver(
             category = category?.toDTO(),
             merchantId = merchantId,
             merchant = merchant,
+            typeOverride = typeOverride,
             descriptionOverride = descriptionOverride,
             tagsOverride = tagsOverride,
             pattern = pattern,

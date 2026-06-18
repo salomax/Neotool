@@ -4,7 +4,7 @@
  * Coverage: pattern matching, import-time application, CRUD, preview, apply-to-historical,
  * priority/reorder, ruleCreationMode coverage, and rules management UI.
  *
- * Uses GraphQL for setup/assertions (reliable) plus one UI smoke test on the rules page.
+ * Uses GraphQL for setup/assertions (reliable) plus focused UI coverage on the rules page.
  * Import rows use March 2026 OFX fixtures — `bankAccount` is extended with `initialBalanceDate: 2026-01-01`.
  *
  * Conventions (avoid flakes):
@@ -22,7 +22,9 @@ import { test as basePfTest, expect } from '../fixtures/personal-finance';
 import {
   createFinancialAccount,
   deleteTransaction,
+  getMonthSummary,
 } from '../helpers/banking-graphql';
+import { IMPORT_FIXTURE_MONTH, IMPORT_FIXTURE_YEAR } from '../helpers/finance-transactions-e2e';
 import {
   applyTransactionRuleToHistorical,
   buildSingleTransactionOfx,
@@ -41,11 +43,13 @@ import {
   previewTransactionRule,
   reorderTransactionRules,
   RuleCreationMode,
+  TransactionType,
   updateBankingUserPreferences,
   updateTransactionRule,
 } from '../helpers/transaction-rules-e2e';
 import { E2E_HEAVY_DESCRIBE_TIMEOUT_MS } from '../helpers/timeouts';
 import { signIntoPage } from '../helpers/navigation';
+import { FinanceTransactionsPage } from '../pages/personal-finance/FinanceTransactionsPage';
 
 function uniqueLabel(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -97,6 +101,9 @@ function uniqueBankAccountName(prefix: string): string {
 const RULES_SEARCH_PLACEHOLDER = /Buscar\.\.\.|Search by pattern/i;
 const RULES_CUSTOM_TAB = /Regras Customizadas|Custom Rules/i;
 const RULES_NEW_BUTTON = /Nova Regra|New Rule/i;
+const RULES_DRAWER_TITLE = /Nova Regra|New Rule/i;
+const RULES_TYPE_OVERRIDE_LABEL = /Tipo de reclassificacao|Reclassification type/i;
+const TRANSFER_OPTION = /Transferência|Transfer/i;
 
 function quotedRulePattern(pattern: string): string {
   return `"${pattern}"`;
@@ -722,6 +729,100 @@ test.describe('Transaction rules', () => {
     } finally {
       await deleteTransactionRule(rule.id, pfUser.token).catch(() => {});
       void bankAccount;
+    }
+  });
+
+  test('TR-UI-02: creating a type override rule via UI reclassifies import as TRANSFER', async ({
+    page,
+    pfUser,
+    bankAccount,
+  }) => {
+    const pattern = uniqueTestMarker('uitypeoverride');
+    const memo = uniqueLabel(pattern);
+    let ruleId: string | undefined;
+    const baselineSummary = await getMonthSummary(
+      bankAccount.id,
+      IMPORT_FIXTURE_YEAR,
+      IMPORT_FIXTURE_MONTH,
+      pfUser.token,
+    );
+
+    try {
+      await signIntoPage(page, pfUser.token);
+      await page.goto('/personal-finance/finance-transactions/transaction-rules');
+      await waitForRulesManagementPage(page);
+
+      await page.getByRole('button', { name: RULES_NEW_BUTTON }).click();
+      await expect(page.getByRole('heading', { name: RULES_DRAWER_TITLE })).toBeVisible({
+        timeout: 15_000,
+      });
+
+      await page.getByRole('textbox', { name: /Texto comparativo|Matching text/i }).fill(pattern);
+      await page.getByRole('radio', { name: /Despesa|Expense/i }).check();
+
+      const typeOverrideField = page.getByRole('combobox', { name: RULES_TYPE_OVERRIDE_LABEL });
+      await typeOverrideField.click();
+      await page.getByRole('option', { name: TRANSFER_OPTION }).click();
+
+      await page.getByRole('button', { name: /Salvar Regra|Save Rule/i }).click();
+      await expect(page.getByRole('heading', { name: RULES_DRAWER_TITLE })).toBeHidden({
+        timeout: 15_000,
+      });
+
+      await expect
+        .poll(
+          async () => {
+            const rules = await listUserTransactionRules(pfUser.token, pattern);
+            const createdRule = rules.find((candidate) => candidate.pattern === pattern);
+            ruleId = createdRule?.id;
+            return createdRule?.typeOverride ?? null;
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(CategoryApplicableTo.Transfer);
+
+      const createdRule = (await listUserTransactionRules(pfUser.token, pattern)).find(
+        (candidate) => candidate.pattern === pattern,
+      );
+      expect(createdRule).toBeDefined();
+      expect(createdRule?.applicableTo).toBe(CategoryApplicableTo.Expense);
+      expect(createdRule?.typeOverride).toBe(CategoryApplicableTo.Transfer);
+      ruleId = createdRule?.id;
+
+      const importedTx = await importDebitWithMemo(bankAccount.id, pfUser.token, memo);
+      expect(importedTx.type).toBe(TransactionType.Transfer);
+      expectUserRuleApplied(importedTx, ruleId!);
+
+      const afterSummary = await getMonthSummary(
+        bankAccount.id,
+        IMPORT_FIXTURE_YEAR,
+        IMPORT_FIXTURE_MONTH,
+        pfUser.token,
+      );
+      expect(afterSummary.totalExpenses).toBeCloseTo(baselineSummary.totalExpenses, 2);
+      expect(afterSummary.totalIncome).toBeCloseTo(baselineSummary.totalIncome, 2);
+      expect(afterSummary.closingBalance).toBeCloseTo(baselineSummary.closingBalance, 2);
+
+      const pfPage = new FinanceTransactionsPage(page);
+      await pfPage.goto();
+      await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+      await pfPage.navigateToCalendarMonth({
+        year: IMPORT_FIXTURE_YEAR,
+        month: IMPORT_FIXTURE_MONTH,
+      });
+      await pfPage.summary.waitForMetricsReady();
+      await pfPage.transactionTable.expectTransactionVisible(memo);
+
+      const uiSummary = await pfPage.summary.getAll();
+      expect(uiSummary.totalExpenses).toBeCloseTo(afterSummary.totalExpenses, 2);
+      expect(uiSummary.totalIncome).toBeCloseTo(afterSummary.totalIncome, 2);
+      expect(uiSummary.closingBalance).toBeCloseTo(afterSummary.closingBalance, 2);
+    } finally {
+      if (ruleId) {
+        await deleteTransactionRule(ruleId, pfUser.token).catch(() => {});
+      }
+      const tx = await findTransactionByDescription(bankAccount.id, memo, pfUser.token);
+      if (tx?.id) await deleteTransaction(tx.id, pfUser.token).catch(() => {});
     }
   });
 });

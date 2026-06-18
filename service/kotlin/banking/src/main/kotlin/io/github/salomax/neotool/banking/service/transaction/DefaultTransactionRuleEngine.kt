@@ -88,6 +88,7 @@ class DefaultTransactionRuleEngine(
         var ruleId: UUID? = null
         var categoryId: UUID? = null
         var merchantId: UUID? = null
+        var typeOverride: CategoryApplicableTo? = null
         var descriptionOverride: String? = null
         var tagsOverride: List<String>? = null
         val matchedRuleIds = linkedSetOf<UUID>()
@@ -107,6 +108,7 @@ class DefaultTransactionRuleEngine(
             val contributed =
                 (categoryId == null && resolvedCategoryId != null) ||
                     (merchantId == null && rule.merchantId != null) ||
+                    (typeOverride == null && rule.typeOverride != null) ||
                     (descriptionOverride == null && rule.descriptionOverride != null) ||
                     (tagsOverride == null && rule.tagsOverride != null)
             if (!contributed) continue
@@ -120,6 +122,9 @@ class DefaultTransactionRuleEngine(
             if (rule.merchantId != null && merchantId == null) {
                 merchantId = rule.merchantId
             }
+            if (rule.typeOverride != null && typeOverride == null) {
+                typeOverride = rule.typeOverride
+            }
             if (rule.descriptionOverride != null && descriptionOverride == null) {
                 descriptionOverride = rule.descriptionOverride
             }
@@ -128,7 +133,13 @@ class DefaultTransactionRuleEngine(
             }
             rule.id?.let(matchedRuleIds::add)
 
-            if (categoryId != null && merchantId != null && descriptionOverride != null && tagsOverride != null) {
+            if (
+                categoryId != null &&
+                merchantId != null &&
+                typeOverride != null &&
+                descriptionOverride != null &&
+                tagsOverride != null
+            ) {
                 break
             }
         }
@@ -141,6 +152,7 @@ class DefaultTransactionRuleEngine(
             ruleId = ruleId,
             categoryId = categoryId,
             merchantId = merchantId,
+            typeOverride = typeOverride,
             descriptionOverride = descriptionOverride,
             tagsOverride = tagsOverride,
             appliedRuleIds = matchedRuleIds.toList(),
