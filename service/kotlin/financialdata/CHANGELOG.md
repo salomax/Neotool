@@ -1,3 +1,13 @@
+## 0.6.1 (2026-06-18)
+
+### 🚀 Features
+
+- **docker:** include common-finance module in banking and financialdata Docker configurations ([81d536ad](https://github.com/invistus/invistus/commit/81d536ad))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.6.0 (2026-06-16)
 
 ### 🚀 Features
