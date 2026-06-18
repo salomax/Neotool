@@ -1,3 +1,14 @@
+## 0.7.4 (2026-06-18)
+
+### 🚀 Features
+
+- **preferences:** rename rule application mode to rule creation mode ([6f3d0980](https://github.com/invistus/invistus/commit/6f3d0980))
+- **workflows:** update requirement workflow and GitHub issue template to enhance clarity ([ef96f3b3](https://github.com/invistus/invistus/commit/ef96f3b3))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.3 (2026-06-16)
 
 ### 🚀 Features

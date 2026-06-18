@@ -1,3 +1,13 @@
+## 0.7.15 (2026-06-18)
+
+### 🚀 Features
+
+- **preferences:** rename rule application mode to rule creation mode ([6f3d0980](https://github.com/invistus/invistus/commit/6f3d0980))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.14 (2026-06-16)
 
 ### 🚀 Features
