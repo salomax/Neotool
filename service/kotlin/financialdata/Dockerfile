@@ -8,12 +8,16 @@ WORKDIR /home/gradle/project
 COPY gradlew ./
 COPY gradle ./gradle
 COPY build.gradle.kts gradle.properties ./
-# Use Docker-only settings that include only :common and :financialdata (the only modules we copy)
+# Use Docker-only settings that include only the modules we copy
 COPY financialdata/settings.docker.gradle.kts ./settings.gradle.kts
 
 # Copy common module first (shared dependency)
 COPY common/build.gradle.kts ./common/
 COPY common/src ./common/src
+
+# Shared finance utilities (tax rules, etc.)
+COPY common-finance/build.gradle.kts ./common-finance/
+COPY common-finance/src ./common-finance/src
 
 # Copy financialdata module build files
 COPY financialdata/build.gradle.kts ./financialdata/
@@ -26,7 +30,7 @@ COPY financialdata/src ./financialdata/src
 # since we're skipping tests and only need the JAR artifact
 RUN --mount=type=cache,target=/home/gradle/.gradle/caches \
     --mount=type=cache,target=/home/gradle/.gradle/wrapper \
-    ./gradlew :common:assemble --build-cache
+    ./gradlew :common:assemble :common-finance:assemble --build-cache
 
 # Build the application JAR
 # - './gradlew :financialdata:shadowJar': Executes the `shadowJar` task on the `:financialdata` module. This task typically
