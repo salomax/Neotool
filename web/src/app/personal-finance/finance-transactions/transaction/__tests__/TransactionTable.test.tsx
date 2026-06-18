@@ -56,7 +56,7 @@ vi.mock('@/shared/providers', () => ({
   useToast: () => mockToast,
   usePreferences: () => ({
     bankingUserPreferences: {
-      ruleApplicationMode: 'ALWAYS_PROMPT',
+      ruleCreationMode: 'ALWAYS_PROMPT',
     },
   }),
 }));

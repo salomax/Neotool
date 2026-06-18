@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.domain.import
 
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
@@ -86,6 +87,43 @@ class ImportProcessorIT : BankingPostgresIntegrationTest() {
         currencyCode = "BRL",
     )
 
+    private fun insertRuleCreationModeNever() {
+        val container = getPgContainer()
+        val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+        DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+            conn.createStatement().executeUpdate(
+                """
+                INSERT INTO banking.user_preferences (user_id, rule_creation_mode, created_at, updated_at)
+                VALUES ('$userId', 'NEVER', NOW(), NOW())
+                ON CONFLICT (user_id) DO UPDATE
+                SET rule_creation_mode = EXCLUDED.rule_creation_mode,
+                    updated_at = NOW()
+                """.trimIndent(),
+            )
+        }
+    }
+
+    private fun insertCategoryRule(
+        pattern: String,
+        categoryName: String = "Delivery",
+    ) {
+        val container = getPgContainer()
+        val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+        DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+            conn.createStatement().executeUpdate(
+                """
+                INSERT INTO banking.transaction_rules (
+                  account_id, category_id, pattern, pattern_type, applicable_to, priority, is_system
+                )
+                SELECT '$accountId', id, '$pattern', 'CONTAINS', 'EXPENSE', 10, false
+                FROM banking.transaction_categories
+                WHERE name = '$categoryName' AND is_system = true
+                LIMIT 1
+                """.trimIndent(),
+            )
+        }
+    }
+
     @Nested
     @DisplayName("process — import path")
     inner class ProcessImportPathTests {
@@ -112,6 +150,34 @@ class ImportProcessorIT : BankingPostgresIntegrationTest() {
             assertThat(inDb).hasSize(2)
             assertThat(inDb.map { it.importJobId }.toSet()).containsExactly(savedJob.id)
             assertThat(inDb.map { it.importFingerprint }.toSet()).allMatch { it != null && it.length == 64 }
+        }
+
+        @Test
+        fun `applies existing rules during import even when preference is NEVER`() {
+            insertRuleCreationModeNever()
+            insertCategoryRule(pattern = "ifood")
+            val savedJob = importJobRepository.save(job())
+
+            val result =
+                importProcessor.process(
+                    savedJob,
+                    listOf(
+                        parsed(
+                            providerId = "rule-never",
+                            amount = BigDecimal("42.90"),
+                            description = "IFOOD PEDIDO",
+                        ),
+                    ),
+                )
+
+            assertThat(result.imported).hasSize(1)
+            assertThat(result.errors).isEmpty()
+            assertThat(result.imported.single().categoryId).isNotNull()
+            assertThat(result.imported.single().categorySource).isEqualTo(CategorySource.RULE)
+
+            val persisted = transactionRepository.findByFinancialAccount(financialAccountId, accountId).single()
+            assertThat(persisted.categoryId).isNotNull()
+            assertThat(persisted.categorySource).isEqualTo(CategorySource.RULE)
         }
     }
 

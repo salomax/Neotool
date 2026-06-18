@@ -2,7 +2,7 @@ package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
+import io.github.salomax.neotool.banking.domain.preferences.RuleCreationMode
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
@@ -30,7 +30,7 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionListQuery
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.service.account.FinancialAccountGuard
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
-import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleCreationModeService
 import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.NotFoundException
@@ -66,7 +66,7 @@ open class TransactionService(
     private val snapshotComputationService: SnapshotComputationService,
     private val creditCardBillService: CreditCardBillService,
     private val accountPreferencesService: AccountPreferencesService,
-    private val userRuleApplicationModeService: UserRuleApplicationModeService,
+    private val userRuleCreationModeService: UserRuleCreationModeService,
 ) {
     private val logger = LoggerFactory.getLogger(TransactionService::class.java)
     // ── Categories ───────────────────────────────────────────────────────────
@@ -472,8 +472,8 @@ open class TransactionService(
             requireBelongsToUserIsActiveMember(command.belongsToUserId, accountId)
         }
         val normalizedTags = normalizeTags(command.tags)
-        val mode = userRuleApplicationModeService.get(userId)
         val skipRuleEngine = command.investmentTransactionId != null || command.skipRuleEngine
+        val isManualEntry = command.transactionSource == TransactionSource.MANUAL
 
         // Resolve bill for credit/charge card accounts (null for all other account types).
         // When command.billId is set (e.g. payBill), use it instead of resolving from date.
@@ -485,7 +485,7 @@ open class TransactionService(
                 }
 
         val ruleSuggestion =
-            if (skipRuleEngine || mode == RuleApplicationMode.NEVER) {
+            if (skipRuleEngine) {
                 null
             } else {
                 try {
@@ -493,6 +493,7 @@ open class TransactionService(
                         accountId = accountId,
                         description = command.description,
                         creditDebitType = command.creditDebitType,
+                        excludeImplicit = isManualEntry,
                     )
                 } catch (e: Exception) {
                     logger.warn(
@@ -507,18 +508,9 @@ open class TransactionService(
                 }
             }
 
-        val isManualEntry = command.transactionSource == TransactionSource.MANUAL
-        val suppressRuleAutoApplyForManualCreate =
-            mode == RuleApplicationMode.ALWAYS_PROMPT &&
-                isManualEntry &&
-                command.categoryId == null &&
-                ruleSuggestion != null &&
-                categorySuggestionIsImplicitOnly(accountId, ruleSuggestion)
         val finalCategoryId =
             if (!skipRuleEngine && isManualEntry && command.categoryId != null) {
                 command.categoryId
-            } else if (suppressRuleAutoApplyForManualCreate) {
-                null
             } else {
                 command.categoryId ?: ruleSuggestion?.categoryId
             }
@@ -526,7 +518,6 @@ open class TransactionService(
         val finalCategorySource =
             when {
                 command.categoryId != null -> CategorySource.MANUAL
-                suppressRuleAutoApplyForManualCreate -> null
                 !skipRuleEngine && ruleSuggestion?.categoryId != null -> CategorySource.RULE
                 else -> null
             }
@@ -548,8 +539,7 @@ open class TransactionService(
                         suggestion = ruleSuggestion,
                         rules = loadRulesForAudit(accountId, ruleSuggestion.appliedRuleIds),
                         appliedCategory =
-                            !suppressRuleAutoApplyForManualCreate &&
-                                command.categoryId == null &&
+                            command.categoryId == null &&
                                 ruleSuggestion.categoryId != null,
                         appliedMerchant = ruleSuggestion.merchantId != null,
                         appliedDescription = false,
@@ -615,16 +605,7 @@ open class TransactionService(
             fromYear = saved.date.year,
             fromMonth = saved.date.monthValue,
         )
-        val appliedRuleIds =
-            if (mode == RuleApplicationMode.ALWAYS_PROMPT) {
-                if (suppressRuleAutoApplyForManualCreate && ruleSuggestion != null) {
-                    ruleSuggestion.appliedRuleIds.distinct()
-                } else {
-                    appliedRuleHistory.map { it.ruleId }.distinct()
-                }
-            } else {
-                emptyList()
-            }
+        val appliedRuleIds = appliedRuleHistory.map { it.ruleId }.distinct()
         return CreateTransactionOutcome(transaction = saved, appliedRuleIds = appliedRuleIds)
     }
 
@@ -714,8 +695,13 @@ open class TransactionService(
 
         val categoryChanged = command.categoryIdProvided && command.categoryId != existing.categoryId
         val merchantChanged = command.merchantIdProvided && command.merchantId != existing.merchantId
+        val creationMode = userRuleCreationModeService.get(userId)
         var learnedRuleId: UUID? = null
-        if ((categoryChanged || merchantChanged) && existing.source == TransactionSource.MANUAL) {
+        if (
+            (categoryChanged || merchantChanged) &&
+            existing.source == TransactionSource.MANUAL &&
+            shouldAutoCreateImplicitRule(creationMode)
+        ) {
             try {
                 learnedRuleId =
                     transactionRuleEngine.learnFromManualAssignment(
@@ -764,7 +750,6 @@ open class TransactionService(
             )
 
         var enriched = updated
-        val mode = userRuleApplicationModeService.get(userId)
         var appliedCategoryFromSuggestion = false
         var appliedMerchantFromSuggestion = false
         var appliedDescriptionFromSuggestion = false
@@ -774,7 +759,7 @@ open class TransactionService(
             appendedRuleHistory =
                 appendedRuleHistory + AppliedRuleAuditSupport.buildEntries(listOf(learnedRuleId), updateTimestamp)
         }
-        if (existing.type != TransactionType.BALANCE_ADJUSTMENT && mode != RuleApplicationMode.NEVER) {
+        if (existing.type != TransactionType.BALANCE_ADJUSTMENT) {
             val canApplyCategory = !command.categoryIdProvided && !forceClearCategoryForBillPayment
             val canApplyMerchant = !command.merchantIdProvided
             val canApplyDescription = command.description == null
@@ -916,6 +901,7 @@ open class TransactionService(
         applyToFuture: Boolean,
         applyToExisting: Boolean = true,
         accountId: UUID,
+        userId: UUID,
     ): SimilarTransactionEditResult {
         val current =
             transactionRepository.findById(id, accountId)
@@ -932,6 +918,7 @@ open class TransactionService(
         }
 
         val baseDescription = current.baseDescription()
+        val creationMode = userRuleCreationModeService.get(userId)
 
         val similar =
             if (applyToExisting) {
@@ -963,7 +950,11 @@ open class TransactionService(
         }
 
         val futureRuleCreated =
-            if (applyToFuture && shouldCreateFuturePropagationRule(command)) {
+            if (
+                applyToFuture &&
+                shouldCreateFuturePropagationRule(command) &&
+                shouldCreateFuturePropagationRule(creationMode)
+            ) {
                 transactionRuleEngine.learnFromManualAssignment(
                     accountId = accountId,
                     description = baseDescription,
@@ -1122,21 +1113,10 @@ open class TransactionService(
         return transactionRuleEngine.preloadRules(accountId).filter { rule -> rule.id in requestedIds }
     }
 
-    /**
-     * When [RuleApplicationMode.ALWAYS_PROMPT] is on, manual creates with no category should still
-     * auto-apply categories from system (or other non-implicit) rules, but defer only suggestions
-     * that come exclusively from implicit rules learned from prior manual assignments.
-     */
-    private fun categorySuggestionIsImplicitOnly(
-        accountId: UUID,
-        ruleSuggestion: RuleSuggestion,
-    ): Boolean {
-        val categoryId = ruleSuggestion.categoryId ?: return false
-        val contributors =
-            loadRulesForAudit(accountId, ruleSuggestion.appliedRuleIds)
-                .filter { it.categoryId == categoryId }
-        return contributors.isNotEmpty() && contributors.all { it.isImplicit }
-    }
+    private fun shouldAutoCreateImplicitRule(mode: RuleCreationMode): Boolean = mode == RuleCreationMode.ALWAYS
+
+    private fun shouldCreateFuturePropagationRule(mode: RuleCreationMode): Boolean =
+        mode == RuleCreationMode.ALWAYS || mode == RuleCreationMode.ALWAYS_PROMPT
 
     private fun requireAccountOwnsFinancialAccount(
         financialAccountId: UUID,
@@ -1300,7 +1280,8 @@ open class TransactionService(
         accountId: UUID,
         description: String?,
         creditDebitType: CreditDebitType,
-    ): RuleSuggestion? = transactionRuleEngine.suggest(accountId, description, creditDebitType)
+        excludeImplicit: Boolean = false,
+    ): RuleSuggestion? = transactionRuleEngine.suggest(accountId, description, creditDebitType, excludeImplicit)
 
     private fun Transaction.baseDescription(): String =
         descriptionRaw?.trim()?.takeIf { it.isNotEmpty() } ?: description

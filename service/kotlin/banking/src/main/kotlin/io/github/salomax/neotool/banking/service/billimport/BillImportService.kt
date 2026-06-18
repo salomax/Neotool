@@ -16,20 +16,20 @@ import io.github.salomax.neotool.banking.domain.billimport.DateRange
 import io.github.salomax.neotool.banking.domain.billimport.ImportDocumentType
 import io.github.salomax.neotool.banking.domain.billimport.InstallmentInfo
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
-import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
+import io.github.salomax.neotool.banking.domain.preferences.RuleCreationMode
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
-import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleCreationModeService
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
@@ -38,6 +38,7 @@ import io.github.salomax.neotool.common.error.DomainException
 import io.github.salomax.neotool.common.error.ValidationException
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
+import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.security.MessageDigest
@@ -57,7 +58,7 @@ open class BillImportService(
     private val transactionRepository: TransactionRepository,
     private val importFingerprintService: ImportFingerprintService,
     private val categorizationService: TransactionRuleEngine,
-    private val userRuleApplicationModeService: UserRuleApplicationModeService,
+    private val userRuleCreationModeService: UserRuleCreationModeService,
     private val snapshotComputationService: SnapshotComputationService,
     private val creditCardBillService: CreditCardBillService,
     private val billImportCommitPreparer: BillImportCommitPreparer,
@@ -67,6 +68,8 @@ open class BillImportService(
     private val assistantRequestProducer: AssistantBankingReaderRequestedProducer?,
     private val objectMapper: ObjectMapper,
 ) {
+    private val logger = LoggerFactory.getLogger(javaClass)
+
     private val billInputStrategies: List<BillInputStrategy> =
         listOf(
             DeterministicOfxBillInputStrategy(repository, objectMapper),
@@ -246,10 +249,7 @@ open class BillImportService(
     ): BillImportReview? =
         runCatching { parsePdfReviewPayload(reviewPayload, accountId) }
             .getOrNull()
-            ?.let {
-                val mode = userRuleApplicationModeService.get(userId)
-                enrichReviewPayloadWithCategorizationSuggestions(it, accountId, mode)
-            }
+            ?.let { enrichReviewPayloadWithCategorizationSuggestions(it, accountId) }
 
     @Transactional
     open fun confirmBillImport(
@@ -283,13 +283,7 @@ open class BillImportService(
                 .associateBy { requireNotNull(it.id) { "FinancialAccount id is required" } }
         val reviewPayload = parsePdfReviewPayload(job.reviewPayload, accountId)
         val preparedCommit = billImportCommitPreparer.prepare(command, tenantAccountsById, reviewPayload)
-        val mode = userRuleApplicationModeService.get(userId)
-        val categorizationRules =
-            if (mode == RuleApplicationMode.NEVER) {
-                emptyList()
-            } else {
-                categorizationService.preloadRules(accountId)
-            }
+        val categorizationRules = preloadCategorizationRules(accountId, context = "bill import confirmation")
 
         val importingJob =
             repository.update(
@@ -429,23 +423,19 @@ open class BillImportService(
                             if (duplicate) return@forEach
 
                             val suggestion =
-                                if (mode == RuleApplicationMode.NEVER) {
-                                    null
-                                } else {
-                                    when {
-                                        tx.categoryId == null ->
-                                            categorizationService.suggestFromRulesRecordingMatch(
-                                                categorizationRules,
-                                                tx.description,
-                                                tx.creditDebitType,
-                                            )
-                                        else ->
-                                            categorizationService.suggestFromRules(
-                                                categorizationRules,
-                                                tx.description,
-                                                tx.creditDebitType,
-                                            )
-                                    }
+                                when {
+                                    tx.categoryId == null ->
+                                        categorizationService.suggestFromRulesRecordingMatch(
+                                            categorizationRules,
+                                            tx.description,
+                                            tx.creditDebitType,
+                                        )
+                                    else ->
+                                        categorizationService.suggestFromRules(
+                                            categorizationRules,
+                                            tx.description,
+                                            tx.creditDebitType,
+                                        )
                                 }
                             val (effectiveCategoryId, effectiveCategorySource, shouldLearnImplicitRule) =
                                 when {
@@ -480,7 +470,11 @@ open class BillImportService(
                                     }
                                 }
 
-                            if (shouldLearnImplicitRule && effectiveCategoryId != null) {
+                            if (
+                                shouldLearnImplicitRule &&
+                                effectiveCategoryId != null &&
+                                shouldAutoCreateImplicitRule(userId)
+                            ) {
                                 categorizationService.learnFromManualAssignment(
                                     accountId = accountId,
                                     description = tx.description,
@@ -719,15 +713,9 @@ open class BillImportService(
     private fun enrichReviewPayloadWithCategorizationSuggestions(
         payload: BillImportReview,
         accountId: UUID,
-        mode: RuleApplicationMode,
     ): BillImportReview {
         // Load rules once per preview call (avoid N+1 rule loading).
-        val rules =
-            if (mode == RuleApplicationMode.NEVER) {
-                emptyList()
-            } else {
-                categorizationService.preloadRules(accountId)
-            }
+        val rules = preloadCategorizationRules(accountId, context = "bill import review projection")
 
         return payload.copy(
             cards =
@@ -754,6 +742,22 @@ open class BillImportService(
                 },
         )
     }
+
+    private fun preloadCategorizationRules(
+        accountId: UUID,
+        context: String,
+    ): List<TransactionRule> =
+        try {
+            categorizationService.preloadRules(accountId)
+        } catch (e: Exception) {
+            logger.warn(
+                "Failed to preload category rules during {}; continuing without auto-categorization (accountId={})",
+                context,
+                accountId,
+                e,
+            )
+            emptyList()
+        }
 
     private fun normalizeLlmBillReviewPayload(llmOutput: Any?): Any? {
         val root = llmOutput as? Map<*, *> ?: return llmOutput
@@ -1122,6 +1126,9 @@ open class BillImportService(
 
     private fun normalizedCardIdentifier(lastFourDigits: String?): String? =
         normalizeLastFourDigits(lastFourDigits.orEmpty()).takeIf { it.length == 4 }
+
+    private fun shouldAutoCreateImplicitRule(userId: UUID): Boolean =
+        userRuleCreationModeService.get(userId) == RuleCreationMode.ALWAYS
 
     private data class CardMatchProjection(
         val matchedFinancialAccountId: UUID?,

@@ -30,9 +30,12 @@ class DefaultTransactionRuleEngine(
         accountId: UUID,
         description: String?,
         creditDebitType: CreditDebitType,
+        excludeImplicit: Boolean,
     ): RuleSuggestion? {
         if (description.isNullOrBlank()) return null
-        val rules = ruleRepository.findRulesForAccount(accountId)
+        val rules =
+            ruleRepository.findRulesForAccount(accountId)
+                .let { loaded -> if (excludeImplicit) loaded.filter { !it.isImplicit } else loaded }
         return suggestInternal(
             rules = rules,
             description = description,

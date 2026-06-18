@@ -3,7 +3,7 @@ title: GitHub Issue Template
 type: template
 category: requirement-management
 status: current
-version: 1.0.0
+version: 1.1.0
 date: 2026-06-16
 tags: [template, github, issue, requirements, acceptance-criteria]
 ai_optimized: true
@@ -12,120 +12,120 @@ search_keywords: [issue, github, requirement, acceptance criteria, backlog, bran
 
 # GitHub Issue Template
 
-> **Purpose**: Padrão para criação de issues no GitHub. Toda issue deve ser refinada com Marcos antes de ir para o backlog ativo. O Claude usa este template nas threads de refinamento para gerar issues prontas para criar via `gh` CLI ou GitHub MCP.
+> **Purpose**: Standard for creating GitHub issues. Every issue must be refined with Marcos before entering the active backlog. Claude uses this template in requirement threads to produce issues ready to create via GitHub MCP or `gh` CLI.
 
 ---
 
-## Como usar
+## How to use
 
-1. **Descreva o requisito** na thread do Claude (informal, pode ser em português)
-2. **Claude preenche este template** com base na conversa
-3. **Revise e refine** com Marcos (escopo, critérios de aceite)
-4. **Claude cria a issue** via GitHub MCP ou `gh` CLI
-5. **Claude cria a branch** com a convenção definida abaixo
+1. **Describe the requirement** in a Claude thread (informal, any language)
+2. **Claude fills this template** based on the conversation
+3. **Review and refine** with Marcos (scope, acceptance criteria)
+4. **Claude creates the issue** via GitHub MCP or `gh` CLI
+5. **Claude creates the branch** following the convention below
 
 ---
 
-## Template de Issue
+## Issue Template
 
 ```markdown
-## Contexto
+## Context
 
-<!-- Por que este requisito existe? Qual problema resolve? Qual o valor de negócio? -->
-[Descreva o contexto e motivação]
+<!-- Why does this requirement exist? What problem does it solve? What is the business value? -->
+[Describe the context and motivation]
 
-## Requisito
+## Requirement
 
-<!-- O que precisa ser construído, em termos claros e objetivos -->
-[Descreva o que deve ser implementado]
+<!-- What needs to be built, in clear and objective terms -->
+[Describe what must be implemented]
 
-## Comportamento esperado
+## Expected behavior
 
-<!-- O que deve acontecer quando o requisito estiver completo? -->
-[Descreva o comportamento do sistema após a implementação]
+<!-- What should happen when the requirement is complete? -->
+[Describe the system behavior after implementation]
 
-## Critérios de aceite
+## Acceptance criteria
 
-<!-- Lista objetiva e verificável. Use Given/When/Then ou checkboxes. -->
+<!-- Objective and verifiable list. Use Given/When/Then or checkboxes. -->
 
-- [ ] [Critério 1]
-- [ ] [Critério 2]
-- [ ] [Critério 3]
+- [ ] [Criterion 1]
+- [ ] [Criterion 2]
+- [ ] [Criterion 3]
 
-## Escopo
+## Scope
 
-### Inclui
-- [O que está dentro do escopo desta issue]
+### Includes
+- [What is within the scope of this issue]
 
-### Não inclui
-- [O que está explicitamente fora do escopo — evita scope creep]
+### Excludes
+- [What is explicitly out of scope — prevents scope creep]
 
-## Informações técnicas
+## Technical info
 
-- **Trilha**: <!-- Black (finanças pessoais) | Silver (investimentos) | Infra | Cross-cutting -->
-- **Tipo**: <!-- feat | fix | refactor | chore | docs -->
-- **Esforço estimado**: <!-- XS (<1h) | S (1-3h) | M (3-8h) | L (dia+) | XL (2+ dias) -->
-- **Serviços afetados**: <!-- backend | frontend | mobile | workers | infra -->
-- **Spec SDD**: <!-- Link para spec/features/nome-da-feature.md (se existir) -->
-- **Backlog ref**: <!-- [BK-N] (se mapeado no backlog.md) -->
+- **Track**: <!-- Black (personal finance) | Silver (investments) | Infra | Cross-cutting -->
+- **Type**: <!-- feat | fix | refactor | chore | docs -->
+- **Estimated effort**: <!-- XS (<1h) | S (1-3h) | M (3-8h) | L (1d+) | XL (2d+) -->
+- **Affected services**: <!-- backend | frontend | mobile | workers | infra -->
+- **SDD spec**: <!-- Link to spec/features/feature-name.md (if exists) -->
+- **Backlog ref**: <!-- [BK-N] (if mapped in backlog.md) -->
 
-## Dependências
+## Dependencies
 
-- **Bloqueado por**: <!-- #issue ou [BK-N] -->
-- **Bloqueia**: <!-- #issue ou [BK-N] -->
+- **Blocked by**: <!-- #issue or [BK-N] -->
+- **Blocks**: <!-- #issue or [BK-N] -->
 
 ## Branch
 
-<!-- Convenção: {tipo}/GH-{número}-{slug-curto} -->
-<!-- Exemplo: feat/GH-42-pdf-password-support -->
-`{tipo}/GH-{número}-{slug}`
+<!-- Convention: {type}/GH-{number}-{short-slug} -->
+<!-- Example: feat/GH-42-pdf-password-support -->
+`{type}/GH-{number}-{slug}`
 
-## Notas de refinamento
+## Refinement notes
 
-<!-- Decisões tomadas durante o refinamento com Marcos -->
-<!-- Registre aqui qualquer ambiguidade resolvida ou premissa adotada -->
+<!-- Decisions made during refinement with Marcos -->
+<!-- Record any resolved ambiguity or adopted assumption here -->
 ```
 
 ---
 
-## Tipos de issue (labels)
+## Issue types (labels)
 
-| Label | Uso |
-|-------|-----|
-| `feat` | Nova funcionalidade |
-| `fix` | Correção de bug |
-| `refactor` | Refatoração sem mudança de comportamento |
-| `chore` | Tarefas de manutenção, deps, configs |
-| `docs` | Documentação |
-| `spike` | Investigação / PoC |
+| Label | Usage |
+|-------|-------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `refactor` | Refactoring without behavior change |
+| `chore` | Maintenance tasks, deps, configs |
+| `docs` | Documentation |
+| `spike` | Investigation / PoC |
 
-## Labels de prioridade
+## Priority labels
 
-| Label | Critério |
+| Label | Criteria |
 |-------|----------|
-| `P0` | Crítico / bloqueante — para imediatamente |
-| `P1` | Próximo sprint |
-| `P2` | Planejado |
-| `P3` | Futuro / backlog |
+| `P0` | Critical / blocking — stop everything |
+| `P1` | Next sprint |
+| `P2` | Planned |
+| `P3` | Future / backlog |
 
-## Labels de trilha
+## Track labels
 
-| Label | Domínio |
-|-------|---------|
-| `track:black` | Movimentação financeira, transações, NFC-e |
-| `track:silver` | Investimentos, portfólio |
-| `track:infra` | Infraestrutura, DevOps |
+| Label | Domain |
+|-------|--------|
+| `track:black` | Personal finance, transactions, NFC-e |
+| `track:silver` | Investments, portfolio |
+| `track:infra` | Infrastructure, DevOps |
 | `track:cross` | Cross-cutting (auth, billing, observability) |
 
 ---
 
-## Convenção de branch
+## Branch convention
 
 ```
-{tipo}/GH-{número-da-issue}-{slug-descritivo}
+{type}/GH-{issue-number}-{descriptive-slug}
 ```
 
-**Exemplos:**
+**Examples:**
 ```
 feat/GH-42-pdf-password-support
 fix/GH-87-transaction-duplicate-on-import
@@ -133,47 +133,47 @@ refactor/GH-103-transaction-rules-service
 chore/GH-12-update-kotlin-deps
 ```
 
-**Regras:**
-- Sempre atrelar ao número da issue criada no GitHub
-- Slug em inglês, kebab-case, máximo 5 palavras
-- Nunca criar branch antes da issue existir
+**Rules:**
+- Always tied to the issue number created on GitHub
+- Slug in English, kebab-case, max 5 words
+- Never create a branch before the issue exists
 
 ---
 
-## Critérios de aceite — boas práticas
+## Acceptance criteria — best practices
 
-Prefira critérios **objetivos e verificáveis**:
+Prefer **objective and verifiable** criteria:
 
-✅ Bom:
+✅ Good:
 ```
-- [ ] PDF com senha é processado quando a senha correta é fornecida
-- [ ] PDF com senha inválida retorna erro claro ao usuário
-- [ ] PDFs sem senha continuam funcionando normalmente
-```
-
-❌ Evitar:
-```
-- [ ] Funciona bem
-- [ ] Interface amigável
-- [ ] Performance aceitável
+- [ ] Password-protected PDF is processed when the correct password is provided
+- [ ] Invalid password returns a clear error to the user
+- [ ] PDFs without password continue to work normally
 ```
 
-Para fluxos complexos, use **Given/When/Then**:
+❌ Avoid:
 ```
-Given: usuário faz upload de PDF protegido por senha
-When: fornece a senha correta
-Then: transações são importadas normalmente
+- [ ] Works well
+- [ ] User-friendly interface
+- [ ] Acceptable performance
+```
 
-Given: usuário faz upload de PDF protegido por senha
-When: fornece senha incorreta
-Then: mensagem de erro específica é exibida (não erro genérico)
+For complex flows, use **Given/When/Then**:
+```
+Given: user uploads a password-protected PDF
+When: provides the correct password
+Then: transactions are imported normally
+
+Given: user uploads a password-protected PDF
+When: provides incorrect password
+Then: a specific error message is displayed (not a generic error)
 ```
 
 ---
 
-## Relacionado
+## Related
 
-- [Requirement Workflow](../../../08-workflows/requirement-workflow.md) — workflow completo de refinamento
-- [Backlog](../../00-planning/backlog.md) — backlog master com [BK-N]
-- [SDD Workflow](../../workflows/sdd-workflow.md) — como specs SDD se conectam a issues
-- [Feature Form](../feature-templates/feature-creation/feature-form.md) — para features maiores que precisam de spec completa
+- [Requirement Workflow](../../../08-workflows/requirement-workflow.md) — full refinement workflow
+- [Backlog](../../00-planning/backlog.md) — master backlog with [BK-N]
+- [SDD Workflow](../../workflows/sdd-workflow.md) — how SDD specs connect to issues
+- [Feature Form](../feature-templates/feature-creation/feature-form.md) — for larger features that need a full spec

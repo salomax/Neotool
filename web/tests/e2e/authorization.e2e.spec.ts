@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { signInAsValidUser, signOut } from './helpers/auth';
+import { SettingsPage } from './pages/SettingsPage';
 
 test.describe('Authorization Layer', () => {
   test.beforeEach(async ({ page }) => {
@@ -42,12 +43,10 @@ test.describe('Authorization Layer', () => {
     test('Edit button should be visible when user has security:user:view permission', async ({ page }) => {
       // Given I am signed in as a user with security:user:view permission
       await signInAsValidUser(page);
-      
-      // When I navigate to the settings page
-      await page.goto('/settings');
-      
-      // And I click on the Users tab
-      await page.click('text=Users');
+
+      const settingsPage = new SettingsPage(page);
+      await settingsPage.goto();
+      await settingsPage.clickUsersTab();
       
       // Wait for the user list to load
       await page.waitForSelector('[data-testid="user-list-table"]', { timeout: 10000 }).catch(() => {
@@ -66,10 +65,10 @@ test.describe('Authorization Layer', () => {
     test('Status toggle should be visible when user has security:user:save permission', async ({ page }) => {
       // Given I am signed in as a user with security:user:save permission
       await signInAsValidUser(page);
-      
-      // When I navigate to the Users tab
-      await page.goto('/settings');
-      await page.click('text=Users');
+
+      const settingsPage = new SettingsPage(page);
+      await settingsPage.goto();
+      await settingsPage.clickUsersTab();
       
       // Wait for the user list to load
       await page.waitForSelector('[data-testid="user-list-table"]', { timeout: 10000 }).catch(() => {
@@ -90,10 +89,10 @@ test.describe('Authorization Layer', () => {
     test('Create Role button should be visible when user has security:role:save permission', async ({ page }) => {
       // Given I am signed in as a user with security:role:save permission
       await signInAsValidUser(page);
-      
-      // When I navigate to the Roles tab
-      await page.goto('/settings');
-      await page.click('text=Roles');
+
+      const settingsPage = new SettingsPage(page);
+      await settingsPage.goto();
+      await settingsPage.clickRolesTab();
       
       // Then the Create Role button should be visible (if user has permission)
       const createButton = page.locator('[data-testid="create-role-button"]');
@@ -106,10 +105,10 @@ test.describe('Authorization Layer', () => {
     test('Delete button should be visible when user has security:role:delete permission', async ({ page }) => {
       // Given I am signed in as a user with security:role:delete permission
       await signInAsValidUser(page);
-      
-      // When I navigate to the Roles tab
-      await page.goto('/settings');
-      await page.click('text=Roles');
+
+      const settingsPage = new SettingsPage(page);
+      await settingsPage.goto();
+      await settingsPage.clickRolesTab();
       
       // Then the delete button should be visible (if user has permission and roles exist)
       const deleteButton = page.locator('[data-testid^="delete-role-"]').first();
@@ -124,10 +123,10 @@ test.describe('Authorization Layer', () => {
     test('Create Group button should be visible when user has security:group:save permission', async ({ page }) => {
       // Given I am signed in as a user with security:group:save permission
       await signInAsValidUser(page);
-      
-      // When I navigate to the Groups tab
-      await page.goto('/settings');
-      await page.click('text=Groups');
+
+      const settingsPage = new SettingsPage(page);
+      await settingsPage.goto();
+      await settingsPage.clickGroupsTab();
       
       // Then the Create Group button should be visible (if user has permission)
       const createButton = page.locator('[data-testid="create-group-button"]');
@@ -140,10 +139,10 @@ test.describe('Authorization Layer', () => {
     test('Edit button should be visible when user has security:group:view permission', async ({ page }) => {
       // Given I am signed in as a user with security:group:view permission
       await signInAsValidUser(page);
-      
-      // When I navigate to the Groups tab
-      await page.goto('/settings');
-      await page.click('text=Groups');
+
+      const settingsPage = new SettingsPage(page);
+      await settingsPage.goto();
+      await settingsPage.clickGroupsTab();
       
       // Then the edit button should be visible (if user has permission and groups exist)
       const editButton = page.locator('[data-testid^="edit-group-"]').first();

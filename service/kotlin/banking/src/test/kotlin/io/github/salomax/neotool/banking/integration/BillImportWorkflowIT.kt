@@ -11,6 +11,7 @@ import io.github.salomax.neotool.banking.domain.billimport.BillImportJobStatus
 import io.github.salomax.neotool.banking.domain.billimport.BillImportReview
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.job.import.BillImportStatusConsumer
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.sql.DriverManager
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -251,13 +253,14 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
 
         firstBatch.forEach { tx -> transactionRepository.softDelete(requireNotNull(tx.id), accountId) }
 
-        val resetJob = billImportJobRepository.update(
-            currentJob(jobId).copy(
-                status = BillImportJobStatus.AWAITING_REVIEW,
-                completedAt = null,
-                updatedAt = Instant.now(),
-            ),
-        )
+        val resetJob =
+            billImportJobRepository.update(
+                currentJob(jobId).copy(
+                    status = BillImportJobStatus.AWAITING_REVIEW,
+                    completedAt = null,
+                    updatedAt = Instant.now(),
+                ),
+            )
         assertThat(resetJob.status).isEqualTo(BillImportJobStatus.AWAITING_REVIEW)
 
         billImportService.confirmBillImport(accountId, userId, command)
@@ -293,6 +296,43 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
         assertThat(liveTxs).hasSize(10)
     }
 
+    @Test
+    fun `confirm still applies existing rules when preference is NEVER`() {
+        insertRuleCreationModeNever()
+        insertCategoryRule(pattern = "ifood")
+        val job = movePendingJobToAwaitingReview()
+        val jobId = requireNotNull(job.id)
+        val command =
+            ConfirmBillImportCommand(
+                jobId = jobId,
+                cards =
+                    listOf(
+                        ConfirmBillReviewCardCommand(
+                            reviewCardId = "card-1",
+                            financialAccountId = cardAId,
+                            transactions =
+                                listOf(
+                                    ConfirmBillReviewTransactionCommand(
+                                        date = LocalDate.of(2026, 1, 20),
+                                        description = "IFOOD PEDIDO",
+                                        amount = BigDecimal("42.90"),
+                                        creditDebitType = CreditDebitType.DEBIT,
+                                        include = true,
+                                    ),
+                                ),
+                        ),
+                    ),
+            )
+
+        val result = billImportService.confirmBillImport(accountId, userId, command)
+
+        assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
+        val imported = transactionRepository.findByAccount(accountId).filter { it.importJobId == jobId }
+        assertThat(imported).hasSize(1)
+        assertThat(imported.single().categoryId).isNotNull()
+        assertThat(imported.single().categorySource).isEqualTo(CategorySource.RULE)
+    }
+
     private fun createCardAccount(
         name: String,
         lastFour: String,
@@ -317,6 +357,43 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
                 ),
             )
         return requireNotNull(saved.id)
+    }
+
+    private fun insertRuleCreationModeNever() {
+        val container = getPgContainer()
+        val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+        DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+            conn.createStatement().executeUpdate(
+                """
+                INSERT INTO banking.user_preferences (user_id, rule_creation_mode, created_at, updated_at)
+                VALUES ('$userId', 'NEVER', NOW(), NOW())
+                ON CONFLICT (user_id) DO UPDATE
+                SET rule_creation_mode = EXCLUDED.rule_creation_mode,
+                    updated_at = NOW()
+                """.trimIndent(),
+            )
+        }
+    }
+
+    private fun insertCategoryRule(
+        pattern: String,
+        categoryName: String = "Delivery",
+    ) {
+        val container = getPgContainer()
+        val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+        DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+            conn.createStatement().executeUpdate(
+                """
+                INSERT INTO banking.transaction_rules (
+                  account_id, category_id, pattern, pattern_type, applicable_to, priority, is_system
+                )
+                SELECT '$accountId', id, '$pattern', 'CONTAINS', 'EXPENSE', 10, false
+                FROM banking.transaction_categories
+                WHERE name = '$categoryName' AND is_system = true
+                LIMIT 1
+                """.trimIndent(),
+            )
+        }
     }
 
     private fun createPendingJob(): BillImportJob =

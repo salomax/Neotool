@@ -12,7 +12,7 @@ import { UPDATE_ACCOUNT_PREFERENCES, UPDATE_BANKING_USER_PREFERENCES } from "@/l
 import type { AccountPreferencesQuery, BankingUserPreferencesQuery } from "@/lib/graphql/operations/banking/queries.generated";
 import {
   Language,
-  RuleApplicationMode,
+  RuleCreationMode,
   Theme,
   TransactionStatus,
   type Mutation,
@@ -30,7 +30,7 @@ type UserPreferencesState = {
 };
 
 type BankingUserPreferencesState = {
-  ruleApplicationMode: RuleApplicationMode;
+  ruleCreationMode: RuleCreationMode;
 };
 
 type AccountPreferencesState = {
@@ -84,7 +84,7 @@ const defaultUserPreferences: UserPreferencesState = {
 };
 
 const defaultBankingUserPreferences: BankingUserPreferencesState = {
-  ruleApplicationMode: RuleApplicationMode.AlwaysPrompt,
+  ruleCreationMode: RuleCreationMode.AlwaysPrompt,
 };
 
 const defaultAccountPreferences: AccountPreferencesState = {
@@ -126,9 +126,9 @@ function readCachedBankingUserPreferences(): BankingUserPreferencesState | null 
     const raw = window.localStorage.getItem(BANKING_USER_PREFS_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<BankingUserPreferencesState>;
-    if (!parsed.ruleApplicationMode) return null;
+    if (!parsed.ruleCreationMode) return null;
     return {
-      ruleApplicationMode: parsed.ruleApplicationMode,
+      ruleCreationMode: parsed.ruleCreationMode,
     };
   } catch {
     return null;
@@ -184,7 +184,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     const data = bankingUserPrefsQuery.data?.bankingUserPreferences;
     if (!data) return;
     const next: BankingUserPreferencesState = {
-      ruleApplicationMode: data.ruleApplicationMode,
+      ruleCreationMode: data.ruleCreationMode,
     };
     setBankingUserPreferences(next);
     writeCachedBankingUserPreferences(next);
@@ -276,7 +276,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     async (patch: UpdateBankingUserPreferencesInput) => {
       const previous = bankingUserPreferences;
       const optimistic: BankingUserPreferencesState = {
-        ruleApplicationMode: patch.ruleApplicationMode ?? previous.ruleApplicationMode,
+        ruleCreationMode: patch.ruleCreationMode ?? previous.ruleCreationMode,
       };
       setBankingUserPreferences(optimistic);
       writeCachedBankingUserPreferences(optimistic);
@@ -285,7 +285,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         const saved = result.data?.updateBankingUserPreferences;
         if (saved) {
           const next: BankingUserPreferencesState = {
-            ruleApplicationMode: saved.ruleApplicationMode ?? previous.ruleApplicationMode,
+            ruleCreationMode: saved.ruleCreationMode ?? previous.ruleCreationMode,
           };
           setBankingUserPreferences(next);
           writeCachedBankingUserPreferences(next);

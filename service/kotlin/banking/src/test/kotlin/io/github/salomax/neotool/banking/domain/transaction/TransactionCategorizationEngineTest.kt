@@ -5,7 +5,7 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
-import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
+import io.github.salomax.neotool.banking.domain.preferences.RuleCreationMode
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
@@ -13,7 +13,7 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRep
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
-import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleCreationModeService
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.DefaultTransactionRuleEngine
 import io.github.salomax.neotool.banking.service.transaction.MerchantService
@@ -52,7 +52,7 @@ class TransactionCategorizationEngineTest {
     private lateinit var snapshotComputationService: SnapshotComputationService
     private lateinit var creditCardBillService: CreditCardBillService
     private lateinit var accountPreferencesService: AccountPreferencesService
-    private lateinit var userRuleApplicationModeService: UserRuleApplicationModeService
+    private lateinit var userRuleCreationModeService: UserRuleCreationModeService
 
     private lateinit var service: TransactionService
 
@@ -85,9 +85,9 @@ class TransactionCategorizationEngineTest {
         snapshotComputationService = mock()
         creditCardBillService = mock()
         accountPreferencesService = mock()
-        userRuleApplicationModeService = mock()
+        userRuleCreationModeService = mock()
         whenever(accountPreferencesService.get(accountId)).thenReturn(AccountPreferences.defaultsFor(accountId, now))
-        whenever(userRuleApplicationModeService.get(userId)).thenReturn(RuleApplicationMode.ALWAYS_PROMPT)
+        whenever(userRuleCreationModeService.get(userId)).thenReturn(RuleCreationMode.ALWAYS)
 
         service =
             TransactionService(
@@ -101,7 +101,7 @@ class TransactionCategorizationEngineTest {
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
                 accountPreferencesService = accountPreferencesService,
-                userRuleApplicationModeService = userRuleApplicationModeService,
+                userRuleCreationModeService = userRuleCreationModeService,
             )
     }
 

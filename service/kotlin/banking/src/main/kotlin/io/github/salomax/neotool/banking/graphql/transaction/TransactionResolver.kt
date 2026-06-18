@@ -611,6 +611,7 @@ class TransactionResolver(
                 applyToFuture = applyToFuture,
                 applyToExisting = applyToExisting,
                 accountId = accountId,
+                userId = requireNotNull(principal.userId) { "No user ID in token" },
             )
         return SimilarTransactionEditResultDTO(
             affectedCount = result.affectedCount,

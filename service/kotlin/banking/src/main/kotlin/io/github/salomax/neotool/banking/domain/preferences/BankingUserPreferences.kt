@@ -5,7 +5,7 @@ import java.util.UUID
 
 data class BankingUserPreferences(
     val userId: UUID,
-    val ruleApplicationMode: RuleApplicationMode,
+    val ruleCreationMode: RuleCreationMode,
     val createdAt: Instant,
     val updatedAt: Instant,
 ) {
@@ -16,7 +16,7 @@ data class BankingUserPreferences(
         ): BankingUserPreferences =
             BankingUserPreferences(
                 userId = userId,
-                ruleApplicationMode = RuleApplicationMode.ALWAYS_PROMPT,
+                ruleCreationMode = RuleCreationMode.ALWAYS_PROMPT,
                 createdAt = now,
                 updatedAt = now,
             )

@@ -91,11 +91,11 @@
       "keepMeConnected": "Keep me connected",
       "keepMeConnectedHelper": "Stay signed in between sessions. Disable if you share this device.",
       "banking": "Business rules",
-      "ruleApplicationMode": "Apply transaction rules",
-      "ruleApplicationModeHelper": "Choose when automatic rules should be applied.",
-      "ruleNever": "Never",
-      "ruleAlways": "Always",
-      "ruleAlwaysPrompt": "Always ask"
+      "ruleCreationMode": "Automatic transaction rule creation",
+      "ruleCreationModeHelper": "After you manually change a transaction, the app can save that change as a rule and apply it to similar transactions in the past and future.",
+      "ruleNever": "Never create a rule after editing a transaction",
+      "ruleAlways": "Always create a rule after editing a transaction",
+      "ruleAlwaysPrompt": "Always ask whether to create a rule"
     }
   },
   "seo": {

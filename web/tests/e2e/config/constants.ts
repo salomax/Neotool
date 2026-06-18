@@ -48,18 +48,18 @@ export const SELECTORS = {
 
 export const TEST_USER_CREDENTIALS = {
   admin: {
-    email: 'admin@example.com',
-    password: 'admin',
+    email: 'admin@invistus.com.br',
+    password: 'TestPassword123!',
     displayName: 'Admin Test User',
   },
   editor: {
-    email: 'admin@example.com',
-    password: 'admin',
+    email: 'admin@invistus.com.br',
+    password: 'TestPassword123!',
     displayName: 'Admin Test User',
   },
   viewer: {
-    email: 'admin@example.com',
-    password: 'admin',
+    email: 'admin@invistus.com.br',
+    password: 'TestPassword123!',
     displayName: 'Admin Test User',
   },
 

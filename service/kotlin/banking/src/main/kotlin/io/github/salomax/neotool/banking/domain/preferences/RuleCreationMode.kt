@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.banking.domain.preferences
 
-enum class RuleApplicationMode {
+enum class RuleCreationMode {
     NEVER,
     ALWAYS,
     ALWAYS_PROMPT,

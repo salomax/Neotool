@@ -37,7 +37,7 @@ import {
 } from "@/lib/graphql/operations/banking/mutations";
 import {
   Language,
-  RuleApplicationMode,
+  RuleCreationMode,
   Theme,
 } from "@/lib/graphql/types/__generated__/graphql";
 
@@ -218,9 +218,9 @@ export default function ProfilePage() {
   );
 
   const onRuleModeChange = React.useCallback(
-    async (nextMode: RuleApplicationMode) => {
+    async (nextMode: RuleCreationMode) => {
       try {
-        await updateBankingUserPreferences({ ruleApplicationMode: nextMode });
+        await updateBankingUserPreferences({ ruleCreationMode: nextMode });
       } catch {
         showUpdateError();
       }
@@ -741,32 +741,32 @@ export default function ProfilePage() {
                         >
                           <Box>
                             <Typography variant="subtitle2" gutterBottom>
-                              {t("profile.preferences.ruleApplicationMode")}
+                              {t("profile.preferences.ruleCreationMode")}
                             </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                              {t("profile.preferences.ruleApplicationModeHelper")}
+                              {t("profile.preferences.ruleCreationModeHelper")}
                             </Typography>
                             <FormControl fullWidth>
                               <Select
-                                value={bankingUserPreferences.ruleApplicationMode}
+                                value={bankingUserPreferences.ruleCreationMode}
                                 onChange={(event) => {
                                   void onRuleModeChange(
-                                    event.target.value as RuleApplicationMode,
+                                    event.target.value as RuleCreationMode,
                                   );
                                 }}
                                 inputProps={{
                                   "aria-label": t(
-                                    "profile.preferences.ruleApplicationMode",
+                                    "profile.preferences.ruleCreationMode",
                                   ),
                                 }}
                               >
-                                <MenuItem value={RuleApplicationMode.Never}>
+                                <MenuItem value={RuleCreationMode.Never}>
                                   {t("profile.preferences.ruleNever")}
                                 </MenuItem>
-                                <MenuItem value={RuleApplicationMode.Always}>
+                                <MenuItem value={RuleCreationMode.Always}>
                                   {t("profile.preferences.ruleAlways")}
                                 </MenuItem>
-                                <MenuItem value={RuleApplicationMode.AlwaysPrompt}>
+                                <MenuItem value={RuleCreationMode.AlwaysPrompt}>
                                   {t("profile.preferences.ruleAlwaysPrompt")}
                                 </MenuItem>
                               </Select>

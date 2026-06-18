@@ -452,7 +452,7 @@ input BankAccountDataInput
 type BankingUserPreferences
   @join__type(graph: BANKING)
 {
-  ruleApplicationMode: RuleApplicationMode!
+  ruleCreationMode: RuleCreationMode!
 }
 
 type BenchmarkPerformance
@@ -1250,9 +1250,7 @@ type CreateTransactionPayload
 {
   transaction: Transaction!
 
-  """
-  Only populated when bankingUserPreferences.ruleApplicationMode = ALWAYS_PROMPT.
-  """
+  """Rules that were applied while creating the transaction."""
   appliedRules: [TransactionRule!]
 }
 
@@ -2072,13 +2070,6 @@ input InstallmentInfoInput
 {
   current: Int!
   total: Int!
-}
-
-input InstitutionAccountMappingInput
-  @join__type(graph: BANKING)
-{
-  reviewInstitutionId: String!
-  financialAccountId: ID!
 }
 
 type InstitutionRating
@@ -4214,7 +4205,7 @@ enum RoleOrderField
   NAME @join__enumValue(graph: SECURITY)
 }
 
-enum RuleApplicationMode
+enum RuleCreationMode
   @join__type(graph: BANKING)
 {
   NEVER @join__enumValue(graph: BANKING)
@@ -4772,7 +4763,7 @@ input UpdateAccountPreferencesInput
 input UpdateBankingUserPreferencesInput
   @join__type(graph: BANKING)
 {
-  ruleApplicationMode: RuleApplicationMode
+  ruleCreationMode: RuleCreationMode
 }
 
 input UpdateCategoryInput

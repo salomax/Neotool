@@ -5,7 +5,7 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
-import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
+import io.github.salomax.neotool.banking.domain.preferences.RuleCreationMode
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
@@ -16,7 +16,7 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionPageResult
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.service.account.FinancialAccountGuard
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
-import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleCreationModeService
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.MerchantService
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
@@ -56,7 +56,7 @@ class TransactionServiceTest {
     private lateinit var snapshotComputationService: SnapshotComputationService
     private lateinit var creditCardBillService: CreditCardBillService
     private lateinit var accountPreferencesService: AccountPreferencesService
-    private lateinit var userRuleApplicationModeService: UserRuleApplicationModeService
+    private lateinit var userRuleCreationModeService: UserRuleCreationModeService
     private lateinit var service: TransactionService
 
     private val accountId = UUID.randomUUID()
@@ -90,9 +90,9 @@ class TransactionServiceTest {
         snapshotComputationService = mock()
         creditCardBillService = mock()
         accountPreferencesService = mock()
-        userRuleApplicationModeService = mock()
+        userRuleCreationModeService = mock()
         whenever(accountPreferencesService.get(accountId)).thenReturn(AccountPreferences.defaultsFor(accountId, now))
-        whenever(userRuleApplicationModeService.get(userId)).thenReturn(RuleApplicationMode.ALWAYS_PROMPT)
+        whenever(userRuleCreationModeService.get(userId)).thenReturn(RuleCreationMode.ALWAYS_PROMPT)
         service =
             TransactionService(
                 transactionRepository = transactionRepository,
@@ -105,7 +105,7 @@ class TransactionServiceTest {
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
                 accountPreferencesService = accountPreferencesService,
-                userRuleApplicationModeService = userRuleApplicationModeService,
+                userRuleCreationModeService = userRuleCreationModeService,
             )
     }
 
@@ -174,12 +174,12 @@ class TransactionServiceTest {
         }
 
         @Test
-        fun `manual create applies rule engine suggestion`() {
+        fun `manual create applies rule engine suggestion even when creation mode is NEVER`() {
             whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
-            whenever(userRuleApplicationModeService.get(userId)).thenReturn(RuleApplicationMode.ALWAYS)
+            whenever(userRuleCreationModeService.get(userId)).thenReturn(RuleCreationMode.NEVER)
             val suggestedRuleId = UUID.randomUUID()
             val suggestedCategoryId = UUID.randomUUID()
-            whenever(transactionRuleEngine.suggest(accountId, "Coffee", CreditDebitType.DEBIT)).thenReturn(
+            whenever(transactionRuleEngine.suggest(accountId, "Coffee", CreditDebitType.DEBIT, true)).thenReturn(
                 RuleSuggestion(
                     ruleId = suggestedRuleId,
                     categoryId = suggestedCategoryId,
@@ -210,7 +210,7 @@ class TransactionServiceTest {
             assertThat(saveCaptor.firstValue.appliedRuleIds).containsExactly(suggestedRuleId)
             assertThat(saveCaptor.firstValue.appliedRuleHistory).hasSize(1)
             assertThat(saveCaptor.firstValue.appliedRuleHistory.map { it.ruleId }).containsExactly(suggestedRuleId)
-            verify(transactionRuleEngine).suggest(accountId, "Coffee", CreditDebitType.DEBIT)
+            verify(transactionRuleEngine).suggest(accountId, "Coffee", CreditDebitType.DEBIT, true)
         }
 
         @Test
@@ -957,8 +957,8 @@ class TransactionServiceTest {
         }
 
         @Test
-        fun `manual update applies suggestion to untouched fields`() {
-            whenever(userRuleApplicationModeService.get(userId)).thenReturn(RuleApplicationMode.ALWAYS)
+        fun `manual update applies suggestion to untouched fields even when creation mode is NEVER`() {
+            whenever(userRuleCreationModeService.get(userId)).thenReturn(RuleCreationMode.NEVER)
             val txId = UUID.randomUUID()
             val existing =
                 Transaction(
@@ -1004,7 +1004,7 @@ class TransactionServiceTest {
 
         @Test
         fun `manual update appends learned implicit rule to applied rule history`() {
-            whenever(userRuleApplicationModeService.get(userId)).thenReturn(RuleApplicationMode.ALWAYS)
+            whenever(userRuleCreationModeService.get(userId)).thenReturn(RuleCreationMode.ALWAYS)
             val txId = UUID.randomUUID()
             val oldCategoryId = UUID.randomUUID()
             val newCategoryId = UUID.randomUUID()
@@ -1050,6 +1050,50 @@ class TransactionServiceTest {
             assertThat(updateCaptor.firstValue.appliedRuleIds).containsExactly(learnedRuleId)
             assertThat(updateCaptor.firstValue.appliedRuleHistory).hasSize(1)
             assertThat(updateCaptor.firstValue.appliedRuleHistory.first().ruleId).isEqualTo(learnedRuleId)
+        }
+
+        @Test
+        fun `manual update with ALWAYS_PROMPT does not auto-create implicit rule`() {
+            whenever(userRuleCreationModeService.get(userId)).thenReturn(RuleCreationMode.ALWAYS_PROMPT)
+            val txId = UUID.randomUUID()
+            val oldCategoryId = UUID.randomUUID()
+            val newCategoryId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Coffee",
+                    categoryId = oldCategoryId,
+                    source = TransactionSource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(transactionRuleEngine.suggest(accountId, "Coffee", CreditDebitType.DEBIT)).thenReturn(null)
+            whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(categoryId = newCategoryId, categoryIdProvided = true),
+                accountId,
+                userId,
+            )
+
+            verify(transactionRuleEngine, never()).learnFromManualAssignment(
+                any(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                any(),
+            )
         }
 
         @Test
@@ -1222,6 +1266,7 @@ class TransactionServiceTest {
                         applyToFuture = false,
                         applyToExisting = true,
                         accountId = accountId,
+                        userId = userId,
                     )
                 }
             assertThat(ex.errorCode).isEqualTo(BankingErrorCode.BALANCE_ADJUSTMENT_ONLY_AMOUNT_EDITABLE)
@@ -1291,6 +1336,7 @@ class TransactionServiceTest {
                         ),
                     applyToFuture = true,
                     accountId = accountId,
+                    userId = userId,
                 )
 
             val updateCaptor = argumentCaptor<Transaction>()
@@ -1368,6 +1414,7 @@ class TransactionServiceTest {
                     command = UpdateTransactionCommand(categoryId = null, categoryIdProvided = true),
                     applyToFuture = true,
                     accountId = accountId,
+                    userId = userId,
                 )
 
             val updateCaptor = argumentCaptor<Transaction>()
@@ -1384,6 +1431,60 @@ class TransactionServiceTest {
                 any(),
             )
             assertThat(result.affectedCount).isEqualTo(1)
+            assertThat(result.futureRuleCreated).isFalse()
+        }
+
+        @Test
+        fun `applyEditToSimilarTransactions with NEVER does not create future rule`() {
+            whenever(userRuleCreationModeService.get(userId)).thenReturn(RuleCreationMode.NEVER)
+            val txId = UUID.randomUUID()
+            val current =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("18.00"),
+                    date = today,
+                    description = "iFood",
+                    descriptionRaw = "IFOOD*123",
+                    categoryId = UUID.randomUUID(),
+                    categorySource = CategorySource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(current)
+            whenever(
+                transactionRepository.findSimilarNonManualTransactions(
+                    accountId,
+                    txId,
+                    "IFOOD*123",
+                    CreditDebitType.DEBIT,
+                ),
+            ).thenReturn(emptyList())
+
+            val result =
+                service.applyEditToSimilarTransactions(
+                    id = txId,
+                    matchDescription = "IFOOD*123",
+                    command = UpdateTransactionCommand(categoryId = current.categoryId, categoryIdProvided = true),
+                    applyToFuture = true,
+                    accountId = accountId,
+                    userId = userId,
+                )
+
+            verify(transactionRuleEngine, never()).learnFromManualAssignment(
+                any(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                any(),
+            )
             assertThat(result.futureRuleCreated).isFalse()
         }
     }

@@ -6,11 +6,7 @@ import { createUser, signIn } from '../helpers/graphql';
 import { TEST_USER_CREDENTIALS, TEST_DATA_IDS } from '../config/constants';
 
 export const TEST_USERS = {
-  valid: {
-    email: 'admin@example.com',
-    password: 'admin',
-    displayName: 'Test User',
-  },
+  valid: TEST_USER_CREDENTIALS.admin,
   invalid: {
     email: 'invalid@example.com',
     password: 'WrongPassword123!',

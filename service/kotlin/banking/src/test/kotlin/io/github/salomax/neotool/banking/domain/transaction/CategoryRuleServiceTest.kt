@@ -525,11 +525,12 @@ class CategoryRuleServiceTest {
         @Test
         fun `applyToHistorical normalizes pattern special characters when updating transactions`() {
             val savedCaptor = argumentCaptor<Transaction>()
-            val tx = transaction(
-                description = "NUBANK R\$ 50.00",
-                creditDebitType = CreditDebitType.DEBIT,
-                source = TransactionSource.OFX,
-            )
+            val tx =
+                transaction(
+                    description = "NUBANK R\$ 50.00",
+                    creditDebitType = CreditDebitType.DEBIT,
+                    source = TransactionSource.OFX,
+                )
             whenever(ruleRepository.findById(ruleId)).thenReturn(
                 rule(
                     id = ruleId,
@@ -554,11 +555,12 @@ class CategoryRuleServiceTest {
         @Test
         fun `applyToHistorical does not overwrite manually categorized transactions`() {
             val manualCategoryId = UUID.randomUUID()
-            val tx = transaction(
-                description = "NUBANK R\$ 50.00",
-                creditDebitType = CreditDebitType.DEBIT,
-                source = TransactionSource.OFX,
-            ).copy(categoryId = manualCategoryId, categorySource = CategorySource.MANUAL)
+            val tx =
+                transaction(
+                    description = "NUBANK R\$ 50.00",
+                    creditDebitType = CreditDebitType.DEBIT,
+                    source = TransactionSource.OFX,
+                ).copy(categoryId = manualCategoryId, categorySource = CategorySource.MANUAL)
             whenever(ruleRepository.findById(ruleId)).thenReturn(
                 rule(
                     id = ruleId,
