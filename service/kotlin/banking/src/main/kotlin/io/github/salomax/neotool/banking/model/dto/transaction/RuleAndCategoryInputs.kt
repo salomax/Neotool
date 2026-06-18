@@ -7,6 +7,7 @@ import java.util.UUID
 data class CreateTransactionRuleInput(
     val categoryId: UUID? = null,
     val merchantId: UUID? = null,
+    val typeOverride: CategoryApplicableTo? = null,
     val descriptionOverride: String? = null,
     val tagsOverride: List<String>? = null,
     val pattern: String,
@@ -20,6 +21,9 @@ data class UpdateTransactionRuleInput(
     val merchantId: UUID? = null,
     /** When true, merchantId is being explicitly set (possibly to null to clear it). */
     val merchantIdProvided: Boolean = false,
+    val typeOverride: CategoryApplicableTo? = null,
+    /** When true, typeOverride is being explicitly set (possibly to null to clear it). */
+    val typeOverrideProvided: Boolean = false,
     val descriptionOverride: String? = null,
     /** When true, descriptionOverride is being explicitly set (possibly to null to clear it). */
     val descriptionOverrideProvided: Boolean = false,

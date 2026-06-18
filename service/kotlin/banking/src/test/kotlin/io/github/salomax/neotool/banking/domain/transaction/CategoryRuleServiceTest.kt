@@ -312,6 +312,26 @@ class CategoryRuleServiceTest {
             assertThat(result.pattern).isEqualTo("supermercado")
             assertThat(result.priority).isEqualTo(40)
         }
+
+        @Test
+        fun `creates typeOverride-only rule`() {
+            whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(emptyList())
+            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as TransactionRule }
+
+            val result =
+                service.create(
+                    createInput(
+                        categoryId = null,
+                        typeOverride = CategoryApplicableTo.TRANSFER,
+                    ),
+                    accountId,
+                )
+
+            val ruleCaptor = argumentCaptor<TransactionRule>()
+            verify(ruleRepository).save(ruleCaptor.capture())
+            assertThat(ruleCaptor.firstValue.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)
+            assertThat(result.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)
+        }
     }
 
     @Nested
@@ -430,6 +450,32 @@ class CategoryRuleServiceTest {
             assertThat(result.patternType).isEqualTo(PatternType.STARTS_WITH)
             assertThat(result.priority).isEqualTo(5)
             assertThat(result.applicableTo).isEqualTo(CategoryApplicableTo.EXPENSE)
+        }
+
+        @Test
+        fun `update can clear typeOverride when the field is explicitly provided as null`() {
+            val existing =
+                rule(
+                    id = ruleId,
+                    accountId = accountId,
+                    categoryId = categoryId,
+                    typeOverride = CategoryApplicableTo.TRANSFER,
+                )
+            whenever(ruleRepository.findById(ruleId)).thenReturn(existing)
+            whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(listOf(existing))
+            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as TransactionRule }
+
+            val result =
+                service.update(
+                    id = ruleId,
+                    input = UpdateTransactionRuleInput(typeOverride = null, typeOverrideProvided = true),
+                    accountId = accountId,
+                )
+
+            val ruleCaptor = argumentCaptor<TransactionRule>()
+            verify(ruleRepository).save(ruleCaptor.capture())
+            assertThat(ruleCaptor.firstValue.typeOverride).isNull()
+            assertThat(result.typeOverride).isNull()
         }
     }
 
@@ -633,12 +679,14 @@ class CategoryRuleServiceTest {
     }
 
     private fun createInput(
-        categoryId: UUID,
+        categoryId: UUID? = this.categoryId,
+        typeOverride: CategoryApplicableTo? = null,
         pattern: String = "ifood",
         patternType: PatternType = PatternType.CONTAINS,
         priority: Int? = 10,
     ) = CreateTransactionRuleInput(
         categoryId = categoryId,
+        typeOverride = typeOverride,
         pattern = pattern,
         patternType = patternType,
         applicableTo = CategoryApplicableTo.EXPENSE,
@@ -671,6 +719,7 @@ class CategoryRuleServiceTest {
         pattern: String = "ifood",
         patternType: PatternType = PatternType.CONTAINS,
         applicableTo: CategoryApplicableTo = CategoryApplicableTo.EXPENSE,
+        typeOverride: CategoryApplicableTo? = null,
         priority: Int = 100,
         isSystem: Boolean = false,
         isImplicit: Boolean = false,
@@ -680,6 +729,7 @@ class CategoryRuleServiceTest {
         accountId = accountId,
         categoryId = categoryId,
         merchantId = null,
+        typeOverride = typeOverride,
         pattern = pattern,
         patternType = patternType,
         applicableTo = applicableTo,

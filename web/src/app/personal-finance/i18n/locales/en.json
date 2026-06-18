@@ -1554,6 +1554,11 @@
         "title": "Delete rule?",
         "description": "This action cannot be undone."
       },
+      "form": {
+        "typeOverride": {
+          "emptyOption": "Keep original type"
+        }
+      },
       "columns": {
         "context": "Context",
         "rule": "Rule",

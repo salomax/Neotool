@@ -75,10 +75,13 @@ open class TransactionRuleService(
     ): TransactionRule {
         require(
             input.categoryId != null || input.merchantId != null ||
-                input.descriptionOverride != null || input.tagsOverride != null,
-        ) { "At least one of categoryId, merchantId, descriptionOverride, or tagsOverride is required" }
+                input.typeOverride != null || input.descriptionOverride != null || input.tagsOverride != null,
+        ) {
+            "At least one of categoryId, merchantId, typeOverride, descriptionOverride, or tagsOverride is required"
+        }
         input.categoryId?.let { requireCategoryAccessible(it, accountId) }
         input.merchantId?.let { requireMerchantAccessible(it, accountId) }
+        input.typeOverride?.let(::requireValidTypeOverride)
         validatePattern(input.patternType, input.pattern)
 
         val duplicate =
@@ -94,6 +97,7 @@ open class TransactionRuleService(
                 accountId = accountId,
                 categoryId = input.categoryId,
                 merchantId = input.merchantId,
+                typeOverride = input.typeOverride,
                 descriptionOverride = input.descriptionOverride?.trim(),
                 tagsOverride = input.tagsOverride,
                 pattern = input.pattern.trim(),
@@ -139,23 +143,30 @@ open class TransactionRuleService(
 
         input.categoryId?.let { requireCategoryAccessible(it, accountId) }
         input.merchantId?.let { requireMerchantAccessible(it, accountId) }
+        if (input.typeOverrideProvided) {
+            input.typeOverride?.let(::requireValidTypeOverride)
+        }
 
         val newCategoryId = input.categoryId ?: existing.categoryId
         val newMerchantId = if (input.merchantIdProvided) input.merchantId else existing.merchantId
+        val newTypeOverride = if (input.typeOverrideProvided) input.typeOverride else existing.typeOverride
         val newDescriptionOverride =
             if (input.descriptionOverrideProvided) input.descriptionOverride else existing.descriptionOverride
         val newTagsOverride =
             if (input.tagsOverrideProvided) input.tagsOverride else existing.tagsOverride
         require(
             newCategoryId != null || newMerchantId != null ||
-                newDescriptionOverride != null || newTagsOverride != null,
-        ) { "At least one of categoryId, merchantId, descriptionOverride, or tagsOverride is required" }
+                newTypeOverride != null || newDescriptionOverride != null || newTagsOverride != null,
+        ) {
+            "At least one of categoryId, merchantId, typeOverride, descriptionOverride, or tagsOverride is required"
+        }
 
         val now = Instant.now()
         val updated =
             existing.copy(
                 categoryId = newCategoryId,
                 merchantId = newMerchantId,
+                typeOverride = newTypeOverride,
                 descriptionOverride = newDescriptionOverride?.trim(),
                 tagsOverride = newTagsOverride,
                 pattern = pattern,
@@ -170,7 +181,8 @@ open class TransactionRuleService(
 
     /** Returns true when the update input contains explicit user-driven changes that should promote an implicit rule. */
     private fun hasExplicitChanges(input: UpdateTransactionRuleInput): Boolean =
-        input.categoryId != null || input.merchantIdProvided || input.descriptionOverrideProvided ||
+        input.categoryId != null || input.merchantIdProvided || input.typeOverrideProvided ||
+            input.descriptionOverrideProvided ||
             input.tagsOverrideProvided || input.pattern != null || input.patternType != null ||
             input.applicableTo != null
 
@@ -307,6 +319,13 @@ open class TransactionRuleService(
                     next = next.copy(merchantId = rule.merchantId)
                     anyApplied = true
                 }
+                if (rule.typeOverride != null) {
+                    val overriddenType = TransactionTypeOverrideSupport.apply(tx.type, rule.typeOverride)
+                    if (next.type != overriddenType) {
+                        next = next.copy(type = overriddenType)
+                        anyApplied = true
+                    }
+                }
                 if (rule.descriptionOverride != null && tx.description != rule.descriptionOverride) {
                     next = next.copy(description = rule.descriptionOverride)
                     anyApplied = true
@@ -384,6 +403,12 @@ open class TransactionRuleService(
             Regex(pattern)
         } catch (e: Exception) {
             throw InvalidRegexPatternException(pattern, e)
+        }
+    }
+
+    private fun requireValidTypeOverride(typeOverride: CategoryApplicableTo) {
+        require(typeOverride != CategoryApplicableTo.ANY) {
+            "typeOverride cannot be ANY"
         }
     }
 }

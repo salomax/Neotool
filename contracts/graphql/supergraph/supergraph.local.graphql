@@ -1259,6 +1259,7 @@ input CreateTransactionRuleInput
 {
   categoryId: ID
   merchantId: ID
+  typeOverride: CategoryApplicableTo
   descriptionOverride: String
   tagsOverride: [String!]
   pattern: String!
@@ -4622,6 +4623,7 @@ type TransactionRule
   category: TransactionCategory
   merchantId: ID
   merchant: Merchant
+  typeOverride: CategoryApplicableTo
   descriptionOverride: String
   tagsOverride: [String!]
   pattern: String!
@@ -4996,6 +4998,7 @@ input UpdateTransactionRuleInput
 {
   categoryId: ID
   merchantId: ID
+  typeOverride: CategoryApplicableTo
   descriptionOverride: String
   tagsOverride: [String!]
   applicableTo: CategoryApplicableTo

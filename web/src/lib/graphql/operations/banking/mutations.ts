@@ -669,6 +669,7 @@ const RULE_RESPONSE_FIELDS = `
   pattern
   patternType
   applicableTo
+  typeOverride
   priority
   isSystem
   isDisabledForAccount

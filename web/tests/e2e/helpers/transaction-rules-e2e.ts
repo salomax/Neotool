@@ -12,11 +12,12 @@ import {
   CategorySource,
   PatternType,
   RuleCreationMode,
+  TransactionType,
 } from '../../../src/lib/graphql/types/__generated__/graphql';
 import { IMPORT_FIXTURE_MONTH, IMPORT_FIXTURE_YEAR } from './finance-transactions-e2e';
 import { E2E_IMPORT_JOB_TIMEOUT_MS } from './timeouts';
 
-export { CategoryApplicableTo, CategorySource, PatternType, RuleCreationMode };
+export { CategoryApplicableTo, CategorySource, PatternType, RuleCreationMode, TransactionType };
 
 export interface TransactionCategory {
   id: string;
@@ -29,6 +30,7 @@ export interface TransactionRule {
   pattern: string;
   patternType: PatternType;
   applicableTo: CategoryApplicableTo;
+  typeOverride?: CategoryApplicableTo | null;
   categoryId?: string | null;
   merchantId?: string | null;
   descriptionOverride?: string | null;
@@ -42,6 +44,7 @@ export interface TransactionRule {
 export interface TransactionWithRuleFields {
   id: string;
   description: string;
+  type?: TransactionType | null;
   categoryId?: string | null;
   categorySource?: CategorySource | null;
   merchantId?: string | null;
@@ -55,6 +58,7 @@ export interface CreateTransactionRuleInput {
   pattern: string;
   patternType: PatternType;
   applicableTo: CategoryApplicableTo;
+  typeOverride?: CategoryApplicableTo;
   categoryId?: string;
   merchantId?: string;
   descriptionOverride?: string;
@@ -151,6 +155,7 @@ export async function createTransactionRule(
           pattern
           patternType
           applicableTo
+          typeOverride
           categoryId
           merchantId
           descriptionOverride
@@ -181,6 +186,7 @@ export async function updateTransactionRule(
           pattern
           patternType
           applicableTo
+          typeOverride
           categoryId
           merchantId
           descriptionOverride
@@ -284,6 +290,7 @@ export async function listUserTransactionRules(
               pattern
               patternType
               applicableTo
+              typeOverride
               categoryId
               merchantId
               descriptionOverride
@@ -324,6 +331,7 @@ export async function updateBankingUserPreferences(
 type TransactionRuleFieldsNode = {
   id: string;
   description: string;
+  type?: TransactionType | null;
   categorySource?: CategorySource | null;
   tags?: string[];
   category?: { id: string; name: string } | null;
@@ -335,6 +343,7 @@ function mapTransactionRuleFields(node: TransactionRuleFieldsNode): TransactionW
   return {
     id: node.id,
     description: node.description,
+    type: node.type,
     categorySource: node.categorySource,
     tags: node.tags,
     category: node.category,
@@ -366,6 +375,7 @@ export async function findTransactionByDescription(
             node {
               id
               description
+              type
               categorySource
               tags
               category { id name }
