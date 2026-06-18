@@ -2,7 +2,7 @@
  * E2E — Transaction rules
  *
  * Coverage: pattern matching, import-time application, CRUD, preview, apply-to-historical,
- * priority/reorder, ruleApplicationMode NEVER, and rules management UI.
+ * priority/reorder, ruleCreationMode coverage, and rules management UI.
  *
  * Uses GraphQL for setup/assertions (reliable) plus one UI smoke test on the rules page.
  * Import rows use March 2026 OFX fixtures — `bankAccount` is extended with `initialBalanceDate: 2026-01-01`.
@@ -40,7 +40,7 @@ import {
   PatternType,
   previewTransactionRule,
   reorderTransactionRules,
-  RuleApplicationMode,
+  RuleCreationMode,
   updateBankingUserPreferences,
   updateTransactionRule,
 } from '../helpers/transaction-rules-e2e';
@@ -550,7 +550,7 @@ test.describe('Transaction rules', () => {
     }
   });
 
-  test('TR-H-15: ruleApplicationMode NEVER skips rules on import', async ({ pfUser, bankAccount }) => {
+  test('TR-H-15: ruleCreationMode NEVER does not prevent rules on import', async ({ pfUser, bankAccount }) => {
     const expenseCategory = await findExpenseCategory(pfUser.token);
     const marker = uniqueTestMarker('nevermode');
     const memo = uniqueLabel(marker);
@@ -565,12 +565,12 @@ test.describe('Transaction rules', () => {
     );
 
     try {
-      await updateBankingUserPreferences(RuleApplicationMode.Never, pfUser.token);
+      await updateBankingUserPreferences(RuleCreationMode.Never, pfUser.token);
       const tx = await importDebitWithMemo(bankAccount.id, pfUser.token, memo);
-      expectUserRuleNotApplied(tx, rule.id, expenseCategory.id);
-      expect(tx.categorySource).not.toBe(CategorySource.Rule);
+      expectUserRuleApplied(tx, rule.id, expenseCategory.id);
+      expect(tx.categorySource).toBe(CategorySource.Rule);
     } finally {
-      await updateBankingUserPreferences(RuleApplicationMode.AlwaysPrompt, pfUser.token).catch(() => {});
+      await updateBankingUserPreferences(RuleCreationMode.AlwaysPrompt, pfUser.token).catch(() => {});
       await deleteTransactionRule(rule.id, pfUser.token).catch(() => {});
       const tx = await findTransactionByDescription(bankAccount.id, memo, pfUser.token);
       if (tx?.id) await deleteTransaction(tx.id, pfUser.token).catch(() => {});

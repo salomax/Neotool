@@ -16,6 +16,7 @@ import io.github.salomax.neotool.banking.domain.billimport.DateRange
 import io.github.salomax.neotool.banking.domain.billimport.ImportDocumentType
 import io.github.salomax.neotool.banking.domain.billimport.InstallmentInfo
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
+import io.github.salomax.neotool.banking.domain.preferences.RuleCreationMode
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
@@ -28,6 +29,7 @@ import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleCreationModeService
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
@@ -56,6 +58,7 @@ open class BillImportService(
     private val transactionRepository: TransactionRepository,
     private val importFingerprintService: ImportFingerprintService,
     private val categorizationService: TransactionRuleEngine,
+    private val userRuleCreationModeService: UserRuleCreationModeService,
     private val snapshotComputationService: SnapshotComputationService,
     private val creditCardBillService: CreditCardBillService,
     private val billImportCommitPreparer: BillImportCommitPreparer,
@@ -467,7 +470,11 @@ open class BillImportService(
                                     }
                                 }
 
-                            if (shouldLearnImplicitRule && effectiveCategoryId != null) {
+                            if (
+                                shouldLearnImplicitRule &&
+                                effectiveCategoryId != null &&
+                                shouldAutoCreateImplicitRule(userId)
+                            ) {
                                 categorizationService.learnFromManualAssignment(
                                     accountId = accountId,
                                     description = tx.description,
@@ -1119,6 +1126,9 @@ open class BillImportService(
 
     private fun normalizedCardIdentifier(lastFourDigits: String?): String? =
         normalizeLastFourDigits(lastFourDigits.orEmpty()).takeIf { it.length == 4 }
+
+    private fun shouldAutoCreateImplicitRule(userId: UUID): Boolean =
+        userRuleCreationModeService.get(userId) == RuleCreationMode.ALWAYS
 
     private data class CardMatchProjection(
         val matchedFinancialAccountId: UUID?,

@@ -468,6 +468,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
               (!isCreateMode && !hasRoleOrUserChanges && !methods.formState.isDirty)
             }
             submitting={saving || createLoading || updateLoading || savingRoles}
+            submitTestId="group-form-submit"
           />
         </PermissionGate>
       </Drawer.Footer>

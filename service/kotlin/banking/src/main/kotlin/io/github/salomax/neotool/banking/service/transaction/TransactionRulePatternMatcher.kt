@@ -11,6 +11,7 @@ import mu.KotlinLogging
 internal object TransactionRulePatternMatcher {
     // [RULE-DEBUG] temporary diagnostic logger — remove after investigation
     private val logger = KotlinLogging.logger {}
+
     fun matchesDescription(
         description: String?,
         pattern: String,
@@ -31,21 +32,25 @@ internal object TransactionRulePatternMatcher {
     ): Boolean {
         val normalizedPattern = TransactionDescriptionNormalizer.normalize(pattern)
         // [RULE-DEBUG] temporary diagnostic log — remove after investigation
-        logger.info { "[RULE-DEBUG] matches: normalizedDesc='$normalizedDescription' normalizedPattern='$normalizedPattern' type=$patternType" }
-        val result = when (patternType) {
-            PatternType.CONTAINS ->
-                containsWholeWord(normalizedDescription, normalizedPattern)
-            PatternType.STARTS_WITH ->
-                normalizedDescription.startsWith(normalizedPattern)
-            PatternType.EXACT ->
-                normalizedDescription == normalizedPattern
-            PatternType.REGEX ->
-                try {
-                    normalizedDescription.matches(Regex(pattern, RegexOption.IGNORE_CASE))
-                } catch (_: Exception) {
-                    false
-                }
+        logger.info {
+            "[RULE-DEBUG] matches: normalizedDesc='$normalizedDescription' " +
+                "normalizedPattern='$normalizedPattern' type=$patternType"
         }
+        val result =
+            when (patternType) {
+                PatternType.CONTAINS ->
+                    containsWholeWord(normalizedDescription, normalizedPattern)
+                PatternType.STARTS_WITH ->
+                    normalizedDescription.startsWith(normalizedPattern)
+                PatternType.EXACT ->
+                    normalizedDescription == normalizedPattern
+                PatternType.REGEX ->
+                    try {
+                        normalizedDescription.matches(Regex(pattern, RegexOption.IGNORE_CASE))
+                    } catch (_: Exception) {
+                        false
+                    }
+            }
         logger.info { "[RULE-DEBUG] matches result=$result" }
         return result
     }

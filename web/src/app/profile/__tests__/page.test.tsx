@@ -73,7 +73,7 @@ vi.mock("@/shared/providers", () => ({
       keepMeConnected: false,
     },
     bankingUserPreferences: {
-      ruleApplicationMode: "ALWAYS_PROMPT",
+      ruleCreationMode: "ALWAYS_PROMPT",
     },
     updateUserPreferences: mockUpdateUserPreferences,
     updateBankingUserPreferences: mockUpdateBankingUserPreferences,

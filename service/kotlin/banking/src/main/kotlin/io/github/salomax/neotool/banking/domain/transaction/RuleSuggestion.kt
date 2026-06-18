@@ -8,6 +8,6 @@ data class RuleSuggestion(
     val merchantId: UUID?,
     val descriptionOverride: String? = null,
     val tagsOverride: List<String>? = null,
-    /** All rules that contributed to this suggestion (for ALWAYS_PROMPT UX). */
+    /** All rules that contributed to this suggestion. */
     val appliedRuleIds: List<UUID> = emptyList(),
 )

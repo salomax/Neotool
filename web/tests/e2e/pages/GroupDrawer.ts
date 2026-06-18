@@ -118,35 +118,12 @@ export class GroupDrawer {
    * Click save button
    */
   async save(): Promise<void> {
-    // The save button text changes based on mode (Create or Save)
-    // Find button in drawer that contains "Create" or "Save" or "Saving"
-    const saveButton = this.getDrawer()
-      .locator('button:has-text("Create"), button:has-text("Save"), button:has-text("Saving")')
-      .first();
-    
+    const saveButton = this.page.locator('[data-testid="group-form-submit"]');
     await saveButton.waitFor({ state: 'visible', timeout: 10000 });
     await expect(saveButton).toBeEnabled({ timeout: 5000 });
-    
-    // Click the save button
+
     await saveButton.click();
-    
-    // Wait for the saving state to complete
-    // The button is disabled and shows "Saving..." while saving
-    // Wait for the button to no longer show "Saving..." text, which indicates save completed
-    // Use a longer timeout to account for network requests
-    const savingButton = this.getDrawer().locator('button:has-text("Saving")').first();
-    const savingCount = await savingButton.count();
-    if (savingCount > 0) {
-      // Wait for "Saving" button to disappear (save operation completed)
-      await expect(savingButton).not.toBeVisible({ timeout: 20000 });
-    }
-    
-    // Wait for drawer to close after save (drawer closes automatically after successful save)
-    // The drawer closing is the primary indicator that save completed successfully
-    // Use a longer timeout to account for network requests, UI updates, and animations
     await this.waitForClose();
-    
-    // Wait a moment for any UI updates, network requests, or animations to complete
     await this.page.waitForTimeout(500);
   }
 

@@ -20,6 +20,7 @@ import jakarta.inject.Inject
 import jakarta.inject.Singleton
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.QueueDispatcher
 import okio.Buffer
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -158,6 +159,8 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
         while (assetsMock.takeRequest(10, TimeUnit.MILLISECONDS) != null) {
             // drain any leftover requests without blocking
         }
+        // Drop unconsumed enqueued responses so a prior test cannot poison the next one.
+        assetsMock.dispatcher = QueueDispatcher()
     }
 
     @Test
@@ -245,7 +248,12 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
         )
 
         val status = awaitTerminalStatus(jobId, timeoutMs = 25_000L)
-        assertThat(status).isEqualTo(ImportJobStatus.COMPLETED)
+        val snapshot = loadJobSnapshot(jobId)
+        assertThat(status)
+            .withFailMessage {
+                "expected COMPLETED but was $status; job snapshot=$snapshot; txCount=${countTransactionsForJob(jobId)}"
+            }
+            .isEqualTo(ImportJobStatus.COMPLETED)
         assertThat(countTransactionsForJob(jobId)).isEqualTo(1)
     }
 
@@ -292,7 +300,12 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
         )
 
         val status = awaitTerminalStatus(jobId, timeoutMs = 25_000L)
-        assertThat(status).isEqualTo(ImportJobStatus.COMPLETED)
+        val snapshot = loadJobSnapshot(jobId)
+        assertThat(status)
+            .withFailMessage {
+                "expected COMPLETED but was $status; job snapshot=$snapshot; txCount=${countTransactionsForJob(jobId)}"
+            }
+            .isEqualTo(ImportJobStatus.COMPLETED)
         assertThat(countTransactionsForJob(jobId)).isEqualTo(1)
     }
 

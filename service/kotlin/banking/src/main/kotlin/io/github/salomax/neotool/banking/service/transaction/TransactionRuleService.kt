@@ -23,9 +23,9 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRep
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import jakarta.inject.Singleton
+import mu.KotlinLogging
 import java.time.Instant
 import java.util.UUID
-import mu.KotlinLogging
 
 @Singleton
 open class TransactionRuleService(
@@ -35,6 +35,7 @@ open class TransactionRuleService(
     private val transactionRepository: TransactionRepository,
 ) {
     private val logger = KotlinLogging.logger {}
+
     /** Returns all user-owned rules (explicit + implicit) for the account. System rules are excluded. */
     fun listUserRules(accountId: UUID): List<TransactionRule> = ruleRepository.findUserRulesForAccount(accountId)
 
@@ -227,11 +228,17 @@ open class TransactionRuleService(
         }
 
         // [RULE-DEBUG] temporary diagnostic logs — remove after investigation
-        logger.info { "[RULE-DEBUG] countHistoricalMatches ruleId=$ruleId pattern='${rule.pattern}' patternType=${rule.patternType} applicableTo=${rule.applicableTo}" }
+        logger.info {
+            "[RULE-DEBUG] countHistoricalMatches ruleId=$ruleId pattern='${rule.pattern}' " +
+                "patternType=${rule.patternType} applicableTo=${rule.applicableTo}"
+        }
         val all = transactionRepository.findByAccount(accountId)
         logger.info { "[RULE-DEBUG] total transactions: ${all.size}" }
         val afterSourceFilter = all.filter { it.source != TransactionSource.MANUAL }
-        logger.info { "[RULE-DEBUG] after source!=MANUAL: ${afterSourceFilter.size} (excluded ${all.size - afterSourceFilter.size} MANUAL)" }
+        logger.info {
+            "[RULE-DEBUG] after source!=MANUAL: ${afterSourceFilter.size} " +
+                "(excluded ${all.size - afterSourceFilter.size} MANUAL)"
+        }
         val afterTypeFilter = afterSourceFilter.filter { it.type != TransactionType.BALANCE_ADJUSTMENT }
         logger.info { "[RULE-DEBUG] after type!=BALANCE_ADJUSTMENT: ${afterTypeFilter.size}" }
         var applicableToRejected = 0
@@ -239,18 +246,30 @@ open class TransactionRuleService(
         val matching =
             afterTypeFilter.filter { tx ->
                 val side =
-                    if (tx.type == TransactionType.TRANSFER) CategoryApplicableTo.TRANSFER
-                    else if (tx.creditDebitType == CreditDebitType.CREDIT) CategoryApplicableTo.INCOME
-                    else CategoryApplicableTo.EXPENSE
+                    if (tx.type == TransactionType.TRANSFER) {
+                        CategoryApplicableTo.TRANSFER
+                    } else if (tx.creditDebitType == CreditDebitType.CREDIT) {
+                        CategoryApplicableTo.INCOME
+                    } else {
+                        CategoryApplicableTo.EXPENSE
+                    }
                 if (rule.applicableTo != CategoryApplicableTo.ANY && rule.applicableTo != side) {
                     applicableToRejected++
                     return@filter false
                 }
-                val matched = TransactionRulePatternMatcher.matchesDescription(tx.description, rule.pattern, rule.patternType)
+                val matched =
+                    TransactionRulePatternMatcher.matchesDescription(
+                        tx.description,
+                        rule.pattern,
+                        rule.patternType,
+                    )
                 if (!matched) patternRejected++
                 matched
             }
-        logger.info { "[RULE-DEBUG] applicableTo rejected: $applicableToRejected, pattern rejected: $patternRejected, final count: ${matching.size}" }
+        logger.info {
+            "[RULE-DEBUG] applicableTo rejected: $applicableToRejected, " +
+                "pattern rejected: $patternRejected, final count: ${matching.size}"
+        }
         return matching.size
         // [RULE-DEBUG] end
     }

@@ -298,7 +298,7 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
 
     @Test
     fun `confirm still applies existing rules when preference is NEVER`() {
-        insertRuleApplicationModeNever()
+        insertRuleCreationModeNever()
         insertCategoryRule(pattern = "ifood")
         val job = movePendingJobToAwaitingReview()
         val jobId = requireNotNull(job.id)
@@ -359,16 +359,16 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
         return requireNotNull(saved.id)
     }
 
-    private fun insertRuleApplicationModeNever() {
+    private fun insertRuleCreationModeNever() {
         val container = getPgContainer()
         val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
         DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
             conn.createStatement().executeUpdate(
                 """
-                INSERT INTO banking.user_preferences (user_id, rule_application_mode, created_at, updated_at)
+                INSERT INTO banking.user_preferences (user_id, rule_creation_mode, created_at, updated_at)
                 VALUES ('$userId', 'NEVER', NOW(), NOW())
                 ON CONFLICT (user_id) DO UPDATE
-                SET rule_application_mode = EXCLUDED.rule_application_mode,
+                SET rule_creation_mode = EXCLUDED.rule_creation_mode,
                     updated_at = NOW()
                 """.trimIndent(),
             )

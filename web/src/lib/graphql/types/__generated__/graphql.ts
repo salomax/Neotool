@@ -399,7 +399,7 @@ export type BankAccountDataInput = {
 
 export type BankingUserPreferences = {
   __typename: 'BankingUserPreferences';
-  ruleApplicationMode: RuleApplicationMode;
+  ruleCreationMode: RuleCreationMode;
 };
 
 export type BenchmarkPerformance = {
@@ -1036,7 +1036,7 @@ export type CreateTransactionInput = {
 
 export type CreateTransactionPayload = {
   __typename: 'CreateTransactionPayload';
-  /** Only populated when bankingUserPreferences.ruleApplicationMode = ALWAYS_PROMPT. */
+  /** Rules that were applied while creating the transaction. */
   appliedRules: Maybe<Array<TransactionRule>>;
   transaction: Transaction;
 };
@@ -1737,11 +1737,6 @@ export type InstallmentInfoInput = {
   total: Scalars['Int']['input'];
 };
 
-export type InstitutionAccountMappingInput = {
-  financialAccountId: Scalars['ID']['input'];
-  reviewInstitutionId: Scalars['String']['input'];
-};
-
 export type InstitutionRating = {
   __typename: 'InstitutionRating';
   customParams: Maybe<Scalars['JSON']['output']>;
@@ -1962,6 +1957,7 @@ export type InvestmentImportJob = {
   __typename: 'InvestmentImportJob';
   createdAt: Scalars['DateTime']['output'];
   errorCode: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use errorCode/errorParameters for i18n */
   errorMessage: Maybe<Scalars['String']['output']>;
   errorParameters: Maybe<Scalars['JSON']['output']>;
   fileName: Maybe<Scalars['String']['output']>;
@@ -4472,7 +4468,7 @@ export enum RoleOrderField {
   Name = 'NAME'
 }
 
-export enum RuleApplicationMode {
+export enum RuleCreationMode {
   Always = 'ALWAYS',
   AlwaysPrompt = 'ALWAYS_PROMPT',
   Never = 'NEVER'
@@ -4933,7 +4929,7 @@ export type UpdateAccountPreferencesInput = {
 };
 
 export type UpdateBankingUserPreferencesInput = {
-  ruleApplicationMode?: InputMaybe<RuleApplicationMode>;
+  ruleCreationMode?: InputMaybe<RuleCreationMode>;
 };
 
 export type UpdateCategoryInput = {

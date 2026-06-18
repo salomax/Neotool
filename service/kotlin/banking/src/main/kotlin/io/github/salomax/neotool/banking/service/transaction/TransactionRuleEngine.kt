@@ -25,6 +25,7 @@ interface TransactionRuleEngine {
         accountId: UUID,
         description: String?,
         creditDebitType: CreditDebitType,
+        excludeImplicit: Boolean = false,
     ): RuleSuggestion?
 
     /**

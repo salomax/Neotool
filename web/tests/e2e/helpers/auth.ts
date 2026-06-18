@@ -112,17 +112,16 @@ export async function signInAsValidUser(page: Page, rememberMe = false) {
     TEST_USERS.valid.password,
     rememberMe
   );
-  // Wait for redirect to home (with longer timeout and error handling)
-  try {
-    await page.waitForURL('/', { timeout: 15000 });
-  } catch (error) {
-    // Check if we're already on the home page or if there was a different navigation
-    const currentUrl = page.url();
-    if (!currentUrl.includes('/signin')) {
-      // We're not on sign-in page, assume we're logged in
-      return;
-    }
-    throw error;
+  const error = page.getByTestId('signin-error');
+  const outcome = await Promise.race([
+    page.waitForURL('/', { timeout: 15000 }).then(() => 'ok' as const),
+    error.waitFor({ state: 'visible', timeout: 15000 }).then(() => 'fail' as const),
+  ]);
+
+  if (outcome === 'fail') {
+    throw new Error(
+      `Sign-in failed for ${TEST_USERS.valid.email}: ${(await error.textContent())?.trim() ?? 'invalid credentials'}`
+    );
   }
 }
 

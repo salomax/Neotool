@@ -14,6 +14,7 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
+import io.github.salomax.neotool.banking.domain.preferences.RuleCreationMode
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
@@ -38,6 +39,7 @@ import io.github.salomax.neotool.banking.service.billimport.BillImportCommitPrep
 import io.github.salomax.neotool.banking.service.billimport.BillImportService
 import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleCreationModeService
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
@@ -83,6 +85,7 @@ class BillImportServiceTest {
     private lateinit var submittedProducer: PdfExtractorSubmittedProducer
     private lateinit var assistantRequestProducer: AssistantBankingReaderRequestedProducer
     private lateinit var categorizationService: TransactionRuleEngine
+    private lateinit var userRuleCreationModeService: UserRuleCreationModeService
     private lateinit var service: BillImportService
 
     private val objectMapper = jacksonObjectMapper().registerModule(JavaTimeModule())
@@ -101,6 +104,8 @@ class BillImportServiceTest {
         snapshotComputationService = mock()
         creditCardBillRepository = mock()
         categorizationService = mock()
+        userRuleCreationModeService = mock()
+        whenever(userRuleCreationModeService.get(userId)).thenReturn(RuleCreationMode.ALWAYS_PROMPT)
         creditCardBillService = spy(CreditCardBillService(creditCardBillRepository, mock()))
         billImportCommitPreparer = BillImportCommitPreparer(creditCardBillService)
         billAssetStorage = mock()
@@ -113,6 +118,7 @@ class BillImportServiceTest {
                 transactionRepository = transactionRepository,
                 importFingerprintService = importFingerprintService,
                 categorizationService = categorizationService,
+                userRuleCreationModeService = userRuleCreationModeService,
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
                 billImportCommitPreparer = billImportCommitPreparer,
@@ -1111,6 +1117,7 @@ class BillImportServiceTest {
 
         @Test
         fun `confirm applies manual category and triggers implicit learning`() {
+            whenever(userRuleCreationModeService.get(userId)).thenReturn(RuleCreationMode.ALWAYS)
             val jobId = UUID.randomUUID()
             val cardA = UUID.randomUUID()
             val billA = UUID.randomUUID()
@@ -1208,6 +1215,98 @@ class BillImportServiceTest {
                 anyOrNull(),
                 anyOrNull(),
                 eq(false),
+            )
+        }
+
+        @Test
+        fun `confirm with ALWAYS_PROMPT does not auto-create implicit rule from manual category`() {
+            whenever(userRuleCreationModeService.get(userId)).thenReturn(RuleCreationMode.ALWAYS_PROMPT)
+            val jobId = UUID.randomUUID()
+            val cardA = UUID.randomUUID()
+            val billA = UUID.randomUUID()
+            val categoryId = UUID.randomUUID()
+            val merchantId = UUID.randomUUID()
+            val preloadedRules =
+                listOf(
+                    TransactionRule(
+                        id = UUID.randomUUID(),
+                        accountId = accountId,
+                        merchantId = merchantId,
+                        pattern = "netflix",
+                        patternType = PatternType.CONTAINS,
+                        applicableTo = CategoryApplicableTo.ANY,
+                        priority = 40,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
+
+            val job = awaitingReviewJob(jobId)
+            val tx =
+                ConfirmBillReviewTransactionCommand(
+                    date = LocalDate.of(2026, 1, 15),
+                    description = "NETFLIX.COM*BR",
+                    amount = BigDecimal("45.90"),
+                    creditDebitType = CreditDebitType.DEBIT,
+                    include = true,
+                    categoryId = categoryId,
+                    categorySource = CategorySource.MANUAL,
+                )
+
+            val command =
+                ConfirmBillImportCommand(
+                    jobId = jobId,
+                    cards =
+                        listOf(
+                            ConfirmBillReviewCardCommand(
+                                reviewCardId = "card-1",
+                                financialAccountId = cardA,
+                                transactions = listOf(tx),
+                            ),
+                        ),
+                )
+
+            whenever(repository.findById(jobId, accountId)).thenReturn(job)
+            whenever(
+                financialAccountRepository.findByAccountId(accountId),
+            ).thenReturn(listOf(cardAccount(cardA, "1234")))
+            whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(categorizationService.preloadRules(accountId)).thenReturn(preloadedRules)
+            whenever(
+                categorizationService.suggestFromRules(
+                    same(preloadedRules),
+                    eq(tx.description),
+                    eq(tx.creditDebitType),
+                ),
+            ).thenReturn(
+                RuleSuggestion(
+                    ruleId = preloadedRules.first().id!!,
+                    categoryId = null,
+                    merchantId = merchantId,
+                ),
+            )
+            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            doReturn(
+                billA,
+            ).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), eq(TransactionType.CARD))
+            doReturn(
+                creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 2, 15)),
+            ).whenever(creditCardBillService).requireBillForAccount(eq(billA), eq(accountId))
+            whenever(
+                transactionRepository.save(any()),
+            ).thenAnswer { it.getArgument<Transaction>(0).copy(id = UUID.randomUUID()) }
+
+            service.confirmBillImport(accountId, userId, command)
+
+            verify(categorizationService, never()).learnFromManualAssignment(
+                any(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                any(),
             )
         }
 

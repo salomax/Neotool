@@ -126,7 +126,7 @@ export const ACCOUNT_PREFERENCES = gql`
 export const BANKING_USER_PREFERENCES = gql`
   query BankingUserPreferences {
     bankingUserPreferences {
-      ruleApplicationMode
+      ruleCreationMode
     }
   }
 `;

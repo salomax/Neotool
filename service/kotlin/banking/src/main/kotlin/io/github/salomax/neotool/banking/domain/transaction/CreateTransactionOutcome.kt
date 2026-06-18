@@ -4,6 +4,6 @@ import java.util.UUID
 
 data class CreateTransactionOutcome(
     val transaction: Transaction,
-    /** Only populated when user ruleApplicationMode is ALWAYS_PROMPT. */
+    /** Rules that were applied while creating the transaction. */
     val appliedRuleIds: List<UUID> = emptyList(),
 )

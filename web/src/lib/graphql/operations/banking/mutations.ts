@@ -120,7 +120,7 @@ export const UPDATE_ACCOUNT_PREFERENCES = gql`
 export const UPDATE_BANKING_USER_PREFERENCES = gql`
   mutation UpdateBankingUserPreferences($input: UpdateBankingUserPreferencesInput!) {
     updateBankingUserPreferences(input: $input) {
-      ruleApplicationMode
+      ruleCreationMode
     }
   }
 `;

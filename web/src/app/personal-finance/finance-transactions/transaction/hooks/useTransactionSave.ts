@@ -284,7 +284,7 @@ export function useTransactionSave({
 
         const preview = previewResult?.data?.similarTransactionEditPreview;
         const similarEditBehavior = preview
-          ? resolveSimilarEditBehavior(bankingUserPreferences.ruleApplicationMode, preview.supportsFuturePropagation)
+          ? resolveSimilarEditBehavior(bankingUserPreferences.ruleCreationMode, preview.supportsFuturePropagation)
           : 'skip';
 
         if (preview && similarEditBehavior === 'auto') {
@@ -356,7 +356,7 @@ export function useTransactionSave({
     amount, date, accountId, isBalanceAdjustmentEdit, description,
     creditDebitType, initialValues, categoryId, merchantId, tags,
     loadSimilarEditPreview, updateTransaction, applyTransactionEditToSimilar, createTransaction,
-    bankingUserPreferences.ruleApplicationMode,
+    bankingUserPreferences.ruleCreationMode,
     resetFormFields, onBusyStart, onBusyEnd, onSuccess, onClose, onRefresh, toast,
   ]);
 

@@ -132,7 +132,7 @@ export function useCategoryPicker({ transactions, onSuccess, beginBusy, endBusy 
       const similarEditBehavior =
         preview && categoryId
           ? resolveSimilarEditBehavior(
-              bankingUserPreferences.ruleApplicationMode,
+              bankingUserPreferences.ruleCreationMode,
               preview.supportsFuturePropagation,
             )
           : 'skip';
@@ -207,7 +207,7 @@ export function useCategoryPicker({ transactions, onSuccess, beginBusy, endBusy 
     loadSimilarEditPreview,
     updateTransaction,
     applyTransactionEditToSimilar,
-    bankingUserPreferences.ruleApplicationMode,
+    bankingUserPreferences.ruleCreationMode,
     onSuccess,
     t,
     toast,

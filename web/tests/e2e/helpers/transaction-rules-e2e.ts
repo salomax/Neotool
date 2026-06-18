@@ -11,12 +11,12 @@ import {
   CategoryApplicableTo,
   CategorySource,
   PatternType,
-  RuleApplicationMode,
+  RuleCreationMode,
 } from '../../../src/lib/graphql/types/__generated__/graphql';
 import { IMPORT_FIXTURE_MONTH, IMPORT_FIXTURE_YEAR } from './finance-transactions-e2e';
 import { E2E_IMPORT_JOB_TIMEOUT_MS } from './timeouts';
 
-export { CategoryApplicableTo, CategorySource, PatternType, RuleApplicationMode };
+export { CategoryApplicableTo, CategorySource, PatternType, RuleCreationMode };
 
 export interface TransactionCategory {
   id: string;
@@ -304,18 +304,18 @@ export async function listUserTransactionRules(
 }
 
 export async function updateBankingUserPreferences(
-  ruleApplicationMode: RuleApplicationMode,
+  ruleCreationMode: RuleCreationMode,
   token: string,
 ): Promise<void> {
   const result = await executeGraphQL(
     `
       mutation UpdateBankingUserPreferences($input: UpdateBankingUserPreferencesInput!) {
         updateBankingUserPreferences(input: $input) {
-          ruleApplicationMode
+          ruleCreationMode
         }
       }
     `,
-    { input: { ruleApplicationMode } },
+    { input: { ruleCreationMode } },
     token,
   );
   assertNoErrors(result, 'updateBankingUserPreferences');
