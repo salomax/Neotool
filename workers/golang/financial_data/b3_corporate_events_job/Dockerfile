@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for b3-corporate-events-job
 
 # ── Stage 1: Builder ──────────────────────────────────────────────────────────
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates tzdata
 
