@@ -1,15 +1,20 @@
 name: CI
 
 on:
-  # pull_request:
-  #   branches: ['**']
-  #   paths-ignore:
-  #     - '**.md'
-  #     - 'docs/**'
-  workflow_dispatch: # allow manual trigger when re-enabling
+  pull_request:
+    branches: ['**']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -50,9 +55,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          BASE="origin/${{ github.event.pull_request.base.ref }}"
+          EVENT_NAME="${{ github.event_name }}"
+          HEAD_SHA="${{ github.sha }}"
+          BASE=""
+          AFFECTED=""
 
-          AFFECTED=$(npx nx show projects --affected --base="$BASE" --json 2>/dev/null)
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            BASE="origin/${{ github.event.pull_request.base.ref }}"
+            AFFECTED=$(npx nx show projects --affected --base="$BASE" --head="$HEAD_SHA" --json 2>/dev/null)
+          elif [[ "$EVENT_NAME" == "push" ]]; then
+            BASE="${{ github.event.before }}"
+            AFFECTED=$(npx nx show projects --affected --base="$BASE" --head="$HEAD_SHA" --json 2>/dev/null)
+          else
+            BASE="manual-all-projects"
+            AFFECTED=$(npx nx show projects --json 2>/dev/null)
+          fi
 
           # Known Kotlin API services (have package.json, appear without ":" prefix)
           KOTLIN_KNOWN='["security","assets","financialdata","assistant","comms"]'
@@ -130,6 +147,7 @@ jobs:
           {
             echo "### Nx Affected Detection"
             echo "- Base: \`$BASE\`"
+            echo "- Event: \`$EVENT_NAME\`"
             echo "- Kotlin modules: $(echo "$KOTLIN_MATRIX" | jq 'length') — $(echo "$KOTLIN_SERVICES" | jq -r 'join(", ")')"
             echo "- Web affected: $WEB_AFFECTED"
             echo "- Go workers: $(echo "$GO_MATRIX" | jq 'length') — $(echo "$GO_PROJECTS" | jq -r 'join(", ")')"
