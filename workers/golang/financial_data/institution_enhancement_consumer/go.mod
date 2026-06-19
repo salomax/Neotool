@@ -1,16 +1,16 @@
 module github.com/salomax/invistus/workflow/golang/financial_data/institution_enhancement
 
-go 1.23.0
+go 1.25.0
 
 require (
 	github.com/IBM/sarama v1.43.0
 	github.com/PuerkitoBio/goquery v1.9.1
 	github.com/caarlos0/env/v10 v10.0.0
-	github.com/jackc/pgx/v5 v5.5.5
+	github.com/jackc/pgx/v5 v5.9.0
 	github.com/salomax/invistus/workflow/golang/shared/auth v0.0.0
 	github.com/salomax/invistus/workflow/golang/shared/health v0.0.0
 	github.com/salomax/invistus/workflow/golang/shared/kafka-consumer v0.0.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.11.1
 )
 
 replace (
@@ -30,8 +30,8 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgservicefile v0.0.0-20231201235250-de7065d80cb9 // indirect
-	github.com/jackc/puddle/v2 v2.2.1 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
 	github.com/jcmturner/gofork v1.7.6 // indirect
@@ -45,7 +45,7 @@ require (
 	github.com/rogpeppe/go-internal v1.8.1 // indirect
 	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/net v0.21.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
