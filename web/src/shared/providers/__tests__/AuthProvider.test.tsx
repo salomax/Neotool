@@ -5,15 +5,19 @@ import { AuthProvider, useAuth } from '../AuthProvider';
 import { setupStorageMocks } from '@/__tests__/helpers';
 
 // Use vi.hoisted() to define variables that need to be available in mock factories
-const { mockPush, mockMutate, mockLoggerError } = vi.hoisted(() => {
+const { mockPush, mockMutate, mockLoggerError, mockLoggerDebug, mockSyncAuthSessionCookie } = vi.hoisted(() => {
   const mockPush = vi.fn();
   const mockMutate = vi.fn();
   const mockLoggerError = vi.fn();
+  const mockLoggerDebug = vi.fn();
+  const mockSyncAuthSessionCookie = vi.fn();
   
   return {
     mockPush,
     mockMutate,
     mockLoggerError,
+    mockLoggerDebug,
+    mockSyncAuthSessionCookie,
   };
 });
 
@@ -59,10 +63,16 @@ vi.mock('@/lib/graphql/operations/auth', () => ({
   SIGN_UP: { kind: 'Document', definitions: [] },
 }));
 
+vi.mock('@/shared/utils/auth-session/client', () => ({
+  syncAuthSessionCookie: mockSyncAuthSessionCookie,
+  clearAuthSessionCookie: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock logger
 vi.mock('@/shared/utils/logger', () => ({
   logger: {
     error: mockLoggerError,
+    debug: mockLoggerDebug,
   },
 }));
 
@@ -74,6 +84,11 @@ describe.sequential('AuthProvider', () => {
     vi.clearAllMocks();
     // Clear call history - each test must set up its own mock implementation
     mockMutate.mockClear();
+    mockSyncAuthSessionCookie.mockResolvedValue({
+      ok: true,
+      status: 'synced',
+      statusCode: 200,
+    });
     
     // Use storage helper
     const storageMocks = setupStorageMocks();
@@ -208,6 +223,10 @@ describe.sequential('AuthProvider', () => {
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_token', mockToken);
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_user', JSON.stringify(mockUser));
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_refresh_token', mockRefreshToken);
+      expect(mockSyncAuthSessionCookie).toHaveBeenCalledWith({
+        user: mockUser,
+        rememberMe: true,
+      });
       expect(mockPush).toHaveBeenCalledWith('/');
     });
 
@@ -245,6 +264,10 @@ describe.sequential('AuthProvider', () => {
       expect(sessionStorageMock.setItem).toHaveBeenCalledWith('auth_token', mockToken);
       expect(sessionStorageMock.setItem).toHaveBeenCalledWith('auth_user', JSON.stringify(mockUser));
       expect(sessionStorageMock.setItem).not.toHaveBeenCalledWith('auth_refresh_token', expect.anything());
+      expect(mockSyncAuthSessionCookie).toHaveBeenCalledWith({
+        user: mockUser,
+        rememberMe: false,
+      });
       expect(mockPush).toHaveBeenCalledWith('/');
     });
 
@@ -252,21 +275,15 @@ describe.sequential('AuthProvider', () => {
       const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User' };
       const mockToken = 'new-token';
 
-      // Use helper to create properly structured GraphQL response
-      mockMutate.mockResolvedValue(
-        // Helper function to create GraphQL response (inline to avoid import issues)
-function createGraphQLResponse(operationName: string, data: any) {
-  return {
-    data: {
-      [operationName]: data,
-    },
-  };
-}('signIn', {
-          token: mockToken,
-          refreshToken: null,
-          user: mockUser,
-        })
-      );
+      mockMutate.mockResolvedValue({
+        data: {
+          signIn: {
+            token: mockToken,
+            refreshToken: null,
+            user: mockUser,
+          },
+        },
+      });
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -284,6 +301,88 @@ function createGraphQLResponse(operationName: string, data: any) {
       });
 
       expect(sessionStorageMock.setItem).not.toHaveBeenCalledWith('auth_refresh_token', expect.anything());
+    });
+
+    it('should wait for auth session sync before routing after sign in', async () => {
+      const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User' };
+      const mockToken = 'new-token';
+      let resolveSync!: (value: { ok: true; status: 'synced'; statusCode: number }) => void;
+
+      mockMutate.mockResolvedValue({
+        data: {
+          signIn: {
+            token: mockToken,
+            refreshToken: null,
+            user: mockUser,
+          },
+        },
+      });
+      mockSyncAuthSessionCookie.mockReturnValue(
+        new Promise((resolve) => {
+          resolveSync = resolve;
+        })
+      );
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        void result.current.signIn('test@example.com', 'password');
+      });
+
+      await waitFor(() => {
+        expect(mockMutate).toHaveBeenCalled();
+        expect(mockSyncAuthSessionCookie).toHaveBeenCalled();
+      });
+      expect(mockPush).not.toHaveBeenCalled();
+
+      await act(async () => {
+        resolveSync({ ok: true, status: 'synced', statusCode: 200 });
+      });
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/');
+      });
+    });
+
+    it('should continue routing after sign in when auth session sync times out', async () => {
+      const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User' };
+      const mockToken = 'new-token';
+
+      mockMutate.mockResolvedValue({
+        data: {
+          signIn: {
+            token: mockToken,
+            refreshToken: null,
+            user: mockUser,
+          },
+        },
+      });
+      mockSyncAuthSessionCookie.mockResolvedValue({
+        ok: false,
+        status: 'timeout',
+      });
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.signIn('test@example.com', 'password');
+      });
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/');
+      });
+      expect(mockLoggerDebug).toHaveBeenCalledWith(
+        '[Auth] Proceeding with post-login navigation after degraded auth session sync',
+        { status: 'timeout' }
+      );
     });
 
     it('should redirect unverified users to verify-email after sign in', async () => {
@@ -532,6 +631,10 @@ function createGraphQLResponse(operationName: string, data: any) {
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_token', mockToken);
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_user', JSON.stringify(mockUser));
       expect(localStorageMock.setItem).toHaveBeenCalledWith('auth_refresh_token', mockRefreshToken);
+      expect(mockSyncAuthSessionCookie).toHaveBeenCalledWith({
+        user: mockUser,
+        rememberMe: true,
+      });
       expect(mockPush).toHaveBeenCalledWith('/');
     });
 
@@ -682,35 +785,30 @@ function createGraphQLResponse(operationName: string, data: any) {
       expect(result.current.isAuthenticated).toBe(false);
     });
 
-    it('should return false when only user is null', async () => {
+    it('should return false before sign-in completes (no user or token in storage)', async () => {
       const { result } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Manually set token but not user (shouldn't happen in practice, but test the logic)
-      await act(async () => {
-        result.current.token = 'token';
-        result.current.user = null;
-      });
-
+      // No storage seeded, so both user and token are null
+      expect(result.current.user).toBeNull();
+      expect(result.current.token).toBeNull();
       expect(result.current.isAuthenticated).toBe(false);
     });
 
-    it('should return false when only token is null', async () => {
+    it('should return false when storage has token but user JSON is corrupt (cleared on parse error)', async () => {
+      localStorageMock.setItem('auth_token', 'some-token');
+      localStorageMock.setItem('auth_user', 'not-valid-json');
+
       const { result } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Manually set user but not token (shouldn't happen in practice, but test the logic)
-      await act(async () => {
-        result.current.user = { id: '1', email: 'test@example.com' };
-        result.current.token = null;
-      });
-
+      // Corrupt user data → cleared → not authenticated
       expect(result.current.isAuthenticated).toBe(false);
     });
 
@@ -718,21 +816,15 @@ function createGraphQLResponse(operationName: string, data: any) {
       const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User' };
       const mockToken = 'test-token';
 
-      // Use helper to create properly structured GraphQL response
-      mockMutate.mockResolvedValue(
-        // Helper function to create GraphQL response (inline to avoid import issues)
-function createGraphQLResponse(operationName: string, data: any) {
-  return {
-    data: {
-      [operationName]: data,
-    },
-  };
-}('signIn', {
-          token: mockToken,
-          refreshToken: null,
-          user: mockUser,
-        })
-      );
+      mockMutate.mockResolvedValue({
+        data: {
+          signIn: {
+            token: mockToken,
+            refreshToken: null,
+            user: mockUser,
+          },
+        },
+      });
 
       const { result } = renderHook(() => useAuth(), { wrapper });
 

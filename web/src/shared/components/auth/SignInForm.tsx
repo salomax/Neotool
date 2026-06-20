@@ -45,12 +45,22 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isOAuthLoading, setIsOAuthLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  const methods = useForm<SignInFormData>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      rememberMe: true,
+    },
+  });
+
   const { signIn: signInOAuth } = useOAuth({
     onSuccess: async (idToken) => {
       try {
         setIsOAuthLoading(true);
         setError(null);
-        await signInWithOAuth("google", idToken, true);
+        await signInWithOAuth("google", idToken, methods.getValues("rememberMe") ?? true);
         onSuccess?.();
       } catch (err: any) {
         const errorMessage = extractErrorMessage(err, t("errors.unknownError"));
@@ -65,15 +75,6 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
       setError(errorMessage);
       showError(errorMessage);
       setIsOAuthLoading(false);
-    },
-  });
-
-  const methods = useForm<SignInFormData>({
-    resolver: zodResolver(signInSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-      rememberMe: true,
     },
   });
 

@@ -8,6 +8,7 @@ import type { UnleashEvaluationContext } from '@/shared/types/unleash';
 
 let unleashClient: Unleash | null = null;
 let isInitialized = false;
+export const DEFAULT_UNLEASH_READY_TIMEOUT_MS = 750;
 
 /**
  * Whether server-side Unleash is configured (URL + API token set).
@@ -70,8 +71,25 @@ export function getUnleashClient(): Unleash {
  * @param timeoutMs - Maximum time to wait in milliseconds (default: 5000ms)
  * @returns true if ready, false if timed out
  */
-async function waitForReady(timeoutMs: number = 5000): Promise<boolean> {
-  const client = getUnleashClient();
+export function isUnleashClientReadyForBootstrap(client: Unleash): boolean {
+  if (client.isSynchronized()) {
+    return true;
+  }
+
+  if (client.getFeatureToggleDefinitions().length > 0) {
+    return true;
+  }
+
+  return Boolean((client as unknown as { ready?: boolean }).ready);
+}
+
+export async function waitForReady(
+  client: Unleash = getUnleashClient(),
+  timeoutMs: number = DEFAULT_UNLEASH_READY_TIMEOUT_MS
+): Promise<boolean> {
+  if (isUnleashClientReadyForBootstrap(client)) {
+    return true;
+  }
 
   return Promise.race([
     new Promise<boolean>((resolve) => {
@@ -107,7 +125,7 @@ export async function isFeatureEnabled(
   }
   try {
     const client = getUnleashClient();
-    const ready = await waitForReady();
+    const ready = await waitForReady(client);
 
     // If not ready, return default value
     if (!ready) {
@@ -146,7 +164,7 @@ export async function getFeatureFlags(
   }
   try {
     const client = getUnleashClient();
-    const ready = await waitForReady();
+    const ready = await waitForReady(client);
 
     // If not ready, return empty object
     if (!ready) {

@@ -74,12 +74,16 @@ export class SignInPage {
     await checkbox.click();
   }
 
+  async setRememberMe(enabled: boolean) {
+    const checkbox = this.page.locator('[data-testid="checkbox-remember-me"] input');
+    await checkbox.waitFor({ state: 'visible' });
+    await checkbox.setChecked(enabled);
+  }
+
   async signIn(email: string, password: string, rememberMe = false) {
     await this.fillEmail(email);
     await this.fillPassword(password);
-    if (rememberMe) {
-      await this.toggleRememberMe();
-    }
+    await this.setRememberMe(rememberMe);
     await this.clickSignIn();
   }
 
@@ -174,4 +178,3 @@ export async function signOut(page: Page) {
     }
   });
 }
-
