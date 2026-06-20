@@ -1,3 +1,13 @@
+## 0.7.19 (2026-06-20)
+
+### 🚀 Features
+
+- **transactions:** enhance category handling for bill payments ([c13afd16](https://github.com/invistus/invistus/commit/c13afd16))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.18 (2026-06-20)
 
 This was a version bump only for neotool-web to align it with other projects, there were no code changes.
