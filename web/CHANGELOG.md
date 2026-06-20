@@ -1,3 +1,13 @@
+## 0.7.17 (2026-06-20)
+
+### 💅 Refactors
+
+- **auth:** streamline sign-in process and enhance session management ([79dc106c](https://github.com/invistus/invistus/commit/79dc106c))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.16 (2026-06-19)
 
 This was a version bump only for neotool-web to align it with other projects, there were no code changes.
