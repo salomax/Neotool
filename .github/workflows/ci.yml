@@ -34,21 +34,21 @@ jobs:
       python-matrix: ${{ steps.affected.outputs.python_matrix }}
       has-python: ${{ steps.affected.outputs.has_python }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '20'
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
+          cache: 'npm'
 
       - name: Install Nx dependencies
         run: npm ci
+
+      - name: Strip Gradle plugin for faster graph
+        run: |
+          jq 'if .plugins then .plugins = [.plugins[] | select(.plugin != "@nx/gradle")] else . end' nx.json > nx.tmp && mv nx.tmp nx.json
 
       - name: Determine affected projects
         id: affected
@@ -163,9 +163,9 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.detect.outputs.kotlin-matrix) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -181,7 +181,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-results-${{ matrix.service }}
           path: service/kotlin/${{ matrix.service }}/build/reports/tests/
@@ -195,13 +195,13 @@ jobs:
   #     run:
   #       working-directory: web
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@v5
   #
   #     - uses: pnpm/action-setup@v3
   #       with:
   #         version: 10.16.0
   #
-  #     - uses: actions/setup-node@v4
+  #     - uses: actions/setup-node@v5
   #       with:
   #         node-version: '20'
   #         cache: 'pnpm'
@@ -228,9 +228,9 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.detect.outputs.golang-matrix) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
           cache-dependency-path: ${{ matrix.path }}/go.sum
@@ -245,7 +245,7 @@ jobs:
 
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-${{ matrix.service }}
           path: ${{ matrix.path }}/coverage.out
@@ -260,10 +260,10 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.detect.outputs.python-matrix) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -280,7 +280,7 @@ jobs:
   security-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
