@@ -192,6 +192,26 @@
 
 ---
 
+## 🔀 Cross-cutting
+
+### P1
+
+#### [CX-1] OAuth post-login next redirect stability (Web)
+- **Status:** `todo`
+- **Agent:** Codex
+- **Esforço:** L
+- **Issue:** `#285`
+- **Branch:** `TBD`
+- **Contexto:** Corrigir a instabilidade intermitente após login em que o redirect via `/signin?next=...` pode demorar, falhar em renderizar o conteúdo protegido, ou deixar apenas header + siderail visíveis.
+- **Escopo sugerido:**
+  - Eliminar a espera indevida do bootstrap de feature flags no root layout
+  - Corrigir a corrida entre redirect pós-login e sincronização da sessão visível ao servidor
+  - Garantir estado de loading determinístico em vez de blank shell
+  - Adicionar cobertura automatizada para o fluxo de auth/redirect/bootstrap
+- **Dependências:** nenhuma
+
+---
+
 ## P3 — Infra / Tooling
 
 #### [IN-1] ~~TRAE context setup~~ — CONCLUÍDO 2026-04-02
