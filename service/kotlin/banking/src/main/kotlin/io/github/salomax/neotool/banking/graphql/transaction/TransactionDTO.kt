@@ -30,6 +30,7 @@ data class TransactionRuleDTO(
     val category: TransactionCategoryDTO?,
     val merchantId: UUID?,
     val merchant: MerchantDTO?,
+    val typeOverride: CategoryApplicableTo?,
     val descriptionOverride: String?,
     val tagsOverride: List<String>?,
     val pattern: String,

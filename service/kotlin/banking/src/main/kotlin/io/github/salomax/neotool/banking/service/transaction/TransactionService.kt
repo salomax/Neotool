@@ -522,6 +522,7 @@ open class TransactionService(
                 else -> null
             }
 
+        val finalType = TransactionTypeOverrideSupport.apply(command.type, ruleSuggestion?.typeOverride)
         val finalMerchantId = ruleSuggestion?.merchantId ?: command.merchantId
         val finalDescription = command.description
         val finalTags =
@@ -542,6 +543,7 @@ open class TransactionService(
                             command.categoryId == null &&
                                 ruleSuggestion.categoryId != null,
                         appliedMerchant = ruleSuggestion.merchantId != null,
+                        appliedType = finalType != command.type,
                         appliedDescription = false,
                         appliedTags = normalizedTags.isEmpty() && !ruleSuggestion.tagsOverride.isNullOrEmpty(),
                     )
@@ -557,7 +559,7 @@ open class TransactionService(
                 belongsToUserId = belongsToUserId,
                 belongsToName = belongsToName,
                 creditDebitType = command.creditDebitType,
-                type = command.type,
+                type = finalType,
                 status = command.status,
                 source = command.transactionSource,
                 amount = command.amount,
@@ -752,6 +754,7 @@ open class TransactionService(
         var enriched = updated
         var appliedCategoryFromSuggestion = false
         var appliedMerchantFromSuggestion = false
+        var appliedTypeFromSuggestion = false
         var appliedDescriptionFromSuggestion = false
         var appliedTagsFromSuggestion = false
         var appendedRuleHistory = existing.appliedRuleHistory
@@ -762,10 +765,11 @@ open class TransactionService(
         if (existing.type != TransactionType.BALANCE_ADJUSTMENT) {
             val canApplyCategory = !command.categoryIdProvided && !forceClearCategoryForBillPayment
             val canApplyMerchant = !command.merchantIdProvided
+            val canApplyType = command.type == null && !forcedBillPayment
             val canApplyDescription = command.description == null
             val canApplyTags = !command.tagsProvided
 
-            if (canApplyCategory || canApplyMerchant || canApplyDescription || canApplyTags) {
+            if (canApplyCategory || canApplyMerchant || canApplyType || canApplyDescription || canApplyTags) {
                 val descriptionForRules = command.description ?: existing.baseDescription()
                 val suggestion =
                     try {
@@ -799,6 +803,13 @@ open class TransactionService(
                         enriched = enriched.copy(merchantId = suggestion.merchantId)
                         appliedMerchantFromSuggestion = true
                     }
+                    if (canApplyType && suggestion.typeOverride != null) {
+                        val overriddenType = TransactionTypeOverrideSupport.apply(enriched.type, suggestion.typeOverride)
+                        if (overriddenType != enriched.type) {
+                            enriched = enriched.copy(type = overriddenType)
+                            appliedTypeFromSuggestion = true
+                        }
+                    }
                     if (canApplyDescription && suggestion.descriptionOverride != null) {
                         enriched = enriched.copy(description = suggestion.descriptionOverride)
                         appliedDescriptionFromSuggestion = true
@@ -814,6 +825,7 @@ open class TransactionService(
                             rules = loadRulesForAudit(accountId, suggestion.appliedRuleIds),
                             appliedCategory = appliedCategoryFromSuggestion,
                             appliedMerchant = appliedMerchantFromSuggestion,
+                            appliedType = appliedTypeFromSuggestion,
                             appliedDescription = appliedDescriptionFromSuggestion,
                             appliedTags = appliedTagsFromSuggestion,
                         )

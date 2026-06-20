@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { Table, TableBody } from '@mui/material';
 import { CategoryApplicableTo, PatternType } from '@/lib/graphql/types/__generated__/graphql';
 import { TransactionRuleRow } from '../TransactionRuleRow';
@@ -33,6 +32,7 @@ const baseRule: TransactionRule = {
   pattern: 'netflix',
   patternType: PatternType.Contains,
   applicableTo: CategoryApplicableTo.Expense,
+  typeOverride: null,
   priority: 10,
   isSystem: true,
   isDisabledForAccount: true,
@@ -71,7 +71,6 @@ describe('TransactionRuleRow', () => {
   });
 
   it('calls toggle callback from actions menu', async () => {
-    const user = userEvent.setup();
     const onToggle = vi.fn();
 
     render(

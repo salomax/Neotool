@@ -29,6 +29,14 @@ export async function getBootstrapFeatureFlagsData(): Promise<FeatureFlagsBootst
     const sessionContext = await getAuthSessionContextFromCookies();
     const context = buildUnleashEvaluationContext(sessionContext);
 
+    if (sessionContext) {
+      return {
+        flags: {},
+        context,
+        sessionContext,
+      };
+    }
+
     const flags = await getFeatureFlags(context);
     return { flags, context, sessionContext };
   } catch (error) {

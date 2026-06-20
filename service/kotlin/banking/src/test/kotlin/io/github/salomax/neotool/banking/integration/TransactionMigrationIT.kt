@@ -160,6 +160,30 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
         }
 
         @Test
+        fun `transaction_rules accepts type_override as the only target`() {
+            val container = getPgContainer()
+            val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+            DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+                conn.createStatement().executeUpdate(
+                    """
+                    INSERT INTO banking.transaction_rules (id, account_id, category_id, merchant_id, type_override, pattern, pattern_type, applicable_to, priority, is_system, is_implicit, description_override, tags_override_json, match_count, created_at, updated_at)
+                    VALUES (uuidv7(), '$accountId', NULL, NULL, 'TRANSFER', 'pix joao', 'CONTAINS', 'EXPENSE', 10, false, false, NULL, NULL, 0, NOW(), NOW())
+                    """.trimIndent(),
+                )
+                conn.createStatement().executeQuery(
+                    """
+                    SELECT type_override
+                    FROM banking.transaction_rules
+                    WHERE account_id = '$accountId' AND pattern = 'pix joao'
+                    """.trimIndent(),
+                ).use { rs ->
+                    assertThat(rs.next()).isTrue()
+                    assertThat(rs.getString("type_override")).isEqualTo("TRANSFER")
+                }
+            }
+        }
+
+        @Test
         fun `two NULLs for provider_transaction_id on same account allowed no conflict`() {
             val container = getPgContainer()
             val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)

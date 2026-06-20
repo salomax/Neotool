@@ -1,8 +1,8 @@
 import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { render, renderHook, screen } from "@testing-library/react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useRequireAuth } from "../useRequireAuth";
+import { RequireAuthGuard, useRequireAuth } from "../useRequireAuth";
 
 type SearchParamsReturn = ReturnType<typeof useSearchParams>;
 const makeSearchParams = (value = "") =>
@@ -37,6 +37,8 @@ describe.sequential("useRequireAuth", () => {
     const { result } = renderHook(() => useRequireAuth());
 
     expect(result.current.allowed).toBe(true);
+    expect(result.current.isPending).toBe(false);
+    expect(result.current.isRedirecting).toBe(false);
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
@@ -46,6 +48,8 @@ describe.sequential("useRequireAuth", () => {
     const { result } = renderHook(() => useRequireAuth());
 
     expect(result.current.allowed).toBe(false);
+    expect(result.current.isPending).toBe(false);
+    expect(result.current.isRedirecting).toBe(true);
     expect(mockReplace).toHaveBeenCalledWith(
       "/signin?next=" + encodeURIComponent("/settings")
     );
@@ -72,10 +76,12 @@ describe.sequential("useRequireAuth", () => {
     const { result } = renderHook(() => useRequireAuth());
 
     expect(result.current.allowed).toBe(true);
+    expect(result.current.isPending).toBe(false);
+    expect(result.current.isRedirecting).toBe(false);
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it("returns allowed true on protected route while loading", () => {
+  it("returns pending state on protected route while loading", () => {
     vi.mocked(usePathname).mockReturnValue("/settings");
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
@@ -84,7 +90,56 @@ describe.sequential("useRequireAuth", () => {
 
     const { result } = renderHook(() => useRequireAuth());
 
-    expect(result.current.allowed).toBe(true);
+    expect(result.current.allowed).toBe(false);
+    expect(result.current.isPending).toBe(true);
+    expect(result.current.isRedirecting).toBe(false);
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("renders loading state while auth is pending on a protected route", () => {
+    vi.mocked(usePathname).mockReturnValue("/settings");
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      isLoading: true,
+    });
+
+    render(
+      <RequireAuthGuard>
+        <div>protected content</div>
+      </RequireAuthGuard>
+    );
+
+    expect(screen.getByTestId("auth-guard-loading")).toBeInTheDocument();
+    expect(screen.queryByText("protected content")).not.toBeInTheDocument();
+  });
+
+  it("renders loading state while redirecting from a protected route", () => {
+    vi.mocked(usePathname).mockReturnValue("/settings");
+
+    render(
+      <RequireAuthGuard>
+        <div>protected content</div>
+      </RequireAuthGuard>
+    );
+
+    expect(screen.getByTestId("auth-guard-loading")).toBeInTheDocument();
+    expect(screen.queryByText("protected content")).not.toBeInTheDocument();
+  });
+
+  it("renders children when authenticated on a protected route", () => {
+    vi.mocked(usePathname).mockReturnValue("/settings");
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      isLoading: false,
+    });
+
+    render(
+      <RequireAuthGuard>
+        <div>protected content</div>
+      </RequireAuthGuard>
+    );
+
+    expect(screen.getByText("protected content")).toBeInTheDocument();
+    expect(screen.queryByTestId("auth-guard-loading")).not.toBeInTheDocument();
   });
 });

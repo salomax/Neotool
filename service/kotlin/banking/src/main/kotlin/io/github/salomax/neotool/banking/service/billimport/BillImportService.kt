@@ -33,6 +33,7 @@ import io.github.salomax.neotool.banking.service.preferences.UserRuleCreationMod
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.banking.service.transaction.TransactionTypeOverrideSupport
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.DomainException
 import io.github.salomax.neotool.common.error.ValidationException
@@ -491,7 +492,11 @@ open class BillImportService(
                                         createdByUserId = userId,
                                         belongsToUserId = userId,
                                         creditDebitType = tx.creditDebitType,
-                                        type = TransactionType.CARD,
+                                        type =
+                                            TransactionTypeOverrideSupport.apply(
+                                                TransactionType.CARD,
+                                                suggestion?.typeOverride,
+                                            ),
                                         status = TransactionStatus.POSTED,
                                         source = TransactionSource.PDF,
                                         amount = tx.amount,

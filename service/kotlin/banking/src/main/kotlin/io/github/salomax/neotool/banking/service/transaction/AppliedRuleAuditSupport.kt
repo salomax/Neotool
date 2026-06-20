@@ -12,11 +12,12 @@ internal object AppliedRuleAuditSupport {
         rules: List<TransactionRule>,
         appliedCategory: Boolean,
         appliedMerchant: Boolean,
+        appliedType: Boolean,
         appliedDescription: Boolean,
         appliedTags: Boolean,
     ): List<UUID> {
         if (suggestion == null || suggestion.appliedRuleIds.isEmpty()) return emptyList()
-        if (!appliedCategory && !appliedMerchant && !appliedDescription && !appliedTags) return emptyList()
+        if (!appliedCategory && !appliedMerchant && !appliedType && !appliedDescription && !appliedTags) return emptyList()
 
         val rulesById = rules.filter { it.id != null }.associateBy { requireNotNull(it.id) }
         if (rulesById.isEmpty()) {
@@ -26,6 +27,7 @@ internal object AppliedRuleAuditSupport {
         val appliedIds = linkedSetOf<UUID>()
         var categoryResolved = !appliedCategory
         var merchantResolved = !appliedMerchant
+        var typeResolved = !appliedType
         var descriptionResolved = !appliedDescription
         var tagsResolved = !appliedTags
 
@@ -40,6 +42,10 @@ internal object AppliedRuleAuditSupport {
                 appliedIds += ruleId
                 merchantResolved = true
             }
+            if (!typeResolved && rule.typeOverride != null) {
+                appliedIds += ruleId
+                typeResolved = true
+            }
             if (!descriptionResolved && rule.descriptionOverride != null) {
                 appliedIds += ruleId
                 descriptionResolved = true
@@ -49,7 +55,7 @@ internal object AppliedRuleAuditSupport {
                 tagsResolved = true
             }
 
-            if (categoryResolved && merchantResolved && descriptionResolved && tagsResolved) {
+            if (categoryResolved && merchantResolved && typeResolved && descriptionResolved && tagsResolved) {
                 break
             }
         }

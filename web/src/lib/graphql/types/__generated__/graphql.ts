@@ -1050,6 +1050,7 @@ export type CreateTransactionRuleInput = {
   patternType: PatternType;
   priority?: InputMaybe<Scalars['Int']['input']>;
   tagsOverride?: InputMaybe<Array<Scalars['String']['input']>>;
+  typeOverride?: InputMaybe<CategoryApplicableTo>;
 };
 
 /**
@@ -4791,6 +4792,7 @@ export type TransactionRule = {
   position: Scalars['Int']['output'];
   priority: Scalars['Int']['output'];
   tagsOverride: Maybe<Array<Scalars['String']['output']>>;
+  typeOverride: Maybe<CategoryApplicableTo>;
 };
 
 /** Relay connection for paginated transaction rules. */
@@ -5084,6 +5086,7 @@ export type UpdateTransactionRuleInput = {
   patternType?: InputMaybe<PatternType>;
   priority?: InputMaybe<Scalars['Int']['input']>;
   tagsOverride?: InputMaybe<Array<Scalars['String']['input']>>;
+  typeOverride?: InputMaybe<CategoryApplicableTo>;
 };
 
 export type UpdateUserAvatarInput = {

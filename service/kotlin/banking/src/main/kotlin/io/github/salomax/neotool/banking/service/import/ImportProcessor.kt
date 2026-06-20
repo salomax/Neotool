@@ -18,6 +18,7 @@ import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintS
 import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
 import io.github.salomax.neotool.banking.service.transaction.AppliedRuleAuditSupport
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.banking.service.transaction.TransactionTypeOverrideSupport
 import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import jakarta.inject.Singleton
 import org.slf4j.LoggerFactory
@@ -209,13 +210,14 @@ open class ImportProcessor(
                         )
                         null
                     }
+                val finalType = TransactionTypeOverrideSupport.apply(type, categorySuggestion?.typeOverride)
                 val transaction =
                     Transaction(
                         financialAccountId = financialAccountId,
                         accountId = accountId,
                         createdByUserId = createdByUserId,
                         creditDebitType = parsed.creditDebitType,
-                        type = type,
+                        type = finalType,
                         status = TransactionStatus.POSTED,
                         source = transactionSource,
                         amount = parsed.amount,
@@ -244,6 +246,7 @@ open class ImportProcessor(
                                             rules = categorizationRules,
                                             appliedCategory = suggestion.categoryId != null,
                                             appliedMerchant = suggestion.merchantId != null,
+                                            appliedType = finalType != type,
                                             appliedDescription = suggestion.descriptionOverride != null,
                                             appliedTags = !suggestion.tagsOverride.isNullOrEmpty(),
                                         )

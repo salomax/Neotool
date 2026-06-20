@@ -214,6 +214,41 @@ class TransactionServiceTest {
         }
 
         @Test
+        fun `create applies type override from rule suggestion`() {
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
+            val suggestedRuleId = UUID.randomUUID()
+            whenever(transactionRuleEngine.suggest(accountId, "PIX JOAO", CreditDebitType.DEBIT, true)).thenReturn(
+                RuleSuggestion(
+                    ruleId = suggestedRuleId,
+                    categoryId = null,
+                    merchantId = null,
+                    typeOverride = CategoryApplicableTo.TRANSFER,
+                    appliedRuleIds = listOf(suggestedRuleId),
+                ),
+            )
+            val saveCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.save(saveCaptor.capture())).thenAnswer {
+                saveCaptor.firstValue.copy(id = UUID.randomUUID())
+            }
+
+            service.create(
+                CreateTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("50.00"),
+                    date = today,
+                    description = "PIX JOAO",
+                ),
+                accountId,
+                userId,
+            )
+
+            assertThat(saveCaptor.firstValue.type).isEqualTo(TransactionType.TRANSFER)
+            assertThat(saveCaptor.firstValue.appliedRuleIds).containsExactly(suggestedRuleId)
+        }
+
+        @Test
         fun `creates BALANCE_ADJUSTMENT with CREDIT direction and succeeds`() {
             whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
             val command =
@@ -540,6 +575,45 @@ class TransactionServiceTest {
     @Nested
     @DisplayName("update")
     inner class UpdateTests {
+        @Test
+        fun `update reapplies rules and overrides type when user did not set one explicitly`() {
+            val txId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    status = TransactionStatus.POSTED,
+                    source = TransactionSource.OFX,
+                    amount = BigDecimal("20.00"),
+                    currencyCode = "BRL",
+                    date = today,
+                    description = "PIX JOAO",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val ruleId = UUID.randomUUID()
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(transactionRuleEngine.suggest(accountId, "PIX JOAO", CreditDebitType.DEBIT, false)).thenReturn(
+                RuleSuggestion(
+                    ruleId = ruleId,
+                    categoryId = null,
+                    merchantId = null,
+                    typeOverride = CategoryApplicableTo.TRANSFER,
+                    appliedRuleIds = listOf(ruleId),
+                ),
+            )
+            whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            val updated = service.update(txId, UpdateTransactionCommand(), accountId, userId)
+
+            assertThat(updated.type).isEqualTo(TransactionType.TRANSFER)
+            assertThat(updated.appliedRuleIds).contains(ruleId)
+        }
+
         @Test
         fun `updates allowed fields and returns updated domain`() {
             val txId = UUID.randomUUID()

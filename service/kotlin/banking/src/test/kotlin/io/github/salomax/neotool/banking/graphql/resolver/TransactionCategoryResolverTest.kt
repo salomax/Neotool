@@ -14,6 +14,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
@@ -59,7 +60,7 @@ class TransactionCategoryResolverTest {
     fun `transactionRules forwards isSystem filter and returns 1-based position`() {
         val rules =
             listOf(
-                rule(pattern = "ifood"),
+                rule(pattern = "ifood", typeOverride = CategoryApplicableTo.TRANSFER),
                 rule(pattern = "uber"),
             )
         whenever(ruleService.listRules(accountId, true)).thenReturn(rules)
@@ -76,8 +77,32 @@ class TransactionCategoryResolverTest {
         verify(ruleService).listRules(accountId, true)
         assertThat(result.edges).hasSize(2)
         assertThat(result.edges[0].node.position).isEqualTo(1)
+        assertThat(result.edges[0].node.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)
         assertThat(result.edges[1].node.position).isEqualTo(2)
         assertThat(result.edges.map { it.node.pattern }).containsExactly("ifood", "uber")
+    }
+
+    @Test
+    fun `createTransactionRule maps typeOverride from GraphQL input`() {
+        val created = rule(pattern = "pix joao", categoryId = null, typeOverride = CategoryApplicableTo.TRANSFER)
+        whenever(ruleService.create(org.mockito.kotlin.any(), eq(accountId))).thenReturn(created)
+
+        val result =
+            resolver.createTransactionRule(
+                input =
+                    mapOf(
+                        "pattern" to "pix joao",
+                        "patternType" to "CONTAINS",
+                        "applicableTo" to "EXPENSE",
+                        "typeOverride" to "TRANSFER",
+                    ),
+                principal = principal,
+            )
+
+        val captor = argumentCaptor<io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput>()
+        verify(ruleService).create(captor.capture(), eq(accountId))
+        assertThat(captor.firstValue.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)
+        assertThat(result.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)
     }
 
     @Test
@@ -165,11 +190,13 @@ class TransactionCategoryResolverTest {
         id: UUID = UUID.randomUUID(),
         pattern: String = "rule",
         categoryId: UUID? = UUID.randomUUID(),
+        typeOverride: CategoryApplicableTo? = null,
     ) = TransactionRule(
         id = id,
         accountId = accountId,
         categoryId = categoryId,
         merchantId = null,
+        typeOverride = typeOverride,
         descriptionOverride = null,
         tagsOverride = null,
         pattern = pattern,

@@ -1298,6 +1298,7 @@ export const TRANSACTION_RULE_FIELDS = gql`
     pattern
     patternType
     applicableTo
+    typeOverride
     priority
     isSystem
     isDisabledForAccount

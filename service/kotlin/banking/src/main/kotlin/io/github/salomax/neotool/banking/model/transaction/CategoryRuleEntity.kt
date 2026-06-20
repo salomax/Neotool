@@ -30,6 +30,9 @@ open class CategoryRuleEntity(
     open var categoryId: UUID? = null,
     @Column(name = "merchant_id", nullable = true)
     open var merchantId: UUID? = null,
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type_override", length = 10)
+    open var typeOverride: CategoryApplicableTo? = null,
     @Column(name = "description_override")
     open var descriptionOverride: String? = null,
     @Column(name = "tags_override_json")

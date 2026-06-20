@@ -1,3 +1,7 @@
+## 0.1.3 (2026-06-19)
+
+This was a version bump only for b3-cotahist-job to align it with other projects, there were no code changes.
+
 ## 0.1.2 (2026-06-02)
 
 This was a version bump only for b3-cotahist-job to align it with other projects, there were no code changes.
