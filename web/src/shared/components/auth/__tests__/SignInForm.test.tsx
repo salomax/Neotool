@@ -347,6 +347,47 @@ describe.sequential('SignInForm', () => {
       }, { timeout: 2000 });
     });
 
+    it('should pass the unchecked remember-me value to signInWithOAuth', async () => {
+      const user = userEvent.setup();
+      const idToken = 'test-google-id-token';
+      mockSignInOAuth.mockResolvedValue(idToken);
+
+      const { useOAuth } = await import('@/shared/hooks/auth');
+      let oauthOnSuccess: ((idToken: string) => void) | undefined;
+
+      vi.mocked(useOAuth).mockImplementation((options) => {
+        oauthOnSuccess = options?.onSuccess;
+        return {
+          signIn: mockSignInOAuth,
+          isLoading: false,
+          error: null,
+        };
+      });
+
+      renderSignInForm();
+
+      const rememberMeCheckbox = screen.getByRole('checkbox', { name: /keep me signed in|manter-me conectado/i });
+      await user.click(rememberMeCheckbox);
+      expect(rememberMeCheckbox).not.toBeChecked();
+
+      const googleButton = screen.getByTestId('button-google-signin');
+      await user.click(googleButton);
+
+      await waitFor(() => {
+        expect(mockSignInOAuth).toHaveBeenCalledWith('google');
+      });
+
+      if (oauthOnSuccess) {
+        await act(async () => {
+          oauthOnSuccess!(idToken);
+        });
+      }
+
+      await waitFor(() => {
+        expect(mockSignInWithOAuth).toHaveBeenCalledWith('google', idToken, false);
+      }, { timeout: 2000 });
+    });
+
     it('should show loading state during OAuth sign-in', async () => {
       const user = userEvent.setup();
       let resolveOAuth: (value: string) => void;

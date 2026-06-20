@@ -1,6 +1,129 @@
-import { test, expect } from '@playwright/test';
-import { SignInPage, signInAsValidUser, isAuthenticated, signOut } from './helpers/auth';
+import { test, expect, type Page } from '@playwright/test';
+import { SignInPage, isAuthenticated, signOut } from './helpers/auth';
 import { TEST_USERS } from './fixtures/users';
+
+const MOCK_SETTINGS_USER = {
+  id: 'oauth-user-1',
+  email: 'oauth-user@example.com',
+  displayName: 'OAuth User',
+  roles: [{ id: 'role-1', name: 'Admin' }],
+  permissions: [{ id: 'perm-1', name: 'security:user:view' }],
+};
+
+const MOCK_OAUTH_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJjdXJyZW50X2FjY291bnQiOiJhY2NvdW50LTEifQ.signature';
+
+async function mockOAuthLoginFlow(page: Page) {
+  await page.addInitScript(() => {
+    let callback: ((response: { credential: string }) => void) | null = null;
+
+    window.google = {
+      accounts: {
+        id: {
+          initialize: (config) => {
+            callback = config.callback;
+          },
+          prompt: () => {},
+          renderButton: (element) => {
+            const button = document.createElement('div');
+            button.setAttribute('role', 'button');
+            button.addEventListener('click', () => {
+              callback?.({ credential: 'mock-google-id-token' });
+            });
+            element.appendChild(button);
+          },
+        },
+      },
+    };
+  });
+
+  await page.route('**/graphql', async (route) => {
+    const request = route.request();
+    const payload = request.postDataJSON() as { query?: string } | null;
+    const query = payload?.query ?? '';
+
+    const fulfill = (data: Record<string, unknown>) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data }),
+      });
+
+    if (query.includes('mutation SignInWithOAuth')) {
+      return fulfill({
+        signInWithOAuth: {
+          token: MOCK_OAUTH_TOKEN,
+          refreshToken: 'mock-refresh-token',
+          user: MOCK_SETTINGS_USER,
+        },
+      });
+    }
+
+    if (query.includes('query CurrentUser')) {
+      return fulfill({
+        currentUser: {
+          id: MOCK_SETTINGS_USER.id,
+          email: MOCK_SETTINGS_USER.email,
+          displayName: MOCK_SETTINGS_USER.displayName,
+          avatarUrl: null,
+          avatarProvider: null,
+          roles: MOCK_SETTINGS_USER.roles,
+          permissions: MOCK_SETTINGS_USER.permissions,
+        },
+      });
+    }
+
+    if (query.includes('query UserPreferences')) {
+      return fulfill({
+        userPreferences: {
+          language: 'ENGLISH',
+          theme: 'SYSTEM',
+          blurBalances: false,
+          firstDayOfWeek: 1,
+          keepMeConnected: true,
+        },
+      });
+    }
+
+    if (query.includes('query BankingUserPreferences')) {
+      return fulfill({
+        bankingUserPreferences: {
+          ruleCreationMode: 'ALWAYS_PROMPT',
+        },
+      });
+    }
+
+    if (query.includes('query AccountPreferences')) {
+      return fulfill({
+        accountPreferences: {
+          defaultTransactionStatus: 'POSTED',
+        },
+      });
+    }
+
+    if (query.includes('query PendingActionsCount')) {
+      return fulfill({
+        pendingActions: [],
+      });
+    }
+
+    if (query.includes('query GetUsers')) {
+      return fulfill({
+        users: {
+          edges: [],
+          pageInfo: {
+            hasNextPage: false,
+            hasPreviousPage: false,
+            startCursor: null,
+            endCursor: null,
+          },
+          totalCount: 0,
+        },
+      });
+    }
+
+    return fulfill({});
+  });
+}
 
 test.describe('User Sign In', () => {
   test.beforeEach(async ({ page }) => {
@@ -9,6 +132,29 @@ test.describe('User Sign In', () => {
   });
 
   test.describe('Email + password sign in', () => {
+    test('Protected route redirect completes after password sign in', async ({ page }) => {
+      await page.goto('/settings', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL(/\/signin\?next=%2Fsettings/, { timeout: 10000 });
+
+      const signInPage = new SignInPage(page);
+      await signInPage.fillEmail(TEST_USERS.valid.email);
+      await signInPage.fillPassword(TEST_USERS.valid.password);
+      await signInPage.clickSignIn();
+
+      try {
+        await expect(page).toHaveURL('/settings', { timeout: 15000 });
+        await expect(page.locator('[data-testid="settings-page"]')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('[data-testid="auth-guard-loading"]')).toHaveCount(0);
+      } catch (error) {
+        const signInError = await page.locator('[data-testid="signin-error"]').isVisible().catch(() => false);
+        if (signInError) {
+          console.log('Protected redirect sign in failed - test user may not exist in database');
+          return;
+        }
+        throw error;
+      }
+    });
+
     test('Successful sign in', async ({ page }) => {
       // Given I have a valid account
       // (Test user should be created in test setup)
@@ -103,6 +249,20 @@ test.describe('User Sign In', () => {
       // For now, we just verify the button exists and is visible
       // TODO: Implement OAuth flow testing when Google OAuth is implemented
     });
+
+    test('Protected route redirect completes after mocked Google sign in', async ({ page }) => {
+      await mockOAuthLoginFlow(page);
+
+      await page.goto('/settings', { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL(/\/signin\?next=%2Fsettings/, { timeout: 10000 });
+
+      const signInPage = new SignInPage(page);
+      await signInPage.clickGoogleSignIn();
+
+      await expect(page).toHaveURL('/settings', { timeout: 15000 });
+      await expect(page.locator('[data-testid="settings-page"]')).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('[data-testid="auth-guard-loading"]')).toHaveCount(0);
+    });
   });
 
   test.describe('Session persistence', () => {
@@ -113,7 +273,7 @@ test.describe('User Sign In', () => {
       // Given the "Keep me signed in" option is enabled
       await signInPage.fillEmail(TEST_USERS.valid.email);
       await signInPage.fillPassword(TEST_USERS.valid.password);
-      await signInPage.toggleRememberMe();
+      await signInPage.setRememberMe(true);
       
       // When I sign in successfully
       await signInPage.clickSignIn();
@@ -164,7 +324,7 @@ test.describe('User Sign In', () => {
       // Sign in without remember me
       await signInPage.fillEmail(TEST_USERS.valid.email);
       await signInPage.fillPassword(TEST_USERS.valid.password);
-      // Don't toggle remember me
+      await signInPage.setRememberMe(false);
       await signInPage.clickSignIn();
       
       // Wait for redirect or error

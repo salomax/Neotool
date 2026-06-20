@@ -100,6 +100,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     syncAuthHintCookie(!!token);
   }, [token, syncAuthHintCookie]);
 
+  const finalizeAuthenticatedSession = React.useCallback(
+    async ({
+      newToken,
+      refreshToken,
+      newUser,
+      persistent,
+    }: {
+      newToken: string;
+      refreshToken: string | null;
+      newUser: User;
+      persistent: boolean;
+    }) => {
+      setToken(newToken);
+      setUser(newUser);
+      syncAuthHintCookie(true);
+
+      const storage = persistent ? localStorage : sessionStorage;
+      storage.setItem(TOKEN_KEY, newToken);
+      storage.setItem(USER_KEY, JSON.stringify(newUser));
+
+      if (refreshToken) {
+        storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      }
+
+      const syncResult = await syncAuthSessionCookie({
+        user: newUser,
+        rememberMe: persistent,
+      });
+
+      if (!syncResult.ok) {
+        logger.debug?.("[Auth] Proceeding with post-login navigation after degraded auth session sync", {
+          status: syncResult.status,
+          ...(syncResult.status === "http_error" ? { statusCode: syncResult.statusCode } : {}),
+        });
+      }
+
+      identifyUser(newUser.id);
+    },
+    [syncAuthHintCookie]
+  );
+
   const routeAfterAuthentication = React.useCallback(
     (nextUser: User | null, fallbackPath = "/", explicitRedirect?: string | null) => {
       if (nextUser?.emailVerified === false && nextUser.email) {
@@ -160,27 +201,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (result.data && typeof result.data === 'object' && result.data !== null && 'signIn' in result.data && result.data.signIn) {
         const { token: newToken, refreshToken, user: newUser } = result.data.signIn as { token: string; refreshToken: string | null; user: User };
         const shouldPersistSession = !!refreshToken;
-        
-        setToken(newToken);
-        setUser(newUser);
-        syncAuthHintCookie(true);
 
-        // Store in localStorage when backend issued refreshToken (persistent session),
-        // otherwise keep session-scoped storage.
-        const storage = shouldPersistSession ? localStorage : sessionStorage;
-        storage.setItem(TOKEN_KEY, newToken);
-        storage.setItem(USER_KEY, JSON.stringify(newUser));
-
-        if (refreshToken) {
-          storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-        }
-
-        void syncAuthSessionCookie({
-          user: newUser,
-          rememberMe: shouldPersistSession,
+        await finalizeAuthenticatedSession({
+          newToken,
+          refreshToken,
+          newUser,
+          persistent: shouldPersistSession,
         });
-
-        identifyUser(newUser.id);
         routeAfterAuthentication(newUser);
       }
     } catch (error: any) {
@@ -189,7 +216,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logger.error("Sign in error:", error);
       throw error;
     }
-  }, [routeAfterAuthentication, syncAuthHintCookie]);
+  }, [finalizeAuthenticatedSession, routeAfterAuthentication]);
 
   const signInWithOAuth = React.useCallback(async (provider: string, idToken: string, rememberMe?: boolean | null) => {
     try {
@@ -215,27 +242,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (result.data && typeof result.data === 'object' && result.data !== null && 'signInWithOAuth' in result.data && result.data.signInWithOAuth) {
         const { token: newToken, refreshToken, user: newUser } = result.data.signInWithOAuth as { token: string; refreshToken: string | null; user: User };
         const shouldPersistSession = !!refreshToken;
-        
-        setToken(newToken);
-        setUser(newUser);
-        syncAuthHintCookie(true);
 
-        // Store in localStorage when backend issued refreshToken (persistent session),
-        // otherwise keep session-scoped storage.
-        const storage = shouldPersistSession ? localStorage : sessionStorage;
-        storage.setItem(TOKEN_KEY, newToken);
-        storage.setItem(USER_KEY, JSON.stringify(newUser));
-
-        if (refreshToken) {
-          storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-        }
-
-        void syncAuthSessionCookie({
-          user: newUser,
-          rememberMe: shouldPersistSession,
+        await finalizeAuthenticatedSession({
+          newToken,
+          refreshToken,
+          newUser,
+          persistent: shouldPersistSession,
         });
-
-        identifyUser(newUser.id);
         routeAfterAuthentication(newUser);
       }
     } catch (error: any) {
@@ -244,7 +257,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logger.error("OAuth sign in error:", error);
       throw error;
     }
-  }, [routeAfterAuthentication, syncAuthHintCookie]);
+  }, [finalizeAuthenticatedSession, routeAfterAuthentication]);
 
   const signUp = React.useCallback(async (name: string, email: string, password: string) => {
     try {
@@ -270,21 +283,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const payload = result.data.signUp as { token: string; refreshToken: string | null; user: User; requiresVerification?: boolean };
         const { token: newToken, refreshToken, user: newUser, requiresVerification } = payload;
 
-        setToken(newToken);
-        setUser(newUser);
-        syncAuthHintCookie(true);
-
-        // Store in localStorage (signup users are automatically signed in)
-        localStorage.setItem(TOKEN_KEY, newToken);
-        localStorage.setItem(USER_KEY, JSON.stringify(newUser));
-
-        if (refreshToken) {
-          localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-        }
-
-        void syncAuthSessionCookie({
-          user: newUser,
-          rememberMe: true,
+        await finalizeAuthenticatedSession({
+          newToken,
+          refreshToken,
+          newUser,
+          persistent: true,
         });
 
         if (requiresVerification && newUser?.email) {
@@ -300,7 +303,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logger.error("Sign up error:", error);
       throw error;
     }
-  }, [routeAfterAuthentication, router, syncAuthHintCookie]);
+  }, [finalizeAuthenticatedSession, routeAfterAuthentication, router]);
 
   const signOut = React.useCallback(() => {
     setUser(null);
