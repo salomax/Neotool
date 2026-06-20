@@ -1398,7 +1398,10 @@
     "description": "Descrição",
     "date": "Data",
     "account": "Conta",
-    "category": "Categoria",
+    "category": {
+      "label": "Categoria",
+      "disabledBillPayment": "Categoria não se aplica a pagamentos de fatura"
+    },
     "value": "Valor",
     "tags": "Tags",
     "merchant": "Estabelecimento",
@@ -1985,7 +1988,10 @@
         "viewAppliedRules": "Ver regras aplicadas",
         "createRuleFromDescription": "Criar regra a partir da descrição",
         "remove": "Remover",
-        "createRecurringPayment": "Criar movimentação recorrente"
+        "createRecurringPayment": "Criar movimentação recorrente",
+        "unmarkBillPayment": "Remover pagamento de fatura",
+        "unmarkBillPaymentSuccess": "Marca de pagamento de fatura removida",
+        "unmarkBillPaymentError": "Erro ao remover pagamento de fatura"
       },
       "appliedRules": {
         "title": "Regras aplicadas",

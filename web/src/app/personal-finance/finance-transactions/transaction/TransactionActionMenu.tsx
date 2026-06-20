@@ -12,6 +12,7 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
 import CreditCardOffIcon from '@mui/icons-material/CreditCardOff';
 import RepeatIcon from '@mui/icons-material/Repeat';
 import { memo } from 'react';
@@ -36,6 +37,7 @@ interface TransactionActionMenuProps {
   onCreateRecurringPayment: (tx: Transaction) => void;
   onMarkAsTransfer: () => void;
   onMarkAsBillPayment: () => void;
+  onUnmarkBillPayment: () => void;
   onDelete: (tx: Transaction) => void;
 }
 
@@ -53,6 +55,7 @@ export const TransactionActionMenu = memo(function TransactionActionMenu({
   onCreateRecurringPayment,
   onMarkAsTransfer,
   onMarkAsBillPayment,
+  onUnmarkBillPayment,
   onDelete,
 }: TransactionActionMenuProps) {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -168,6 +171,21 @@ export const TransactionActionMenu = memo(function TransactionActionMenu({
               : <CreditCardOffIcon color="warning" fontSize="small" />}
           </ListItemIcon>
           <ListItemText>{t('financeTransactions.transactionTable.rowActions.markAsBillPayment')}</ListItemText>
+        </MenuItem>
+      )}
+
+      {!isBalanceAdjustment && isBillPayment && (
+        <MenuItem
+          onClick={onUnmarkBillPayment}
+          disabled={isMarkingThisBillPayment}
+          data-testid="transaction-action-unmark-bill-payment"
+        >
+          <ListItemIcon>
+            {isMarkingThisBillPayment
+              ? <CircularProgress size={18} />
+              : <CreditCardIcon color="info" fontSize="small" />}
+          </ListItemIcon>
+          <ListItemText>{t('financeTransactions.transactionTable.rowActions.unmarkBillPayment')}</ListItemText>
         </MenuItem>
       )}
 

@@ -22,6 +22,7 @@ import { useTransactionFormState } from './hooks/useTransactionFormState';
 import { useTransactionSave } from './hooks/useTransactionSave';
 import { inputBorderSx } from './inputBorderSx';
 import type { Transaction } from '@/lib/graphql/types/__generated__/graphql';
+import { TransactionType } from '@/lib/graphql/types/__generated__/graphql';
 
 interface InlineTransactionFormProps {
   isOpen: boolean;
@@ -97,6 +98,8 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
   }, [isOpen, onExited]);
 
   if (!shouldRender) return null;
+
+  const isBillPaymentEdit = initialValues?.type === TransactionType.BillPayment;
 
   return (
     <>
@@ -203,7 +206,13 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
                             ? 'TRANSFER'
                             : form.creditDebitType
                         }
-                        placeholder={t('financeTransactions.category')}
+                        placeholder={t('financeTransactions.category.label')}
+                        disabled={isBillPaymentEdit}
+                        helperText={
+                          isBillPaymentEdit
+                            ? t('financeTransactions.category.disabledBillPayment')
+                            : undefined
+                        }
                       />
                     </Box>
 

@@ -1398,7 +1398,10 @@
     "description": "Description",
     "date": "Date",
     "account": "Account",
-    "category": "Category",
+    "category": {
+      "label": "Category",
+      "disabledBillPayment": "Category is not applicable for bill payments"
+    },
     "value": "Value",
     "tags": "Tags",
     "merchant": "Merchant",
@@ -1978,7 +1981,13 @@
         "viewAppliedRules": "View applied rules",
         "createRuleFromDescription": "Create rule from description",
         "remove": "Remove",
-        "createRecurringPayment": "Create recurring transaction"
+        "createRecurringPayment": "Create recurring transaction",
+        "markAsBillPayment": "Mark as bill payment",
+        "markAsBillPaymentSuccess": "Transaction marked as bill payment",
+        "markAsBillPaymentError": "Could not mark as bill payment",
+        "unmarkBillPayment": "Remove bill payment",
+        "unmarkBillPaymentSuccess": "Bill payment flag removed",
+        "unmarkBillPaymentError": "Failed to remove bill payment flag"
       },
       "appliedRules": {
         "title": "Applied rules",

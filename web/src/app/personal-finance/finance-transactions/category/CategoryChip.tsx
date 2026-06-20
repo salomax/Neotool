@@ -120,7 +120,7 @@ export function CategoryChip({
           icon={loading ? <CircularProgress size={14} /> : undefined}
           label={placeholder ?? (
             <Typography variant="body2" sx={{ fontSize: labelFontSize, opacity: 0.65 }}>
-              {t('financeTransactions.category')}
+              {t('financeTransactions.category.label')}
             </Typography>
           )}
           variant="outlined"

@@ -16,6 +16,7 @@ import type { ApolloClient } from '@apollo/client';
 import { TRANSACTION_CATEGORIES } from '@/lib/graphql/operations/banking/queries';
 import type { TransactionCategory } from '@/lib/graphql/types/__generated__/graphql';
 import { useRecurringSuggestion } from './useRecurringSuggestion';
+import { resolveRegularTransactionType } from '../transactionTypeUtils';
 
 const OWN_ACCOUNTS_TRANSFER_SUBCATEGORY_NAME = 'Entre contas próprias';
 
@@ -168,6 +169,35 @@ export function useActionMenu({ transactions, onSuccess, beginBusy, endBusy }: U
     }
   }, [menuTransaction, updateTransaction, beginBusy, endBusy, close, onSuccess, t, toast]);
 
+  const handleUnmarkBillPayment = useCallback(async () => {
+    const tx = menuTransaction;
+    if (!tx) return;
+    if (tx.type !== TransactionType.BillPayment) return;
+
+    setMarkingBillPaymentTransactionId(tx.id);
+    try {
+      beginBusy();
+      await updateTransaction({
+        variables: {
+          id: tx.id,
+          input: {
+            type: resolveRegularTransactionType(tx.creditDebitType),
+          },
+        },
+      });
+      toast.success(t('financeTransactions.transactionTable.rowActions.unmarkBillPaymentSuccess'));
+      onSuccess?.();
+      close();
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(err, t('financeTransactions.transactionTable.rowActions.unmarkBillPaymentError')),
+      );
+    } finally {
+      setMarkingBillPaymentTransactionId(null);
+      endBusy();
+    }
+  }, [menuTransaction, updateTransaction, beginBusy, endBusy, close, onSuccess, t, toast]);
+
   return {
     anchorEl,
     menuTransaction,
@@ -178,6 +208,7 @@ export function useActionMenu({ transactions, onSuccess, beginBusy, endBusy }: U
     close,
     handleMarkAsInternalTransfer,
     handleMarkAsBillPayment,
+    handleUnmarkBillPayment,
     handleLinkRecurringPayment: recurringSuggestion.handleLinkRecurringPayment,
   };
 }
