@@ -105,6 +105,7 @@ export const TransactionRow = memo(function TransactionRow({
     totalInstallments > 1 &&
     installmentNumber >= 1;
   const isBalanceAdjustment = transaction.type === TransactionType.BalanceAdjustment;
+  const isBillPayment = transaction.type === TransactionType.BillPayment;
   const isActionMenuOpen =
     Boolean(activeActionMenuAnchorEl) && activeActionMenuTransactionId === transaction.id;
 
@@ -201,18 +202,25 @@ export const TransactionRow = memo(function TransactionRow({
               —
             </Typography>
           ) : (
-            <CategoryChip
-              category={displayedCategory}
-              disabled={updatingCategoryTransactionId === transaction.id}
-              loading={updatingCategoryTransactionId === transaction.id}
-              onClick={handleOpenCategoryPicker}
-              decorationAlpha={CATEGORY_CHIP_DECORATION_ALPHA}
-              placeholder={
-                <Typography variant="body2" sx={{ fontSize: FINANCE_TABLE_BODY_FONT_SIZE, opacity: 0.65 }}>
-                  {t('financeTransactions.category')}
-                </Typography>
-              }
-            />
+            <Tooltip
+              title={isBillPayment ? t('financeTransactions.category.disabledBillPayment') : ''}
+              disableHoverListener={!isBillPayment}
+            >
+              <span>
+                <CategoryChip
+                  category={displayedCategory}
+                  disabled={updatingCategoryTransactionId === transaction.id || isBillPayment}
+                  loading={updatingCategoryTransactionId === transaction.id}
+                  onClick={isBillPayment ? undefined : handleOpenCategoryPicker}
+                  decorationAlpha={CATEGORY_CHIP_DECORATION_ALPHA}
+                  placeholder={
+                    <Typography variant="body2" sx={{ fontSize: FINANCE_TABLE_BODY_FONT_SIZE, opacity: 0.65 }}>
+                      {t('financeTransactions.category.label')}
+                    </Typography>
+                  }
+                />
+              </span>
+            </Tooltip>
           )}
         </TableCell>
 

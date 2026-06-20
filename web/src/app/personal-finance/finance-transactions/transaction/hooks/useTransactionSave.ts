@@ -13,6 +13,7 @@ import { extractErrorMessage } from '@/shared/utils/error';
 import { usePreferences, useToast } from '@/shared/providers';
 import { resolveSimilarEditBehavior } from '../similarEditPreference';
 import type { CreditDebitTypeExtended } from '../TypeSelector';
+import { resolveRegularTransactionType } from '../transactionTypeUtils';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,13 @@ function buildSimilarEditInput(
     input.tags = nextTags;
   }
   return input;
+}
+
+export function resolveSubmittedCategoryId(
+  initialValues: Transaction | undefined,
+  categoryId: string | null,
+): string | null | undefined {
+  return initialValues?.type === TransactionType.BillPayment ? null : (categoryId || undefined);
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
@@ -247,14 +255,11 @@ export function useTransactionSave({
 
     const formattedAmount = Math.abs(amount);
     const formattedDate = formatDateOnly(date.toDate());
-
     let updateType: TransactionType | undefined = undefined;
     if (isTransferShortcut && initialValues?.type !== TransactionType.Transfer) {
       updateType = TransactionType.Transfer;
     } else if (!isTransferShortcut && initialValues?.type === TransactionType.Transfer) {
-      updateType = finalCreditDebitType === CreditDebitType.Credit
-        ? TransactionType.OtherIncome
-        : TransactionType.OtherExpense;
+      updateType = resolveRegularTransactionType(finalCreditDebitType);
     }
 
     const updateInput = isBalanceAdjustmentEdit
@@ -263,7 +268,7 @@ export function useTransactionSave({
           date: formattedDate,
           amount: formattedAmount,
           description,
-          categoryId: categoryId || undefined,
+          categoryId: resolveSubmittedCategoryId(initialValues, categoryId),
           merchantId: merchantId ?? null,
           creditDebitType: finalCreditDebitType,
           ...(updateType ? { type: updateType } : {}),
@@ -316,9 +321,7 @@ export function useTransactionSave({
       } else {
         const createType = isTransferShortcut
           ? TransactionType.Transfer
-          : finalCreditDebitType === CreditDebitType.Credit
-            ? TransactionType.OtherIncome
-            : TransactionType.OtherExpense;
+          : resolveRegularTransactionType(finalCreditDebitType);
 
         await createTransaction({
           variables: {

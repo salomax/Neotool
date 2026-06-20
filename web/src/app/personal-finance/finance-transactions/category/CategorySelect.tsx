@@ -23,6 +23,8 @@ export interface CategorySelectProps {
   categories: TransactionCategory[];
   creditDebitType: 'CREDIT' | 'DEBIT' | 'TRANSFER';
   placeholder?: string;
+  disabled?: boolean;
+  helperText?: string;
 }
 
 export function CategorySelect({
@@ -31,6 +33,8 @@ export function CategorySelect({
   categories = [],
   creditDebitType,
   placeholder = 'Categoria...',
+  disabled = false,
+  helperText,
 }: CategorySelectProps) {
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -40,6 +44,7 @@ export function CategorySelect({
     : null;
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    if (disabled) return;
     setAnchorEl(event.currentTarget);
   };
 
@@ -56,15 +61,21 @@ export function CategorySelect({
     <>
       <Box
         data-testid="tx-category-select"
+        data-disabled={disabled ? 'true' : undefined}
+        aria-disabled={disabled || undefined}
+        title={disabled && helperText ? helperText : undefined}
         onClick={handleClick}
         sx={{
-          cursor: 'pointer',
+          cursor: disabled ? 'not-allowed' : 'pointer',
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: 'column',
+          alignItems: 'stretch',
           width: '100%',
           minWidth: 0,
+          opacity: disabled ? 0.5 : 1,
         }}
       >
+        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', minWidth: 0 }}>
         {selectedCategory ? (
           <Chip
             label={
@@ -139,6 +150,12 @@ export function CategorySelect({
             onDelete={handleClick}
             deleteIcon={<ExpandMoreIcon />}
           />
+        )}
+        </Box>
+        {disabled && helperText && (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.2 }}>
+            {helperText}
+          </Typography>
         )}
       </Box>
 

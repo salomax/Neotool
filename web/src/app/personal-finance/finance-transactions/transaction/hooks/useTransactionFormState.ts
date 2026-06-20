@@ -92,7 +92,9 @@ export function useTransactionFormState({
   const [accountId, setAccountId] = useState<string>(
     initialValues?.financialAccountId || selectedAccountId || '',
   );
-  const [categoryId, setCategoryId] = useState<string | null>(initialValues?.category?.id ?? null);
+  const [categoryId, setCategoryId] = useState<string | null>(
+    initialValues?.type === TransactionType.BillPayment ? null : (initialValues?.category?.id ?? null),
+  );
   const [merchantId, setMerchantId] = useState<string | null>(initialValues?.merchant?.id ?? null);
   const [tags, setTags] = useState<string[]>(initialValues?.tags || []);
 
@@ -173,7 +175,7 @@ export function useTransactionFormState({
       setDescription(initialValues.description);
       setDate(dayjs(initialValues.date as string));
       setAccountId(initialValues.financialAccountId);
-      setCategoryId(initialValues.category?.id ?? null);
+      setCategoryId(initialValues.type === TransactionType.BillPayment ? null : (initialValues.category?.id ?? null));
       setMerchantId(initialValues.merchant?.id ?? null);
       setTags(initialValues.tags || []);
     } else {

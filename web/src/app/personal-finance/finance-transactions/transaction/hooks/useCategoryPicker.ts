@@ -92,6 +92,7 @@ export function useCategoryPicker({ transactions, onSuccess, beginBusy, endBusy 
   }, []);
 
   const openPicker = useCallback((event: MouseEvent<HTMLElement>, transaction: Transaction) => {
+    if (transaction.type === 'BILL_PAYMENT') return;
     setAnchorEl(event.currentTarget);
     const isForcedNoCategory = Boolean(forceNoCategoryByTransactionId[transaction.id]);
     setPickerTransaction(
@@ -103,6 +104,7 @@ export function useCategoryPicker({ transactions, onSuccess, beginBusy, endBusy 
     const tx = pickerTransaction;
     close();
     if (!tx) return;
+    if (tx.type === 'BILL_PAYMENT') return;
 
     const hadForcedNoCategory = Boolean(forceNoCategoryByTransactionId[tx.id]);
     if (categoryId === null) {

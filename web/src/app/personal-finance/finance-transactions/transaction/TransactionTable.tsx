@@ -417,6 +417,7 @@ export function TransactionTable({
         }}
         onMarkAsTransfer={actionMenu.handleMarkAsInternalTransfer}
         onMarkAsBillPayment={actionMenu.handleMarkAsBillPayment}
+        onUnmarkBillPayment={actionMenu.handleUnmarkBillPayment}
         onDelete={(tx) => deleteHook.promptDelete(tx)}
       />
 
