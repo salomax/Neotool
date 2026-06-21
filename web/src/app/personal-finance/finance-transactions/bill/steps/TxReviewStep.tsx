@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { CreditCard as CardIcon } from '@mui/icons-material';
 import React, { memo, type Dispatch, type SetStateAction } from 'react';
-import dayjs from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 import { useTranslation } from '@/shared/i18n';
 import { formatDateOnly } from '@/shared/utils/date/dateOnly';
 import { personalFinanceTranslations } from '../../../i18n';
@@ -71,11 +71,49 @@ export const TxReviewStep = memo(function TxReviewStep({
   onBack,
 }: TxReviewStepProps) {
   const { t } = useTranslation(personalFinanceTranslations);
+  const invalidDateMessage = t('datePicker.errors.invalidDate', { ns: 'common' });
 
-  const hasBillClosingDate = billDateOverrides.closingDate.trim().length > 0;
-  const hasBillDueDate = billDateOverrides.dueDate.trim().length > 0;
-  const closingDateValue = hasBillClosingDate ? dayjs(billDateOverrides.closingDate) : null;
-  const dueDateValue = hasBillDueDate ? dayjs(billDateOverrides.dueDate) : null;
+  const [closingDateInput, setClosingDateInput] = React.useState<Dayjs | null>(
+    () => (billDateOverrides.closingDate ? dayjs(billDateOverrides.closingDate) : null),
+  );
+  const [dueDateInput, setDueDateInput] = React.useState<Dayjs | null>(
+    () => (billDateOverrides.dueDate ? dayjs(billDateOverrides.dueDate) : null),
+  );
+  const serializedClosingDateInput =
+    closingDateInput && closingDateInput.isValid() ? formatDateOnly(closingDateInput.toDate()) : '';
+  const serializedDueDateInput =
+    dueDateInput && dueDateInput.isValid() ? formatDateOnly(dueDateInput.toDate()) : '';
+
+  React.useEffect(() => {
+    if (billDateOverrides.closingDate === serializedClosingDateInput) return;
+    setClosingDateInput(billDateOverrides.closingDate ? dayjs(billDateOverrides.closingDate) : null);
+  }, [billDateOverrides.closingDate, serializedClosingDateInput]);
+
+  React.useEffect(() => {
+    if (billDateOverrides.dueDate === serializedDueDateInput) return;
+    setDueDateInput(billDateOverrides.dueDate ? dayjs(billDateOverrides.dueDate) : null);
+  }, [billDateOverrides.dueDate, serializedDueDateInput]);
+
+  const handleBillDateChange = React.useCallback(
+    (
+      field: keyof BillDateOverrides,
+      setInput: Dispatch<SetStateAction<Dayjs | null>>,
+      nextValue: Dayjs | null,
+    ) => {
+      setInput(nextValue);
+      onSetBillDateOverrides((prev) => ({
+        ...prev,
+        [field]: nextValue && nextValue.isValid() ? formatDateOnly(nextValue.toDate()) : '',
+      }));
+    },
+    [onSetBillDateOverrides],
+  );
+
+  const hasBillClosingDate = closingDateInput !== null;
+  const closingDateInvalid = Boolean(closingDateInput && !closingDateInput.isValid());
+  const dueDateInvalid = Boolean(dueDateInput && !dueDateInput.isValid());
+  const closingDateValue = closingDateInput && closingDateInput.isValid() ? closingDateInput : null;
+  const dueDateValue = dueDateInput && dueDateInput.isValid() ? dueDateInput : null;
   const dueDateBeforeClosingDate =
     !!closingDateValue && !!dueDateValue && dueDateValue.isBefore(closingDateValue, 'day');
 
@@ -107,37 +145,35 @@ export const TxReviewStep = memo(function TxReviewStep({
               showDate
               size="medium"
               label={t('financeTransactions.billImport.txReviewStep.closingDateLabel')}
-              value={billDateOverrides.closingDate ? dayjs(billDateOverrides.closingDate) : null}
-              onChange={(v) =>
-                onSetBillDateOverrides((prev) => ({
-                  ...prev,
-                  closingDate: v ? formatDateOnly(v.toDate()) : '',
-                }))
-              }
+              value={closingDateInput}
+              onChange={(v) => handleBillDateChange('closingDate', setClosingDateInput, v)}
               required
-              helperText={t('financeTransactions.billImport.txReviewStep.closingDateHint')}
+              error={closingDateInvalid}
+              errorMessage={closingDateInvalid ? invalidDateMessage : undefined}
+              helperText={
+                !closingDateInvalid
+                  ? t('financeTransactions.billImport.txReviewStep.closingDateHint')
+                  : undefined
+              }
             />
             <DateTimePicker
               showTime={false}
               showDate
               size="medium"
               label={t('financeTransactions.billImport.txReviewStep.dueDateLabel')}
-              value={billDateOverrides.dueDate ? dayjs(billDateOverrides.dueDate) : null}
-              onChange={(v) =>
-                onSetBillDateOverrides((prev) => ({
-                  ...prev,
-                  dueDate: v ? formatDateOnly(v.toDate()) : '',
-                }))
-              }
+              value={dueDateInput}
+              onChange={(v) => handleBillDateChange('dueDate', setDueDateInput, v)}
               minDateTime={closingDateValue ?? undefined}
-              error={dueDateBeforeClosingDate}
+              error={dueDateInvalid || dueDateBeforeClosingDate}
               errorMessage={
-                dueDateBeforeClosingDate
+                dueDateInvalid
+                  ? invalidDateMessage
+                  : dueDateBeforeClosingDate
                   ? t('financeTransactions.billImport.txReviewStep.dueDateHint')
                   : undefined
               }
               helperText={
-                !dueDateBeforeClosingDate
+                !dueDateInvalid && !dueDateBeforeClosingDate
                   ? t('financeTransactions.billImport.txReviewStep.dueDateHint')
                   : undefined
               }
@@ -217,6 +253,8 @@ export const TxReviewStep = memo(function TxReviewStep({
             confirming ||
             includedCount === 0 ||
             !hasBillClosingDate ||
+            closingDateInvalid ||
+            dueDateInvalid ||
             dueDateBeforeClosingDate ||
             !allCardsResolved
           }
