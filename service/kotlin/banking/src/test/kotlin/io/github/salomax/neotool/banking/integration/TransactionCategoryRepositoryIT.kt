@@ -49,6 +49,14 @@ class TransactionCategoryRepositoryIT : BankingPostgresIntegrationTest() {
             val alimentacao = roots.find { it.name == "Alimentação" }
             assertThat(alimentacao).isNotNull
             assertThat(alimentacao!!.icon).isEqualTo("restaurant")
+            val presentes = roots.find { it.name == "Presentes" }
+            assertThat(presentes).isNotNull
+            assertThat(presentes!!.icon).isEqualTo("card_giftcard")
+            assertThat(presentes.color).isEqualTo("#AB47BC")
+            val celebracoes = roots.find { it.name == "Celebrações & Festas" }
+            assertThat(celebracoes).isNotNull
+            assertThat(celebracoes!!.icon).isEqualTo("celebration")
+            assertThat(celebracoes.color).isEqualTo("#FF5722")
             val outros = roots.find { it.name == "Outros" }
             assertThat(outros).isNotNull
             assertThat(outros!!.icon).isEqualTo("help_outline")

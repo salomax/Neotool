@@ -51,6 +51,7 @@ export const CATEGORY_ICON_NAMES = [
   'account_balance_wallet',
   'credit_card',
   'favorite',
+  'card_giftcard',
   'call_made',
   'savings',
   'help_outline',
