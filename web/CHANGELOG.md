@@ -1,3 +1,13 @@
+## 0.7.21 (2026-06-21)
+
+### 🚀 Features
+
+- **transactions:** enhance date handling in TxReviewStep component ([a06662a4](https://github.com/invistus/invistus/commit/a06662a4))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.20 (2026-06-21)
 
 This was a version bump only for neotool-web to align it with other projects, there were no code changes.
