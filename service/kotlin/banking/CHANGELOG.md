@@ -1,3 +1,7 @@
+## 0.7.7 (2026-06-21)
+
+This was a version bump only for banking to align it with other projects, there were no code changes.
+
 ## 0.7.6 (2026-06-19)
 
 This was a version bump only for banking to align it with other projects, there were no code changes.

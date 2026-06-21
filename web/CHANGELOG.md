@@ -1,3 +1,7 @@
+## 0.7.20 (2026-06-21)
+
+This was a version bump only for neotool-web to align it with other projects, there were no code changes.
+
 ## 0.7.19 (2026-06-20)
 
 ### 🚀 Features
