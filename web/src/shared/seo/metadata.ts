@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { getDictionary } from '@/shared/i18n/server';
 
 // Default to Portuguese since we don't have locale routing yet
@@ -51,3 +51,9 @@ const baseMetadata: Metadata = {
 };
 
 export const metadata: Metadata = baseMetadata;
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+};

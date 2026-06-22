@@ -6,6 +6,7 @@
       "consolidatedView": "Visão consolidada",
       "summaryTitle": "Visão consolidada",
       "totalLabel": "Total da Carteira",
+      "loading": "Carregando carteira…",
       "metrics": {
         "contributions": "Aportes",
         "returns": "Rentabilidade"
@@ -2199,6 +2200,10 @@
       "byFrequency": "Por frequência",
       "noDistributionData": "Sem dados para o gráfico (defina um valor estimado nas recorrências).",
       "mobileAccordionTitle": "Indicadores"
+    },
+    "mobileTrigger": {
+      "summary_one": "{{amount}}/mês · {{count}} ativa",
+      "summary_other": "{{amount}}/mês · {{count}} ativas"
     },
     "header": {
       "searchPlaceholder": "Buscar por nome…"

@@ -3,10 +3,11 @@
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@apollo/client/react";
-import { alpha, Box, Button, Container, Divider, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
+import { alpha, Box, Button, CircularProgress, Container, Divider, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { Page } from "@/shared/components/ui/layout";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { useTranslation } from "@/shared/i18n";
@@ -28,6 +29,14 @@ import { InvestmentSummary } from "./components/InvestmentSummary";
 import { InvestmentGrid } from "./components/grid/InvestmentGrid";
 import { usePendingActionsDrawer } from "@/shared/store/pendingActionsDrawer";
 import { ImportInvestmentsDrawer } from "./import/ImportInvestmentsDrawer";
+import { getCurrentLocale } from "./components/table/investmentTableHelpers";
+
+function formatCurrency(value: number, currencyCode: string, locale: string) {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: currencyCode,
+  }).format(value);
+}
 
 export default function PersonalFinanceInvestmentsPage() {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -39,10 +48,18 @@ export default function PersonalFinanceInvestmentsPage() {
   const [selectedAccountId, setSelectedAccountId] = React.useState<string | null | undefined>(undefined);
   const [holdingSearchQuery, setHoldingSearchQuery] = React.useState("");
   const [summaryFetching, setSummaryFetching] = React.useState(false);
+  const [summaryValue, setSummaryValue] = React.useState<{
+    totalPortfolioValue: number | null | undefined;
+    currencyCode: string;
+  }>({
+    totalPortfolioValue: null,
+    currencyCode: "BRL",
+  });
   const [isImportDrawerOpen, setIsImportDrawerOpen] = React.useState(false);
   const [gridRefreshVersion, setGridRefreshVersion] = React.useState(0);
   const openPendingActionsDrawer = usePendingActionsDrawer((state) => state.openDrawer);
   const isB3ImportEnabled = useFeatureFlagEnabled("b3-import-feature");
+  const locale = React.useMemo(() => getCurrentLocale(), []);
 
   usePageTitle(t("dashboard.actions.investmentsPortfolio.title"));
 
@@ -139,17 +156,73 @@ export default function PersonalFinanceInvestmentsPage() {
           <InvestmentSummary
             financialAccountId={effectiveSelectedAccountId}
             onSummaryFetchingChange={setSummaryFetching}
+            onSummaryValueChange={setSummaryValue}
           />
         ) : null}
         {!isEmpty ? <Divider sx={{ my: 3 }} /> : null}
       </Box>
     </Box>
   );
+  const selectedInvestmentAccountName =
+    investmentAccounts.find((account) => account.id === effectiveSelectedAccountId)?.name ??
+    t("investments.sidebar.allBrokers");
+  // Keep the same mobile trigger across empty/loading/error states so the sheet affordance does not jump.
+  const mobileTrigger = (
+    <Box
+      sx={{
+        px: 3,
+        py: 1.5,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 2,
+      }}
+    >
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.primary" }}>
+          {selectedInvestmentAccountName}
+        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary" }}>
+          {summaryFetching ? (
+            <>
+              <CircularProgress size={14} />
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                {t("investments.sidebar.loading")}
+              </Typography>
+            </>
+          ) : (
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>
+              {summaryValue.totalPortfolioValue != null
+                ? formatCurrency(summaryValue.totalPortfolioValue, summaryValue.currencyCode, locale)
+                : "—"}
+            </Typography>
+          )}
+        </Box>
+      </Box>
+      <ExpandMoreIcon sx={{ color: "text.secondary", flexShrink: 0 }} />
+    </Box>
+  );
 
   const emptyState = (
-    <SidebarLayout side="left" size="sm" fullHeight sidebar={sidebar}>
+    <SidebarLayout
+      side="left"
+      size="sm"
+      fullHeight
+      mobileVariant="bottom-sheet"
+      mobileTrigger={mobileTrigger}
+      sidebar={sidebar}
+    >
       <Page>
-        <Container maxWidth="xl" sx={{ py: 4, flex: 1, display: "flex" }}>
+        <Container
+          maxWidth="xl"
+          sx={{
+            py: 4,
+            flex: 1,
+            display: "flex",
+            minWidth: 0, // Keep the empty-state art and actions clipped to the mobile viewport.
+            overflowX: "hidden",
+          }}
+        >
           <Box sx={{ width: "100%", display: "flex", justifyContent: "center" }}>
             <Box
               sx={{
@@ -258,9 +331,16 @@ export default function PersonalFinanceInvestmentsPage() {
 
   if (accountsLoading) {
     return (
-      <SidebarLayout side="left" size="sm" fullHeight sidebar={sidebar}>
+      <SidebarLayout
+        side="left"
+        size="sm"
+        fullHeight
+        mobileVariant="bottom-sheet"
+        mobileTrigger={mobileTrigger}
+        sidebar={sidebar}
+      >
         <Page>
-          <Container maxWidth="xl" sx={{ py: 4 }}>
+          <Container maxWidth="xl" sx={{ py: 4, minWidth: 0, overflowX: "hidden" }}>
             <LoadingSpinner minHeight={400} />
           </Container>
         </Page>
@@ -270,9 +350,16 @@ export default function PersonalFinanceInvestmentsPage() {
 
   if (accountsError) {
     return (
-      <SidebarLayout side="left" size="sm" fullHeight sidebar={sidebar}>
+      <SidebarLayout
+        side="left"
+        size="sm"
+        fullHeight
+        mobileVariant="bottom-sheet"
+        mobileTrigger={mobileTrigger}
+        sidebar={sidebar}
+      >
         <Page>
-          <Container maxWidth="xl" sx={{ py: 4 }}>
+          <Container maxWidth="xl" sx={{ py: 4, minWidth: 0, overflowX: "hidden" }}>
             <QueryErrorState title={t("investments.table.error")} error={accountsError} />
           </Container>
         </Page>
@@ -285,9 +372,23 @@ export default function PersonalFinanceInvestmentsPage() {
       {isEmpty ? (
         emptyState
       ) : (
-        <SidebarLayout side="left" size="sm" fullHeight sidebar={sidebar}>
+        <SidebarLayout
+          side="left"
+          size="sm"
+          fullHeight
+          mobileVariant="bottom-sheet"
+          mobileTrigger={mobileTrigger}
+          sidebar={sidebar}
+        >
           <Page>
-            <Container maxWidth="xl" sx={{ py: 4 }}>
+            <Container
+              maxWidth="xl"
+              sx={{
+                py: 4,
+                minWidth: 0, // Keep the investment grid and toolbar from creating mobile horizontal scroll.
+                overflowX: "hidden",
+              }}
+            >
               {isB3ImportEnabled && (
                 <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2 }}>
                   <Button
@@ -295,6 +396,7 @@ export default function PersonalFinanceInvestmentsPage() {
                     startIcon={<UploadFileIcon />}
                     onClick={() => setIsImportDrawerOpen(true)}
                     data-testid="open-investment-import-drawer"
+                    sx={{ minHeight: 44 }} // Keep the primary mobile import entrypoint at touch-friendly height.
                   >
                     {t("investments.import.pageButton")}
                   </Button>

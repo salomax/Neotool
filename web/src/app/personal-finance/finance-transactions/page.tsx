@@ -7,8 +7,10 @@ import { personalFinanceTranslations } from '../i18n';
 import {
   Container,
   Box,
+  Typography,
   useTheme,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { Page } from '@/shared/components/ui/layout';
 import { SidebarLayout } from '@/shared/components/ui/layout/SidebarLayout';
 import { useDebounce, usePageTitle } from '@/shared/hooks/ui';
@@ -43,6 +45,13 @@ const TRANSACTION_ACCOUNT_TYPES: FinancialAccountType[] = [
 
 const categoryFilterEquals = (a: CategoryFilterSelection, b: CategoryFilterSelection) =>
   a.categoryId === b.categoryId && a.uncategorized === b.uncategorized;
+
+function formatCurrency(value: number, locale = 'pt-BR', currency = 'BRL') {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+  }).format(value);
+}
 
 export default function FinanceTransactionsPage() {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -418,6 +427,7 @@ export default function FinanceTransactionsPage() {
 
   const headerNavMonth = displayMode.kind === 'calendar' ? displayMode.month : calendarMonth ?? 1;
   const headerNavYear = displayMode.kind === 'calendar' ? displayMode.year : calendarYear ?? new Date().getFullYear();
+  const locale = 'pt-BR';
   const billSummaryData =
     displayMode.kind === 'bill' && displayMode.selectedBill
       ? {
@@ -428,12 +438,47 @@ export default function FinanceTransactionsPage() {
           creditLimit: selectedAccount?.cardData?.creditLimit,
         }
       : undefined;
+  const selectedAccountName = selectedAccount?.name ?? t('financeTransactions.selector.allAccounts');
+  const monthIncome = monthSummaryData?.monthSummary?.totalIncome ?? 0;
+  const monthExpenses = monthSummaryData?.monthSummary?.totalExpenses ?? 0;
+  const mobileTrigger = (
+    <Box
+      sx={{
+        px: 3,
+        py: 1.5,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 2,
+      }}
+    >
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          {selectedAccountName}
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {`${formatCurrency(monthIncome, locale)} · -${formatCurrency(monthExpenses, locale).replace(/^-/, '')}`}
+        </Typography>
+      </Box>
+      <ExpandMoreIcon sx={{ color: 'text.secondary', flexShrink: 0 }} />
+    </Box>
+  );
 
   return (
     <SidebarLayout
       side="left"
       size="sm"
       fullHeight
+      mobileVariant="bottom-sheet"
+      mobileTrigger={mobileTrigger}
       sidebar={
         <FinanceTransactionsSidebar
           accountSelector={{
@@ -475,7 +520,14 @@ export default function FinanceTransactionsPage() {
       }
     >
       <Page>
-        <Container maxWidth="xl" sx={{ py: 4 }}>
+        <Container
+          maxWidth="xl"
+          sx={{
+            py: 4,
+            minWidth: 0, // Keep the transaction workspace from widening past the mobile sheet layout.
+            overflowX: 'hidden',
+          }}
+        >
           <FinanceTransactionsHeaderBar
             importAlerts={{
               error: importsError,

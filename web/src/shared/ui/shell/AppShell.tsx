@@ -3,7 +3,7 @@ import * as React from "react";
 import Box from "@mui/material/Box";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import { SidebarRail, BottomNavigationBar, MobileNavigationDrawer } from "@/shared/ui/navigation";
+import { SidebarRail, BottomNavigationBar, MobileAppBanner, MobileNavigationDrawer } from "@/shared/ui/navigation";
 import { AppHeader } from "@/shared/ui/shell/AppHeader";
 import { PageTitleProvider } from "@/shared/hooks/ui/usePageTitle";
 import { BreadcrumbLabelProvider } from "@/shared/hooks/ui/useBreadcrumbLabel";
@@ -44,15 +44,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             flex: 1, 
             display: "flex", 
             flexDirection: "column",
+            minWidth: 0, // Allow nested authenticated pages to shrink instead of pushing horizontal overflow.
             marginLeft: { xs: 0, md: "84px" }, // Account for fixed sidebar width only on desktop
             overflow: "hidden", // Prevent overflow
           }}
         >
           <AppHeader />
+          <MobileAppBanner />
           <Box 
             sx={{ 
               flex: 1,
+              minWidth: 0, // Keep responsive tables and cards inside the mobile viewport.
               overflow: "auto", // Allow scrolling only in main content area
+              overflowX: "hidden", // Clamp authenticated route layouts to the viewport on narrow screens.
               marginTop: { xs: 0, md: `${headerHeight}px` }, // Account for fixed header height only on desktop
               transition: prefersReducedMotion
                 ? "none"

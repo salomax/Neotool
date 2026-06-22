@@ -13,7 +13,14 @@ export default function PersonalFinancePage() {
 
   return (
     <Page>
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Container
+        maxWidth="xl"
+        sx={{
+          py: 4,
+          minWidth: 0, // Keep dashboard widgets inside the handset viewport when cards reflow.
+          overflowX: "hidden",
+        }}
+      >
         <DashboardLayout />
       </Container>
     </Page>

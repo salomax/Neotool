@@ -6,6 +6,15 @@ import { useQuery } from '@apollo/client/react';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';
 
+let autoSelectAccount = true;
+let mockFinancialAccounts = [
+  {
+    id: 'acc-1',
+    name: 'Checking',
+    type: FinancialAccountType.Bank,
+  },
+];
+
 // Mock Apollo useQuery
 vi.mock('@apollo/client/react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@apollo/client/react')>();
@@ -36,12 +45,29 @@ vi.mock('@/shared/hooks/ui/usePageTitle', () => ({
 }));
 
 vi.mock('@/shared/components/ui/layout/SidebarLayout', () => ({
-  SidebarLayout: ({ sidebar, children }: { sidebar: React.ReactNode; children: React.ReactNode }) => (
-    <div>
-      <div>{sidebar}</div>
-      <div>{children}</div>
-    </div>
-  ),
+  SidebarLayout: ({
+    sidebar,
+    children,
+    mobileTrigger,
+  }: {
+    sidebar: React.ReactNode;
+    children: React.ReactNode;
+    mobileTrigger?: React.ReactNode;
+  }) => {
+    const [open, setOpen] = React.useState(false);
+
+    return (
+      <div>
+        {mobileTrigger ? (
+          <button type="button" data-testid="mobile-trigger-button" onClick={() => setOpen(true)}>
+            {mobileTrigger}
+          </button>
+        ) : null}
+        {open ? <div data-testid="mobile-sidebar-content">{sidebar}</div> : <div>{sidebar}</div>}
+        <div>{children}</div>
+      </div>
+    );
+  },
 }));
 
 vi.mock('@/shared/components/ui/layout', () => ({
@@ -51,7 +77,9 @@ vi.mock('@/shared/components/ui/layout', () => ({
 vi.mock('../account/FinancialAccountSelector', () => ({
   FinancialAccountSelector: ({ onSelectAccount }: { onSelectAccount: (id: string) => void }) => {
     React.useEffect(() => {
-      onSelectAccount('acc-1');
+      if (autoSelectAccount) {
+        onSelectAccount('acc-1');
+      }
     }, [onSelectAccount]);
     return <div>selector</div>;
   },
@@ -106,6 +134,14 @@ vi.mock('../account/useAccountDisplayMode', () => ({
 describe.sequential('FinanceTransactionsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    autoSelectAccount = true;
+    mockFinancialAccounts = [
+      {
+        id: 'acc-1',
+        name: 'Checking',
+        type: FinancialAccountType.Bank,
+      },
+    ];
     (useQuery as unknown as { mockImplementation: (fn: any) => void }).mockImplementation((_doc: unknown, opts?: any) => {
       const vars = opts?.variables as Record<string, unknown> | undefined;
       const skip = opts?.skip === true;
@@ -113,12 +149,7 @@ describe.sequential('FinanceTransactionsPage', () => {
       if (!vars) {
         return {
           data: {
-            financialAccounts: [
-              {
-                id: 'acc-1',
-                type: FinancialAccountType.Bank,
-              },
-            ],
+            financialAccounts: mockFinancialAccounts,
           },
           loading: false,
           error: undefined,
@@ -213,6 +244,42 @@ describe.sequential('FinanceTransactionsPage', () => {
           }),
         }),
       );
+    });
+  });
+
+  it('renders the mobile trigger with the selected account name and opens the sidebar content', async () => {
+    render(<FinanceTransactionsPage />);
+
+    expect(screen.getByText('Checking')).toBeInTheDocument();
+    expect(screen.getByText('selector')).toBeInTheDocument();
+    expect(screen.getByText('month-summary')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('mobile-trigger-button'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('mobile-sidebar-content')).toBeInTheDocument();
+    });
+  });
+
+  it('shows the all accounts fallback in the mobile trigger when no account is selected', async () => {
+    autoSelectAccount = false;
+    mockFinancialAccounts = [
+      {
+        id: 'acc-1',
+        name: 'Checking',
+        type: FinancialAccountType.Bank,
+      },
+      {
+        id: 'acc-2',
+        name: 'Savings',
+        type: FinancialAccountType.Bank,
+      },
+    ];
+
+    render(<FinanceTransactionsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('pf:financeTransactions.selector.allAccounts')).toBeInTheDocument();
     });
   });
 });

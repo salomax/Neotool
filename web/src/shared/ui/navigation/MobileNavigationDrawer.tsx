@@ -1,6 +1,8 @@
 import React from "react";
 import { useRouter } from "next/navigation";
+import ListItemAvatar from "@mui/material/ListItemAvatar";
 import {
+  Avatar,
   Box,
   List,
   ListItem,
@@ -16,12 +18,13 @@ import {
 } from "@/shared/ui/mui-imports";
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import InsertChartIcon from '@mui/icons-material/InsertChart';
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { useThemeMode } from "@/styles/themes/AppThemeProvider";
 import { useAuthorization, useAuth } from "@/shared/providers";
 import { useFeatureFlagEnabled } from '@/shared/hooks/useFeatureFlag';
 import { useTranslation } from "react-i18next";
+import { getInitials } from "@/shared/utils/user";
 
 export interface MobileNavigationDrawerProps {
   open: boolean;
@@ -38,7 +41,8 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
   const isDark = mode === "dark";
   const { hasAny } = useAuthorization();
   const personalFinanceEnabled = useFeatureFlagEnabled('personal-finance-dashboard-enabled');
-  const { signOut } = useAuth();
+  const pricingEnabled = useFeatureFlagEnabled('pricing-enabled');
+  const { signOut, user } = useAuth();
 
   // Check permissions (same as SidebarRail)
   const hasAuthorizationAccess = hasAny([
@@ -78,14 +82,17 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
       <Drawer.Body>
         <Box sx={{ mx: -3, my: -2 }}>
           <List component="nav">
-            {personalFinanceEnabled && (
-              <ListItemButton onClick={() => handleNavigation("/personal-finance")}>
-                <ListItemIcon>
-                  <InsertChartIcon />
-                </ListItemIcon>
-                <ListItemText primary={t('routes.personalFinance')} />
-              </ListItemButton>
-            )}
+            <ListItemButton onClick={() => handleNavigation("/profile")}>
+              <ListItemAvatar sx={{ minWidth: 44 }}>
+                <Avatar
+                  sx={{ width: 32, height: 32, fontSize: "0.875rem" }}
+                  src={user?.avatarUrl ?? undefined}
+                >
+                  {user ? getInitials(user) : ""}
+                </Avatar>
+              </ListItemAvatar>
+              <ListItemText primary={t('routes.profile')} />
+            </ListItemButton>
 
             <ListItemButton onClick={() => handleNavigation("/financial-data")}>
               <ListItemIcon>
@@ -100,6 +107,15 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
               </ListItemIcon>
               <ListItemText primary={t('routes.investments')} />
             </ListItemButton>
+
+            {personalFinanceEnabled && pricingEnabled && (
+              <ListItemButton onClick={() => handleNavigation("/personal-finance/prices-consumption")}>
+                <ListItemIcon>
+                  <ShoppingCartOutlinedIcon />
+                </ListItemIcon>
+                <ListItemText primary={t('routes.pricesConsumption')} />
+              </ListItemButton>
+            )}
 
             {hasAuthorizationAccess && (
               <>
@@ -120,8 +136,8 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
                 {isDark ? <DarkModeRoundedIcon /> : <LightModeRoundedIcon />}
               </ListItemIcon>
               <ListItemText 
-                primary="Dark Mode" 
-                secondary={isDark ? "On" : "Off"}
+                primary={t("appHeader.theme.dark")}
+                secondary={isDark ? t("actions.enabled") : t("actions.disabled")}
               />
               <Switch
                 edge="end"
@@ -139,7 +155,7 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
               <ListItemIcon sx={{ color: 'error.main' }}>
                 <LogoutIcon />
               </ListItemIcon>
-              <ListItemText primary="Sign Out" />
+              <ListItemText primary={t("appHeader.signOut")} />
             </ListItemButton>
           </List>
         </Box>

@@ -18,7 +18,14 @@ export default function FinancialDataPage() {
 
   return (
     <Page>
-      <Container maxWidth="xl" sx={{ py: 8 }}>
+      <Container
+        maxWidth="xl"
+        sx={{
+          py: 8,
+          minWidth: 0, // Keep module cards and headings from pushing the public grid wider than the viewport.
+          overflowX: "hidden",
+        }}
+      >
         <Box sx={{ textAlign: "center", mb: 8, maxWidth: 800, mx: "auto" }}>
           <Typography variant="h3" component="h1" gutterBottom fontWeight="bold" sx={{ color: "text.primary" }}>
             {t("title")}

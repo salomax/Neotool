@@ -1,4 +1,4 @@
-export { metadata } from "@/shared/seo/metadata";
+export { metadata, viewport } from "@/shared/seo/metadata";
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { Box } from "@mui/material";
