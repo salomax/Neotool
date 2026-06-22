@@ -1,7 +1,7 @@
 /**
  * E2E tests — Monthly Summary
  *
- * Coverage: MS-H-01..08 | MS-A-01..11 | MS-N-01..04
+ * Coverage: MS-H-01..08 | MS-A-01..11 | MS-A-04b | MS-N-01..04
  * Security coverage is in security.e2e.spec.ts (SEC-MS-01..02).
  *
  * ──────────────────────────────────────────────────────────────────────────────
@@ -43,6 +43,7 @@ import {
   getMonthSummary,
   today,
   dateInMonth,
+  firstDayOfMonth,
   TransactionStatus,
   TransactionType,
   type FinancialAccount,
@@ -399,10 +400,104 @@ test.describe('Monthly Summary — alternative paths', () => {
     // TRANSFER excluded from income/expenses — totals unchanged
     expect(after.totalExpenses).toBeCloseTo(baseline.totalExpenses, 2);
     expect(after.totalIncome).toBeCloseTo(baseline.totalIncome, 2);
-    // TRANSFER is also excluded from closingBalance (internal reallocation, not cash flow)
-    expect(after.closingBalance).toBeCloseTo(baseline.closingBalance, 2);
+    // TRANSFER debit reduces closingBalance (real money left the account)
+    expect(after.closingBalance).toBeCloseTo(baseline.closingBalance - 1000, 2);
+    expect(after.transfersOut).toBeCloseTo(baseline.transfersOut + 1000, 2);
 
     await deleteTransaction(tx.id, pfUser.token);
+  });
+
+  test('MS-A-04b: TRANSFER between two accounts — debit reduces source balance and credit increases destination', async ({
+    pfUser,
+  }) => {
+    const { year, month } = currentYM();
+    const transferAmount = 1500;
+
+    const sourceAccount = await createFinancialAccount(
+      {
+        name: uniqueDesc('Conta origem transferência A04b'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+        initialBalance: 5000,
+        initialBalanceDate: firstDayOfMonth(),
+      },
+      pfUser.token,
+    );
+    const destinationAccount = await createFinancialAccount(
+      {
+        name: uniqueDesc('Conta destino transferência A04b'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+        initialBalance: 1000,
+        initialBalanceDate: firstDayOfMonth(),
+      },
+      pfUser.token,
+    );
+
+    const sourceBaseline = await getMonthSummary(sourceAccount.id, year, month, pfUser.token);
+    const destinationBaseline = await getMonthSummary(
+      destinationAccount.id,
+      year,
+      month,
+      pfUser.token,
+    );
+
+    const transferOut = await createTransaction(
+      {
+        financialAccountId: sourceAccount.id,
+        description: uniqueDesc('Transferência saída A04b'),
+        amount: transferAmount,
+        creditDebitType: CreditDebitType.Debit,
+        type: TransactionType.Transfer,
+        status: TransactionStatus.Posted,
+        date: today(),
+      },
+      pfUser.token,
+    );
+    const transferIn = await createTransaction(
+      {
+        financialAccountId: destinationAccount.id,
+        description: uniqueDesc('Transferência entrada A04b'),
+        amount: transferAmount,
+        creditDebitType: CreditDebitType.Credit,
+        type: TransactionType.Transfer,
+        status: TransactionStatus.Posted,
+        date: today(),
+      },
+      pfUser.token,
+    );
+
+    const sourceAfter = await getMonthSummary(sourceAccount.id, year, month, pfUser.token);
+    const destinationAfter = await getMonthSummary(
+      destinationAccount.id,
+      year,
+      month,
+      pfUser.token,
+    );
+
+    expect(sourceAfter.totalExpenses).toBeCloseTo(sourceBaseline.totalExpenses, 2);
+    expect(sourceAfter.totalIncome).toBeCloseTo(sourceBaseline.totalIncome, 2);
+    expect(sourceAfter.closingBalance).toBeCloseTo(
+      sourceBaseline.closingBalance - transferAmount,
+      2,
+    );
+    expect(sourceAfter.transfersOut).toBeCloseTo(sourceBaseline.transfersOut + transferAmount, 2);
+
+    expect(destinationAfter.totalExpenses).toBeCloseTo(destinationBaseline.totalExpenses, 2);
+    expect(destinationAfter.totalIncome).toBeCloseTo(destinationBaseline.totalIncome, 2);
+    expect(destinationAfter.closingBalance).toBeCloseTo(
+      destinationBaseline.closingBalance + transferAmount,
+      2,
+    );
+    expect(destinationAfter.transfersIn).toBeCloseTo(
+      destinationBaseline.transfersIn + transferAmount,
+      2,
+    );
+
+    await Promise.all([
+      deleteTransaction(transferOut.id, pfUser.token),
+      deleteTransaction(transferIn.id, pfUser.token),
+    ]);
   });
 
   test('MS-A-05: month with only BALANCE_ADJUSTMENT — totalIncome and totalExpenses are zero', async ({

@@ -44,7 +44,7 @@ open class SnapshotComputationService(
         openingBalance: BigDecimal,
     ): MonthlyBalanceSnapshot {
         val totals = transactionRepository.getMonthTotals(financialAccountId, year, month)
-        val closingBalance = openingBalance + totals.totalCreditExclTransfer - totals.totalDebitExclTransfer
+        val closingBalance = openingBalance + totals.totalCredit - totals.totalDebit
 
         val snapshot =
             MonthlyBalanceSnapshot(
