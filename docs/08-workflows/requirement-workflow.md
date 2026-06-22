@@ -160,21 +160,6 @@ The spec follows the [SDD Workflow](../workflows/sdd-workflow.md) format:
 
 ---
 
-### Step 7 — Backlog linkage
-
-If the issue maps to an existing `[BK-N]`, Claude updates `docs/00-planning/backlog.md` with the issue number:
-
-```markdown
-#### [BK-4] Phase 4 v3 — PDF Upload with password support
-- **Status:** `todo`
-- **GitHub Issue:** #42
-- **Branch:** `feat/GH-42-pdf-password-support`
-```
-
-If it is a new requirement (no existing BK), Claude adds a new entry to the backlog at the correct priority.
-
----
-
 ## Issue states
 
 ```
@@ -205,8 +190,7 @@ When Marcos opens a thread describing a requirement, Claude must:
 4. **Refine** iteratively based on feedback
 5. **Confirm** before creating the issue: _"Can I create the issue with this content?"_
 6. **Create** the issue and the branch
-7. **Update** the backlog if applicable
-8. **Suggest** an SDD spec if the complexity warrants it
+7. **Suggest** an SDD spec if the complexity warrants it
 
 **Tone:** direct, no bureaucracy. The goal is for creating a well-structured requirement to be fast and natural.
 
@@ -261,8 +245,7 @@ Claude: [updates acceptance criteria]
 ### Approval
 ```
 Marcos: "OK, go ahead."
-Claude: [creates issue #42, creates branch feat/GH-42-pdf-password-support,
-         updates BK-4 in backlog]
+Claude: [creates issue #42, creates branch feat/GH-42-pdf-password-support]
 ```
 
 ---

@@ -22,9 +22,9 @@ export function resolveTransactionDirectionVisuals(
     return {
       icon:
         creditDebitType === CreditDebitType.Debit ? (
-          <ArrowBackIcon fontSize="inherit" />
-        ) : (
           <ArrowForwardIcon fontSize="inherit" />
+        ) : (
+          <ArrowBackIcon fontSize="inherit" />
         ),
       color: theme.palette.info.main,
     };
