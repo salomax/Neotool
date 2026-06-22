@@ -1,3 +1,14 @@
+## 0.7.24 (2026-06-22)
+
+### 🚀 Features
+
+- **ui:** enhance layout and responsiveness across various components ([e264fe77](https://github.com/invistus/invistus/commit/e264fe77))
+- **ui:** enhance mobile layout and sidebar functionality ([34637d3f](https://github.com/invistus/invistus/commit/34637d3f))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.23 (2026-06-22)
 
 ### 🩹 Fixes
