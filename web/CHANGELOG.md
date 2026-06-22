@@ -1,3 +1,13 @@
+## 0.7.22 (2026-06-22)
+
+### 💅 Refactors
+
+- **workflows:** remove backlog linkage steps from requirement workflow ([9c75a586](https://github.com/invistus/invistus/commit/9c75a586))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.21 (2026-06-21)
 
 ### 🚀 Features
