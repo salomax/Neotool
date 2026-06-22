@@ -789,7 +789,13 @@ test.describe('Transaction rules', () => {
       expect(createdRule?.typeOverride).toBe(CategoryApplicableTo.Transfer);
       ruleId = createdRule?.id;
 
-      const importedTx = await importDebitWithMemo(bankAccount.id, pfUser.token, memo);
+      const importAmount = 25;
+      const importedTx = await importDebitWithMemo(
+        bankAccount.id,
+        pfUser.token,
+        memo,
+        `-${importAmount}.00`,
+      );
       expect(importedTx.type).toBe(TransactionType.Transfer);
       expectUserRuleApplied(importedTx, ruleId!);
 
@@ -801,7 +807,10 @@ test.describe('Transaction rules', () => {
       );
       expect(afterSummary.totalExpenses).toBeCloseTo(baselineSummary.totalExpenses, 2);
       expect(afterSummary.totalIncome).toBeCloseTo(baselineSummary.totalIncome, 2);
-      expect(afterSummary.closingBalance).toBeCloseTo(baselineSummary.closingBalance, 2);
+      expect(afterSummary.closingBalance).toBeCloseTo(
+        baselineSummary.closingBalance - importAmount,
+        2,
+      );
 
       const pfPage = new FinanceTransactionsPage(page);
       await pfPage.goto();
