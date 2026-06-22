@@ -3,15 +3,11 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
   Box,
   Container,
   Typography,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { useMediaQuery, useTheme } from '@mui/material';
 import { ConfirmationDialog, LoadingState, QueryErrorState } from '@/shared/components/ui/feedback';
 import { useDebounce } from '@/shared/hooks/ui';
 import { useTranslation } from '@/shared/i18n';
@@ -33,13 +29,12 @@ import { RecurringPaymentsToolbar } from './RecurringPaymentsToolbar';
 import { RecurringPaymentsSummaryPanel } from './RecurringPaymentsSummaryPanel';
 import { RecurringPaymentsTable } from './RecurringPaymentsTable';
 import { ConfirmPaymentDialog } from './ConfirmPaymentDialog';
+import { computeRecurringSummaryMetrics } from './recurringPaymentRowModel';
 
 type RecurringPaymentsData = { recurringPayments: RecurringPaymentRecord[] };
 
 export function RecurringPaymentsList() {
   const { t } = useTranslation(personalFinanceTranslations);
-  const theme = useTheme();
-  const isMdDown = useMediaQuery(theme.breakpoints.down('md'));
 
   const [editing, setEditing] = useState<RecurringPaymentRecord | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -140,6 +135,42 @@ export function RecurringPaymentsList() {
     rows.length === 0
       ? t('recurringPayments.table.noRecurringActivity')
       : t('recurringPayments.noFilterResults');
+  const metrics = useMemo(() => computeRecurringSummaryMetrics(rows), [rows]);
+  const activeCount = rows.filter((row) => row.status === RecurringPaymentStatus.Active).length;
+  const mobileTrigger = (
+    <Box
+      sx={{
+        px: 3,
+        py: 1.5,
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 2,
+      }}
+    >
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.2 }}>
+          {t('routes.recurringPayments')}
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+            mt: 0.25,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {t('recurringPayments.mobileTrigger.summary', {
+            amount: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(metrics.monthlyCommittedApprox),
+            count: activeCount,
+          })}
+        </Typography>
+      </Box>
+      <ExpandMoreIcon sx={{ color: 'text.secondary', flexShrink: 0 }} />
+    </Box>
+  );
 
   const summaryPanel = (
     <Box sx={{ p: 3, pb: 2, height: '100%' }}>
@@ -154,17 +185,6 @@ export function RecurringPaymentsList() {
 
   const mainContent = (
     <Box>
-      {isMdDown ? (
-        <Accordion defaultExpanded={false} sx={{ mb: 2 }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              {t('recurringPayments.summary.mobileAccordionTitle')}
-            </Typography>
-          </AccordionSummary>
-          <AccordionDetails sx={{ pt: 0 }}>{summaryPanel}</AccordionDetails>
-        </Accordion>
-      ) : null}
-
       {error ? <QueryErrorState error={error} onRetry={() => void refetch()} /> : null}
       {!error ? <LoadingState isLoading={loading && rows.length === 0} minHeight={180} /> : null}
 
@@ -241,9 +261,23 @@ export function RecurringPaymentsList() {
   );
 
   return (
-    <SidebarLayout side="left" size="sm" fullHeight sidebar={isMdDown ? null : summaryPanel}>
+    <SidebarLayout
+      side="left"
+      size="sm"
+      fullHeight
+      mobileVariant="bottom-sheet"
+      mobileTrigger={mobileTrigger}
+      sidebar={summaryPanel}
+    >
       <Page>
-        <Container maxWidth="xl" sx={{ py: 4 }}>
+        <Container
+          maxWidth="xl"
+          sx={{
+            py: 4,
+            minWidth: 0, // Let the recurring table and filters wrap within the handset viewport.
+            overflowX: 'hidden',
+          }}
+        >
           {mainContent}
         </Container>
       </Page>

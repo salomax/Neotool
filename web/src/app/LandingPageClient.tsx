@@ -50,7 +50,15 @@ export default function WelcomePage() {
   const { t } = useTranslation(landingTranslations);
 
   return (
-    <Box sx={{ bgcolor: "background.default", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <Box
+      sx={{
+        bgcolor: "background.default",
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        overflowX: "hidden", // Decorative landing visuals should clip instead of widening the mobile viewport.
+      }}
+    >
       <LandingHero />
 
       {/* Features Section */}

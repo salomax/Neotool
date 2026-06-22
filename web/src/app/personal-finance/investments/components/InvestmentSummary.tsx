@@ -49,6 +49,10 @@ interface InvestmentSummaryProps {
   activeGroupFilter?: string | null;
   /** Reporta carregamento/refetch do resumo para o divider acima (sidebar). */
   onSummaryFetchingChange?: (fetching: boolean) => void;
+  onSummaryValueChange?: (summary: {
+    totalPortfolioValue: number | null | undefined;
+    currencyCode: string;
+  }) => void;
 }
 
 interface SummaryMetricRowProps {
@@ -140,6 +144,7 @@ export function InvestmentSummary({
   onGroupClick,
   activeGroupFilter = null,
   onSummaryFetchingChange,
+  onSummaryValueChange,
 }: InvestmentSummaryProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -232,6 +237,13 @@ export function InvestmentSummary({
   React.useEffect(() => {
     onSummaryFetchingChange?.(summaryFetching);
   }, [summaryFetching, onSummaryFetchingChange]);
+
+  React.useEffect(() => {
+    onSummaryValueChange?.({
+      totalPortfolioValue: summary?.totalPortfolioValue,
+      currencyCode,
+    });
+  }, [currencyCode, onSummaryValueChange, summary?.totalPortfolioValue]);
 
   React.useEffect(() => {
     return () => onSummaryFetchingChange?.(false);

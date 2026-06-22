@@ -6,16 +6,16 @@ import {
   Paper, 
   Typography, 
   useTheme, 
-  Avatar,
   HomeIcon,
-  MenuIcon,
-  PersonIcon
+  MenuIcon
 } from "@/shared/ui/mui-imports";
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import InsertChartIcon from '@mui/icons-material/InsertChart';
+import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import RepeatIcon from '@mui/icons-material/Repeat';
 import { alpha } from "@mui/material/styles";
+import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/shared/providers";
-import { getInitials } from "@/shared/utils/user";
 
 export interface BottomNavItem {
   id: string;
@@ -31,6 +31,30 @@ export interface BottomNavigationBarProps {
   onMoreClick?: () => void;
 }
 
+function getActivePath(pathname: string | null, items: BottomNavItem[]): string | null {
+  if (!pathname) return null;
+
+  let bestMatch: string | null = null;
+  let bestMatchLength = -1;
+
+  for (const item of items) {
+    const path = item.path;
+    if (!path) continue;
+
+    const matches =
+      path === "/"
+        ? pathname === "/"
+        : pathname === path || pathname.startsWith(`${path}/`);
+
+    if (!matches || path.length <= bestMatchLength) continue;
+
+    bestMatch = path;
+    bestMatchLength = path.length;
+  }
+
+  return bestMatch;
+}
+
 export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
   onMoreClick
 }) => {
@@ -38,48 +62,61 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
   const router = useRouter();
   const pathname = usePathname();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const { t } = useTranslation();
-  const { isAuthenticated, user, signIn } = useAuth();
+  const isCompactViewport = useMediaQuery("(max-width:390px)");
+  const { t } = useTranslation("common");
+  const personalFinanceEnabled = useFeatureFlagEnabled("personal-finance-dashboard-enabled");
 
   if (!isMobile) {
     return null;
   }
 
-  const items: BottomNavItem[] = [
-    {
-      id: "home",
-      label: t("routes.home"),
-      icon: <HomeIcon />,
-      path: "/",
-    },
-    {
-      id: "data",
-      label: t("routes.financialData"),
-      icon: <AccountBalanceIcon />,
-      path: "/financial-data",
-    },
-    {
-      id: "profile",
-      label: isAuthenticated ? t("routes.profile") : t("appHeader.signIn"),
-      icon: isAuthenticated ? (
-        <Avatar
-          sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
-          src={user?.avatarUrl || undefined}
-        >
-          {user ? getInitials(user) : <PersonIcon sx={{ fontSize: 16 }} />}
-        </Avatar>
-      ) : (
-        <PersonIcon />
-      ),
-      path: isAuthenticated ? "/profile" : "/signin",
-    },
-    {
-      id: "menu",
-      label: t("routes.menu"),
-      icon: <MenuIcon />,
-      action: onMoreClick,
-    },
-  ];
+  const items: BottomNavItem[] = personalFinanceEnabled
+    ? [
+        {
+          id: "dashboard",
+          label: t("routes.dashboard"),
+          icon: <InsertChartIcon />,
+          path: "/personal-finance",
+        },
+        {
+          id: "transactions",
+          label: t("routes.transactions"),
+          icon: <SwapHorizIcon />,
+          path: "/personal-finance/finance-transactions",
+        },
+        {
+          id: "portfolio",
+          label: t("routes.portfolio"),
+          icon: <SavingsOutlinedIcon />,
+          path: "/personal-finance/investments",
+        },
+        {
+          id: "recurring",
+          label: t("routes.recurringPayments"),
+          icon: <RepeatIcon />,
+          path: "/personal-finance/recurring-payments",
+        },
+        {
+          id: "menu",
+          label: t("routes.more"),
+          icon: <MenuIcon />,
+          action: onMoreClick,
+        },
+      ]
+    : [
+        {
+          id: "home",
+          label: t("routes.home"),
+          icon: <HomeIcon />,
+          path: "/",
+        },
+        {
+          id: "menu",
+          label: t("routes.more"),
+          icon: <MenuIcon />,
+          action: onMoreClick,
+        },
+      ];
 
   const handleNavigation = (item: BottomNavItem) => {
     if (item.action) {
@@ -88,13 +125,7 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
       router.push(item.path);
     }
   };
-
-  const isActive = (path?: string) => {
-    if (!path) return false;
-    if (path === "/" && pathname === "/") return true;
-    if (path !== "/" && pathname?.startsWith(path)) return true;
-    return false;
-  };
+  const activePath = getActivePath(pathname, items);
 
   return (
     <Paper
@@ -112,13 +143,14 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
         borderTop: `1px solid ${theme.palette.divider}`,
         borderRadius: 0,
         display: "flex",
-        justifyContent: "space-evenly",
+        justifyContent: "space-between",
         alignItems: "center",
+        px: isCompactViewport ? 0 : 0.5,
       }}
       role="navigation"
     >
       {items.map((item) => {
-        const active = isActive(item.path);
+        const active = !!item.path && item.path === activePath;
         const color = active ? theme.palette.primary.main : theme.custom?.palette?.sidebarIcon || theme.palette.text.secondary;
 
         return (
@@ -133,8 +165,10 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              width: theme.custom?.layout?.mobile?.touchTarget || 56,
+              flex: "1 1 0",
+              minWidth: 0,
               height: theme.custom?.layout?.mobile?.touchTarget || 56,
+              px: 0,
               cursor: "pointer",
               color: color,
               transition: "color 0.2s ease-in-out",
@@ -147,10 +181,10 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
             <Box
               sx={{
                 "& svg": {
-                  fontSize: 24,
+                  fontSize: isCompactViewport ? 22 : 24,
                   color: color,
                 },
-                marginBottom: "4px",
+                marginBottom: isCompactViewport ? "1px" : "3px",
               }}
             >
               {item.icon}
@@ -160,10 +194,15 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
             <Typography
               variant="caption"
               sx={{
-                fontSize: "12px",
+                width: "100%",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                textAlign: "center",
+                fontSize: isCompactViewport ? "9px" : "11px",
                 fontWeight: 500,
                 color: color,
-                lineHeight: 1,
+                lineHeight: isCompactViewport ? 0.95 : 1,
               }}
             >
               {item.label}

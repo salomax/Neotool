@@ -26,7 +26,10 @@ function heroSectionSx(theme: Theme) {
   if (isDark) {
     return {
       backgroundColor: theme.palette.background.paper,
-      backgroundImage: `radial-gradient(circle at 20% 50%, ${theme.palette.background.default} 0%, transparent 55%), radial-gradient(circle at 10% 10%, ${alpha(theme.palette.primary.main, 0.35)} 0%, transparent 40%)`,
+      backgroundImage: {
+        xs: "none",
+        lg: `radial-gradient(circle at 20% 50%, ${theme.palette.background.default} 0%, transparent 55%), radial-gradient(circle at 10% 10%, ${alpha(theme.palette.primary.main, 0.35)} 0%, transparent 40%)`,
+      },
       position: "relative" as const,
       overflow: "hidden" as const,
     };
@@ -34,7 +37,10 @@ function heroSectionSx(theme: Theme) {
 
   return {
     backgroundColor: theme.palette.background.default,
-    backgroundImage: `radial-gradient(circle at 20% 50%, ${alpha(theme.palette.divider, 0.85)} 0%, transparent 60%), radial-gradient(circle at 10% 10%, ${alpha(theme.palette.divider, 0.55)} 0%, transparent 45%)`,
+    backgroundImage: {
+      xs: "none",
+      lg: `radial-gradient(circle at 20% 50%, ${alpha(theme.palette.divider, 0.85)} 0%, transparent 60%), radial-gradient(circle at 10% 10%, ${alpha(theme.palette.divider, 0.55)} 0%, transparent 45%)`,
+    },
     position: "relative" as const,
     overflow: "hidden" as const,
   };

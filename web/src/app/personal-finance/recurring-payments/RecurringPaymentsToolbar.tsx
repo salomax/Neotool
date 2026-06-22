@@ -49,14 +49,23 @@ export function RecurringPaymentsToolbar({
 }: RecurringPaymentsToolbarProps) {
   return (
     <Stack
-      direction="row"
+      direction={{ xs: 'column', md: 'row' }}
       spacing={2}
       sx={{ width: '100%', mb: 2, mt: { xs: 0, md: -1.5 }, minHeight: 50 }}
-      alignItems="flex-end"
+      alignItems={{ xs: 'stretch', md: 'flex-end' }}
       flexWrap="wrap"
       useFlexGap
     >
-      <Box sx={{ flex: 1, minWidth: 200, display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'flex-end' }}>
+      <Box
+        sx={{
+          flex: 1,
+          minWidth: 0, // Allow filter chips to wrap on mobile instead of forcing horizontal overflow.
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 1.5,
+          alignItems: 'flex-end',
+        }}
+      >
         <RecurringPaymentsMultiSelectFilter<RecurringPaymentStatus>
           fieldLabel={filtersStatusLabel}
           options={statusOptions}
@@ -76,14 +85,32 @@ export function RecurringPaymentsToolbar({
           ariaLabel={filtersAriaFrequency}
         />
       </Box>
-      <Box sx={{ flex: '0 0 auto', display: 'flex', alignItems: 'flex-end', gap: 1.5 }}>
+      <Box
+        sx={{
+          flex: '0 0 auto',
+          display: 'flex',
+          alignItems: 'flex-end',
+          gap: 1.5,
+          width: { xs: '100%', md: 'auto' },
+          flexWrap: { xs: 'wrap', md: 'nowrap' },
+        }}
+      >
         <ExpandableSearchInput
           searchQuery={searchQuery}
           onSearchQueryChange={onSearchQueryChange}
           placeholder={searchPlaceholder}
           ariaClearLabel={clearSearchAriaLabel}
         />
-        <Button variant="contained" startIcon={<AddIcon />} onClick={onNewRecurring} sx={{ flexShrink: 0 }}>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={onNewRecurring}
+          sx={{
+            flexShrink: 0,
+            minHeight: 44,
+            width: { xs: '100%', sm: 'auto' },
+          }}
+        >
           {newButtonLabel}
         </Button>
       </Box>

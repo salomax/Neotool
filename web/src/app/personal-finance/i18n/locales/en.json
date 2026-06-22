@@ -6,6 +6,7 @@
       "consolidatedView": "CONSOLIDATED VIEW",
       "summaryTitle": "CONSOLIDATED VIEW",
       "totalLabel": "Total portfolio",
+      "loading": "Loading portfolio…",
       "metrics": {
         "contributions": "Contributions",
         "returns": "Returns"
@@ -2200,6 +2201,10 @@
       "byFrequency": "By frequency",
       "noDistributionData": "No chart data (set an estimated amount on recurring items).",
       "mobileAccordionTitle": "Indicators"
+    },
+    "mobileTrigger": {
+      "summary_one": "{{amount}}/mo · {{count}} active",
+      "summary_other": "{{amount}}/mo · {{count}} active"
     },
     "header": {
       "searchPlaceholder": "Search by name…"

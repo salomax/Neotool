@@ -51,9 +51,9 @@ export default function SignInPage() {
   return (
     <Box
       sx={{
-        height: "100%",
+        minHeight: "100%",
         display: "flex",
-        alignItems: "center",
+        alignItems: { xs: "stretch", sm: "center" },
         justifyContent: "center",
         bgcolor: "background.default",
         py: { xs: 4, sm: 8 },
@@ -61,7 +61,7 @@ export default function SignInPage() {
       }}
       data-testid="signin-screen"
     >
-      <Container maxWidth="sm" sx={{ width: "100%" }}>
+      <Container maxWidth="sm" sx={{ width: "100%", pb: { xs: 3, sm: 0 } }}>
         <Stack gap={4} align="center" name="signin-page-stack">
           <Box sx={{ mb: 2 }}>
             <Logo variant="blue" size="large" />

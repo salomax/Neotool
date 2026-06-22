@@ -2,12 +2,14 @@
 
 import React from 'react';
 import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { Box } from './Box';
 import { Container } from './Container';
 import { LayoutComponentProps } from './types';
 import { getTestIdProps } from '@/shared/utils/testid';
 import { RAIL_W } from '@/shared/ui/navigation/SidebarRail';
 import { useElementHeight } from '@/shared/hooks/ui';
+import { MobileSidebarSheet } from './MobileSidebarSheet';
 
 // Drawer size presets (same as Drawer component for consistency)
 export type SidebarSize = 'sm' | 'md' | 'lg' | 'full';
@@ -52,6 +54,14 @@ export interface SidebarLayoutProps extends LayoutComponentProps {
    * The main content area will have vertical scroll enabled when content overflows.
    */
   fullHeight?: boolean;
+  /**
+   * Mobile behavior for the sidebar content.
+   * - 'hidden': hide the sidebar completely below md
+   * - 'bottom-sheet': show the sidebar through a mobile trigger + bottom sheet
+   */
+  mobileVariant?: 'bottom-sheet' | 'hidden';
+  /** Compact mobile trigger rendered above the main content area when using the bottom-sheet variant. */
+  mobileTrigger?: React.ReactNode;
   /** Content for the fixed sidebar column */
   sidebar: React.ReactNode;
   /** Main content (rendered as Container) */
@@ -94,6 +104,8 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
   headerHeight,
   headerSelector = 'header',
   fullHeight = false,
+  mobileVariant = 'hidden',
+  mobileTrigger,
   sidebar,
   children,
   className,
@@ -103,6 +115,8 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
   ...props
 }, ref) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [sheetOpen, setSheetOpen] = React.useState(false);
   
   // Use provided headerHeight or calculated dynamicHeaderHeight
   const dynamicHeaderHeight = useElementHeight(headerSelector);
@@ -114,11 +128,16 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
   
   // Calculate sidebar width
   const sidebarWidth = getSidebarWidth(size);
+  const usesMobileBottomSheet = isMobile && mobileVariant === 'bottom-sheet';
+  const hidesSidebarOnMobile = isMobile;
+  const shouldRenderFixedSidebar = !hidesSidebarOnMobile;
   
   // Determine flex direction based on side
   const isLeft = side === 'left';
-  const sidebarEdge = isLeft ? 'left' : 'right';
-  const contentOffset = size === 'full' ? 0 : (typeof sidebarWidth === 'number' ? `${sidebarWidth}px` : sidebarWidth);
+  const contentOffset =
+    shouldRenderFixedSidebar && size !== 'full'
+      ? (typeof sidebarWidth === 'number' ? `${sidebarWidth}px` : sidebarWidth)
+      : 0;
   
   // Get sidebar background color from theme (same as SidebarRail)
   const sidebarBg = (theme as any).custom?.palette?.sidebarBg || '#ffffff';
@@ -162,14 +181,16 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
       {...props}
     >
       {/* Fixed sidebar column */}
-      <Box
-        component="aside"
-        style={sidebarStyles}
-        sx={{ bgcolor: sidebarBg }}
-        data-testid={generatedTestId ? `${generatedTestId}-sidebar` : undefined}
-      >
-        {sidebar}
-      </Box>
+      {shouldRenderFixedSidebar ? (
+        <Box
+          component="aside"
+          style={sidebarStyles}
+          sx={{ bgcolor: sidebarBg }}
+          data-testid={generatedTestId ? `${generatedTestId}-sidebar` : undefined}
+        >
+          {sidebar}
+        </Box>
+      ) : null}
       
       {/* Main content wrapper - handles sidebar offset and scrolling */}
       <Box
@@ -185,6 +206,31 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
         }}
         data-testid={generatedTestId ? `${generatedTestId}-content` : undefined}
       >
+        {usesMobileBottomSheet && mobileTrigger ? (
+          <Box
+            role="button"
+            tabIndex={0}
+            onClick={() => setSheetOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setSheetOpen(true);
+              }
+            }}
+            sx={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 1,
+              minHeight: 68, // Two-line mobile sidebar triggers need extra height to keep the subtitle inside the header.
+              bgcolor: 'background.default',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            }}
+            data-testid={generatedTestId ? `${generatedTestId}-mobile-trigger` : undefined}
+          >
+            {mobileTrigger}
+          </Box>
+        ) : null}
         <Container
           disableGutters
           // Don't use fullHeight prop as it adds overflow: hidden.
@@ -195,11 +241,21 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
               display: 'flex',
               flexDirection: 'column',
             }),
+            minWidth: 0, // Let page-level grids and panels wrap instead of forcing horizontal scroll.
+            overflowX: 'hidden', // Contain sidebar-driven mobile pages to the viewport width.
           }}
         >
           {children}
         </Container>
       </Box>
+      {usesMobileBottomSheet ? (
+        <MobileSidebarSheet
+          open={sheetOpen}
+          onClose={() => setSheetOpen(false)}
+        >
+          {sidebar}
+        </MobileSidebarSheet>
+      ) : null}
     </Box>
   );
 });

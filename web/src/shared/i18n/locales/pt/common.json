@@ -40,6 +40,8 @@
   "routes": {
     "home": "Início",
     "dashboard": "Dashboard",
+    "transactions": "Movimentações",
+    "portfolio": "Carteira",
     "profile": "Perfil",
     "examples": "Exemplos",
     "forms": "Formulários",
@@ -47,8 +49,10 @@
     "financialInstitutions": "Instituições Financeiras",
     "financialData": "Dados Financeiros",
     "personalFinance": "Finanças pessoais",
-    "recurringPayments": "Movimentações recorrentes",
+    "recurringPayments": "Recorrentes",
+    "pricesConsumption": "Preços & Consumo",
     "investments": "Investimentos",
+    "more": "Mais",
     "menu": "Menu"
   },
   "profile": {
@@ -124,12 +128,22 @@
   "actions": {
     "save": "Salvar",
     "cancel": "Cancelar",
+    "close": "Fechar",
     "edit": "Editar",
     "delete": "Excluir",
     "add": "Adicionar",
     "create": "Criar",
     "update": "Atualizar",
-    "loading": "Carregando..."
+    "loading": "Carregando...",
+    "enabled": "Ativado",
+    "disabled": "Desativado"
+  },
+  "mobileAppBanner": {
+    "title": "Para a melhor experiência, baixe o app",
+    "subtitle": "Instale o Invistus no seu celular para acesso mais rápido.",
+    "appStore": "App Store",
+    "playStore": "Play Store",
+    "dismiss": "Fechar banner do aplicativo"
   },
   "errors": {
     "ACCOUNT_ALREADY_EXISTS": "A conta já existe.",
