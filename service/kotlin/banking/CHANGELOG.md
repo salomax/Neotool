@@ -1,3 +1,13 @@
+## 0.7.8 (2026-06-22)
+
+### 🩹 Fixes
+
+- **transactions:** update closing balance calculation to include all transaction types ([31896f17](https://github.com/invistus/invistus/commit/31896f17))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.7 (2026-06-21)
 
 This was a version bump only for banking to align it with other projects, there were no code changes.
