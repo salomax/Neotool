@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import { usePathname } from "next/navigation";
 import Box from "@mui/material/Box";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
@@ -10,11 +11,24 @@ import { BreadcrumbLabelProvider } from "@/shared/hooks/ui/useBreadcrumbLabel";
 import { useElementHeight } from "@/shared/hooks/ui/useElementHeight";
 import { RequireAuthGuard } from "@/shared/hooks/auth/useRequireAuth";
 
+const AUTH_ROUTE_PREFIXES = [
+  "/signin",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/verify-email-link",
+] as const;
+
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const headerHeight = useElementHeight("header", 80);
   const theme = useTheme();
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const hideMobileChrome = AUTH_ROUTE_PREFIXES.some((prefix) =>
+    pathname === prefix || pathname?.startsWith(`${prefix}/`),
+  );
 
   const handleMoreClick = () => {
     setMobileMenuOpen(true);
@@ -50,7 +64,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           }}
         >
           <AppHeader />
-          <MobileAppBanner />
+          {!hideMobileChrome ? <MobileAppBanner /> : null}
           <Box 
             sx={{ 
               flex: 1,
@@ -65,17 +79,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     easing: theme.transitions.easing.easeInOut,
                   }),
               willChange: prefersReducedMotion ? undefined : "margin-top",
-              paddingBottom: { xs: "80px", md: 0 }, // Add padding for bottom nav on mobile
+              paddingBottom: { xs: hideMobileChrome ? 0 : "80px", md: 0 }, // Reserve bottom-nav space only where the mobile chrome is visible.
             }}
           >
             <RequireAuthGuard>{children}</RequireAuthGuard>
           </Box>
         </Box>
-        <BottomNavigationBar onMoreClick={handleMoreClick} />
-        <MobileNavigationDrawer 
-          open={mobileMenuOpen} 
-          onClose={handleMobileMenuClose} 
-        />
+        {!hideMobileChrome ? <BottomNavigationBar onMoreClick={handleMoreClick} /> : null}
+        {!hideMobileChrome ? (
+          <MobileNavigationDrawer 
+            open={mobileMenuOpen} 
+            onClose={handleMobileMenuClose} 
+          />
+        ) : null}
       </Box>
       </BreadcrumbLabelProvider>
     </PageTitleProvider>

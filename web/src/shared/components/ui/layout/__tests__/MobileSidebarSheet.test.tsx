@@ -3,6 +3,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MobileSidebarSheet } from "../MobileSidebarSheet";
 
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        "actions.close": "Close",
+      };
+
+      return translations[key] ?? key;
+    },
+  }),
+}));
+
 vi.mock("../Drawer", () => {
   function Drawer({
     open,
@@ -91,5 +103,19 @@ describe.sequential("MobileSidebarSheet", () => {
     );
 
     expect(screen.getByTestId("mobile-sidebar-sheet-handle")).toBeInTheDocument();
+  });
+
+  it("calls onClose when the close button is clicked", () => {
+    const onClose = vi.fn();
+
+    render(
+      <MobileSidebarSheet open onClose={onClose}>
+        <div>Sidebar content</div>
+      </MobileSidebarSheet>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

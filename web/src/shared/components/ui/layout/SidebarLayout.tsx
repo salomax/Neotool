@@ -221,7 +221,7 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
               position: 'sticky',
               top: 0,
               zIndex: 1,
-              minHeight: 44, // Keep the mobile sidebar opener comfortably tappable on narrow screens.
+              minHeight: 68, // Two-line mobile sidebar triggers need extra height to keep the subtitle inside the header.
               bgcolor: 'background.default',
               borderBottom: '1px solid',
               borderColor: 'divider',

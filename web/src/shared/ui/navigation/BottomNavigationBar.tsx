@@ -62,6 +62,7 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
   const router = useRouter();
   const pathname = usePathname();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const isCompactViewport = useMediaQuery("(max-width:390px)");
   const { t } = useTranslation("common");
   const personalFinanceEnabled = useFeatureFlagEnabled("personal-finance-dashboard-enabled");
 
@@ -142,8 +143,9 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
         borderTop: `1px solid ${theme.palette.divider}`,
         borderRadius: 0,
         display: "flex",
-        justifyContent: "space-evenly",
+        justifyContent: "space-between",
         alignItems: "center",
+        px: isCompactViewport ? 0 : 0.5,
       }}
       role="navigation"
     >
@@ -163,8 +165,10 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              width: theme.custom?.layout?.mobile?.touchTarget || 56,
+              flex: "1 1 0",
+              minWidth: 0,
               height: theme.custom?.layout?.mobile?.touchTarget || 56,
+              px: 0,
               cursor: "pointer",
               color: color,
               transition: "color 0.2s ease-in-out",
@@ -177,10 +181,10 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
             <Box
               sx={{
                 "& svg": {
-                  fontSize: 24,
+                  fontSize: isCompactViewport ? 22 : 24,
                   color: color,
                 },
-                marginBottom: "4px",
+                marginBottom: isCompactViewport ? "1px" : "3px",
               }}
             >
               {item.icon}
@@ -190,10 +194,15 @@ export const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({
             <Typography
               variant="caption"
               sx={{
-                fontSize: "12px",
+                width: "100%",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                textAlign: "center",
+                fontSize: isCompactViewport ? "9px" : "11px",
                 fontWeight: 500,
                 color: color,
-                lineHeight: 1,
+                lineHeight: isCompactViewport ? 0.95 : 1,
               }}
             >
               {item.label}

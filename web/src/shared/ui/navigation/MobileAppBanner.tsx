@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTranslation } from "react-i18next";
+import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
 import { LogoMark } from "@/shared/ui/brand";
 
 const DISMISSED_STORAGE_KEY = "invistus:mobile-banner-dismissed";
@@ -20,24 +21,25 @@ export function MobileAppBanner() {
   const { t } = useTranslation("common");
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const showBanner = useFeatureFlagEnabled("mobile-app-message-show");
   const [dismissed, setDismissed] = React.useState(true);
 
   React.useEffect(() => {
-    if (!isMobile) {
+    if (!isMobile || !showBanner) {
       setDismissed(true);
       return;
     }
 
     const storedValue = window.localStorage.getItem(DISMISSED_STORAGE_KEY);
     setDismissed(storedValue === "true");
-  }, [isMobile]);
+  }, [isMobile, showBanner]);
 
   const handleDismiss = React.useCallback(() => {
     window.localStorage.setItem(DISMISSED_STORAGE_KEY, "true");
     setDismissed(true);
   }, []);
 
-  if (!isMobile || dismissed) {
+  if (!isMobile || !showBanner || dismissed) {
     return null;
   }
 
@@ -76,6 +78,7 @@ export function MobileAppBanner() {
           {t("mobileAppBanner.subtitle")}
         </Typography>
         <Box sx={{ display: "flex", gap: 1, mt: 1.25, flexWrap: "wrap" }}>
+          {/*
           <Button
             component={Link}
             href="#"
@@ -85,6 +88,7 @@ export function MobileAppBanner() {
           >
             {t("mobileAppBanner.appStore")}
           </Button>
+          */}
           <Button
             component={Link}
             href="#"

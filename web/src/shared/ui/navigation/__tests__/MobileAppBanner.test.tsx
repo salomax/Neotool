@@ -6,6 +6,7 @@ import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
 import { MobileAppBanner } from "../MobileAppBanner";
 
 const mockIsMobile = vi.fn();
+const mockUseFeatureFlagEnabled = vi.fn();
 
 vi.mock("@mui/material/useMediaQuery", () => ({
   default: () => mockIsMobile(),
@@ -27,6 +28,10 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+vi.mock("@/shared/hooks/useFeatureFlag", () => ({
+  useFeatureFlagEnabled: (flagName: string) => mockUseFeatureFlagEnabled(flagName),
+}));
+
 vi.mock("next/image", () => ({
   // eslint-disable-next-line @next/next/no-img-element
   default: ({ alt, priority: _priority, ...props }: any) => <img alt={alt} {...props} />,
@@ -44,6 +49,7 @@ describe.sequential("MobileAppBanner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mockUseFeatureFlagEnabled.mockImplementation((flagName: string) => flagName === "mobile-app-message-show");
   });
 
   it("does not render on desktop", async () => {
@@ -62,8 +68,8 @@ describe.sequential("MobileAppBanner", () => {
     renderMobileAppBanner();
 
     expect(await screen.findByTestId("mobile-app-banner")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "App Store" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Play Store" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "App Store" })).not.toBeInTheDocument();
   });
 
   it("closes the banner and persists the dismissed flag", async () => {
@@ -83,6 +89,17 @@ describe.sequential("MobileAppBanner", () => {
   it("does not render when already dismissed in localStorage", async () => {
     mockIsMobile.mockReturnValue(true);
     localStorage.setItem("invistus:mobile-banner-dismissed", "true");
+
+    renderMobileAppBanner();
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("mobile-app-banner")).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not render when the feature flag is disabled", async () => {
+    mockIsMobile.mockReturnValue(true);
+    mockUseFeatureFlagEnabled.mockReturnValue(false);
 
     renderMobileAppBanner();
 

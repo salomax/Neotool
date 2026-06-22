@@ -447,19 +447,20 @@ export default function FinanceTransactionsPage() {
         px: 3,
         py: 1.5,
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'space-between',
         gap: 2,
       }}
     >
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.2 }}>
           {selectedAccountName}
         </Typography>
         <Typography
           variant="body2"
           sx={{
             color: 'text.secondary',
+            mt: 0.25,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
