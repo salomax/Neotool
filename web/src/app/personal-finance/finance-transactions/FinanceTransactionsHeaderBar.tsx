@@ -11,9 +11,9 @@ import {
   MenuItem,
   Stack,
   Typography,
-  useMediaQuery,
   useTheme,
 } from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
@@ -88,8 +88,10 @@ export function FinanceTransactionsHeaderBar({
 }: FinanceTransactionsHeaderBarProps) {
   const { t, tCommon } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const actionButtonsRevealEnabled = useMediaQuery('(min-width:750px)');
   const [importMenuAnchor, setImportMenuAnchor] = useState<null | HTMLElement>(null);
+  const mobileActionIconSize = theme.typography.pxToRem(16);
 
   const actionButtonsRevealCollapsedWidth = 90;
   const actionButtonsRevealExpandedWidth = 168;
@@ -196,6 +198,31 @@ export function FinanceTransactionsHeaderBar({
     ],
   );
 
+  const mobileToolbarButtonSx = useMemo(
+    () => ({
+      minWidth: 40,
+      width: 40,
+      minHeight: 40,
+      height: 40,
+      maxHeight: 40,
+      p: 0,
+      borderRadius: '10px',
+      borderColor: alpha(theme.palette.divider, 0.85),
+      color: 'text.secondary',
+      '& .MuiButton-startIcon': {
+        margin: 0,
+        '& > *:first-of-type': {
+          fontSize: mobileActionIconSize,
+        },
+      },
+      '&:hover': {
+        borderColor: 'divider',
+        bgcolor: alpha(theme.palette.common.white, theme.palette.mode === 'dark' ? 0.04 : 0.02),
+      },
+    }),
+    [mobileActionIconSize, theme],
+  );
+
   return (
     <>
       {importsError && effectiveSelectedAccountId && (
@@ -269,12 +296,18 @@ export function FinanceTransactionsHeaderBar({
       )}
       <Stack
         direction="row"
-        spacing={2}
-        sx={{ width: '100%', mb: 2, mt: { xs: 0, md: -1.5 }, minHeight: 50 }}
-        alignItems="flex-end"
-        flexWrap="wrap"
+        spacing={isMobile ? 1 : 2}
+        sx={{
+          width: '100%',
+          px: { xs: 2, md: 0 },
+          mb: { xs: 0.75, md: 1.25 },
+          mt: { xs: 0, md: -1 },
+          minHeight: 44,
+        }}
+        alignItems="center"
+        flexWrap={isMobile ? 'nowrap' : 'wrap'}
       >
-        <Box sx={{ flex: 1, minWidth: 200 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           {isCalendarMode ? (
             <MonthYearCarousel selectedMonth={selectedMonth} selectedYear={selectedYear} onChange={onDateChange} />
           ) : (
@@ -285,15 +318,42 @@ export function FinanceTransactionsHeaderBar({
             />
           )}
         </Box>
-        <Box sx={{ flex: '0 0 auto' }}>
+        <Box
+          sx={{
+            flex: isMobile ? '1 1 auto' : '0 0 auto',
+            minWidth: isMobile ? 40 : 'auto',
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}
+        >
           <ExpandableSearchInput
             searchQuery={searchQuery}
             onSearchQueryChange={onSearchQueryChange}
             placeholder={t('financeTransactions.transactionRules.searchPlaceholder')}
             ariaClearLabel={t('financeTransactions.transactionRules.actions.clearSearchAriaLabel')}
+            collapsedWidth={isMobile ? 40 : 90}
+            expandedWidth={isMobile ? '100%' : 320}
+            inputMaxWidth={isMobile ? 999 : 240}
+            height={isMobile ? 40 : 48}
+            collapsedSearchIconMarginLeft={isMobile ? '1.6rem' : 0}
+            sx={
+              isMobile
+                ? {
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '10px',
+                    },
+                    '& .MuiInputAdornment-positionStart': {
+                      minWidth: 0,
+                    },
+                    '& .MuiInputAdornment-positionStart .MuiSvgIcon-root, & .MuiInputAdornment-positionEnd .MuiSvgIcon-root': {
+                      fontSize: mobileActionIconSize,
+                    },
+                  }
+                : undefined
+            }
           />
         </Box>
-        {actionButtonsRevealEnabled ? (
+        {actionButtonsRevealEnabled && !isMobile ? (
           <Button
             component={Link}
             href="/personal-finance/finance-transactions/transaction-rules"
@@ -311,11 +371,13 @@ export function FinanceTransactionsHeaderBar({
             href="/personal-finance/finance-transactions/transaction-rules"
             variant="outlined"
             startIcon={<AutoFixHighIcon fontSize="small" />}
+            sx={isMobile ? mobileToolbarButtonSx : undefined}
+            aria-label={t('financeTransactions.actions.automation')}
           >
-            {t('financeTransactions.actions.automation')}
+            {!isMobile ? t('financeTransactions.actions.automation') : null}
           </Button>
         )}
-        {actionButtonsRevealEnabled ? (
+        {actionButtonsRevealEnabled && !isMobile ? (
           <Button
             variant="outlined"
             startIcon={<UploadIcon />}
@@ -341,14 +403,16 @@ export function FinanceTransactionsHeaderBar({
           <Button
             variant="outlined"
             startIcon={<UploadIcon />}
-            endIcon={<ArrowDropDownIcon />}
+            endIcon={isMobile ? undefined : <ArrowDropDownIcon />}
             onClick={(e) => setImportMenuAnchor(e.currentTarget)}
             aria-haspopup="menu"
             aria-expanded={!!importMenuAnchor}
             aria-controls={importMenuAnchor ? 'finance-transactions-import-menu' : undefined}
             data-testid="btn-open-import-drawer"
+            sx={isMobile ? mobileToolbarButtonSx : undefined}
+            aria-label={t('financeTransactions.import.button')}
           >
-            {t('financeTransactions.import.button')}
+            {!isMobile ? t('financeTransactions.import.button') : null}
           </Button>
         )}
         <Menu
@@ -395,6 +459,7 @@ export function FinanceTransactionsHeaderBar({
         <Button
           sx={{
             boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.28)}`,
+            display: { xs: 'none', md: 'flex' },
             '&:hover': {
               boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.36)}`,
             },

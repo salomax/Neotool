@@ -16,6 +16,7 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import {
   CategoryApplicableTo,
   Transaction,
@@ -37,6 +38,7 @@ import { formatFinanceDateGroupLabel, parseFinanceDateKey } from '../../utils/fi
 import { InlineTransactionForm } from './InlineTransactionForm';
 import { TransactionRow } from './TransactionRow';
 import type { TransactionRowCallbacks } from './TransactionRow';
+import { TransactionMobileRow } from './TransactionMobileRow';
 import { TransactionActionMenu } from './TransactionActionMenu';
 import { TransactionDialogs } from './TransactionDialogs';
 import { useBusyCounter } from './hooks/useBusyCounter';
@@ -79,6 +81,7 @@ export function TransactionTable({
 }: TransactionTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const loaderRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const tableHeadRef = useRef<HTMLTableSectionElement | null>(null);
@@ -282,15 +285,25 @@ export function TransactionTable({
     >
       {/* Sticky loading progress bar */}
       <Box
-        sx={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: `${progressTop}px`,
-          height: 4,
-          pointerEvents: 'none',
-          zIndex: 2,
-        }}
+        sx={
+          isMobile
+            ? {
+                position: 'sticky',
+                top: 0,
+                height: 4,
+                pointerEvents: 'none',
+                zIndex: 2,
+              }
+            : {
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: `${progressTop}px`,
+                height: 4,
+                pointerEvents: 'none',
+                zIndex: 2,
+              }
+        }
       >
         <LinearProgress
           sx={{
@@ -301,85 +314,36 @@ export function TransactionTable({
         />
       </Box>
 
-      <Table
-        sx={getFinanceTransactionTableSx(650)}
-        aria-label={t('financeTransactions.transactionTable.ariaLabel')}
-      >
-        <TableHead ref={tableHeadRef} sx={financeTransactionTableHeadSx}>
-          <TableRow sx={financeTransactionTableHeadRowSx}>
-            <TableCell padding="checkbox" sx={{ pl: 2, ...headCellSx }} />
-            <TableCell sx={headCellSx}>
-              <Label>{t('financeTransactions.transactionTable.columns.description')}</Label>
-            </TableCell>
-            <TableCell sx={headCellSx}>
-              <Label>{t('financeTransactions.transactionTable.columns.category')}</Label>
-            </TableCell>
-            <TableCell sx={headCellSx}>
-              <Label>{t('financeTransactions.tags')}</Label>
-            </TableCell>
-            {!selectedAccountId && (
-              <TableCell sx={headCellSx}>
-                <Label>{t('financeTransactions.financialAccount')}</Label>
-              </TableCell>
-            )}
-            <TableCell padding="none" sx={{ width: 32, ...headCellSx }} />
-            <TableCell align="right" sx={headCellSx}>
-              <Label>{t('financeTransactions.value')}</Label>
-            </TableCell>
-            <TableCell sx={{ px: 4, ...headCellSx }} />
-          </TableRow>
-        </TableHead>
-
-        <TableBody sx={financeTransactionTableBodySx}>
-          {onCancelCreate && onSuccessCreate && (
-            <InlineTransactionForm
-              isOpen={isCreating}
-              onClose={onCancelCreate}
-              onSuccess={onSuccessCreate}
-              onRefresh={onSuccessCreate}
-              selectedAccountId={selectedAccountId}
-              selectedMonth={selectedMonth}
-              selectedYear={selectedYear}
-              onBusyStart={beginBusy}
-              onBusyEnd={endBusy}
-            />
-          )}
-
+      {isMobile ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           {groupedTransactions.map((group, groupIndex) => (
             <Fragment key={`day-group-${group.date}`}>
-              {installmentSectionStartIndex === groupIndex && (
-                <TableRow
-                  key={`installment-section-header-${selectedYear}-${selectedMonth}`}
-                  sx={{ bgcolor: 'transparent', borderBottom: 'none' }}
-                >
-                  <TableCell colSpan={colSpan} sx={{ pt: 4, pb: 1 }}>
-                    <Stack spacing={1}>
-                      <Label>{t('financeTransactions.installmentPurchasesDueThisMonthHeader')}</Label>
-                      <Divider />
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              )}
+              {installmentSectionStartIndex === groupIndex ? (
+                <Box sx={{ pt: 2.5, pb: 0.5 }}>
+                  <Stack spacing={1}>
+                    <Label>{t('financeTransactions.installmentPurchasesDueThisMonthHeader')}</Label>
+                    <Divider />
+                  </Stack>
+                </Box>
+              ) : null}
 
-              <TableRow key={`header-${group.date}`} sx={financeTransactionDateGroupTableRowSx}>
-                <TableCell colSpan={colSpan} sx={financeTransactionDateGroupTableCellSx()}>
-                  <Label>{formatFinanceDateGroupLabel(group.date, t, i18n.language)}</Label>
-                </TableCell>
-              </TableRow>
+              <Box sx={{ ...financeTransactionDateGroupTableCellSx(), px: 2, pt: 1.5, pb: 0 }}>
+                <Label>{formatFinanceDateGroupLabel(group.date, t, i18n.language)}</Label>
+              </Box>
 
               {group.transactions.map((transaction, index) => {
-                const account = !selectedAccountId ? accountsById.get(transaction.financialAccountId) : null;
+                const account = !selectedAccountId
+                  ? accountsById.get(transaction.financialAccountId)
+                  : null;
                 const displayedCategory = categoryPicker.forceNoCategoryByTransactionId[transaction.id]
                   ? null
                   : transaction.category;
 
                 return (
-                  <TransactionRow
+                  <TransactionMobileRow
                     key={transaction.id}
                     transaction={transaction}
                     account={account}
-                    isFirst={index === 0}
-                    isLast={index === group.transactions.length - 1}
                     isEditing={editedTransaction?.id === transaction.id}
                     isEditFormOpen={isEditFormOpen}
                     isDeleting={deleteHook.deletedTransactionId === transaction.id}
@@ -388,14 +352,113 @@ export function TransactionTable({
                     selectedAccountId={selectedAccountId}
                     activeActionMenuTransactionId={actionMenu.menuTransaction?.id ?? null}
                     activeActionMenuAnchorEl={actionMenu.anchorEl}
+                    showDivider={index < group.transactions.length - 1}
                     callbacks={rowCallbacks}
                   />
                 );
               })}
             </Fragment>
           ))}
-        </TableBody>
-      </Table>
+        </Box>
+      ) : (
+        <Table
+          sx={getFinanceTransactionTableSx(650)}
+          aria-label={t('financeTransactions.transactionTable.ariaLabel')}
+        >
+          <TableHead ref={tableHeadRef} sx={financeTransactionTableHeadSx}>
+            <TableRow sx={financeTransactionTableHeadRowSx}>
+              <TableCell padding="checkbox" sx={{ pl: 2, ...headCellSx }} />
+              <TableCell sx={headCellSx}>
+                <Label>{t('financeTransactions.transactionTable.columns.description')}</Label>
+              </TableCell>
+              <TableCell sx={headCellSx}>
+                <Label>{t('financeTransactions.transactionTable.columns.category')}</Label>
+              </TableCell>
+              <TableCell sx={headCellSx}>
+                <Label>{t('financeTransactions.tags')}</Label>
+              </TableCell>
+              {!selectedAccountId && (
+                <TableCell sx={headCellSx}>
+                  <Label>{t('financeTransactions.financialAccount')}</Label>
+                </TableCell>
+              )}
+              <TableCell padding="none" sx={{ width: 32, ...headCellSx }} />
+              <TableCell align="right" sx={headCellSx}>
+                <Label>{t('financeTransactions.value')}</Label>
+              </TableCell>
+              <TableCell sx={{ px: 4, ...headCellSx }} />
+            </TableRow>
+          </TableHead>
+
+          <TableBody sx={financeTransactionTableBodySx}>
+            {onCancelCreate && onSuccessCreate && (
+              <InlineTransactionForm
+                isOpen={isCreating}
+                onClose={onCancelCreate}
+                onSuccess={onSuccessCreate}
+                onRefresh={onSuccessCreate}
+                selectedAccountId={selectedAccountId}
+                selectedMonth={selectedMonth}
+                selectedYear={selectedYear}
+                onBusyStart={beginBusy}
+                onBusyEnd={endBusy}
+              />
+            )}
+
+            {groupedTransactions.map((group, groupIndex) => (
+              <Fragment key={`day-group-${group.date}`}>
+                {installmentSectionStartIndex === groupIndex && (
+                  <TableRow
+                    key={`installment-section-header-${selectedYear}-${selectedMonth}`}
+                    sx={{ bgcolor: 'transparent', borderBottom: 'none' }}
+                  >
+                    <TableCell colSpan={colSpan} sx={{ pt: 4, pb: 1 }}>
+                      <Stack spacing={1}>
+                        <Label>{t('financeTransactions.installmentPurchasesDueThisMonthHeader')}</Label>
+                        <Divider />
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                )}
+
+                <TableRow key={`header-${group.date}`} sx={financeTransactionDateGroupTableRowSx}>
+                  <TableCell colSpan={colSpan} sx={financeTransactionDateGroupTableCellSx()}>
+                    <Label>{formatFinanceDateGroupLabel(group.date, t, i18n.language)}</Label>
+                  </TableCell>
+                </TableRow>
+
+                {group.transactions.map((transaction, index) => {
+                  const account = !selectedAccountId
+                    ? accountsById.get(transaction.financialAccountId)
+                    : null;
+                  const displayedCategory = categoryPicker.forceNoCategoryByTransactionId[transaction.id]
+                    ? null
+                    : transaction.category;
+
+                  return (
+                    <TransactionRow
+                      key={transaction.id}
+                      transaction={transaction}
+                      account={account}
+                      isFirst={index === 0}
+                      isLast={index === group.transactions.length - 1}
+                      isEditing={editedTransaction?.id === transaction.id}
+                      isEditFormOpen={isEditFormOpen}
+                      isDeleting={deleteHook.deletedTransactionId === transaction.id}
+                      updatingCategoryTransactionId={categoryPicker.updatingCategoryTransactionId}
+                      displayedCategory={displayedCategory}
+                      selectedAccountId={selectedAccountId}
+                      activeActionMenuTransactionId={actionMenu.menuTransaction?.id ?? null}
+                      activeActionMenuAnchorEl={actionMenu.anchorEl}
+                      callbacks={rowCallbacks}
+                    />
+                  );
+                })}
+              </Fragment>
+            ))}
+          </TableBody>
+        </Table>
+      )}
 
       {/* Action menu (single instance, shared across all rows) */}
       <TransactionActionMenu

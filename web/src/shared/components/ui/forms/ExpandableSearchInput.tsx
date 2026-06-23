@@ -10,6 +10,11 @@ export interface ExpandableSearchInputProps {
   onSearchQueryChange: (query: string) => void;
   placeholder: string;
   ariaClearLabel: string;
+  collapsedWidth?: number;
+  expandedWidth?: number | string;
+  inputMaxWidth?: number;
+  height?: number;
+  collapsedSearchIconMarginLeft?: number | string;
   sx?: SxProps<Theme>;
 }
 
@@ -22,13 +27,16 @@ export function ExpandableSearchInput({
   onSearchQueryChange,
   placeholder,
   ariaClearLabel,
+  collapsedWidth = 90,
+  expandedWidth = 320,
+  inputMaxWidth = 240,
+  height = 48,
+  collapsedSearchIconMarginLeft = 0,
   sx,
 }: ExpandableSearchInputProps) {
   const theme = useTheme();
   const normalizedSearchQuery = searchQuery.trim();
 
-  const actionButtonsRevealCollapsedWidth = 90;
-  const actionButtonsRevealSearchExpandedWidth = 320;
   const actionButtonsRevealCollapsedPx = 1;
   const actionButtonsRevealExpandedPx = 0.75;
   const actionButtonsBorderRadiusPx = `${(theme as any).custom?.radius?.button ?? theme.shape.borderRadius}px`;
@@ -72,12 +80,18 @@ export function ExpandableSearchInput({
       }}
       sx={[
         {
-          width: actionButtonsRevealCollapsedWidth,
+          width: collapsedWidth,
+          maxWidth: '100%',
+          minWidth: 0,
+          display: 'block',
           transition: actionButtonsRevealButtonTransition,
           '& .MuiOutlinedInput-root': {
-            height: '48px',
-            minHeight: '48px',
+            height,
+            minHeight: height,
             boxSizing: 'border-box',
+            display: 'flex',
+            alignItems: 'center',
+            overflow: 'hidden',
             borderRadius: actionButtonsBorderRadiusPx,
             transition: `${actionButtonsRevealButtonTransition}, ${actionButtonsRevealBgTransition}`,
             px: actionButtonsRevealCollapsedPx,
@@ -91,13 +105,24 @@ export function ExpandableSearchInput({
           },
           '& .MuiInputBase-input': {
             py: 0,
-            display: 'inline-block',
+            display: 'block',
+            width: 0,
+            minWidth: 0,
+            flex: '0 1 0px',
             overflow: 'hidden',
             whiteSpace: 'nowrap',
+            color: theme.palette.text.primary,
+            caretColor: theme.palette.text.primary,
+            WebkitTextFillColor: theme.palette.text.primary,
             maxWidth: 0,
             opacity: 0,
             transform: 'translateX(-8px)',
             transition: actionButtonsRevealLabelHiddenTransition,
+          },
+          '& .MuiInputBase-input::placeholder': {
+            color: theme.palette.text.secondary,
+            opacity: 1,
+            WebkitTextFillColor: theme.palette.text.secondary,
           },
           '& .MuiInputAdornment-root': {
             height: '100%',
@@ -105,11 +130,17 @@ export function ExpandableSearchInput({
             alignItems: 'center',
           },
           '& .MuiInputAdornment-positionStart': {
-            flex: 1,
+            flex: '0 0 auto',
+            width: '100%',
+            minWidth: 0,
             mr: '0 !important',
-            ml: 3,
+            ml: 0,
             justifyContent: 'center',
             transition: actionButtonsRevealStartIconTransition,
+            '& .MuiSvgIcon-root': {
+              marginLeft: collapsedSearchIconMarginLeft,
+              transition: actionButtonsRevealStartIconTransition,
+            },
           },
           '& .MuiInputAdornment-positionEnd': {
             ml: 0,
@@ -120,32 +151,42 @@ export function ExpandableSearchInput({
           },
           '&:hover .MuiInputBase-input, &:focus-within .MuiInputBase-input, &[data-has-value="true"] .MuiInputBase-input': {
             transition: actionButtonsRevealLabelShownTransition,
-            maxWidth: 240,
+            width: 'auto',
+            minWidth: 0,
+            flex: '1 1 0%',
+            maxWidth: inputMaxWidth,
             opacity: 1,
             transform: 'translateX(0)',
+            color: theme.palette.text.primary,
+            caretColor: theme.palette.text.primary,
+            WebkitTextFillColor: theme.palette.text.primary,
           },
           '&:hover .MuiInputAdornment-positionStart, &:focus-within .MuiInputAdornment-positionStart, &[data-has-value="true"] .MuiInputAdornment-positionStart': {
-            mr: 1,
-            pr: 1,
-            ml: 1,
+            width: 'auto',
+            mr: 0.75,
+            ml: 0,
             flex: '0 0 auto',
             justifyContent: 'flex-start',
+          },
+          '&:hover .MuiInputAdornment-positionStart .MuiSvgIcon-root, &:focus-within .MuiInputAdornment-positionStart .MuiSvgIcon-root, &[data-has-value="true"] .MuiInputAdornment-positionStart .MuiSvgIcon-root': {
+            marginLeft: 0,
           },
           '&:hover .MuiInputAdornment-positionEnd, &:focus-within .MuiInputAdornment-positionEnd, &[data-has-value="true"] .MuiInputAdornment-positionEnd': {
             ml: -3,
             opacity: 1,
-            maxWidth: 240,
+            maxWidth: inputMaxWidth,
           },
           '&:hover .MuiOutlinedInput-root, &:focus-within .MuiOutlinedInput-root, &[data-has-value="true"] .MuiOutlinedInput-root': {
             px: actionButtonsRevealExpandedPx,
             justifyContent: 'flex-start',
+            backgroundColor: theme.palette.background.paper,
             '& .MuiOutlinedInput-notchedOutline': {
               borderColor: theme.palette.primary.main,
               borderWidth: 1,
             },
           },
           '&:hover, &:focus-within, &[data-has-value="true"]': {
-            width: actionButtonsRevealSearchExpandedWidth,
+            width: expandedWidth,
           },
         },
         ...(sx ? (Array.isArray(sx) ? sx : [sx]) : []),

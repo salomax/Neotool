@@ -65,43 +65,47 @@ export function FinanceTransactionsSidebar({
   billSummary,
 }: FinanceTransactionsSidebarProps) {
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ p: 3, pb: 2 }}>
-        <FinancialAccountSelector
-          onNewAccount={accountSelector.onNewAccount}
-          onEditAccount={accountSelector.onEditAccount}
-          selectedAccountId={accountSelector.selectedAccountId}
-          onSelectAccount={accountSelector.onSelect}
-          accountTypes={ACCOUNT_SELECTOR_TYPES}
-        />
-        <Divider sx={{ my: 3 }} />
-        {displayModeKind === 'calendar' ? (
-          <MonthSummary
-            summary={calendarSummary.data}
-            loading={calendarSummary.loading}
-            error={calendarSummary.error}
-            onRetry={calendarSummary.onRetry}
-            isConsolidated={calendarSummary.isConsolidated}
-            expensesByCategory={calendarSummary.data?.expensesByCategory ?? []}
-            incomeByCategory={calendarSummary.data?.incomeByCategory ?? []}
-            tagsSummary={calendarSummary.data?.tagsSummary ?? []}
-            onCategoryClick={calendarSummary.categoryFilter.onToggle}
-            activeCategoryFilter={calendarSummary.categoryFilter.value}
-            onTagClick={calendarSummary.tagFilter.onToggle}
-            activeTagFilter={calendarSummary.tagFilter.value}
-            onCreditDebitTypeClick={calendarSummary.creditDebitFilter.onToggle}
-            activeCreditDebitTypeFilter={calendarSummary.creditDebitFilter.value}
-            onTransferClick={calendarSummary.transferFilter.onToggle}
-            activeTransferFilter={calendarSummary.transferFilter.value === true}
+    <Box sx={{ height: { xs: 'auto', md: '100%' }, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ px: { xs: 0, md: 3 } }}>
+        <Box sx={{ px: { xs: 3, md: 0 }, py: 3 }}>
+          <FinancialAccountSelector
+            onNewAccount={accountSelector.onNewAccount}
+            onEditAccount={accountSelector.onEditAccount}
+            selectedAccountId={accountSelector.selectedAccountId}
+            onSelectAccount={accountSelector.onSelect}
+            accountTypes={ACCOUNT_SELECTOR_TYPES}
           />
-        ) : (
-          <BillSummaryHeader
-            bill={billSummary.bill}
-            loading={billSummary.loading}
-            onPayClick={billSummary.onPayClick}
-          />
-        )}
-        <Divider sx={{ my: 3 }} />
+        </Box>
+        <Divider />
+        <Box sx={{ px: { xs: 3, md: 0 }, py: 3 }}>
+          {displayModeKind === 'calendar' ? (
+            <MonthSummary
+              summary={calendarSummary.data}
+              loading={calendarSummary.loading}
+              error={calendarSummary.error}
+              onRetry={calendarSummary.onRetry}
+              isConsolidated={calendarSummary.isConsolidated}
+              expensesByCategory={calendarSummary.data?.expensesByCategory ?? []}
+              incomeByCategory={calendarSummary.data?.incomeByCategory ?? []}
+              tagsSummary={calendarSummary.data?.tagsSummary ?? []}
+              onCategoryClick={calendarSummary.categoryFilter.onToggle}
+              activeCategoryFilter={calendarSummary.categoryFilter.value}
+              onTagClick={calendarSummary.tagFilter.onToggle}
+              activeTagFilter={calendarSummary.tagFilter.value}
+              onCreditDebitTypeClick={calendarSummary.creditDebitFilter.onToggle}
+              activeCreditDebitTypeFilter={calendarSummary.creditDebitFilter.value}
+              onTransferClick={calendarSummary.transferFilter.onToggle}
+              activeTransferFilter={calendarSummary.transferFilter.value === true}
+            />
+          ) : (
+            <BillSummaryHeader
+              bill={billSummary.bill}
+              loading={billSummary.loading}
+              onPayClick={billSummary.onPayClick}
+            />
+          )}
+        </Box>
+        <Divider />
       </Box>
     </Box>
   );

@@ -5,8 +5,13 @@ import { TransactionTable } from '../TransactionTable';
 import { CategoryApplicableTo, CreditDebitType, TransactionType, type Transaction } from '@/lib/graphql/types/__generated__/graphql';
 import { useLazyQuery as mockUseLazyQuery } from '@apollo/client/react';
 
+const mockUseMediaQuery = vi.fn((_query?: unknown) => false);
 let lastRuleDrawerProps: any = null;
 let lastApplyDialogProps: any = null;
+
+vi.mock('@mui/material/useMediaQuery', () => ({
+  default: (query: unknown) => mockUseMediaQuery(query),
+}));
 
 const mockToast = {
   success: vi.fn(),
@@ -106,6 +111,7 @@ vi.mock('../../transaction-rules/TransactionRuleDrawer', () => ({
 describe.sequential('TransactionTable', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseMediaQuery.mockReturnValue(false);
     lastRuleDrawerProps = null;
     lastApplyDialogProps = null;
     vi.mocked(mockUseLazyQuery).mockImplementation(
@@ -516,5 +522,53 @@ describe.sequential('TransactionTable', () => {
 
     await waitFor(() => expect(lastApplyDialogProps?.open).toBe(true));
     expect(lastApplyDialogProps?.matchCount).toBe(3);
+  });
+
+  it('renders the mobile list path below md and preserves the desktop table above md', () => {
+    const transaction = {
+      id: 'tx-mobile',
+      description: 'Coffee',
+      date: '2026-03-01',
+      creditDebitType: CreditDebitType.Debit,
+      type: TransactionType.Card,
+      amount: 12.34,
+      currencyCode: 'BRL',
+      financialAccountId: 'acc-1',
+      merchant: null,
+      category: null,
+      appliedRuleIds: [],
+      tags: [],
+      attachments: [],
+    } as unknown as Transaction;
+
+    mockUseMediaQuery.mockReturnValue(true);
+    const { rerender } = render(
+      <TransactionTable
+        transactions={[transaction]}
+        financialAccounts={[]}
+        loading={false}
+        hasMore={false}
+        onLoadMore={vi.fn()}
+        selectedAccountId="acc-1"
+      />,
+    );
+
+    expect(screen.getByTestId('transaction-mobile-row-tx-mobile')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+
+    mockUseMediaQuery.mockReturnValue(false);
+    rerender(
+      <TransactionTable
+        transactions={[transaction]}
+        financialAccounts={[]}
+        loading={false}
+        hasMore={false}
+        onLoadMore={vi.fn()}
+        selectedAccountId="acc-1"
+      />,
+    );
+
+    expect(screen.getByRole('table', { name: /Transactions table|Tabela de transações/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('transaction-mobile-row-tx-mobile')).not.toBeInTheDocument();
   });
 });

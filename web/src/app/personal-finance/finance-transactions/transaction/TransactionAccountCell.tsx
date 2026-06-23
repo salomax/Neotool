@@ -6,7 +6,6 @@ import { FinancialAccountSubtype, FinancialAccountType } from '@/lib/graphql/typ
 import type { Transaction } from '@/lib/graphql/types/__generated__/graphql';
 import { CardNetworkIcon } from '@/shared/components/ui/icons/CardNetworkIcon';
 import { Logo } from '@/shared/components/ui/primitives';
-import { FINANCE_TABLE_BODY_FONT_SIZE } from '@/shared/components/ui/data-display/Table';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 
@@ -51,11 +50,15 @@ function getCardDisplayState(account: FinancialAccountListItem, transaction: Tra
 interface TransactionAccountCellProps {
   account: FinancialAccountListItem;
   transaction: Transaction;
+  fontSize?: string;
+  lineHeight?: number;
 }
 
 export const TransactionAccountCell = memo(function TransactionAccountCell({
   account,
   transaction,
+  fontSize = '0.7rem',
+  lineHeight = 1.35,
 }: TransactionAccountCellProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -82,7 +85,7 @@ export const TransactionAccountCell = memo(function TransactionAccountCell({
       <Stack spacing={0} sx={{ minWidth: 0 }}>
         <Typography
           variant="body2"
-          sx={{ fontSize: FINANCE_TABLE_BODY_FONT_SIZE, lineHeight: 1.25 }}
+          sx={{ fontSize, lineHeight }}
           noWrap
         >
           {account.name}
@@ -91,11 +94,11 @@ export const TransactionAccountCell = memo(function TransactionAccountCell({
           <Stack direction="row" spacing={0.5} alignItems="center">
             <CardNetworkIcon network={account.cardData?.cardNetwork} size={18} />
             {cardDisplay?.last4 ? (
-              <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize, lineHeight }}>
                 •••• {cardDisplay.last4}
               </Typography>
             ) : cardDisplay?.showMultipleCardsLabel ? (
-              <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize, lineHeight }}>
                 {t('financeTransactions.multipleCards')}
               </Typography>
             ) : null}

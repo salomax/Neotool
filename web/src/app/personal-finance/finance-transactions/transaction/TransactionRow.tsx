@@ -73,6 +73,11 @@ interface TransactionRowProps {
   callbacks: TransactionRowCallbacks;
 }
 
+export type SharedTransactionRowProps = Omit<
+  TransactionRowProps,
+  'isFirst' | 'isLast' | 'activeActionMenuTransactionId' | 'activeActionMenuAnchorEl'
+>;
+
 export const TransactionRow = memo(function TransactionRow({
   transaction,
   account,
