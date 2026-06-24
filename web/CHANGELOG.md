@@ -1,3 +1,17 @@
+## 0.7.25 (2026-06-24)
+
+### 🚀 Features
+
+- **finance:** enhance financial account management and import functionality ([67a43606](https://github.com/invistus/invistus/commit/67a43606))
+
+### 💅 Refactors
+
+- **tests:** remove skipped tests for transaction import functionality ([276717e2](https://github.com/invistus/invistus/commit/276717e2))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.24 (2026-06-22)
 
 ### 🚀 Features
