@@ -17,7 +17,7 @@ venv
 /cronjob
 /cli
 /retry-worker
-web/tsconfig.tsbuildinfo
+*.tsbuildinfo
 
 *.code-workspace
 .idea

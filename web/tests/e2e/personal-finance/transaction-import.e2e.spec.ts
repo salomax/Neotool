@@ -953,17 +953,6 @@ test.describe("Transaction Import — alternative paths", () => {
     );
   });
 
-  test("IM-A-04: cancelling after preview — no transactions created", async ({
-    page: _page,
-    pfUser: _pfUser,
-    bankAccount: _bankAccount,
-  }) => {
-    test.skip(
-      true,
-      "Current file import flow submits immediately after clicking the upload action; there is no separate preview-before-import state to cancel.",
-    );
-  });
-
   test("IM-A-05: CSV with UTF-8 special characters (accents) — descriptions preserved", async ({
     page,
     pfUser,
@@ -1049,27 +1038,6 @@ test.describe("Transaction Import — alternative paths", () => {
     );
   });
 
-  test("IM-A-07: import result page shows imported/skipped/duplicate counts", async ({
-    page: _page,
-    pfUser: _pfUser,
-    bankAccount: _bankAccount,
-  }) => {
-    test.skip(
-      true,
-      "The current result step exposes a summary string, but not stable per-count test ids for imported/skipped/duplicate assertions.",
-    );
-  });
-
-  test("IM-A-08: import to account not pre-selected — user selects account in drawer", async ({
-    page: _page,
-    pfUser: _pfUser,
-    bankAccount: _bankAccount,
-  }) => {
-    test.skip(
-      true,
-      "The current fixture setup auto-selects the only importable account, so the explicit in-drawer account-selection branch is not reproducible in this suite.",
-    );
-  });
 });
 
 // =============================================================================

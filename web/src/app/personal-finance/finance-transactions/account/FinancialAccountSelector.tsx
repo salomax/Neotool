@@ -53,6 +53,7 @@ interface FinancialAccountSelectorProps {
   showAllAccountsOption?: boolean;
   showNewAccountAction?: boolean;
   autoSelectSingleAccount?: boolean;
+  allowSingleAccountSelection?: boolean;
   size?: 'small' | 'medium';
   allAccountsLabel?: string;
   consolidatedViewLabel?: string;
@@ -137,6 +138,7 @@ export function FinancialAccountSelector({
   showAllAccountsOption = true,
   showNewAccountAction = true,
   autoSelectSingleAccount = true,
+  allowSingleAccountSelection = false,
   size = 'medium',
   allAccountsLabel,
   consolidatedViewLabel,
@@ -202,7 +204,7 @@ export function FinancialAccountSelector({
   const allAccounts: FinancialAccountListItem[] = scopedAccounts;
   const hasMultipleAccounts = allAccounts.length > 1;
   const singleAccount = allAccounts.length === 1 ? allAccounts[0] : null;
-  const canOpenSelector = hasMultipleAccounts;
+  const canOpenSelector = hasMultipleAccounts || (allowSingleAccountSelection && Boolean(singleAccount));
   const showSingleAccountEdit = !canOpenSelector && Boolean(onEditAccount) && Boolean(singleAccount);
   
   // Selected Account Logic

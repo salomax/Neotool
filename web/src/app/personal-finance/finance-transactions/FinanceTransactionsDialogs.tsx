@@ -32,6 +32,7 @@ interface ImportDrawerState {
 interface ImportBillDrawerState {
   isOpen: boolean;
   onClose: () => void;
+  accountId: string | null;
 }
 
 interface NfceDrawerState {
@@ -89,6 +90,7 @@ export function FinanceTransactionsDialogs({
         open={importBillDrawer.isOpen}
         onClose={importBillDrawer.onClose}
         onImportCompleted={importDrawer.onCompleted}
+        defaultFinancialAccountId={importBillDrawer.accountId}
       />
       <NfceImportDrawer
         open={nfceDrawer.isImportOpen}

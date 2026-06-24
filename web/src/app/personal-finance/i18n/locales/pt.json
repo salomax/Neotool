@@ -1812,8 +1812,8 @@
           "cardAssignmentMessage": "Selecione um cartão existente para usar na atribuição dos lançamentos.",
           "assignTransactionsTitle": "Atribuir lançamentos",
           "assignTransactionsInfoTitle": "Como atribuir",
-          "assignTransactionsHint": "Selecione os lançamentos, informe o final do cartão (4 dígitos) ou deixe vazio para aplicar como “Sem final”, e clique em Aplicar.",
-          "assignTransactionsRequirementHint": "Você precisa aplicar em pelo menos 1 lançamento para habilitar “Revisar transações”."
+          "assignTransactionsHint": "Escolha o cartão para associar todos os lançamentos. Se precisar, selecione alguns itens e informe um final de 4 dígitos para ajustar casos específicos.",
+          "assignTransactionsRequirementHint": "Os lançamentos já ficam associados ao selecionar um cartão. O final é opcional."
         },
         "cardDataSectionTitle": "Dados do cartão",
         "availableTransactionsSectionTitle": "Transações disponíveis",
@@ -1830,6 +1830,7 @@
         "descriptionBaseHint": "Se informar uma descrição, ela será usada como nome base ao criar os cartões.",
         "defaultBaseName": "Cartão",
         "previewLabel": "Prévia do nome: {{name}}",
+        "cardNotSet": "Cartão indefinido",
         "unassignedLastFour": "Sem final",
         "noLastFourPlaceholder": "Sem final",
         "ambiguousExistingCard": "Há mais de um cartão cadastrado com final {{lastFourDigits}}. Ajuste o emissor ou use o formulário completo.",

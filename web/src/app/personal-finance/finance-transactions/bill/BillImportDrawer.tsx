@@ -44,9 +44,10 @@ export interface BillImportDrawerProps {
   open: boolean;
   onClose: () => void;
   onImportCompleted?: () => void;
+  defaultFinancialAccountId?: string | null;
 }
 
-export function BillImportDrawer({ open, onClose, onImportCompleted }: BillImportDrawerProps) {
+export function BillImportDrawer({ open, onClose, onImportCompleted, defaultFinancialAccountId }: BillImportDrawerProps) {
   const { t } = useTranslation(personalFinanceTranslations);
 
   const [step, setStep] = React.useState<BillStep>('upload');
@@ -110,7 +111,7 @@ export function BillImportDrawer({ open, onClose, onImportCompleted }: BillImpor
   const baseCardAccountOptions = useMemo(
     () =>
       (accountsData?.financialAccounts ?? [])
-        .filter((a) => a.type === 'CREDIT')
+        .filter((a) => a.type === 'CREDIT' || a.type === 'PAYMENT')
         .map(buildCardAccountOption),
     [accountsData?.financialAccounts],
   );
@@ -228,7 +229,10 @@ export function BillImportDrawer({ open, onClose, onImportCompleted }: BillImpor
       stopPolling();
       setStep((currentStep) => {
         if (currentStep !== 'processing') return currentStep;
-        cardMatching.initFromJob(job as Parameters<typeof cardMatching.initFromJob>[0]);
+        cardMatching.initFromJob(
+          job as Parameters<typeof cardMatching.initFromJob>[0],
+          defaultFinancialAccountId,
+        );
         txReview.initFromReviewCards(
           job.reviewPayload?.cards ?? [],
           job.reviewPayload?.reviewMode === 'TX_CARD_ASSIGNMENT',
@@ -240,7 +244,22 @@ export function BillImportDrawer({ open, onClose, onImportCompleted }: BillImpor
       setErrorMessage(resolveFriendlyImportErrorMessage(t, job.errorCode, job.errorMessage));
       setStep('error');
     }
-  }, [jobData, jobId, step, stopPolling, t, cardMatching, txReview]);
+  }, [jobData, jobId, step, stopPolling, t, cardMatching, txReview, defaultFinancialAccountId]);
+
+  React.useEffect(() => {
+    if (!open || step !== 'card-matching' || !isFlatAssignmentMode) return;
+    if (cardMatching.flatSelectedFinancialAccountId) return;
+    if (!defaultFinancialAccountId) return;
+    if (!cardAccountOptionsById.has(defaultFinancialAccountId)) return;
+    cardMatching.selectFlatFinancialAccount(defaultFinancialAccountId);
+  }, [
+    open,
+    step,
+    isFlatAssignmentMode,
+    cardMatching,
+    defaultFinancialAccountId,
+    cardAccountOptionsById,
+  ]);
 
   // ── Status label ───────────────────────────────────────────────────────────
 
@@ -386,14 +405,16 @@ export function BillImportDrawer({ open, onClose, onImportCompleted }: BillImpor
 
   const txReviewCards = useMemo<ReviewCardForTxReview[]>(() => {
     if (isFlatAssignmentMode && flatSourceCard) {
-      return cardMatching.draftCards.map((draft) => ({
-        reviewCardId: draft.draftCardId,
-        lastFourDigits: draft.lastFourDigits,
-        financialAccountId: draft.financialAccountId,
-        transactions: flatSourceCard.transactions
-          .map((tx, txIndex) => ({ ...tx, __sourceTxIndex: txIndex }))
-          .filter((tx) => cardMatching.flatTxAssignments[tx.__sourceTxIndex] === draft.draftCardId),
-      }));
+      return cardMatching.draftCards
+        .map((draft) => ({
+          reviewCardId: draft.draftCardId,
+          lastFourDigits: draft.lastFourDigits,
+          financialAccountId: draft.financialAccountId,
+          transactions: flatSourceCard.transactions
+            .map((tx, txIndex) => ({ ...tx, __sourceTxIndex: txIndex }))
+            .filter((tx) => cardMatching.flatTxAssignments[tx.__sourceTxIndex] === draft.draftCardId),
+        }))
+        .filter((draft) => draft.transactions.length > 0);
     }
     return reviewCards.map((card, ci) => ({
       reviewCardId: card.reviewCardId,

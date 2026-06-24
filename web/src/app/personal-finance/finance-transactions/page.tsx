@@ -618,6 +618,7 @@ export default function FinanceTransactionsPage() {
         importBillDrawer={{
           isOpen: isImportBillDrawerOpen,
           onClose: handleCloseImportBillDrawer,
+          accountId: effectiveSelectedAccountId,
         }}
         nfceDrawer={{
           isImportOpen: isNfceImportDrawerOpen,
