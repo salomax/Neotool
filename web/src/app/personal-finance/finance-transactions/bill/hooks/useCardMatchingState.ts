@@ -174,6 +174,10 @@ export function useCardMatchingState({
   const draftBucketSummaries = useMemo<DraftBucketSummary[]>(() => {
     if (!flatSourceCard) return [];
     return draftCards.map((draft) => {
+      const selectedAccount = draft.financialAccountId
+        ? cardAccountOptionsById.get(draft.financialAccountId)
+        : null;
+      const trimmedLastFour = draft.lastFourDigits.trim();
       const assignedTransactions = flatSourceCard.transactions.filter(
         (_, txIndex) => flatTxAssignments[txIndex] === draft.draftCardId,
       );
@@ -183,14 +187,16 @@ export function useCardMatchingState({
       );
       return {
         draftCardId: draft.draftCardId,
-        label: draft.lastFourDigits.trim()
-          ? `•••• ${draft.lastFourDigits.trim()}`
-          : t('financeTransactions.billImport.cardMatchingStep.unassignedLastFour'),
+        label: trimmedLastFour
+          ? `•••• ${trimmedLastFour}`
+          : selectedAccount?.isMultiCard
+            ? t('financeTransactions.multipleCards')
+            : t('financeTransactions.billImport.cardMatchingStep.cardNotSet'),
         count: assignedTransactions.length,
         total,
       };
     });
-  }, [draftCards, flatSourceCard, flatTxAssignments, t]);
+  }, [cardAccountOptionsById, draftCards, flatSourceCard, flatTxAssignments, t]);
 
   const hasDraftBucketsNeedingCreation = useMemo(() => {
     if (!isFlatAssignmentMode || !flatSourceCard) return false;
@@ -211,14 +217,13 @@ export function useCardMatchingState({
   }, [draftBucketSummaries, draftCards, flatSourceCard, isFlatAssignmentMode]);
 
   const allCardsResolved = isFlatAssignmentMode
-    ? allDraftBucketsReady &&
-      allFlatTransactionsAssigned &&
+    ? Boolean(flatSelectedFinancialAccountId) &&
+      draftCards.length > 0 &&
+      allDraftBucketsReady &&
       allAssignedBucketsLinkedToAccount
     : cardResolutions.length > 0 && cardResolutions.every((r) => r.financialAccountId !== null);
 
-  const canReviewTransactions = isFlatAssignmentMode
-    ? allCardsResolved
-    : allCardsResolved;
+  const canReviewTransactions = allCardsResolved;
 
   // ── Effects: clear mismatched issuer selections ────────────────────────────
 
@@ -249,6 +254,42 @@ export function useCardMatchingState({
     });
   }, [step, selectedIssuerKey, cardAccountOptionsById, draftCards.length]);
 
+  const buildEmptyFlatSelections = useCallback((): FlatTxSelections => {
+    if (!flatSourceCard) return {};
+    return flatSourceCard.transactions.reduce<FlatTxSelections>((acc, _tx, txIndex) => {
+      acc[txIndex] = false;
+      return acc;
+    }, {});
+  }, [flatSourceCard]);
+
+  const buildIncludedFlatTransactions = useCallback((): FlatTxInclusions => {
+    if (!flatSourceCard) return {};
+    return flatSourceCard.transactions.reduce<FlatTxInclusions>((acc, _tx, txIndex) => {
+      acc[txIndex] = true;
+      return acc;
+    }, {});
+  }, [flatSourceCard]);
+
+  const buildAssignedFlatTransactions = useCallback((draftCardId: string): FlatTxAssignments => {
+    if (!flatSourceCard) return {};
+    return flatSourceCard.transactions.reduce<FlatTxAssignments>((acc, _tx, txIndex) => {
+      acc[txIndex] = draftCardId;
+      return acc;
+    }, {});
+  }, [flatSourceCard]);
+
+  const buildDraftCardForAccount = useCallback((financialAccountId: string) => {
+    const selected = cardAccountOptionsById.get(financialAccountId);
+    if (!selected) return null;
+    const digits = (selected.maskedNumber ?? '').replace(/\D/g, '').slice(-4);
+    return {
+      draftCardId: `draft-${crypto.randomUUID()}`,
+      lastFourDigits: selected.isMultiCard ? '' : digits,
+      financialAccountId,
+      allowMissingLastFour: selected.isMultiCard || digits.length !== 4,
+    };
+  }, [cardAccountOptionsById]);
+
   // ── Callbacks ──────────────────────────────────────────────────────────────
 
   const handleTemplateFieldChange = useCallback(
@@ -262,19 +303,40 @@ export function useCardMatchingState({
   const selectFlatFinancialAccount = useCallback(
     (financialAccountId: string | null) => {
       setFlatSelectedFinancialAccountId(financialAccountId);
-      setDraftCards([]);
-      setFlatTxAssignments({});
-      setAssignmentLastFour(() => {
-        if (!financialAccountId) return '';
-        const selected = cardAccountOptionsById.get(financialAccountId);
-        if (!selected) return '';
-        if (selected.isMultiCard) return '';
-        const digits = (selected.maskedNumber ?? '').replace(/\D/g, '');
-        return digits.slice(-4);
-      });
+      if (!financialAccountId) {
+        setDraftCards([]);
+        setFlatTxAssignments({});
+        setFlatTxSelections(buildEmptyFlatSelections());
+        setFlatTxInclusions(buildIncludedFlatTransactions());
+        setAssignmentLastFour('');
+        setTemplateError(null);
+        return;
+      }
+
+      const draft = buildDraftCardForAccount(financialAccountId);
+      if (!draft) {
+        setDraftCards([]);
+        setFlatTxAssignments({});
+        setFlatTxSelections(buildEmptyFlatSelections());
+        setFlatTxInclusions(buildIncludedFlatTransactions());
+        setAssignmentLastFour('');
+        setTemplateError(null);
+        return;
+      }
+
+      setDraftCards([draft]);
+      setFlatTxAssignments(buildAssignedFlatTransactions(draft.draftCardId));
+      setFlatTxSelections(buildEmptyFlatSelections());
+      setFlatTxInclusions(buildIncludedFlatTransactions());
+      setAssignmentLastFour(draft.lastFourDigits);
       setTemplateError(null);
     },
-    [cardAccountOptionsById],
+    [
+      buildAssignedFlatTransactions,
+      buildDraftCardForAccount,
+      buildEmptyFlatSelections,
+      buildIncludedFlatTransactions,
+    ],
   );
 
   const findExactAccountMatches = useCallback(
@@ -384,7 +446,12 @@ export function useCardMatchingState({
       const normalizedLastFour = normalizedOverride.length === 4 ? normalizedOverride : normalizedFromAccount;
       const allowMissingLastFour = selectedAccount.isMultiCard || normalizedLastFour.length !== 4;
 
-      const existingDraft = draftCards.find((draft) => draft.financialAccountId === financialAccountId);
+      const existingDraft = draftCards.find((draft) => {
+        if (draft.financialAccountId !== financialAccountId) return false;
+        const trimmedLastFour = draft.lastFourDigits.trim();
+        if (normalizedLastFour.length === 4) return trimmedLastFour === normalizedLastFour;
+        return draft.allowMissingLastFour && trimmedLastFour.length === 0;
+      });
       let nextDraftCardId = existingDraft?.draftCardId;
       let nextDraftCards = draftCards;
 
@@ -573,7 +640,7 @@ export function useCardMatchingState({
         statementPeriod?: { from?: string; to?: string };
         cards: ReviewCard[];
       };
-    }) => {
+    }, initialFlatFinancialAccountId?: string | null) => {
       const cards = job.reviewPayload?.cards ?? [];
       const isFlatMode = job.reviewPayload?.reviewMode === 'TX_CARD_ASSIGNMENT';
 
@@ -604,6 +671,21 @@ export function useCardMatchingState({
           dueDay: String(getDayOfMonthFromDateInput(cards[0]?.dueDate) ?? prev.dueDay),
         }));
         setTemplateError(null);
+
+        if (initialFlatFinancialAccountId && cardAccountOptionsById.has(initialFlatFinancialAccountId)) {
+          const draft = buildDraftCardForAccount(initialFlatFinancialAccountId);
+          if (draft) {
+            setFlatSelectedFinancialAccountId(initialFlatFinancialAccountId);
+            setDraftCards([draft]);
+            setFlatTxAssignments(
+              cards[0]?.transactions.reduce<FlatTxAssignments>((acc, _tx, txIndex) => {
+                acc[txIndex] = draft.draftCardId;
+                return acc;
+              }, {}) ?? {},
+            );
+            setAssignmentLastFour(draft.lastFourDigits);
+          }
+        }
       } else {
         setDraftCards([]);
         setFlatTxAssignments({});
@@ -619,7 +701,7 @@ export function useCardMatchingState({
         dueDate: cards.find((card) => !!card.dueDate)?.dueDate ?? '',
       });
     },
-    [],
+    [buildDraftCardForAccount, cardAccountOptionsById],
   );
 
   const reset = useCallback(() => {

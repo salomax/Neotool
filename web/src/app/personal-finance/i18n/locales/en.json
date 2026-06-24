@@ -1808,8 +1808,8 @@
           "cardAssignmentMessage": "Select an existing card to use while assigning transactions.",
           "assignTransactionsTitle": "Assign transactions",
           "assignTransactionsInfoTitle": "How to assign",
-          "assignTransactionsHint": "Select the transactions, enter the card last 4 digits (or leave it empty to apply “No last 4”), and click Apply.",
-          "assignTransactionsRequirementHint": "You must apply it to at least 1 transaction to enable “Review transactions”."
+          "assignTransactionsHint": "Pick the card to associate all transactions. If needed, select specific items and enter a 4-digit suffix to fine-tune them.",
+          "assignTransactionsRequirementHint": "Transactions are already associated when you select a card. The suffix is optional."
         },
         "cardDataSectionTitle": "Card details",
         "availableTransactionsSectionTitle": "Available transactions",
@@ -1826,6 +1826,7 @@
         "descriptionBaseHint": "If you provide a description, it will be used as the base name when creating cards.",
         "defaultBaseName": "Card",
         "previewLabel": "Name preview: {{name}}",
+        "cardNotSet": "Card not set",
         "unassignedLastFour": "No last 4",
         "noLastFourPlaceholder": "No last 4",
         "ambiguousExistingCard": "There is more than one registered card ending in {{lastFourDigits}}. Adjust the issuer or use the full form.",

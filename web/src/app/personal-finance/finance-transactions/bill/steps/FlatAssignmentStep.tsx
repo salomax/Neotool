@@ -55,6 +55,18 @@ export const FlatAssignmentStep = memo(function FlatAssignmentStep({
       : 0;
   const cardSelected = !!selectedCardAccountId;
 
+  const getChipLabel = (draft?: DraftCardResolution) => {
+    if (!draft) return t('financeTransactions.billImport.cardMatchingStep.cardNotSet');
+    const trimmedLastFour = draft.lastFourDigits.trim();
+    if (trimmedLastFour.length === 4) {
+      return t('financeTransactions.billImport.cardMatchingStep.lastFourChip', { lastFour: trimmedLastFour });
+    }
+    if (draft.financialAccountId && selectedCardIsMultiCard) {
+      return t('financeTransactions.multipleCards');
+    }
+    return t('financeTransactions.billImport.cardMatchingStep.cardNotSet');
+  };
+
   return (
     <Box sx={{ p: 1 }}>
       <FormStack sx={{ pb: selectedTransactionIndexes.length > 0 ? 11 : 0 }}>
@@ -74,7 +86,8 @@ export const FlatAssignmentStep = memo(function FlatAssignmentStep({
               accountTypes={[FinancialAccountType.Credit, FinancialAccountType.Payment]}
               showAllAccountsOption={false}
               showNewAccountAction
-              autoSelectSingleAccount={false}
+              autoSelectSingleAccount
+              allowSingleAccountSelection
             />
           </Paper>
         </Stack>
@@ -144,8 +157,6 @@ export const FlatAssignmentStep = memo(function FlatAssignmentStep({
                   const assignedDraft = draftCards.find((draft) => draft.draftCardId === assignedDraftId);
                   const selected = flatTxSelections[txIndex] ?? false;
                   const isDebit = tx.creditDebitType === 'DEBIT';
-                  const trimmedLastFour = assignedDraft?.lastFourDigits.trim() ?? '';
-                  const hasLastFour = trimmedLastFour.length === 4;
                   const isSetup = !!assignedDraft?.financialAccountId;
                   const needsSetup = !!assignedDraft && !isSetup;
 
@@ -189,11 +200,7 @@ export const FlatAssignmentStep = memo(function FlatAssignmentStep({
                                   : undefined
                             }
                             label={
-                              assignedDraft
-                                ? hasLastFour
-                                  ? t('financeTransactions.billImport.cardMatchingStep.lastFourChip', { lastFour: trimmedLastFour })
-                                  : t('financeTransactions.billImport.cardMatchingStep.unassignedLastFour')
-                                : t('financeTransactions.billImport.cardMatchingStep.status.pending')
+                              getChipLabel(assignedDraft)
                             }
                             color={isSetup ? 'success' : needsSetup ? 'warning' : 'default'}
                             variant={assignedDraft ? 'outlined' : 'filled'}
@@ -239,27 +246,24 @@ export const FlatAssignmentStep = memo(function FlatAssignmentStep({
 
               <Box sx={{ flex: 1, display: { xs: 'none', md: 'block' } }} />
 
-              {!selectedCardIsMultiCard && (
-                <TextField
-                  size="medium"
-                  placeholder={t('financeTransactions.billImport.cardMatchingStep.floatingLastFourLabel')}
-                  value={assignmentLastFour}
-                  onChange={(e) => onAssignmentLastFourChange(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  inputProps={{
-                    maxLength: 4,
-                    inputMode: 'numeric',
-                    'aria-label': t('financeTransactions.billImport.cardMatchingStep.floatingLastFourLabel'),
-                  }}
-                  sx={{ width: { xs: '100%', md: 170 }, '& .MuiOutlinedInput-root': { bgcolor: 'background.default' } }}
-                />
-              )}
+              <TextField
+                size="medium"
+                placeholder={t('financeTransactions.billImport.cardMatchingStep.floatingLastFourLabel')}
+                value={assignmentLastFour}
+                onChange={(e) => onAssignmentLastFourChange(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                inputProps={{
+                  maxLength: 4,
+                  inputMode: 'numeric',
+                  'aria-label': t('financeTransactions.billImport.cardMatchingStep.floatingLastFourLabel'),
+                }}
+                sx={{ width: { xs: '100%', md: 170 }, '& .MuiOutlinedInput-root': { bgcolor: 'background.default' } }}
+              />
 
               <Button
                 variant="contained"
                 disabled={
                   !selectedCardAccountId ||
-                  (!selectedCardIsMultiCard &&
-                    assignmentLastFour.trim().length > 0 &&
+                  (assignmentLastFour.trim().length > 0 &&
                     assignmentLastFour.trim().length < 4)
                 }
                 onClick={() => {

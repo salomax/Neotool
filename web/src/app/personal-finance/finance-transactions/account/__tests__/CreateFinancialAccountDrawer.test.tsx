@@ -329,6 +329,27 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
     });
   });
 
+  it('limits last four digits input to four characters and keeps it beside the multi-card toggle', async () => {
+    const user = userEvent.setup();
+    render(
+      <ThemeProvider theme={theme}>
+        <CreateFinancialAccountDrawer
+          open
+          onClose={vi.fn()}
+          initialType="CARD"
+          initialClosingDay={7}
+          initialDueDay={14}
+        />
+      </ThemeProvider>,
+    );
+
+    const lastFourInput = screen.getByLabelText('financeTransactions.createAccount.step2.fields.maskedNumber');
+    await user.type(lastFourInput, '123456');
+
+    expect(lastFourInput).toHaveValue('1234');
+    expect(screen.getByTestId('card-last-four-toggle-row')).toBeInTheDocument();
+  });
+
   it('submits card as multi-card and hides last-four input when toggle is enabled', async () => {
     const user = userEvent.setup();
     render(

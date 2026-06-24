@@ -378,7 +378,19 @@ export function CreateFinancialAccountDrawer({
     name: 'issuerId',
     control,
   });
+  const { field: maskedNumberField, fieldState: maskedNumberFieldState } = useController({
+    name: 'maskedNumber',
+    control,
+  });
   const issuerIdValue = typeof issuerIdField.value === 'string' ? issuerIdField.value : undefined;
+  const maskedNumberValue = typeof maskedNumberField.value === 'string' ? maskedNumberField.value : '';
+
+  const handleMaskedNumberChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      maskedNumberField.onChange(event.target.value.replace(/\D/g, '').slice(0, 4));
+    },
+    [maskedNumberField],
+  );
 
   useEffect(() => {
     if (!isBillingCycleCard && watchedMultiCard) {
@@ -661,6 +673,24 @@ export function CreateFinancialAccountDrawer({
     }
   };
 
+  const renderMaskedNumberField = React.useCallback(
+    () => (
+      <TextField
+        name="maskedNumber"
+        label={t('financeTransactions.createAccount.step2.fields.maskedNumber')}
+        placeholder="1234"
+        InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
+        inputProps={{ 'data-testid': 'card-last-four-input', maxLength: 4, inputMode: 'numeric', pattern: '[0-9]*' }}
+        size="medium"
+        value={maskedNumberValue}
+        onChange={handleMaskedNumberChange}
+        error={!!maskedNumberFieldState.error}
+        helperText={maskedNumberFieldState.error?.message}
+      />
+    ),
+    [handleMaskedNumberChange, maskedNumberFieldState.error, maskedNumberValue, t],
+  );
+
   const handleDeleteConfirm = async () => {
     if (!accountToEdit?.id) return;
 
@@ -813,46 +843,62 @@ export function CreateFinancialAccountDrawer({
             {/* Card Specific Fields (excluding subtype) */}
             {effectiveSelectedType === 'CARD' && (
               <>
-                <SelectField name="cardNetwork" label={t('financeTransactions.createAccount.step2.fields.network')} options={cardNetworks} size="medium" />
-                
-                {watchedSubtype === 'CREDIT_CARD' && (
-                  <SelectField name="cardLevel" label={t('financeTransactions.createAccount.step2.fields.level')} options={cardLevels} size="medium" />
+                {watchedSubtype === 'CREDIT_CARD' ? (
+                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                    <SelectField
+                      name="cardNetwork"
+                      label={t('financeTransactions.createAccount.step2.fields.network')}
+                      options={cardNetworks}
+                      size="medium"
+                    />
+                    <SelectField
+                      name="cardLevel"
+                      label={t('financeTransactions.createAccount.step2.fields.level')}
+                      options={cardLevels}
+                      size="medium"
+                    />
+                  </Stack>
+                ) : (
+                  <SelectField
+                    name="cardNetwork"
+                    label={t('financeTransactions.createAccount.step2.fields.network')}
+                    options={cardNetworks}
+                    size="medium"
+                  />
                 )}
                 
                 {isBillingCycleCard && (
                   <>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={watchedMultiCard}
-                          onChange={(e) => setValue('multiCard', e.target.checked, { shouldValidate: true })}
-                          data-testid="multi-card-toggle"
-                        />
-                      }
-                      label={t('financeTransactions.createAccount.step2.fields.multiCard')}
-                    />
-                    {!watchedMultiCard && (
-                      <TextField
-                        name="maskedNumber"
-                        label={t('financeTransactions.createAccount.step2.fields.maskedNumber')}
-                        placeholder="1234"
-                        InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
-                        inputProps={{ 'data-testid': 'card-last-four-input' }}
-                        size="medium"
-                      />
-                    )}
-                    {watchedSubtype === 'CREDIT_CARD' && (
-                      <Box sx={{ minWidth: 0 }}>
-                        <MoneyInput
-                          name="creditLimit"
-                          label={t('financeTransactions.createAccount.step2.fields.creditLimit')}
-                          currency={watchedCurrencyCode}
-                          locale={i18n.language}
-                          fullWidth
-                          size="medium"
+                    <Stack
+                      direction={{ xs: 'column', md: 'row' }}
+                      spacing={2}
+                      alignItems={{ xs: 'stretch', md: 'flex-start' }}
+                      data-testid="card-last-four-toggle-row"
+                    >
+                      <Box
+                        sx={{
+                          flex: 1,
+                          minHeight: 56,
+                          display: 'flex',
+                          alignItems: { xs: 'flex-start', md: 'center' },
+                        }}
+                      >
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={watchedMultiCard}
+                              onChange={(e) => setValue('multiCard', e.target.checked, { shouldValidate: true })}
+                              data-testid="multi-card-toggle"
+                            />
+                          }
+                          label={t('financeTransactions.createAccount.step2.fields.multiCard')}
+                          sx={{ m: 0 }}
                         />
                       </Box>
-                    )}
+                      <Box sx={{ flex: 1 }}>
+                        {!watchedMultiCard ? renderMaskedNumberField() : null}
+                      </Box>
+                    </Stack>
                     <Stack direction="row" spacing={2}>
                       <TextField
                         name="closingDay"
@@ -869,18 +915,23 @@ export function CreateFinancialAccountDrawer({
                         size="medium"
                       />
                     </Stack>
+                    {watchedSubtype === 'CREDIT_CARD' && (
+                      <Box sx={{ width: { xs: '100%', md: '50%' }, minWidth: 0 }}>
+                        <MoneyInput
+                          name="creditLimit"
+                          label={t('financeTransactions.createAccount.step2.fields.creditLimit')}
+                          currency={watchedCurrencyCode}
+                          locale={i18n.language}
+                          fullWidth
+                          size="medium"
+                        />
+                      </Box>
+                    )}
                   </>
                 )}
 
                 {!isBillingCycleCard && (
-                  <TextField
-                    name="maskedNumber"
-                    label={t('financeTransactions.createAccount.step2.fields.maskedNumber')}
-                    placeholder="1234"
-                    InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
-                    inputProps={{ 'data-testid': 'card-last-four-input' }}
-                    size="medium"
-                  />
+                  renderMaskedNumberField()
                 )}
               </>
             )}
