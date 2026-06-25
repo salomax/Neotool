@@ -8,6 +8,7 @@ import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../i18n';
 import { TransactionTable } from './transaction/TransactionTable';
 import { Transaction } from '@/lib/graphql/types/__generated__/graphql';
+import type { TransactionSuccessPayload } from './transaction/transactionFormShared';
 
 interface FinanceTransactionsContentPanelProps {
   transactionsError?: unknown;
@@ -20,7 +21,7 @@ interface FinanceTransactionsContentPanelProps {
   onLoadMore: () => void;
   isCreatingTransaction: boolean;
   onCancelCreate: () => void;
-  onSuccessCreate: () => void;
+  onSuccessCreate: (payload?: TransactionSuccessPayload) => void | Promise<void>;
   onOpenNfceDocument: (transactionId: string) => void;
   selectedAccountId: string | null;
   selectedMonth?: number;

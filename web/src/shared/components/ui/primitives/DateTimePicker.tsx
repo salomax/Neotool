@@ -19,7 +19,11 @@ import dayjs, { Dayjs } from 'dayjs';
 import 'dayjs/locale/pt-br';
 import { CalendarTodayIcon, AccessTimeIcon } from '@/shared/ui/mui-imports';
 import { useTranslation } from 'react-i18next';
-import { appDatePickerDisplayFormatFromLanguageTag } from '@/shared/components/ui/forms/form/appDatePickerConfig';
+import {
+  appDatePickerDisplayFormatFromLanguageTag,
+  buildMuiDatePickerLocaleText,
+  getMuiDateAdapterLocaleFromLanguageTag,
+} from '@/shared/components/ui/forms/form/appDatePickerConfig';
 
 export interface DateTimePickerProps {
   /** Current value of the date time picker */
@@ -124,21 +128,13 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
 
   const { adapterLocale, dateFormat } = React.useMemo(() => {
     const lang = i18n.language?.toLowerCase() ?? 'pt';
-    const isPt = lang.startsWith('pt');
     return {
-      adapterLocale: isPt ? 'pt-br' : 'en',
+      adapterLocale: getMuiDateAdapterLocaleFromLanguageTag(lang),
       dateFormat: appDatePickerDisplayFormatFromLanguageTag(lang),
     };
   }, [i18n.language]);
 
-  const localeText = React.useMemo(
-    () => ({
-      fieldDayPlaceholder: () => t('datePicker.fieldDay'),
-      fieldMonthPlaceholder: () => t('datePicker.fieldMonth'),
-      fieldYearPlaceholder: () => t('datePicker.fieldYear'),
-    }),
-    [t],
-  );
+  const localeText = React.useMemo(() => buildMuiDatePickerLocaleText(t), [t]);
 
   // Determine the display format
   const getDisplayFormat = () => {

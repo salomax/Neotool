@@ -25,6 +25,7 @@ export interface CategorySelectProps {
   placeholder?: string;
   disabled?: boolean;
   helperText?: string;
+  variant?: 'chip' | 'field';
 }
 
 export function CategorySelect({
@@ -35,6 +36,7 @@ export function CategorySelect({
   placeholder = 'Categoria...',
   disabled = false,
   helperText,
+  variant = 'chip',
 }: CategorySelectProps) {
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -56,6 +58,8 @@ export function CategorySelect({
     onChange(id);
     handleClose();
   };
+
+  const isFieldVariant = variant === 'field';
 
   return (
     <>
@@ -101,26 +105,38 @@ export function CategorySelect({
               </Stack>
             }
             sx={{
+              width: isFieldVariant ? '100%' : 'auto',
               maxWidth: '100%',
               minWidth: 0,
-              bgcolor: selectedCategory.color
-                ? alpha(selectedCategory.color, 0.1)
-                : 'action.selected',
+              justifyContent: isFieldVariant ? 'space-between' : 'flex-start',
+              bgcolor: isFieldVariant
+                ? 'background.paper'
+                : selectedCategory.color
+                  ? alpha(selectedCategory.color, 0.1)
+                  : 'action.selected',
               color: selectedCategory.color || 'text.primary',
-              borderColor: selectedCategory.color
-                ? alpha(selectedCategory.color, 0.3)
-                : 'divider',
+              borderColor: isFieldVariant
+                ? 'divider'
+                : selectedCategory.color
+                  ? alpha(selectedCategory.color, 0.3)
+                  : 'divider',
               borderWidth: 1,
               borderStyle: 'solid',
+              borderRadius: isFieldVariant ? 1 : undefined,
+              minHeight: isFieldVariant ? 40 : undefined,
               '& .MuiChip-label': {
                 minWidth: 0,
                 maxWidth: '100%',
                 overflow: 'hidden',
+                flex: isFieldVariant ? 1 : undefined,
+                py: isFieldVariant ? 0.5 : undefined,
               },
               '&:hover': {
-                bgcolor: selectedCategory.color
-                  ? alpha(selectedCategory.color, 0.2)
-                  : 'action.hover',
+                bgcolor: isFieldVariant
+                  ? 'background.paper'
+                  : selectedCategory.color
+                    ? alpha(selectedCategory.color, 0.2)
+                    : 'action.hover',
               },
             }}
             onDelete={handleClick}
@@ -131,20 +147,27 @@ export function CategorySelect({
             label={placeholder}
             variant="outlined"
             sx={{
+              width: isFieldVariant ? '100%' : 'auto',
               maxWidth: '100%',
               minWidth: 0,
-              borderStyle: 'dashed',
+              justifyContent: isFieldVariant ? 'space-between' : 'flex-start',
+              borderStyle: isFieldVariant ? 'solid' : 'dashed',
+              borderColor: 'divider',
+              borderRadius: isFieldVariant ? 1 : undefined,
+              minHeight: isFieldVariant ? 40 : undefined,
               color: 'text.secondary',
               '& .MuiChip-label': {
                 minWidth: 0,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
+                flex: isFieldVariant ? 1 : undefined,
+                py: isFieldVariant ? 0.5 : undefined,
               },
               '&:hover': {
-                borderColor: 'primary.main',
-                color: 'primary.main',
-                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                borderColor: isFieldVariant ? 'divider' : 'primary.main',
+                color: isFieldVariant ? 'text.secondary' : 'primary.main',
+                bgcolor: isFieldVariant ? 'background.paper' : alpha(theme.palette.primary.main, 0.05),
               },
             }}
             onDelete={handleClick}

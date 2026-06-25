@@ -21,6 +21,7 @@ import { InstallmentProgress } from './InstallmentProgress';
 import { TransactionAccountCell } from './TransactionAccountCell';
 import { TransactionTagList } from './TransactionTagList';
 import type { SharedTransactionRowProps } from './TransactionRow';
+import { getTransactionMobileHighlightSx } from './transactionHighlightStyles';
 
 const CATEGORY_CHIP_DECORATION_ALPHA: CategoryChipDecorationAlpha = {
   filledBackground: 0.03,
@@ -35,6 +36,7 @@ interface TransactionMobileRowProps extends SharedTransactionRowProps {
   activeActionMenuTransactionId: string | null;
   activeActionMenuAnchorEl: HTMLElement | null;
   showDivider: boolean;
+  isTemporarilyHighlighted?: boolean;
 }
 
 function shouldShowInstallments(transaction: Transaction) {
@@ -66,6 +68,7 @@ export const TransactionMobileRow = memo(function TransactionMobileRow({
   activeActionMenuTransactionId,
   activeActionMenuAnchorEl,
   showDivider,
+  isTemporarilyHighlighted = false,
   callbacks,
 }: TransactionMobileRowProps) {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -164,6 +167,7 @@ export const TransactionMobileRow = memo(function TransactionMobileRow({
       aria-expanded={isActionMenuOpen ? 'true' : undefined}
       sx={{
         bgcolor: 'background.paper',
+        ...getTransactionMobileHighlightSx(theme, isTemporarilyHighlighted),
         borderRadius: 0,
         px: 2,
         py: 1.5,
@@ -371,7 +375,7 @@ export const TransactionMobileRow = memo(function TransactionMobileRow({
                     </IconButton>
                   </Tooltip>
                 ) : null}
-                {!!transaction.attachments?.length ? (
+                {transaction.attachments?.length ? (
                   <IconButton
                     size="small"
                     sx={{

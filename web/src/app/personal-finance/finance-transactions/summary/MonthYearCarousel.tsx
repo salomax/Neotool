@@ -8,7 +8,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
-import { LABEL_FONT_SIZE, LABEL_LINE_HEIGHT, labelTypographySx } from '@/shared/components/ui/primitives/Label';
+import { LABEL_LINE_HEIGHT, labelTypographySx } from '@/shared/components/ui/primitives/Label';
 
 interface MonthYearCarouselProps {
   selectedMonth: number; // 1-12
@@ -69,7 +69,7 @@ export function MonthYearCarousel({ selectedMonth, selectedYear, onChange }: Mon
             size="small"
             aria-label={t('financeTransactions.monthYearCarousel.prevAriaLabel')}
             data-testid="btn-prev-month"
-            sx={isMobile ? { p: 0.125 } : { p: 0.25 }}
+            sx={isMobile ? { p: 0.25 } : { p: 0.375 }}
           >
             <ChevronLeftIcon fontSize="small" />
           </IconButton>
@@ -79,11 +79,12 @@ export function MonthYearCarousel({ selectedMonth, selectedYear, onChange }: Mon
             sx={{
               ...labelTypographySx(theme),
               textTransform: 'capitalize',
-              minWidth: isMobile ? 108 : 132,
+              minWidth: isMobile ? 108 : 156,
               textAlign: 'center',
               mb: 0,
-              fontSize: LABEL_FONT_SIZE,
-              lineHeight: LABEL_LINE_HEIGHT,
+              fontSize: isMobile ? '0.8rem' : '.9rem',
+              lineHeight: isMobile ? LABEL_LINE_HEIGHT : 1.45,
+              fontWeight: isMobile ? 500 : 600,
             }}
           >
             {currentDate.format('MMMM YYYY')}
@@ -93,7 +94,7 @@ export function MonthYearCarousel({ selectedMonth, selectedYear, onChange }: Mon
             size="small"
             aria-label={t('financeTransactions.monthYearCarousel.nextAriaLabel')}
             data-testid="btn-next-month"
-            sx={isMobile ? { p: 0.125 } : { p: 0.25 }}
+            sx={isMobile ? { p: 0.25 } : { p: 0.375 }}
           >
             <ChevronRightIcon fontSize="small" />
           </IconButton>

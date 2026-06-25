@@ -14,6 +14,7 @@ import { usePreferences, useToast } from '@/shared/providers';
 import { resolveSimilarEditBehavior } from '../similarEditPreference';
 import type { CreditDebitTypeExtended } from '../TypeSelector';
 import { resolveRegularTransactionType } from '../transactionTypeUtils';
+import type { TransactionSuccessPayload } from '../transactionFormShared';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,15 @@ type ApplySimilarEditResult = {
     affectedCount: number;
     futureRuleCreated: boolean;
   };
+};
+
+type CreateTransactionMutationResult = {
+  createTransaction?: {
+    transaction?: {
+      id?: string | null;
+      date?: unknown;
+    } | null;
+  } | null;
 };
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
@@ -113,7 +123,7 @@ interface UseTransactionSaveProps {
   resetFormFields: () => void;
   onBusyStart?: () => void;
   onBusyEnd?: () => void;
-  onSuccess: () => void;
+  onSuccess: (payload?: TransactionSuccessPayload) => void | Promise<void>;
   onClose: () => void;
   onRefresh?: () => void;
 }
@@ -188,7 +198,8 @@ export function useTransactionSave({
   const { bankingUserPreferences } = usePreferences();
   const toast = useToast();
 
-  const [createTransaction, { loading: creating }] = useMutation(CREATE_TRANSACTION);
+  const [createTransaction, { loading: creating }] =
+    useMutation<CreateTransactionMutationResult>(CREATE_TRANSACTION);
   const [updateTransaction, { loading: updating }] = useMutation(UPDATE_TRANSACTION);
   const [loadSimilarEditPreview] = useLazyQuery<{ similarTransactionEditPreview: SimilarEditPreview }>(
     SIMILAR_TRANSACTION_EDIT_PREVIEW,
@@ -277,6 +288,7 @@ export function useTransactionSave({
 
     try {
       onBusyStart?.();
+      let successPayload: TransactionSuccessPayload | undefined;
       if (initialValues) {
         const shouldPrompt =
           !isBalanceAdjustmentEdit &&
@@ -286,6 +298,11 @@ export function useTransactionSave({
           : undefined;
 
         await updateTransaction({ variables: { id: initialValues.id, input: updateInput } });
+        successPayload = {
+          action: 'update',
+          transactionId: initialValues.id,
+          date: formattedDate,
+        };
 
         const preview = previewResult?.data?.similarTransactionEditPreview;
         const similarEditBehavior = preview
@@ -323,7 +340,7 @@ export function useTransactionSave({
           ? TransactionType.Transfer
           : resolveRegularTransactionType(finalCreditDebitType);
 
-        await createTransaction({
+        const createResult = await createTransaction({
           variables: {
             input: {
               date: formattedDate,
@@ -338,12 +355,20 @@ export function useTransactionSave({
             },
           },
         });
+        const createdTransaction = createResult.data?.createTransaction?.transaction;
+        successPayload = createdTransaction?.id
+          ? {
+              action: 'create',
+              transactionId: createdTransaction.id,
+              date: String(createdTransaction.date),
+            }
+          : undefined;
       }
 
       if (!initialValues) resetFormFields();
 
       try {
-        await Promise.resolve(onSuccess?.());
+        await Promise.resolve(onSuccess?.(successPayload));
       } catch (refreshError) {
         console.error('Failed to refresh after save:', refreshError);
       }

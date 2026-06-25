@@ -1423,6 +1423,11 @@
     },
     "issuer": "Institution",
     "financialAccount": "Financial Account",
+    "accountOrCard": "Account/Card",
+    "typeShort": {
+      "internalTransferIn": "Recv.",
+      "internalTransferOut": "Send"
+    },
     "validation": {
       "dateTooOld": "Date must be within the last {{years}} years",
       "dateNotInFuture": "Date cannot be in the future.",

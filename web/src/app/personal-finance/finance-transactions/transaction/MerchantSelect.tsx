@@ -96,6 +96,7 @@ interface MerchantSelectProps {
   initialMerchant?: MerchantChipData | null;
   onChange: (merchantId: string | null) => void;
   placeholder?: string;
+  variant?: 'chip' | 'field';
 }
 
 const PAGE_SIZE = 20;
@@ -113,7 +114,13 @@ export function normalizeMerchantWebsiteDomain(raw: string): string | null {
   return host;
 }
 
-export function MerchantSelect({ value, initialMerchant, onChange, placeholder }: MerchantSelectProps) {
+export function MerchantSelect({
+  value,
+  initialMerchant,
+  onChange,
+  placeholder,
+  variant = 'chip',
+}: MerchantSelectProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -152,6 +159,7 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
   >(CREATE_MERCHANT);
 
   const open = Boolean(anchorEl);
+  const isFieldVariant = variant === 'field';
   const resolvedPlaceholder = placeholder ?? t('financeTransactions.merchant');
   const connection = data?.merchants;
   const merchants = useMemo(() => connection?.edges.map((edge) => edge.node) ?? [], [connection?.edges]);
@@ -591,11 +599,24 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
               </Typography>
             }
             sx={{
+              width: isFieldVariant ? '100%' : 'auto',
               maxWidth: '100%',
+              minWidth: 0,
+              minHeight: isFieldVariant ? 40 : undefined,
+              justifyContent: isFieldVariant ? 'space-between' : 'flex-start',
               borderRadius: 1,
-              bgcolor: 'action.selected',
-              '& .MuiChip-label': { minWidth: 0, maxWidth: '100%', overflow: 'hidden' },
-              '&:hover': { bgcolor: 'action.hover' },
+              bgcolor: isFieldVariant ? 'background.paper' : 'action.selected',
+              borderColor: isFieldVariant ? 'divider' : undefined,
+              borderWidth: isFieldVariant ? 1 : undefined,
+              borderStyle: isFieldVariant ? 'solid' : undefined,
+              '& .MuiChip-label': {
+                minWidth: 0,
+                maxWidth: '100%',
+                overflow: 'hidden',
+                flex: isFieldVariant ? 1 : undefined,
+                py: isFieldVariant ? 0.5 : undefined,
+              },
+              '&:hover': { bgcolor: isFieldVariant ? 'background.paper' : 'action.hover' },
             }}
             onDelete={handleOpen}
             deleteIcon={<ExpandMoreIcon sx={{ color: 'inherit !important' }} />}
@@ -605,16 +626,27 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
             label={resolvedPlaceholder}
             variant="outlined"
             sx={{
+              width: isFieldVariant ? '100%' : 'auto',
               maxWidth: '100%',
               minWidth: 0,
+              minHeight: isFieldVariant ? 40 : undefined,
+              justifyContent: isFieldVariant ? 'space-between' : 'flex-start',
               borderRadius: 1,
               borderStyle: 'dashed',
+              borderColor: 'divider',
               color: 'text.secondary',
-              '& .MuiChip-label': { minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+              '& .MuiChip-label': {
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flex: isFieldVariant ? 1 : undefined,
+                py: isFieldVariant ? 0.5 : undefined,
+              },
               '&:hover': {
-                borderColor: 'primary.main',
-                color: 'primary.main',
-                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                borderColor: isFieldVariant ? 'divider' : 'primary.main',
+                color: isFieldVariant ? 'text.secondary' : 'primary.main',
+                bgcolor: isFieldVariant ? 'background.paper' : alpha(theme.palette.primary.main, 0.05),
               },
             }}
             onDelete={handleOpen}

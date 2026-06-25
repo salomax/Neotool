@@ -41,6 +41,7 @@ import { FinanceTransactionsContentPanel } from './FinanceTransactionsContentPan
 import { FinanceTransactionsSidebar } from './FinanceTransactionsSidebar';
 import { useScopedToggleFilter } from './hooks/useScopedToggleFilter';
 import { usePaginatedTransactions } from './hooks/usePaginatedTransactions';
+import type { TransactionSuccessPayload } from './transaction/transactionFormShared';
 
 const TRANSACTION_ACCOUNT_TYPES: FinancialAccountType[] = [
   FinancialAccountType.Bank,
@@ -388,7 +389,7 @@ export default function FinanceTransactionsPage() {
   const handleClosePayBillDialog = useCallback(() => setIsPayBillDialogOpen(false), []);
   const handleCancelCreate = useCallback(() => setIsCreatingTransaction(false), []);
 
-  const handleSuccessCreate = useCallback(async () => {
+  const handleSuccessCreate = useCallback(async (_payload?: TransactionSuccessPayload) => {
     await Promise.all([refetchTransactions(), refetchSummary()]);
   }, [refetchTransactions, refetchSummary]);
 

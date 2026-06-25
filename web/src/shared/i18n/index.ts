@@ -4,3 +4,6 @@ export type { DomainTranslations, TranslationFunction } from './types';
 
 // Re-export i18n instance for advanced usage
 export { default as i18n } from './config';
+
+// MUI date picker locale utilities
+export { getMuiDateAdapterLocaleFromLanguageTag, buildMuiDatePickerLocaleText } from './muiLocale';

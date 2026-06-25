@@ -331,10 +331,17 @@
     "start": "Start",
     "end": "End",
     "placeholder": "Select date",
+    "toolbarTitle": "Select date",
     "formatHint": "mm/dd/yyyy",
     "fieldDay": "dd",
     "fieldMonth": "mm",
     "fieldYear": "yyyy",
+    "actions": {
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "clear": "Clear",
+      "today": "Today"
+    },
     "errors": {
       "invalidDate": "Invalid date",
       "minDate": "Date must be on or after {{date}}",

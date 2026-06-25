@@ -1,6 +1,10 @@
+import type { ReactElement } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ThemeProvider, createTheme } from '@mui/material';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { TransactionTable } from '../TransactionTable';
 import { CategoryApplicableTo, CreditDebitType, TransactionType, type Transaction } from '@/lib/graphql/types/__generated__/graphql';
 import { useLazyQuery as mockUseLazyQuery } from '@apollo/client/react';
@@ -8,6 +12,7 @@ import { useLazyQuery as mockUseLazyQuery } from '@apollo/client/react';
 const mockUseMediaQuery = vi.fn((_query?: unknown) => false);
 let lastRuleDrawerProps: any = null;
 let lastApplyDialogProps: any = null;
+const theme = createTheme();
 
 vi.mock('@mui/material/useMediaQuery', () => ({
   default: (query: unknown) => mockUseMediaQuery(query),
@@ -83,6 +88,14 @@ vi.mock('../SimilarEditDialog', () => ({
   SimilarEditDialog: () => null,
 }));
 
+vi.mock('../MerchantSelect', () => ({
+  MerchantSelect: () => <div data-testid="merchant-select-mock" />,
+}));
+
+vi.mock('../../../components/AttachmentSection', () => ({
+  AttachmentSection: () => <div data-testid="attachment-section-mock" />,
+}));
+
 vi.mock('../AppliedTransactionRulesDrawer', () => ({
   AppliedTransactionRulesDrawer: ({ open }: { open: boolean }) => (open ? <div>applied-rules-drawer</div> : null),
 }));
@@ -107,6 +120,14 @@ vi.mock('../../transaction-rules/TransactionRuleDrawer', () => ({
     ) : null;
   },
 }));
+
+function renderWithProviders(ui: ReactElement) {
+  return render(
+    <ThemeProvider theme={theme}>
+      <LocalizationProvider dateAdapter={AdapterDayjs}>{ui}</LocalizationProvider>
+    </ThemeProvider>,
+  );
+}
 
 describe.sequential('TransactionTable', () => {
   beforeEach(() => {
@@ -140,7 +161,7 @@ describe.sequential('TransactionTable', () => {
       attachments: [],
     } as unknown as Transaction;
 
-    render(
+    renderWithProviders(
       <TransactionTable
         transactions={[transaction]}
         financialAccounts={[]}
@@ -173,7 +194,7 @@ describe.sequential('TransactionTable', () => {
       attachments: [],
     } as unknown as Transaction;
 
-    render(
+    renderWithProviders(
       <TransactionTable
         transactions={[transaction]}
         financialAccounts={[]}
@@ -214,7 +235,7 @@ describe.sequential('TransactionTable', () => {
       ],
     } as unknown as Transaction;
 
-    render(
+    renderWithProviders(
       <TransactionTable
         transactions={[transaction]}
         financialAccounts={[]}
@@ -260,7 +281,7 @@ describe.sequential('TransactionTable', () => {
       attachments: [],
     } as unknown as Transaction;
 
-    render(
+    renderWithProviders(
       <TransactionTable
         transactions={[transaction]}
         financialAccounts={[]}
@@ -305,7 +326,7 @@ describe.sequential('TransactionTable', () => {
       appliedRuleIds: [],
     } as Transaction;
 
-    const { unmount } = render(
+    const { unmount } = renderWithProviders(
       <TransactionTable
         transactions={[transactionWithRules]}
         financialAccounts={[]}
@@ -326,7 +347,7 @@ describe.sequential('TransactionTable', () => {
 
     unmount();
 
-    render(
+    renderWithProviders(
       <TransactionTable
         transactions={[transactionWithoutRules]}
         financialAccounts={[]}
@@ -364,7 +385,7 @@ describe.sequential('TransactionTable', () => {
       attachments: [],
     } as unknown as Transaction;
 
-    render(
+    renderWithProviders(
       <TransactionTable
         transactions={[transaction]}
         financialAccounts={[]}
@@ -403,7 +424,7 @@ describe.sequential('TransactionTable', () => {
       attachments: [],
     } as unknown as Transaction;
 
-    render(
+    renderWithProviders(
       <TransactionTable
         transactions={[transaction]}
         financialAccounts={[]}
@@ -452,7 +473,7 @@ describe.sequential('TransactionTable', () => {
       attachments: [],
     } as unknown as Transaction;
 
-    render(
+    renderWithProviders(
       <TransactionTable
         transactions={[transaction]}
         financialAccounts={[]}
@@ -501,7 +522,7 @@ describe.sequential('TransactionTable', () => {
       attachments: [],
     } as unknown as Transaction;
 
-    render(
+    renderWithProviders(
       <TransactionTable
         transactions={[transaction]}
         financialAccounts={[]}
@@ -542,7 +563,7 @@ describe.sequential('TransactionTable', () => {
     } as unknown as Transaction;
 
     mockUseMediaQuery.mockReturnValue(true);
-    const { rerender } = render(
+    const { rerender } = renderWithProviders(
       <TransactionTable
         transactions={[transaction]}
         financialAccounts={[]}
@@ -570,5 +591,171 @@ describe.sequential('TransactionTable', () => {
 
     expect(screen.getByRole('table', { name: /Transactions table|Tabela de transações/i })).toBeInTheDocument();
     expect(screen.queryByTestId('transaction-mobile-row-tx-mobile')).not.toBeInTheDocument();
+  });
+
+  it('uses the fullscreen drawer for mobile creation instead of the inline form', () => {
+    const transaction = {
+      id: 'tx-mobile-create',
+      description: 'Coffee',
+      date: '2026-03-01',
+      creditDebitType: CreditDebitType.Debit,
+      type: TransactionType.Card,
+      amount: 12.34,
+      currencyCode: 'BRL',
+      financialAccountId: 'acc-1',
+      merchant: null,
+      category: null,
+      appliedRuleIds: [],
+      tags: [],
+      attachments: [],
+    } as unknown as Transaction;
+
+    mockUseMediaQuery.mockReturnValue(true);
+
+    renderWithProviders(
+      <TransactionTable
+        transactions={[transaction]}
+        financialAccounts={[]}
+        loading={false}
+        hasMore={false}
+        onLoadMore={vi.fn()}
+        isCreating
+        onCancelCreate={vi.fn()}
+        onSuccessCreate={vi.fn()}
+        selectedAccountId="acc-1"
+      />,
+    );
+
+    expect(screen.getByTestId('mobile-transaction-drawer')).toBeInTheDocument();
+    expect(screen.queryByTestId('inline-transaction-form')).not.toBeInTheDocument();
+    expect(screen.getByTestId('tx-credit-debit-type-carousel')).toBeInTheDocument();
+    expect(screen.getByText(/Receita|Credit/i)).toBeInTheDocument();
+    expect(screen.getByText(/Despesa|Debit/i)).toBeInTheDocument();
+    expect(screen.getByText(/Envio|Send/i)).toBeInTheDocument();
+    expect(screen.getByText(/Receb\.|Recv\./i)).toBeInTheDocument();
+
+    const descriptionInput = screen.getByTestId('tx-description-input');
+    const amountInput = screen.getByTestId('tx-amount-input');
+    const dateInput = screen.getByTestId('tx-date-input');
+    const categoryField = screen.getByTestId('tx-category-select');
+
+    expect(descriptionInput.compareDocumentPosition(amountInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(amountInput.compareDocumentPosition(dateInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(dateInput.compareDocumentPosition(categoryField) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows financial account label above tags in the mobile drawer when account selection is available', () => {
+    const transaction = {
+      id: 'tx-mobile-account-order',
+      description: 'Coffee',
+      date: '2026-03-01',
+      creditDebitType: CreditDebitType.Debit,
+      type: TransactionType.Card,
+      amount: 12.34,
+      currencyCode: 'BRL',
+      financialAccountId: 'acc-1',
+      merchant: null,
+      category: null,
+      appliedRuleIds: [],
+      tags: [],
+      attachments: [],
+    } as unknown as Transaction;
+
+    mockUseMediaQuery.mockReturnValue(true);
+
+    renderWithProviders(
+      <TransactionTable
+        transactions={[transaction]}
+        financialAccounts={[]}
+        loading={false}
+        hasMore={false}
+        onLoadMore={vi.fn()}
+        isCreating
+        onCancelCreate={vi.fn()}
+        onSuccessCreate={vi.fn()}
+        selectedAccountId={null}
+      />,
+    );
+
+    const accountLabel = screen.getByText(/Conta\/Cartão|Account\/Card/i);
+    const tagsInput = screen.getByPlaceholderText(/Tags/i);
+
+    expect(accountLabel.compareDocumentPosition(tagsInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('keeps the inline form for desktop creation', () => {
+    const transaction = {
+      id: 'tx-desktop-create',
+      description: 'Coffee',
+      date: '2026-03-01',
+      creditDebitType: CreditDebitType.Debit,
+      type: TransactionType.Card,
+      amount: 12.34,
+      currencyCode: 'BRL',
+      financialAccountId: 'acc-1',
+      merchant: null,
+      category: null,
+      appliedRuleIds: [],
+      tags: [],
+      attachments: [],
+    } as unknown as Transaction;
+
+    mockUseMediaQuery.mockReturnValue(false);
+
+    renderWithProviders(
+      <TransactionTable
+        transactions={[transaction]}
+        financialAccounts={[]}
+        loading={false}
+        hasMore={false}
+        onLoadMore={vi.fn()}
+        isCreating
+        onCancelCreate={vi.fn()}
+        onSuccessCreate={vi.fn()}
+        selectedAccountId="acc-1"
+      />,
+    );
+
+    expect(screen.getByTestId('inline-transaction-form')).toBeInTheDocument();
+    expect(screen.queryByTestId('mobile-transaction-drawer')).not.toBeInTheDocument();
+  });
+
+  it('opens the fullscreen drawer when editing a transaction on mobile', async () => {
+    const user = userEvent.setup();
+    const transaction = {
+      id: 'tx-mobile-edit',
+      description: 'Coffee',
+      date: '2026-03-01',
+      creditDebitType: CreditDebitType.Debit,
+      type: TransactionType.Card,
+      amount: 12.34,
+      currencyCode: 'BRL',
+      financialAccountId: 'acc-1',
+      merchant: null,
+      category: null,
+      appliedRuleIds: [],
+      tags: [],
+      attachments: [],
+    } as unknown as Transaction;
+
+    mockUseMediaQuery.mockReturnValue(true);
+
+    renderWithProviders(
+      <TransactionTable
+        transactions={[transaction]}
+        financialAccounts={[]}
+        loading={false}
+        hasMore={false}
+        onLoadMore={vi.fn()}
+        onSuccessCreate={vi.fn()}
+        selectedAccountId="acc-1"
+      />,
+    );
+
+    await user.click(screen.getByTestId('transaction-mobile-row-tx-mobile-edit'));
+    await user.click(screen.getByTestId('transaction-action-edit'));
+
+    expect(screen.getByTestId('mobile-transaction-drawer')).toBeInTheDocument();
+    expect(screen.queryByTestId('inline-transaction-form')).not.toBeInTheDocument();
   });
 });

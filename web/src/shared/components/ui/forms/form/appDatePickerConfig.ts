@@ -21,6 +21,12 @@ export function appDatePickerDisplayFormatFromLanguageTag(lang: string | undefin
   return l.startsWith("pt") ? "DD/MM/YYYY" : "MM/DD/YYYY";
 }
 
+
+export {
+  getMuiDateAdapterLocaleFromLanguageTag,
+  buildMuiDatePickerLocaleText,
+} from "@/shared/i18n/muiLocale";
+
 /** Calendar header + month grid match shared `<Label />` typography (`labelTypographySx`). */
 function appDatePickerLabelTypographySx(theme: Theme) {
   return { ...labelTypographySx(theme), fontSize: "0.8rem" };
@@ -53,6 +59,29 @@ const appDatePickerCalendarSlotPropsDefined = {
       },
     }),
   },
+  layout: {
+    sx: {
+      "& .MuiPickersLayout-contentWrapper": {
+        marginBottom: 0,
+      },
+      "& .MuiPickersActionBar-root": {
+        gap: 1,
+        px: 2,
+        pt: 1,
+        pb: 2,
+        mt: 0.5,
+      },
+      "& .MuiPickersActionBar-root .MuiButton-root:first-of-type": {
+        border: "1px solid",
+        borderColor: "divider",
+        color: "text.primary",
+        "&:hover": {
+          borderColor: "divider",
+          backgroundColor: "action.hover",
+        },
+      },
+    },
+  },
 };
 
 export const appDatePickerSlotProps =
@@ -74,11 +103,13 @@ export function mergeAppDatePickerSlotProps(
     calendarHeader: extraCal,
     yearButton: extraYear,
     monthButton: extraMonth,
+    layout: extraLayout,
     ...restExtra
   } = extra;
   const baseCal = base.calendarHeader as { sx?: unknown };
   const baseYear = base.yearButton as { sx?: unknown };
   const baseMonth = base.monthButton as { sx?: unknown };
+  const baseLayout = base.layout as { sx?: unknown };
 
   return {
     ...base,
@@ -107,6 +138,15 @@ export function mergeAppDatePickerSlotProps(
             ...base.monthButton,
             ...extraMonth,
             sx: [baseMonth.sx, (extraMonth as { sx?: unknown }).sx].filter(Boolean),
+          },
+        }
+      : {}),
+    ...(extraLayout != null
+      ? {
+          layout: {
+            ...base.layout,
+            ...extraLayout,
+            sx: [baseLayout.sx, (extraLayout as { sx?: unknown }).sx].filter(Boolean),
           },
         }
       : {}),

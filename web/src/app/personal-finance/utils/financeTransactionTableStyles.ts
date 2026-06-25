@@ -73,7 +73,7 @@ export const financeTransactionDateGroupTableRowSx: SxProps<Theme> = {
 
 export function financeTransactionDateGroupTableCellSx(): SxProps<Theme> {
   return {
-    pt: 2,
+    pt: 4,
     pb: 1,
     bgcolor: "transparent",
     backgroundColor: "transparent",

@@ -335,7 +335,7 @@ export function FinanceTransactionsHeaderBar({
             expandedWidth={isMobile ? '100%' : 320}
             inputMaxWidth={isMobile ? 999 : 240}
             height={isMobile ? 40 : 48}
-            collapsedSearchIconMarginLeft={isMobile ? '1.6rem' : 0}
+            collapsedSearchIconMarginLeft='1.6rem'
             sx={
               isMobile
                 ? {

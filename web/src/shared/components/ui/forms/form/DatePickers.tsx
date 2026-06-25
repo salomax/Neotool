@@ -13,6 +13,8 @@ import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/pt-br";
 import {
   APP_DATE_PICKER_VIEWS,
+  buildMuiDatePickerLocaleText,
+  getMuiDateAdapterLocaleFromLanguageTag,
   mergeAppDatePickerSlotProps,
 } from "./appDatePickerConfig";
 import { TextField, type TextFieldProps } from "./TextField";
@@ -70,6 +72,8 @@ export {
   appDatePickerDisplayFormat,
   appDatePickerDisplayFormatFromLanguageTag,
   appDatePickerSlotProps,
+  buildMuiDatePickerLocaleText,
+  getMuiDateAdapterLocaleFromLanguageTag,
   mergeAppDatePickerSlotProps,
 } from "./appDatePickerConfig";
 
@@ -79,7 +83,7 @@ function useDatePickerI18nConfig() {
     const lang = i18n.language?.toLowerCase() ?? "pt";
     const isPt = lang.startsWith("pt");
     return {
-      adapterLocale: isPt ? "pt-br" : "en",
+      adapterLocale: getMuiDateAdapterLocaleFromLanguageTag(lang),
       dateFormat: isPt ? "DD/MM/YYYY" : "MM/DD/YYYY",
     };
   }, [i18n.language]);
@@ -263,14 +267,7 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
     [maxDate, disableFutureFlag, today],
   );
   const effectiveLabel = label ?? t("datePicker.placeholder");
-  const localeText = React.useMemo(
-    () => ({
-      fieldDayPlaceholder: () => t("datePicker.fieldDay"),
-      fieldMonthPlaceholder: () => t("datePicker.fieldMonth"),
-      fieldYearPlaceholder: () => t("datePicker.fieldYear"),
-    }),
-    [t]
-  );
+  const localeText = React.useMemo(() => buildMuiDatePickerLocaleText(t), [t]);
   const pickerErrorText = React.useMemo(() => {
     if (!pickerError) return undefined;
 
@@ -355,14 +352,7 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
   const { adapterLocale, dateFormat } = useDatePickerI18nConfig();
   const startLabel = labelStart ?? t("datePicker.start");
   const endLabel = labelEnd ?? t("datePicker.end");
-  const localeText = React.useMemo(
-    () => ({
-      fieldDayPlaceholder: () => t("datePicker.fieldDay"),
-      fieldMonthPlaceholder: () => t("datePicker.fieldMonth"),
-      fieldYearPlaceholder: () => t("datePicker.fieldYear"),
-    }),
-    [t]
-  );
+  const localeText = React.useMemo(() => buildMuiDatePickerLocaleText(t), [t]);
   return (
     <LocalizationProvider
       dateAdapter={AdapterDayjs}

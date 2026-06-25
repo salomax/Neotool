@@ -36,6 +36,7 @@ import {
 } from '../../utils/financeTransactionTableStyles';
 import { formatFinanceDateGroupLabel, parseFinanceDateKey } from '../../utils/financeDateGroupLabel';
 import { InlineTransactionForm } from './InlineTransactionForm';
+import { MobileTransactionDrawer } from './MobileTransactionDrawer';
 import { TransactionRow } from './TransactionRow';
 import type { TransactionRowCallbacks } from './TransactionRow';
 import { TransactionMobileRow } from './TransactionMobileRow';
@@ -49,6 +50,12 @@ import { useCategoryPicker } from './hooks/useCategoryPicker';
 import { useSimilarEdit } from './hooks/useSimilarEdit';
 import { useAttachmentPreview } from './hooks/useAttachmentPreview';
 import { RecurringPaymentForm } from '@/app/personal-finance/recurring-payments/RecurringPaymentForm';
+import type { TransactionSuccessPayload } from './transactionFormShared';
+import {
+  getTransactionScrollSelector,
+  shouldAutoScrollToCreatedTransaction,
+} from './transactionScrollUtils';
+import { HIGHLIGHT_DURATION_MS } from './transactionHighlightStyles';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -58,7 +65,7 @@ interface TransactionTableProps {
   onLoadMore: () => void;
   isCreating?: boolean;
   onCancelCreate?: () => void;
-  onSuccessCreate?: () => void;
+  onSuccessCreate?: (payload?: TransactionSuccessPayload) => void | Promise<void>;
   onOpenNfceDocument?: (transactionId: string) => void;
   selectedAccountId?: string | null;
   selectedMonth?: number;
@@ -86,6 +93,8 @@ export function TransactionTable({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const tableHeadRef = useRef<HTMLTableSectionElement | null>(null);
   const [progressTop, setProgressTop] = useState<number>(0);
+  const [pendingScrollTransactionId, setPendingScrollTransactionId] = useState<string | null>(null);
+  const [highlightedTransactionId, setHighlightedTransactionId] = useState<string | null>(null);
 
   // ── State domains ────────────────────────────────────────────────────────────
   const { busyCount, beginBusy, endBusy } = useBusyCounter();
@@ -225,6 +234,51 @@ export function TransactionTable({
     return () => window.cancelAnimationFrame(id);
   }, [selectedAccountId, updateProgressTop]);
 
+  useEffect(() => {
+    if (!pendingScrollTransactionId) return;
+    if (loading) return;
+
+    const transactionExists = transactions.some((transaction) => transaction.id === pendingScrollTransactionId);
+    if (!transactionExists) {
+      return;
+    }
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      const selector = getTransactionScrollSelector(pendingScrollTransactionId, isMobile);
+      const element = containerRef.current?.querySelector<HTMLElement>(selector);
+      if (!element) return;
+      element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      element.focus?.({ preventScroll: true });
+      setPendingScrollTransactionId(null);
+    });
+
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [isMobile, loading, pendingScrollTransactionId, transactions]);
+
+  useEffect(() => {
+    if (!highlightedTransactionId) return;
+    const timeoutId = window.setTimeout(() => {
+      setHighlightedTransactionId((current) => (current === highlightedTransactionId ? null : current));
+    }, HIGHLIGHT_DURATION_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [highlightedTransactionId]);
+
+  const handleTransactionSuccess = useCallback(
+    async (payload?: TransactionSuccessPayload) => {
+      if (payload?.transactionId) {
+        setHighlightedTransactionId(payload.transactionId);
+      }
+      await Promise.resolve(onSuccessCreate?.(payload));
+      if (shouldAutoScrollToCreatedTransaction(payload, selectedMonth, selectedYear) && payload?.transactionId) {
+        setPendingScrollTransactionId(payload.transactionId);
+      } else {
+        setPendingScrollTransactionId(null);
+      }
+    },
+    [onSuccessCreate, selectedMonth, selectedYear],
+  );
+
   // ── Infinite scroll ──────────────────────────────────────────────────────────
   useEffect(() => {
     const currentLoader = loaderRef.current;
@@ -257,14 +311,14 @@ export function TransactionTable({
       onOpenAttachmentPreview: attachmentPreview.openPreview,
       onEditClose: closeEdit,
       onEditExited: clearEdit,
-      onEditSuccess: async () => { await onSuccessCreate?.(); },
+      onEditSuccess: handleTransactionSuccess,
       onEditRefresh: () => { void onSuccessCreate?.(); },
       onBusyStart: beginBusy,
       onBusyEnd: endBusy,
     }),
     // onSuccessCreate is intentionally omitted from the stable ref — callers use void/await
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [categoryPicker.openPicker, actionMenu.open, onOpenNfceDocument, attachmentPreview.openPreview, closeEdit, clearEdit, beginBusy, endBusy],
+    [categoryPicker.openPicker, actionMenu.open, onOpenNfceDocument, attachmentPreview.openPreview, closeEdit, clearEdit, handleTransactionSuccess, beginBusy, endBusy],
   );
 
   const headCellSx = financeTransactionHeadCellSx(theme);
@@ -327,7 +381,7 @@ export function TransactionTable({
                 </Box>
               ) : null}
 
-              <Box sx={{ ...financeTransactionDateGroupTableCellSx(), px: 2, pt: 1.5, pb: 0 }}>
+              <Box sx={{ ...financeTransactionDateGroupTableCellSx(), px: 2, pt: 3.25, pb: 0 }}>
                 <Label>{formatFinanceDateGroupLabel(group.date, t, i18n.language)}</Label>
               </Box>
 
@@ -353,6 +407,7 @@ export function TransactionTable({
                     activeActionMenuTransactionId={actionMenu.menuTransaction?.id ?? null}
                     activeActionMenuAnchorEl={actionMenu.anchorEl}
                     showDivider={index < group.transactions.length - 1}
+                    isTemporarilyHighlighted={highlightedTransactionId === transaction.id}
                     callbacks={rowCallbacks}
                   />
                 );
@@ -391,11 +446,11 @@ export function TransactionTable({
           </TableHead>
 
           <TableBody sx={financeTransactionTableBodySx}>
-            {onCancelCreate && onSuccessCreate && (
+            {!isMobile && onCancelCreate && onSuccessCreate && (
               <InlineTransactionForm
                 isOpen={isCreating}
                 onClose={onCancelCreate}
-                onSuccess={onSuccessCreate}
+                onSuccess={handleTransactionSuccess}
                 onRefresh={onSuccessCreate}
                 selectedAccountId={selectedAccountId}
                 selectedMonth={selectedMonth}
@@ -450,6 +505,7 @@ export function TransactionTable({
                       selectedAccountId={selectedAccountId}
                       activeActionMenuTransactionId={actionMenu.menuTransaction?.id ?? null}
                       activeActionMenuAnchorEl={actionMenu.anchorEl}
+                      isTemporarilyHighlighted={highlightedTransactionId === transaction.id}
                       callbacks={rowCallbacks}
                     />
                   );
@@ -458,6 +514,38 @@ export function TransactionTable({
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {isMobile && onCancelCreate && onSuccessCreate && (
+        <MobileTransactionDrawer
+          isOpen={isCreating}
+          onClose={onCancelCreate}
+          onSuccess={handleTransactionSuccess}
+          onRefresh={onSuccessCreate}
+          selectedAccountId={selectedAccountId}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+          onBusyStart={beginBusy}
+          onBusyEnd={endBusy}
+        />
+      )}
+
+      {isMobile && editedTransaction && (
+        <MobileTransactionDrawer
+          isOpen={isEditFormOpen}
+          onClose={closeEdit}
+          onSuccess={handleTransactionSuccess}
+          onRefresh={() => {
+            void onSuccessCreate?.();
+          }}
+          selectedAccountId={selectedAccountId}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+          initialValues={editedTransaction}
+          onExited={clearEdit}
+          onBusyStart={beginBusy}
+          onBusyEnd={endBusy}
+        />
       )}
 
       {/* Action menu (single instance, shared across all rows) */}
@@ -518,7 +606,7 @@ export function TransactionTable({
           setRecurringSourceTx(null);
         }}
         onSaved={async () => {
-          await onSuccessCreate?.();
+          await Promise.resolve(onSuccessCreate?.());
         }}
       />
 

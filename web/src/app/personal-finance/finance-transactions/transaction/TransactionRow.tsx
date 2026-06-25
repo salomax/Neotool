@@ -34,6 +34,8 @@ import { TransactionTagList } from './TransactionTagList';
 import { TransactionAccountCell } from './TransactionAccountCell';
 import { TRANSACTION_ACTIONS_MENU_ID } from './TransactionActionMenu';
 import type { PreviewAttachment } from '../../components/FilePreviewDialog';
+import { getTransactionTableHighlightSx } from './transactionHighlightStyles';
+import type { TransactionSuccessPayload } from './transactionFormShared';
 
 const CATEGORY_CHIP_DECORATION_ALPHA: CategoryChipDecorationAlpha = {
   filledBackground: 0.03,
@@ -51,7 +53,7 @@ export interface TransactionRowCallbacks {
   onOpenAttachmentPreview: (transactionId: string, attachments: PreviewAttachment[]) => void;
   onEditClose: () => void;
   onEditExited: () => void;
-  onEditSuccess: () => void;
+  onEditSuccess: (payload?: TransactionSuccessPayload) => void | Promise<void>;
   onEditRefresh: () => void;
   onBusyStart: () => void;
   onBusyEnd: () => void;
@@ -70,6 +72,7 @@ interface TransactionRowProps {
   selectedAccountId: string | null;
   activeActionMenuTransactionId: string | null;
   activeActionMenuAnchorEl: HTMLElement | null;
+  isTemporarilyHighlighted?: boolean;
   callbacks: TransactionRowCallbacks;
 }
 
@@ -91,6 +94,7 @@ export const TransactionRow = memo(function TransactionRow({
   selectedAccountId,
   activeActionMenuTransactionId,
   activeActionMenuAnchorEl,
+  isTemporarilyHighlighted = false,
   callbacks,
 }: TransactionRowProps) {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -149,8 +153,10 @@ export const TransactionRow = memo(function TransactionRow({
     <Fragment>
       <TableRow
         data-testid={`transaction-row-${transaction.id}`}
+        tabIndex={-1}
         sx={{
           ...rowSx,
+          ...getTransactionTableHighlightSx(theme, isTemporarilyHighlighted),
           opacity: isDeleting ? 0 : isEditing && isEditFormOpen ? 0.5 : 1,
           pointerEvents: (isEditing && isEditFormOpen) || isDeleting ? 'none' : 'auto',
           filter: isDeleting || !(isEditing && isEditFormOpen) ? 'none' : 'grayscale(0.5)',
@@ -331,7 +337,7 @@ export const TransactionRow = memo(function TransactionRow({
         <InlineTransactionForm
           isOpen={isEditFormOpen && !isDeleting}
           onClose={callbacks.onEditClose}
-          onSuccess={async () => { await callbacks.onEditSuccess(); }}
+          onSuccess={async (payload) => { await callbacks.onEditSuccess(payload); }}
           onRefresh={() => { void callbacks.onEditRefresh(); }}
           selectedAccountId={selectedAccountId}
           initialValues={transaction}
