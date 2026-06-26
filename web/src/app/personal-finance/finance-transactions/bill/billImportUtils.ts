@@ -1,9 +1,11 @@
 import {
   ACCEPTED_EXTENSIONS,
   MAX_FILE_BYTES,
+  type BillDateValidation,
   type CardAccountOption,
   type SharedCardTemplate,
 } from './billImportTypes';
+import dayjs, { type Dayjs } from 'dayjs';
 import { parseDateOnly } from '@/shared/utils/date/dateOnly';
 
 // ── Issuer key helpers ───────────────────────────────────────────────────────
@@ -28,6 +30,44 @@ export function formatTxDisplayDate(date: string | null | undefined, locale?: st
   const dateObj = parseDateOnly(date);
   if (!dateObj) return date;
   return new Intl.DateTimeFormat(locale, { dateStyle: 'short' }).format(dateObj);
+}
+
+export function getBillDateValidation(
+  closingDateInput: Dayjs | null,
+  dueDateInput: Dayjs | null,
+): BillDateValidation {
+  const hasBillClosingDate = closingDateInput !== null;
+  const closingDateInvalid = Boolean(closingDateInput && !closingDateInput.isValid());
+  const dueDateInvalid = Boolean(dueDateInput && !dueDateInput.isValid());
+  const closingDateValue = closingDateInput && closingDateInput.isValid() ? closingDateInput : null;
+  const dueDateValue = dueDateInput && dueDateInput.isValid() ? dueDateInput : null;
+  const dueDateBeforeClosingDate =
+    !!closingDateValue && !!dueDateValue && dueDateValue.isBefore(closingDateValue, 'day');
+
+  return {
+    hasBillClosingDate,
+    closingDateInvalid,
+    dueDateInvalid,
+    dueDateBeforeClosingDate,
+  };
+}
+
+export function isBillDateConfirmDisabled(validation: BillDateValidation): boolean {
+  return (
+    !validation.hasBillClosingDate ||
+    validation.closingDateInvalid ||
+    validation.dueDateInvalid ||
+    validation.dueDateBeforeClosingDate
+  );
+}
+
+export function getBillDateValidationFromOverrides(
+  billDateOverrides: { closingDate: string; dueDate: string },
+): BillDateValidation {
+  return getBillDateValidation(
+    billDateOverrides.closingDate ? dayjs(billDateOverrides.closingDate) : null,
+    billDateOverrides.dueDate ? dayjs(billDateOverrides.dueDate) : null,
+  );
 }
 
 // ── File helpers ─────────────────────────────────────────────────────────────

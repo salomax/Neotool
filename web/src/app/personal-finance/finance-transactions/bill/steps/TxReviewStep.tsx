@@ -1,9 +1,6 @@
 import {
   Alert,
   Box,
-  Button,
-  CircularProgress,
-  Divider,
   List,
   Paper,
   Stack,
@@ -16,10 +13,11 @@ import { useTranslation } from '@/shared/i18n';
 import { formatDateOnly } from '@/shared/utils/date/dateOnly';
 import { personalFinanceTranslations } from '../../../i18n';
 import { DateTimePicker } from '@/shared/components/ui/primitives/DateTimePicker';
-import { getReviewCardLabel, txSelectionKey } from '../billImportUtils';
+import { getReviewCardLabel, txSelectionKey, getBillDateValidation } from '../billImportUtils';
 import { TxReviewItem } from './TxReviewItem';
 import type {
   BillDateOverrides,
+  BillDateValidation,
   CardAccountOption,
   FlatTxAssignments,
   FlatTxInclusions,
@@ -40,14 +38,11 @@ interface TxReviewStepProps {
   allCardsResolved: boolean;
   allCategories: TransactionCategory[];
   cardAccountOptions: CardAccountOption[];
-  confirming: boolean;
-  includedCount: number;
   onSetTxSelections: Dispatch<SetStateAction<TxSelections>>;
   onSetFlatTxInclusions: Dispatch<SetStateAction<FlatTxInclusions>>;
   onSetBillDateOverrides: Dispatch<SetStateAction<BillDateOverrides>>;
   onUpdateCategory: (key: string, categoryId: string | null) => void;
-  onConfirm: () => void;
-  onBack: () => void;
+  onBillDateValidationChange: (validation: BillDateValidation) => void;
 }
 
 export const TxReviewStep = memo(function TxReviewStep({
@@ -61,14 +56,11 @@ export const TxReviewStep = memo(function TxReviewStep({
   allCardsResolved,
   allCategories,
   cardAccountOptions,
-  confirming,
-  includedCount,
   onSetTxSelections,
   onSetFlatTxInclusions,
   onSetBillDateOverrides,
   onUpdateCategory,
-  onConfirm,
-  onBack,
+  onBillDateValidationChange,
 }: TxReviewStepProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const invalidDateMessage = t('datePicker.errors.invalidDate', { ns: 'common' });
@@ -109,13 +101,22 @@ export const TxReviewStep = memo(function TxReviewStep({
     [onSetBillDateOverrides],
   );
 
-  const hasBillClosingDate = closingDateInput !== null;
-  const closingDateInvalid = Boolean(closingDateInput && !closingDateInput.isValid());
-  const dueDateInvalid = Boolean(dueDateInput && !dueDateInput.isValid());
+  const billDateValidation = React.useMemo(
+    () => getBillDateValidation(closingDateInput, dueDateInput),
+    [closingDateInput, dueDateInput],
+  );
+  const {
+    hasBillClosingDate,
+    closingDateInvalid,
+    dueDateInvalid,
+    dueDateBeforeClosingDate,
+  } = billDateValidation;
   const closingDateValue = closingDateInput && closingDateInput.isValid() ? closingDateInput : null;
   const dueDateValue = dueDateInput && dueDateInput.isValid() ? dueDateInput : null;
-  const dueDateBeforeClosingDate =
-    !!closingDateValue && !!dueDateValue && dueDateValue.isBefore(closingDateValue, 'day');
+
+  React.useEffect(() => {
+    onBillDateValidationChange(billDateValidation);
+  }, [billDateValidation, onBillDateValidationChange]);
 
   return (
     <Box sx={{ p: 1 }}>
@@ -240,31 +241,6 @@ export const TxReviewStep = memo(function TxReviewStep({
           </Box>
         );
       })}
-
-      <Divider sx={{ my: 3 }} />
-      <Stack direction="row" spacing={2} justifyContent="flex-end">
-        <Button variant="outlined" onClick={onBack}>
-          {t('financeTransactions.billImport.common.back')}
-        </Button>
-        <Button
-          variant="contained"
-          onClick={onConfirm}
-          disabled={
-            confirming ||
-            includedCount === 0 ||
-            !hasBillClosingDate ||
-            closingDateInvalid ||
-            dueDateInvalid ||
-            dueDateBeforeClosingDate ||
-            !allCardsResolved
-          }
-          startIcon={confirming ? <CircularProgress size={18} color="inherit" /> : null}
-        >
-          {confirming
-            ? t('financeTransactions.billImport.txReviewStep.confirming')
-            : t('financeTransactions.billImport.txReviewStep.confirmButton', { count: includedCount })}
-        </Button>
-      </Stack>
     </Box>
   );
 });

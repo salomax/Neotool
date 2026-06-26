@@ -100,6 +100,13 @@ export interface BillDateOverrides {
   dueDate: string;
 }
 
+export interface BillDateValidation {
+  hasBillClosingDate: boolean;
+  closingDateInvalid: boolean;
+  dueDateInvalid: boolean;
+  dueDateBeforeClosingDate: boolean;
+}
+
 // ── Transaction selection types ──────────────────────────────────────────────
 
 /** Key: `${reviewCardId}-${txIndex}` */

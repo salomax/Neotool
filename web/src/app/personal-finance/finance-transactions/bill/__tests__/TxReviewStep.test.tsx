@@ -95,14 +95,11 @@ function renderHarness(initialOverrides: BillDateOverrides) {
           allCardsResolved
           allCategories={[]}
           cardAccountOptions={[{ id: 'account-1', name: 'Card', issuerId: null, issuerName: null, issuerKey: null, maskedNumber: '1234', isMultiCard: false }]}
-          confirming={false}
-          includedCount={1}
           onSetTxSelections={vi.fn()}
           onSetFlatTxInclusions={vi.fn()}
           onSetBillDateOverrides={setBillDateOverrides}
           onUpdateCategory={vi.fn()}
-          onConfirm={vi.fn()}
-          onBack={vi.fn()}
+          onBillDateValidationChange={vi.fn()}
         />
         <pre data-testid="bill-date-overrides">{JSON.stringify(billDateOverrides)}</pre>
       </>
@@ -124,7 +121,6 @@ describe.sequential('TxReviewStep', () => {
 
     expect(screen.getByText('Invalid date')).toBeInTheDocument();
     expect(screen.getByTestId('bill-date-overrides').textContent).toContain('"dueDate":""');
-    expect(screen.getByRole('button', { name: 'Confirm 1 transaction(s)' })).toBeDisabled();
   });
 
   it('recovers after a valid due date is provided', () => {
@@ -134,6 +130,56 @@ describe.sequential('TxReviewStep', () => {
     fireEvent.click(screen.getByRole('button', { name: 'valid-Due date' }));
 
     expect(screen.getByTestId('bill-date-overrides').textContent).toContain('"dueDate":"2026-02-20"');
-    expect(screen.getByRole('button', { name: 'Confirm 1 transaction(s)' })).toBeEnabled();
+  });
+
+  it('reports invalid due date validation to the parent even when overrides are cleared', () => {
+    const onBillDateValidationChange = vi.fn();
+    function Harness() {
+      const [billDateOverrides, setBillDateOverrides] = React.useState<BillDateOverrides>({
+        closingDate: '2026-02-07',
+        dueDate: '2026-02-15',
+      });
+
+      return (
+        <TxReviewStep
+          cards={[
+            {
+              reviewCardId: 'card-1',
+              lastFourDigits: '1234',
+              financialAccountId: 'account-1',
+              transactions: [],
+            },
+          ]}
+          txSelections={{}}
+          flatTxInclusions={{}}
+          flatTxAssignments={{}}
+          txCategorySelections={{}}
+          billDateOverrides={billDateOverrides}
+          isFlatAssignmentMode={false}
+          allCardsResolved
+          allCategories={[]}
+          cardAccountOptions={[{ id: 'account-1', name: 'Card', issuerId: null, issuerName: null, issuerKey: null, maskedNumber: '1234', isMultiCard: false }]}
+          onSetTxSelections={vi.fn()}
+          onSetFlatTxInclusions={vi.fn()}
+          onSetBillDateOverrides={setBillDateOverrides}
+          onUpdateCategory={vi.fn()}
+          onBillDateValidationChange={onBillDateValidationChange}
+        />
+      );
+    }
+
+    render(
+      <ThemeProvider theme={theme}>
+        <Harness />
+      </ThemeProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'invalid-Due date' }));
+
+    expect(onBillDateValidationChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dueDateInvalid: true,
+      }),
+    );
   });
 });

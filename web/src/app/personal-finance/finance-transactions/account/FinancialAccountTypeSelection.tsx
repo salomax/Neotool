@@ -21,8 +21,8 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
   const getOptionCardSx = React.useCallback(
     () => ({
       width: '100%',
-      minHeight: { xs: 176, md: 196 },
-      p: 3,
+      minHeight: { xs: 140, md: 196 },
+      p: { xs: 2.5, md: 3 },
       borderRadius: optionRadius,
       border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
       bgcolor: 'background.paper',
@@ -117,7 +117,7 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
         display: 'grid',
         gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 360px))' },
         justifyContent: 'center',
-        gap: 3,
+        gap: { xs: 2, md: 3 },
         width: '100%',
         mx: 'auto',
       }}
@@ -162,7 +162,7 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
             <ArrowForwardIosIcon sx={{ fontSize: 16 }} />
           </Box>
           <Box className="option-bg-icon">
-            <BankIcon sx={{ fontSize: 128 }} />
+            <BankIcon sx={{ fontSize: { xs: 88, md: 128 } }} />
           </Box>
         </Box>
       </ButtonBase>
@@ -208,7 +208,7 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
             <ArrowForwardIosIcon sx={{ fontSize: 16 }} />
           </Box>
           <Box className="option-bg-icon">
-            <CardIcon sx={{ fontSize: 128 }} />
+            <CardIcon sx={{ fontSize: { xs: 88, md: 128 } }} />
           </Box>
         </Box>
       </ButtonBase>

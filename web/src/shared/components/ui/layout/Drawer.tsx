@@ -17,9 +17,25 @@ import {
 import { CloseIcon, DeleteIcon, MenuIcon } from "../../../ui/mui-imports";
 import { RAIL_W } from "@/shared/ui/navigation/SidebarRail";
 import { Button, type ButtonProps } from "@/shared/components/ui/primitives/Button";
+import {
+  DRAWER_LAYOUT,
+  DRAWER_MOBILE_BREAKPOINT,
+  type DrawerMobilePresentation,
+} from "./drawerLayoutConstants";
 
-// Context to pass onClose handler to Header subcomponent
-const DrawerContext = createContext<{ onClose: () => void } | null>(null);
+type DrawerLayoutMode = "default" | "mobile-sheet";
+
+interface DrawerContextValue {
+  onClose: () => void;
+  layoutMode: DrawerLayoutMode;
+}
+
+// Context to pass onClose handler and layout mode to subcomponents
+const DrawerContext = createContext<DrawerContextValue | null>(null);
+
+export function useDrawerLayoutMode(): DrawerLayoutMode {
+  return useContext(DrawerContext)?.layoutMode ?? "default";
+}
 
 // Drawer size presets
 export type DrawerSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
@@ -61,6 +77,11 @@ export interface DrawerProps extends Omit<MUIDrawerProps, 'open'> {
   height?: number | string;
   /** If true, forces temporary variant on mobile devices. Default: true */
   forceMobileTemporary?: boolean;
+  /**
+   * Opt-in mobile presentation for narrow viewports. Desktop behavior is unchanged.
+   * `bottom-sheet-full` anchors the drawer to the bottom at full viewport height.
+   */
+  mobilePresentation?: DrawerMobilePresentation;
   ariaLabel?: string;
   ariaLabelledBy?: string;
   ariaDescribedBy?: string;
@@ -223,8 +244,57 @@ export const DrawerActionButtons: React.FC<DrawerActionButtonsProps> = ({
   submitTestId,
   deleteTestId,
 }) => {
+  const layoutMode = useDrawerLayoutMode();
+  const isMobileSheet = layoutMode === "mobile-sheet";
   const submitType = submitForm ? "submit" : "button";
   const hasDelete = Boolean(deleteText && onDelete);
+  const mobileButtonSx = isMobileSheet
+    ? { width: "100%", minHeight: DRAWER_LAYOUT.mobileSheet.actionButtons.buttonMinHeight }
+    : undefined;
+
+  if (isMobileSheet) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: DRAWER_LAYOUT.mobileSheet.actionButtons.stackGap,
+        }}
+        data-testid={dataTestId}
+      >
+        {hasDelete ? (
+          <DrawerDeleteButton
+            onClick={onDelete}
+            disabled={deleteDisabled}
+            data-testid={deleteTestId}
+            sx={mobileButtonSx}
+          >
+            {deleteText}
+          </DrawerDeleteButton>
+        ) : null}
+        <DrawerSubmitButton
+          type={submitType}
+          form={submitForm}
+          onClick={submitType === "button" ? onSubmit : undefined}
+          disabled={submitDisabled}
+          submitting={submitting}
+          submittingText={submittingText}
+          data-testid={submitTestId}
+          sx={mobileButtonSx}
+        >
+          {submitText}
+        </DrawerSubmitButton>
+        <DrawerCancelButton
+          onClick={onCancel}
+          disabled={cancelDisabled}
+          data-testid={cancelTestId}
+          sx={mobileButtonSx}
+        >
+          {cancelText}
+        </DrawerCancelButton>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -305,6 +375,7 @@ const DrawerComponent: React.FC<DrawerProps> = ({
   width,
   height = '100%',
   forceMobileTemporary = true,
+  mobilePresentation,
   ariaLabel,
   ariaLabelledBy,
   ariaDescribedBy,
@@ -314,25 +385,33 @@ const DrawerComponent: React.FC<DrawerProps> = ({
   ...props
 }) => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down(DRAWER_MOBILE_BREAKPOINT));
   const internalTitleId = useId();
+  const useMobileSheet = isMobile && mobilePresentation === "bottom-sheet-full";
+  const layoutMode: DrawerLayoutMode = useMobileSheet ? "mobile-sheet" : "default";
+  const effectiveAnchor = useMobileSheet ? "bottom" : anchor;
+  const effectiveHeight = useMobileSheet ? "100%" : height;
 
   // Auto-adjust variant for mobile (unless explicitly disabled)
   const drawerVariant = isMobile && forceMobileTemporary ? 'temporary' : variant;
 
   // Calculate drawer width
-  const drawerWidth = getDrawerWidth(size, width, anchor);
+  const drawerWidth = getDrawerWidth(size, width, effectiveAnchor);
+
+  const paperBackground =
+    theme.palette.mode === 'dark'
+      ? (theme as any).custom?.palette?.sidebarBg || '#111729'
+      : 'background.paper';
 
   // Merge sx prop with drawer styles
   const drawerSx = {
     '& .MuiDrawer-paper': {
-      width: anchor === 'left' || anchor === 'right' ? drawerWidth : '100%',
-      height: anchor === 'top' || anchor === 'bottom' ? height : '100%',
+      width: effectiveAnchor === 'left' || effectiveAnchor === 'right' ? drawerWidth : '100%',
+      height: effectiveAnchor === 'top' || effectiveAnchor === 'bottom' ? effectiveHeight : '100%',
       borderRadius: 0,
-      bgcolor: theme.palette.mode === 'dark' 
-        ? (theme as any).custom?.palette?.sidebarBg || '#111729'
-        : 'background.paper',
+      bgcolor: paperBackground,
       backgroundImage: theme.palette.mode === 'dark' ? 'none' : undefined,
+      ...(useMobileSheet ? DRAWER_LAYOUT.mobileSheet.paper : {}),
     },
     ...sx,
   };
@@ -383,13 +462,18 @@ const DrawerComponent: React.FC<DrawerProps> = ({
       open={open}
       onClose={onClose}
       variant={drawerVariant}
-      anchor={anchor}
+      anchor={effectiveAnchor}
       sx={drawerSx}
       PaperProps={mergedPaperProps}
+      data-drawer-layout-mode={layoutMode}
       {...props}
     >
-      <DrawerContext.Provider value={{ onClose }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <DrawerContext.Provider value={{ onClose, layoutMode }}>
+        <Box
+          sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+          data-testid="drawer-layout-root"
+          data-layout-mode={layoutMode}
+        >
           {/* Header */}
           {headerContent && (
             <>
@@ -404,7 +488,7 @@ const DrawerComponent: React.FC<DrawerProps> = ({
           {/* Footer */}
           {footerContent && (
             <>
-              <Divider />
+              {layoutMode !== 'mobile-sheet' ? <Divider /> : null}
               {footerContent}
             </>
           )}
@@ -434,6 +518,8 @@ const Header: React.FC<DrawerHeaderProps> = ({
 }) => {
   const context = useContext(DrawerContext);
   const onClose = context?.onClose || (() => {});
+  const isMobileSheet = context?.layoutMode === "mobile-sheet";
+  const headerLayout = isMobileSheet ? DRAWER_LAYOUT.mobileSheet.header : DRAWER_LAYOUT.desktop.header;
 
   // If custom children provided, render them instead of default header
   if (children) {
@@ -443,10 +529,9 @@ const Header: React.FC<DrawerHeaderProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          py: 1.5,
-          px: 2,
-          minHeight: 54,
           flexShrink: 0,
+          bgcolor: isMobileSheet ? 'background.paper' : undefined,
+          ...headerLayout,
         }}
       >
         {children}
@@ -469,10 +554,9 @@ const Header: React.FC<DrawerHeaderProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        py: 1.5,
-        px: 2,
-        minHeight: 54,
         flexShrink: 0,
+        bgcolor: isMobileSheet ? 'background.paper' : undefined,
+        ...headerLayout,
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
@@ -530,8 +614,18 @@ const Header: React.FC<DrawerHeaderProps> = ({
  */
 const Body = React.forwardRef<HTMLDivElement, DrawerBodyProps>(
   ({ children, sx }, ref) => {
+    const context = useContext(DrawerContext);
+    const isMobileSheet = context?.layoutMode === "mobile-sheet";
+    const bodyLayout = isMobileSheet ? DRAWER_LAYOUT.mobileSheet.body : DRAWER_LAYOUT.desktop.body;
+
     return (
-      <Box ref={ref} sx={[{ flex: 1, overflow: 'auto', p: 3 }, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}>
+      <Box
+        ref={ref}
+        sx={[
+          { flex: 1, overflow: 'auto', minHeight: 0, ...bodyLayout },
+          ...(Array.isArray(sx) ? sx : sx ? [sx] : []),
+        ]}
+      >
         {children}
       </Box>
     );
@@ -544,13 +638,19 @@ Body.displayName = 'DrawerBody';
  * Footer subcomponent - Footer area with consistent padding
  */
 const Footer: React.FC<DrawerFooterProps> = ({ children, sx }) => {
+  const context = useContext(DrawerContext);
+  const isMobileSheet = context?.layoutMode === "mobile-sheet";
+  const footerLayout = isMobileSheet ? DRAWER_LAYOUT.mobileSheet.footer : DRAWER_LAYOUT.desktop.footer;
+
   return (
     <Box
       sx={[
         {
-          p: 2,
           flexShrink: 0,
-          bgcolor: 'background.default',
+          bgcolor: isMobileSheet ? 'background.paper' : 'background.default',
+          borderTop: isMobileSheet ? '1px solid' : undefined,
+          borderColor: isMobileSheet ? 'divider' : undefined,
+          ...footerLayout,
         },
         ...(sx === undefined ? [] : Array.isArray(sx) ? sx : [sx]),
       ]}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
@@ -18,12 +18,15 @@ import {
   resolveFriendlyImportErrorMessage,
   toIssuerKey,
   txSelectionKey,
+  isBillDateConfirmDisabled,
+  getBillDateValidationFromOverrides,
 } from './billImportUtils';
 import {
   CardNetworkValues,
   CardSubtypeValues,
   CardLevelValues,
   POLL_INTERVAL_MS,
+  type BillDateValidation,
   type BillStep,
   type ReviewCard,
   type ReviewCardForTxReview,
@@ -53,6 +56,13 @@ export function BillImportDrawer({ open, onClose, onImportCompleted, defaultFina
   const [step, setStep] = React.useState<BillStep>('upload');
   const [jobId, setJobId] = React.useState<string | null>(null);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [billDateValidation, setBillDateValidation] = useState<BillDateValidation>(() =>
+    getBillDateValidationFromOverrides({ closingDate: '', dueDate: '' }),
+  );
+
+  const handleBillDateValidationChange = useCallback((validation: BillDateValidation) => {
+    setBillDateValidation(validation);
+  }, []);
 
   const moneyLocale = getMoneyLocale(i18n.language);
 
@@ -464,6 +474,15 @@ export function BillImportDrawer({ open, onClose, onImportCompleted, defaultFina
     error: t('financeTransactions.billImport.steps.errorTitle'),
   };
 
+  const txReviewConfirmDisabled = useMemo(() => {
+    return (
+      confirming ||
+      includedCount === 0 ||
+      !cardMatching.allCardsResolved ||
+      isBillDateConfirmDisabled(billDateValidation)
+    );
+  }, [billDateValidation, cardMatching.allCardsResolved, confirming, includedCount]);
+
   if (!open) return null;
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -478,12 +497,9 @@ export function BillImportDrawer({ open, onClose, onImportCompleted, defaultFina
             fileError={fileUpload.fileError}
             isEncryptedPdf={fileUpload.isEncryptedPdf}
             pdfPassword={fileUpload.pdfPassword}
-            submitting={fileUpload.submitting}
             onFileChange={fileUpload.handleFileChange}
             onDrop={fileUpload.handleDrop}
             onPdfPasswordChange={fileUpload.setPdfPassword}
-            onSubmit={fileUpload.handleSubmitFile}
-            onCancel={handleClose}
           />
         );
 
@@ -536,7 +552,6 @@ export function BillImportDrawer({ open, onClose, onImportCompleted, defaultFina
             cardResolutions={cardMatching.cardResolutions}
             cardAccountOptionsById={cardAccountOptionsById}
             selectedIssuerKey={selectedIssuerKey}
-            allCardsResolved={cardMatching.allCardsResolved}
             getAvailableOptionsForCard={cardMatching.getAvailableOptionsForCard}
             onResolveCard={(ci, accountId) => {
               cardMatching.setCardResolutions((prev) => {
@@ -547,8 +562,6 @@ export function BillImportDrawer({ open, onClose, onImportCompleted, defaultFina
               });
             }}
             onCreateCardForIndex={inlineCardCreation.openCreateCardForIndex}
-            onContinue={() => setStep('tx-review')}
-            onCancel={handleClose}
           />
         );
 
@@ -565,47 +578,122 @@ export function BillImportDrawer({ open, onClose, onImportCompleted, defaultFina
             allCardsResolved={cardMatching.allCardsResolved}
             allCategories={allCategories}
             cardAccountOptions={cardAccountOptions}
-            confirming={confirming}
-            includedCount={includedCount}
             onSetTxSelections={txReview.setTxSelections}
             onSetFlatTxInclusions={cardMatching.setFlatTxInclusions}
             onSetBillDateOverrides={cardMatching.setBillDateOverrides}
             onUpdateCategory={txReview.updateCategory}
-            onConfirm={handleConfirm}
-            onBack={() => setStep('card-matching')}
+            onBillDateValidationChange={handleBillDateValidationChange}
           />
         );
 
       case 'result':
-        return <ResultStep included={resultCounts.included} total={resultCounts.total} onClose={handleClose} />;
+        return <ResultStep included={resultCounts.included} total={resultCounts.total} />;
 
       case 'error':
-        return <ErrorStep errorMessage={errorMessage} onRetry={resetToUploadStep} onClose={handleClose} />;
+        return <ErrorStep errorMessage={errorMessage} />;
     }
   })();
 
-  const footer =
-    step === 'card-matching' && isFlatAssignmentMode ? (
-      <Drawer.ActionButtons
-        cancelText={t('financeTransactions.actions.cancel')}
-        submitText={t('financeTransactions.billImport.cardMatchingStep.reviewTransactions')}
-        onCancel={handleClose}
-        onSubmit={cardMatching.handleFlatReview}
-        submitDisabled={!cardMatching.canReviewTransactions || cardMatching.creatingTemplateCards}
-        submitting={cardMatching.creatingTemplateCards}
-      />
-    ) : null;
+  const renderFooter = () => {
+    switch (step) {
+      case 'upload':
+        return (
+          <Drawer.ActionButtons
+            cancelText={t('financeTransactions.actions.cancel')}
+            submitText={t('financeTransactions.billImport.uploadStep.submit')}
+            submittingText={t('financeTransactions.billImport.uploadStep.submitting')}
+            onCancel={handleClose}
+            onSubmit={fileUpload.handleSubmitFile}
+            submitDisabled={
+              !fileUpload.file ||
+              fileUpload.submitting ||
+              (fileUpload.isEncryptedPdf && !fileUpload.pdfPassword.trim())
+            }
+            submitting={fileUpload.submitting}
+            submitTestId="bill-import-submit-button"
+            cancelTestId="bill-import-cancel-button"
+          />
+        );
+      case 'card-matching':
+        if (isFlatAssignmentMode) {
+          return (
+            <Drawer.ActionButtons
+              cancelText={t('financeTransactions.actions.cancel')}
+              submitText={t('financeTransactions.billImport.cardMatchingStep.reviewTransactions')}
+              onCancel={handleClose}
+              onSubmit={cardMatching.handleFlatReview}
+              submitDisabled={!cardMatching.canReviewTransactions || cardMatching.creatingTemplateCards}
+              submitting={cardMatching.creatingTemplateCards}
+              submitTestId="bill-import-review-button"
+              cancelTestId="bill-import-cancel-button"
+            />
+          );
+        }
+        return (
+          <Drawer.ActionButtons
+            cancelText={t('financeTransactions.actions.cancel')}
+            submitText={t('financeTransactions.billImport.cardMatchingStep.reviewTransactions')}
+            onCancel={handleClose}
+            onSubmit={() => setStep('tx-review')}
+            submitDisabled={!cardMatching.allCardsResolved}
+            submitTestId="bill-import-review-button"
+            cancelTestId="bill-import-cancel-button"
+          />
+        );
+      case 'tx-review':
+        return (
+          <Drawer.ActionButtons
+            cancelText={t('financeTransactions.billImport.common.back')}
+            submitText={t('financeTransactions.billImport.txReviewStep.confirmButton', { count: includedCount })}
+            submittingText={t('financeTransactions.billImport.txReviewStep.confirming')}
+            onCancel={() => setStep('card-matching')}
+            onSubmit={handleConfirm}
+            submitDisabled={txReviewConfirmDisabled}
+            submitting={confirming}
+            submitTestId="bill-import-confirm-button"
+            cancelTestId="bill-import-back-button"
+          />
+        );
+      case 'result':
+        return (
+          <Drawer.SubmitButton onClick={handleClose} data-testid="bill-import-close-button" sx={{ width: '100%' }}>
+            {t('financeTransactions.billImport.common.close')}
+          </Drawer.SubmitButton>
+        );
+      case 'error':
+        return (
+          <Drawer.ActionButtons
+            cancelText={t('financeTransactions.billImport.common.close')}
+            submitText={t('financeTransactions.billImport.errorStep.retry')}
+            onCancel={handleClose}
+            onSubmit={resetToUploadStep}
+            submitTestId="bill-import-retry-button"
+            cancelTestId="bill-import-close-button"
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const footer = renderFooter();
 
   return (
     <>
-      <Drawer open={open} onClose={handleClose} anchor="right" size="md">
+      <Drawer
+        open={open}
+        onClose={handleClose}
+        anchor="right"
+        size="md"
+        mobilePresentation="bottom-sheet-full"
+      >
         <Drawer.Header
           title={stepTitles[step]}
           showCloseButton
           closeButtonAriaLabel={t('financeTransactions.actions.close')}
         />
         <Drawer.Body>{body}</Drawer.Body>
-        {footer && <Drawer.Footer>{footer}</Drawer.Footer>}
+        {footer ? <Drawer.Footer>{footer}</Drawer.Footer> : null}
       </Drawer>
 
       <CreateFinancialAccountDrawer
