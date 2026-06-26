@@ -804,7 +804,11 @@ open class TransactionService(
                         appliedMerchantFromSuggestion = true
                     }
                     if (canApplyType && suggestion.typeOverride != null) {
-                        val overriddenType = TransactionTypeOverrideSupport.apply(enriched.type, suggestion.typeOverride)
+                        val overriddenType =
+                            TransactionTypeOverrideSupport.apply(
+                                enriched.type,
+                                suggestion.typeOverride,
+                            )
                         if (overriddenType != enriched.type) {
                             enriched = enriched.copy(type = overriddenType)
                             appliedTypeFromSuggestion = true

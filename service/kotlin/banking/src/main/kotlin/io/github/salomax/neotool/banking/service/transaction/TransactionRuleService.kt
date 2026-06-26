@@ -19,12 +19,15 @@ import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeRes
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionRuleInput
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
+import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.time.Instant
+import java.time.YearMonth
 import java.util.UUID
 
 @Singleton
@@ -33,6 +36,7 @@ open class TransactionRuleService(
     private val categoryRepository: TransactionCategoryRepository,
     private val merchantRepository: MerchantRepository,
     private val transactionRepository: TransactionRepository,
+    private val snapshotRepository: MonthlyBalanceSnapshotRepository,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -286,7 +290,8 @@ open class TransactionRuleService(
         // [RULE-DEBUG] end
     }
 
-    fun applyToHistorical(
+    @Transactional
+    open fun applyToHistorical(
         ruleId: UUID,
         accountId: UUID,
     ): BulkCategorizeResult {
@@ -298,6 +303,7 @@ open class TransactionRuleService(
         }
         val now = Instant.now()
         var affectedCount = 0
+        val earliestAffectedMonthByAccount = mutableMapOf<UUID, YearMonth>()
 
         transactionRepository.findByAccount(accountId)
             .asSequence()
@@ -347,7 +353,16 @@ open class TransactionRuleService(
 
                 transactionRepository.update(next)
                 affectedCount += 1
+                rememberEarliestAffectedMonth(earliestAffectedMonthByAccount, tx.financialAccountId, tx.date)
             }
+
+        earliestAffectedMonthByAccount.forEach { (financialAccountId, earliestMonth) ->
+            snapshotRepository.markDirtyFromMonth(
+                financialAccountId,
+                earliestMonth.year,
+                earliestMonth.monthValue,
+            )
+        }
 
         if (affectedCount > 0) {
             ruleRepository.incrementMatchCountBy(ruleId, affectedCount)
@@ -374,6 +389,18 @@ open class TransactionRuleService(
             pattern = rule.pattern,
             patternType = rule.patternType,
         )
+    }
+
+    private fun rememberEarliestAffectedMonth(
+        earliestAffectedMonthByAccount: MutableMap<UUID, YearMonth>,
+        financialAccountId: UUID,
+        transactionDate: java.time.LocalDate,
+    ) {
+        val affectedMonth = YearMonth.from(transactionDate)
+        val currentEarliest = earliestAffectedMonthByAccount[financialAccountId]
+        if (currentEarliest == null || affectedMonth.isBefore(currentEarliest)) {
+            earliestAffectedMonthByAccount[financialAccountId] = affectedMonth
+        }
     }
 
     private fun requireCategoryAccessible(

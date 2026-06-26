@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.domain.transaction
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionRuleInput
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
@@ -18,6 +19,7 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
@@ -31,6 +33,7 @@ class CategoryRuleServiceTest {
     private lateinit var categoryRepository: TransactionCategoryRepository
     private lateinit var merchantRepository: MerchantRepository
     private lateinit var transactionRepository: TransactionRepository
+    private lateinit var snapshotRepository: MonthlyBalanceSnapshotRepository
     private lateinit var service: TransactionRuleService
 
     private val accountId = UUID.randomUUID()
@@ -43,7 +46,15 @@ class CategoryRuleServiceTest {
         categoryRepository = mock()
         merchantRepository = mock()
         transactionRepository = mock()
-        service = TransactionRuleService(ruleRepository, categoryRepository, merchantRepository, transactionRepository)
+        snapshotRepository = mock()
+        service =
+            TransactionRuleService(
+                ruleRepository,
+                categoryRepository,
+                merchantRepository,
+                transactionRepository,
+                snapshotRepository,
+            )
     }
 
     @Nested
@@ -571,11 +582,15 @@ class CategoryRuleServiceTest {
         @Test
         fun `applyToHistorical normalizes pattern special characters when updating transactions`() {
             val savedCaptor = argumentCaptor<Transaction>()
+            val financialAccountId = UUID.randomUUID()
+            val affectedDate = LocalDate.of(2025, 9, 14)
             val tx =
                 transaction(
                     description = "NUBANK R\$ 50.00",
                     creditDebitType = CreditDebitType.DEBIT,
                     source = TransactionSource.OFX,
+                    financialAccountId = financialAccountId,
+                    date = affectedDate,
                 )
             whenever(ruleRepository.findById(ruleId)).thenReturn(
                 rule(
@@ -595,6 +610,7 @@ class CategoryRuleServiceTest {
             verify(transactionRepository).update(savedCaptor.capture())
             assertThat(savedCaptor.firstValue.categoryId).isEqualTo(categoryId)
             assertThat(savedCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
+            verify(snapshotRepository).markDirtyFromMonth(financialAccountId, 2025, 9)
             verify(ruleRepository).incrementMatchCountBy(ruleId, 1)
         }
 
@@ -622,6 +638,59 @@ class CategoryRuleServiceTest {
 
             assertThat(result.affectedCount).isEqualTo(0)
             verify(transactionRepository, never()).update(any())
+            verify(snapshotRepository, never()).markDirtyFromMonth(any(), any(), any())
+        }
+
+        @Test
+        fun `applyToHistorical marks earliest affected month once per financial account`() {
+            val firstAccountId = UUID.randomUUID()
+            val secondAccountId = UUID.randomUUID()
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(
+                    id = ruleId,
+                    accountId = accountId,
+                    pattern = "transfer",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                    typeOverride = CategoryApplicableTo.TRANSFER,
+                ),
+            )
+            whenever(transactionRepository.findByAccount(accountId)).thenReturn(
+                listOf(
+                    transaction(
+                        description = "Transfer A Jan",
+                        source = TransactionSource.OFX,
+                        financialAccountId = firstAccountId,
+                        date = LocalDate.of(2025, 1, 10),
+                    ),
+                    transaction(
+                        description = "Transfer A Mar",
+                        source = TransactionSource.OFX,
+                        financialAccountId = firstAccountId,
+                        date = LocalDate.of(2025, 3, 10),
+                    ),
+                    transaction(
+                        description = "Transfer B Feb",
+                        source = TransactionSource.CSV,
+                        financialAccountId = secondAccountId,
+                        date = LocalDate.of(2025, 2, 10),
+                    ),
+                    transaction(
+                        description = "Transfer B Apr",
+                        source = TransactionSource.CSV,
+                        financialAccountId = secondAccountId,
+                        date = LocalDate.of(2025, 4, 10),
+                    ),
+                ),
+            )
+            whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            val result = service.applyToHistorical(ruleId, accountId)
+
+            assertThat(result.affectedCount).isEqualTo(4)
+            verify(snapshotRepository).markDirtyFromMonth(firstAccountId, 2025, 1)
+            verify(snapshotRepository).markDirtyFromMonth(secondAccountId, 2025, 2)
+            verify(snapshotRepository, times(2)).markDirtyFromMonth(any(), any(), any())
         }
     }
 
@@ -747,16 +816,18 @@ class CategoryRuleServiceTest {
         creditDebitType: CreditDebitType = CreditDebitType.DEBIT,
         source: TransactionSource = TransactionSource.MANUAL,
         type: TransactionType = TransactionType.OTHER_EXPENSE,
+        financialAccountId: UUID = UUID.randomUUID(),
+        date: LocalDate = LocalDate.now(),
     ) = Transaction(
         id = UUID.randomUUID(),
-        financialAccountId = UUID.randomUUID(),
+        financialAccountId = financialAccountId,
         accountId = accountId,
         createdByUserId = UUID.randomUUID(),
         creditDebitType = creditDebitType,
         type = type,
         source = source,
         amount = BigDecimal("10.00"),
-        date = LocalDate.now(),
+        date = date,
         description = description,
         createdAt = Instant.now(),
         updatedAt = Instant.now(),
