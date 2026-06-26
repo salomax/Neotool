@@ -4,6 +4,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.PatternType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryResolver
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.service.transaction.TransactionCategoryService
@@ -99,7 +100,7 @@ class TransactionCategoryResolverTest {
                 principal = principal,
             )
 
-        val captor = argumentCaptor<io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput>()
+        val captor = argumentCaptor<CreateTransactionRuleInput>()
         verify(ruleService).create(captor.capture(), eq(accountId))
         assertThat(captor.firstValue.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)
         assertThat(result.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)

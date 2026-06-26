@@ -17,7 +17,15 @@ internal object AppliedRuleAuditSupport {
         appliedTags: Boolean,
     ): List<UUID> {
         if (suggestion == null || suggestion.appliedRuleIds.isEmpty()) return emptyList()
-        if (!appliedCategory && !appliedMerchant && !appliedType && !appliedDescription && !appliedTags) return emptyList()
+        if (
+            !appliedCategory &&
+            !appliedMerchant &&
+            !appliedType &&
+            !appliedDescription &&
+            !appliedTags
+        ) {
+            return emptyList()
+        }
 
         val rulesById = rules.filter { it.id != null }.associateBy { requireNotNull(it.id) }
         if (rulesById.isEmpty()) {
