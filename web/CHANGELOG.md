@@ -1,3 +1,15 @@
+## 0.7.26 (2026-06-26)
+
+### 🚀 Features
+
+- **transactions:** refactor FinanceTransactions components and introduce toolbar ([9db49821](https://github.com/invistus/invistus/commit/9db49821))
+- **transactions:** enhance transaction form and table components ([e85bd701](https://github.com/invistus/invistus/commit/e85bd701))
+- **ui:** improve mobile responsiveness and layout for finance transactions ([d65016d2](https://github.com/invistus/invistus/commit/d65016d2))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.25 (2026-06-24)
 
 ### 🚀 Features
