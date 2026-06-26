@@ -1,3 +1,13 @@
+## 0.7.27 (2026-06-26)
+
+### 🚀 Features
+
+- **finance:** enhance financial account and bill import components ([89fae9a7](https://github.com/invistus/invistus/commit/89fae9a7))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.26 (2026-06-26)
 
 ### 🚀 Features
