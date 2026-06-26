@@ -19,6 +19,7 @@ React and Next.js implementation patterns:
 - **Shared components pattern** — Component library usage
 - **Breadcrumb pattern** — Navigation breadcrumbs
 - **Styling pattern** — Design tokens and theming
+- **Responsive operational UI pattern** — Mobile/responsive rules for dense, action-heavy web screens
 - **Toast notification pattern** — User feedback
 
 ### [testing/](testing/)
@@ -55,6 +56,7 @@ Frontend code quality and compliance:
 - **Add shared component**: See [Shared Components Pattern](patterns/shared-components-pattern.md)
 - **Show notifications**: See [Toast Notification Pattern](patterns/toast-notification-pattern.md)
 - **Style components**: See [Styling Pattern](patterns/styling-pattern.md)
+- **Design dense responsive screens**: See [Responsive Operational UI Pattern](patterns/responsive-operational-ui-pattern.md)
 
 ### Testing
 - **Write unit tests**: See [Unit Testing](testing/unit-testing.md)

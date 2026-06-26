@@ -164,6 +164,7 @@ Quick lookup and reference materials:
 | Shared Components Pattern | `07-frontend/patterns/shared-components-pattern.md` | pattern | frontend | shared components, reusable components, ui components, feedback components, ErrorAlert, DeleteConfirmationDialog, ManagementLayout, useToggleStatus |
 | Breadcrumb Pattern | `07-frontend/patterns/breadcrumb-pattern.md` | pattern | frontend | breadcrumb, navigation, page hierarchy, navigation path, breadcrumb component |
 | Styling Pattern | `07-frontend/patterns/styling-pattern.md` | pattern | frontend | styling, themes, design-tokens |
+| Responsive Operational UI Pattern | `07-frontend/patterns/responsive-operational-ui-pattern.md` | pattern | frontend | responsive, mobile, sticky, toolbar, dense-list, inline-edit, drawer, operational-ui |
 | Toast Notification Pattern | `07-frontend/patterns/toast-notification-pattern.md` | pattern | frontend | toast, notification, feedback, user-experience |
 | **Form Pattern** | `07-frontend/patterns/form-pattern.md` | pattern | frontend | **form, react-hook-form, zod, zodResolver, useForm, FormProvider, drawer form, page form, inline form, FormStack, FormRowStack, FormTextField, MoneyInput, DatePickerField, SelectField, NumberField, PercentField, ErrorAlert, Drawer.ActionButtons, validation, size medium** |
 | Testing Pattern | `07-frontend/patterns/testing-pattern.md` | pattern | frontend | testing, frontend, react, react-hook-form, vitest, testing-library |
