@@ -1,3 +1,13 @@
+## 0.7.9 (2026-06-26)
+
+### 🚀 Features
+
+- **transactions:** enhance historical transaction processing and snapshot management ([661f3405](https://github.com/invistus/invistus/commit/661f3405))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.8 (2026-06-22)
 
 ### 🩹 Fixes
