@@ -39,9 +39,11 @@ import { FinanceTransactionsActiveFilters } from './FinanceTransactionsActiveFil
 import { FinanceTransactionsDialogs } from './FinanceTransactionsDialogs';
 import { FinanceTransactionsContentPanel } from './FinanceTransactionsContentPanel';
 import { FinanceTransactionsSidebar } from './FinanceTransactionsSidebar';
+import { FinanceTransactionsToolbar } from './FinanceTransactionsToolbar';
 import { useScopedToggleFilter } from './hooks/useScopedToggleFilter';
 import { usePaginatedTransactions } from './hooks/usePaginatedTransactions';
 import type { TransactionSuccessPayload } from './transaction/transactionFormShared';
+import { SIDEBAR_LAYOUT_MOBILE_TRIGGER_HEIGHT_CSS_VAR } from '@/shared/components/ui/layout/sidebarLayout.constants';
 
 const TRANSACTION_ACCOUNT_TYPES: FinancialAccountType[] = [
   FinancialAccountType.Bank,
@@ -571,11 +573,11 @@ export default function FinanceTransactionsPage() {
           maxWidth="xl"
           disableGutters
           sx={{
-            pt: { xs: 1.25, md: 4 },
+            pt: { xs: 0, md: 4 },
             pb: { xs: 0, md: 4 },
             px: { xs: 0, md: 3 },
             minWidth: 0, // Keep the transaction workspace from widening past the mobile sheet layout.
-            overflowX: 'hidden',
+            overflowX: 'clip',
           }}
         >
           <FinanceTransactionsHeaderBar
@@ -586,25 +588,39 @@ export default function FinanceTransactionsPage() {
               reviewRequiredJobs: reviewRequiredJobs.length > 0 ? reviewRequiredJobs : null,
               onOpenReviewJobs: handleOpenReviewJobs,
             }}
-            navigation={{
-              isCalendarMode: displayMode.kind === 'calendar',
-              selectedMonth: headerNavMonth,
-              selectedYear: headerNavYear,
-              onDateChange: handleDateChange,
-              bills: displayMode.kind === 'bill' ? displayMode.bills : [],
-              selectedBillId: displayMode.kind === 'bill' ? (displayMode.selectedBill?.id ?? null) : null,
-              onSelectBill: handleSelectBill,
-            }}
-            searchQuery={searchQuery}
-            onSearchQueryChange={setSearchQuery}
-            actions={{
-              onOpenNfceImport: handleOpenNfceImport,
-              onOpenImportTransactions: handleOpenImportTransactions,
-              onOpenImportBill: handleOpenImportBill,
-              onCreateTransaction: handleCreateTransaction,
-              isCreating: isCreatingTransaction,
-            }}
           />
+          <Box
+            sx={{
+              position: { xs: 'sticky', md: 'static' },
+              top: { xs: `var(${SIDEBAR_LAYOUT_MOBILE_TRIGGER_HEIGHT_CSS_VAR})`, md: 'auto' },
+              zIndex: { xs: 1, md: 'auto' },
+              bgcolor: { xs: 'background.default', md: 'transparent' },
+              borderBottom: { xs: '1px solid', md: 'none' },
+              borderColor: { xs: 'divider', md: 'transparent' },
+              py: { xs: 0.75, md: 0 },
+            }}
+          >
+            <FinanceTransactionsToolbar
+              navigation={{
+                isCalendarMode: displayMode.kind === 'calendar',
+                selectedMonth: headerNavMonth,
+                selectedYear: headerNavYear,
+                onDateChange: handleDateChange,
+                bills: displayMode.kind === 'bill' ? displayMode.bills : [],
+                selectedBillId: displayMode.kind === 'bill' ? (displayMode.selectedBill?.id ?? null) : null,
+                onSelectBill: handleSelectBill,
+              }}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              actions={{
+                onOpenNfceImport: handleOpenNfceImport,
+                onOpenImportTransactions: handleOpenImportTransactions,
+                onOpenImportBill: handleOpenImportBill,
+                onCreateTransaction: handleCreateTransaction,
+                isCreating: isCreatingTransaction,
+              }}
+            />
+          </Box>
           {displayMode.kind === 'calendar' && (
             <FinanceTransactionsActiveFilters
               open={activeFiltersOpen}

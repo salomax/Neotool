@@ -10,6 +10,10 @@ import { getTestIdProps } from '@/shared/utils/testid';
 import { RAIL_W } from '@/shared/ui/navigation/SidebarRail';
 import { useElementHeight } from '@/shared/hooks/ui';
 import { MobileSidebarSheet } from './MobileSidebarSheet';
+import {
+  SIDEBAR_LAYOUT_MOBILE_TRIGGER_HEIGHT,
+  SIDEBAR_LAYOUT_MOBILE_TRIGGER_HEIGHT_CSS_VAR,
+} from './sidebarLayout.constants';
 
 // Drawer size presets (same as Drawer component for consistency)
 export type SidebarSize = 'sm' | 'md' | 'lg' | 'full';
@@ -177,6 +181,9 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
       fullHeight={fullHeight}
       className={className}
       style={outerStyles}
+      sx={{
+        [SIDEBAR_LAYOUT_MOBILE_TRIGGER_HEIGHT_CSS_VAR]: `${SIDEBAR_LAYOUT_MOBILE_TRIGGER_HEIGHT}px`,
+      }}
       {...testIdProps}
       {...props}
     >
@@ -221,7 +228,7 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
               position: 'sticky',
               top: 0,
               zIndex: 1,
-              minHeight: 68, // Two-line mobile sidebar triggers need extra height to keep the subtitle inside the header.
+              minHeight: SIDEBAR_LAYOUT_MOBILE_TRIGGER_HEIGHT, // Two-line mobile sidebar triggers need extra height to keep the subtitle inside the header.
               bgcolor: 'background.default',
               borderBottom: '1px solid',
               borderColor: 'divider',
@@ -242,7 +249,7 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
               flexDirection: 'column',
             }),
             minWidth: 0, // Let page-level grids and panels wrap instead of forcing horizontal scroll.
-            overflowX: 'hidden', // Contain sidebar-driven mobile pages to the viewport width.
+            overflowX: 'clip', // Preserve sticky descendants while still clipping sidebar-driven horizontal overflow.
           }}
         >
           {children}

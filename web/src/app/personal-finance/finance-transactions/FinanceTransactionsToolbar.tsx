@@ -1,0 +1,386 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import {
+  alpha,
+  Box,
+  Button,
+  ListItemIcon,
+  Menu,
+  MenuItem,
+  Stack,
+  useTheme,
+} from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import AddIcon from '@mui/icons-material/Add';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import QrCode2Icon from '@mui/icons-material/QrCode2';
+import Link from 'next/link';
+import { UploadIcon } from '@/shared/ui/mui-imports';
+import { ExpandableSearchInput } from '@/shared/components/ui/forms/ExpandableSearchInput';
+import { personalFinanceTranslations } from '../i18n';
+import { useTranslation } from '@/shared/i18n';
+import { MonthYearCarousel } from './summary/MonthYearCarousel';
+import { BillCarousel } from './bill/BillCarousel';
+import { CreditCardBill } from './account/useAccountDisplayMode';
+
+type ActionButtonsRevealSxOptions = {
+  expandedWidth: number;
+  expandedSelector?: string;
+  notExpandedSelector?: string;
+  hasEndIcon?: boolean;
+};
+
+export interface FinanceTransactionsNavigationState {
+  isCalendarMode: boolean;
+  selectedMonth: number;
+  selectedYear: number;
+  onDateChange: (month: number, year: number) => void;
+  bills: CreditCardBill[];
+  selectedBillId: string | null;
+  onSelectBill: (billId: string) => void;
+}
+
+export interface FinanceTransactionsActions {
+  onOpenNfceImport: () => void;
+  onOpenImportTransactions: () => void;
+  onOpenImportBill: () => void;
+  onCreateTransaction: () => void;
+  isCreating: boolean;
+}
+
+interface FinanceTransactionsToolbarProps {
+  navigation: FinanceTransactionsNavigationState;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
+  actions: FinanceTransactionsActions;
+}
+
+export function FinanceTransactionsToolbar({
+  navigation: { isCalendarMode, selectedMonth, selectedYear, onDateChange, bills, selectedBillId, onSelectBill },
+  searchQuery,
+  onSearchQueryChange,
+  actions: { onOpenNfceImport, onOpenImportTransactions, onOpenImportBill, onCreateTransaction, isCreating: isCreatingTransaction },
+}: FinanceTransactionsToolbarProps) {
+  const { t } = useTranslation(personalFinanceTranslations);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const actionButtonsRevealEnabled = useMediaQuery('(min-width:750px)');
+  const [importMenuAnchor, setImportMenuAnchor] = useState<null | HTMLElement>(null);
+  const mobileActionIconSize = theme.typography.pxToRem(16);
+
+  const actionButtonsRevealCollapsedWidth = 90;
+  const actionButtonsRevealExpandedWidth = 168;
+  const actionButtonsRevealCollapsedPx = 1;
+  const actionButtonsRevealExpandedPx = 0.75;
+  const actionButtonsRevealWidthDurationMs = 180;
+  const actionButtonsRevealLabelDurationMs = 260;
+  const actionButtonsRevealLabelOpacityDurationMs = 180;
+  const actionButtonsRevealLabelDelayMs = 160;
+  const actionButtonsRevealButtonTransition = `width ${actionButtonsRevealWidthDurationMs}ms ease, padding ${actionButtonsRevealWidthDurationMs}ms ease`;
+  const actionButtonsRevealStartIconTransition = `margin-right ${actionButtonsRevealWidthDurationMs}ms ease`;
+  const actionButtonsRevealEndIconTransition = `margin-left ${actionButtonsRevealWidthDurationMs}ms ease`;
+  const actionButtonsRevealLabelHiddenTransition = `max-width ${actionButtonsRevealLabelDurationMs}ms ease 0ms, opacity ${actionButtonsRevealLabelOpacityDurationMs}ms ease 0ms, transform ${actionButtonsRevealLabelDurationMs}ms ease 0ms`;
+  const actionButtonsRevealLabelShownTransition = `max-width ${actionButtonsRevealLabelDurationMs}ms ease ${actionButtonsRevealLabelDelayMs}ms, opacity ${actionButtonsRevealLabelOpacityDurationMs}ms ease ${actionButtonsRevealLabelDelayMs}ms, transform ${actionButtonsRevealLabelDurationMs}ms ease ${actionButtonsRevealLabelDelayMs}ms`;
+
+  const getActionButtonsRevealSx = useMemo(
+    () =>
+      ({ expandedWidth, expandedSelector, notExpandedSelector, hasEndIcon }: ActionButtonsRevealSxOptions) => {
+        const revealLabelShownSelector = `&:hover .revealLabel, &:focus-visible .revealLabel${
+          expandedSelector ? `, ${expandedSelector} .revealLabel` : ''
+        }`;
+        const startIconExpandedSelector = `&:hover .MuiButton-startIcon, &:focus-visible .MuiButton-startIcon${
+          expandedSelector ? `, ${expandedSelector} .MuiButton-startIcon` : ''
+        }`;
+        const endIconExpandedSelector = `&:hover .MuiButton-endIcon, &:focus-visible .MuiButton-endIcon${
+          expandedSelector ? `, ${expandedSelector} .MuiButton-endIcon` : ''
+        }`;
+        const startIconCollapsedSelector = `&:not(:hover):not(:focus-visible)${
+          notExpandedSelector ?? ''
+        } .MuiButton-startIcon`;
+        const endIconCollapsedSelector = `&:not(:hover):not(:focus-visible)${
+          notExpandedSelector ?? ''
+        } .MuiButton-endIcon`;
+        const expandedStateSelector = `&:hover, &:focus-visible${expandedSelector ? `, ${expandedSelector}` : ''}`;
+
+        return {
+          width: actionButtonsRevealCollapsedWidth,
+          px: actionButtonsRevealCollapsedPx,
+          transition: actionButtonsRevealButtonTransition,
+          '& .revealLabel': {
+            display: 'inline-block',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            maxWidth: 0,
+            opacity: 0,
+            transform: 'translateX(-8px)',
+            transition: actionButtonsRevealLabelHiddenTransition,
+          },
+          '& .MuiButton-startIcon': {
+            marginLeft: 0,
+            marginRight: 0.5,
+            transition: actionButtonsRevealStartIconTransition,
+          },
+          ...(hasEndIcon
+            ? {
+                '& .MuiButton-endIcon': {
+                  marginLeft: 0.5,
+                  marginRight: 0,
+                  transition: actionButtonsRevealEndIconTransition,
+                },
+              }
+            : null),
+          [revealLabelShownSelector]: {
+            transition: actionButtonsRevealLabelShownTransition,
+            maxWidth: 200,
+            opacity: 1,
+            transform: 'translateX(0)',
+          },
+          [startIconExpandedSelector]: {
+            marginRight: 1,
+          },
+          ...(hasEndIcon
+            ? {
+                [endIconExpandedSelector]: {
+                  marginLeft: 1,
+                },
+              }
+            : null),
+          [startIconCollapsedSelector]: {
+            marginRight: 0,
+          },
+          ...(hasEndIcon
+            ? {
+                [endIconCollapsedSelector]: {
+                  marginLeft: 0,
+                },
+              }
+            : null),
+          [expandedStateSelector]: {
+            width: expandedWidth,
+            px: actionButtonsRevealExpandedPx,
+          },
+        };
+      },
+    [
+      actionButtonsRevealButtonTransition,
+      actionButtonsRevealCollapsedPx,
+      actionButtonsRevealCollapsedWidth,
+      actionButtonsRevealEndIconTransition,
+      actionButtonsRevealExpandedPx,
+      actionButtonsRevealLabelHiddenTransition,
+      actionButtonsRevealLabelShownTransition,
+      actionButtonsRevealStartIconTransition,
+    ],
+  );
+
+  const mobileToolbarButtonSx = useMemo(
+    () => ({
+      minWidth: 40,
+      width: 40,
+      minHeight: 40,
+      height: 40,
+      maxHeight: 40,
+      p: 0,
+      borderRadius: '10px',
+      borderColor: alpha(theme.palette.divider, 0.85),
+      color: 'text.secondary',
+      '& .MuiButton-startIcon': {
+        margin: 0,
+        '& > *:first-of-type': {
+          fontSize: mobileActionIconSize,
+        },
+      },
+      '&:hover': {
+        borderColor: 'divider',
+        bgcolor: alpha(theme.palette.common.white, theme.palette.mode === 'dark' ? 0.04 : 0.02),
+      },
+    }),
+    [mobileActionIconSize, theme],
+  );
+
+  return (
+    <Stack
+      direction="row"
+      spacing={isMobile ? 1 : 2}
+      sx={{
+        width: '100%',
+        px: { xs: 2, md: 0 },
+        mb: { xs: 0, md: 1.25 },
+        mt: { xs: 0, md: -1 },
+        minHeight: 44,
+      }}
+      alignItems="center"
+      flexWrap={isMobile ? 'nowrap' : 'wrap'}
+    >
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        {isCalendarMode ? (
+          <MonthYearCarousel selectedMonth={selectedMonth} selectedYear={selectedYear} onChange={onDateChange} />
+        ) : (
+          <BillCarousel
+            bills={bills}
+            selectedBillId={selectedBillId}
+            onSelectBill={onSelectBill}
+          />
+        )}
+      </Box>
+      <Box
+        sx={{
+          flex: isMobile ? '1 1 auto' : '0 0 auto',
+          minWidth: isMobile ? 40 : 'auto',
+          display: 'flex',
+          justifyContent: 'flex-end',
+        }}
+      >
+        <ExpandableSearchInput
+          searchQuery={searchQuery}
+          onSearchQueryChange={onSearchQueryChange}
+          placeholder={t('financeTransactions.transactionRules.searchPlaceholder')}
+          ariaClearLabel={t('financeTransactions.transactionRules.actions.clearSearchAriaLabel')}
+          collapsedWidth={isMobile ? 40 : 90}
+          expandedWidth={isMobile ? '100%' : 320}
+          inputMaxWidth={isMobile ? 999 : 240}
+          height={isMobile ? 40 : 48}
+          collapsedSearchIconMarginLeft="1.6rem"
+          sx={
+            isMobile
+              ? {
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '10px',
+                  },
+                  '& .MuiInputAdornment-positionStart': {
+                    minWidth: 0,
+                  },
+                  '& .MuiInputAdornment-positionStart .MuiSvgIcon-root, & .MuiInputAdornment-positionEnd .MuiSvgIcon-root': {
+                    fontSize: mobileActionIconSize,
+                  },
+                }
+              : undefined
+          }
+        />
+      </Box>
+      {actionButtonsRevealEnabled && !isMobile ? (
+        <Button
+          component={Link}
+          href="/personal-finance/finance-transactions/transaction-rules"
+          variant="outlined"
+          startIcon={<AutoFixHighIcon fontSize="small" />}
+          sx={getActionButtonsRevealSx({ expandedWidth: actionButtonsRevealExpandedWidth })}
+        >
+          <Box component="span" className="revealLabel">
+            {t('financeTransactions.actions.automation')}
+          </Box>
+        </Button>
+      ) : (
+        <Button
+          component={Link}
+          href="/personal-finance/finance-transactions/transaction-rules"
+          variant="outlined"
+          startIcon={<AutoFixHighIcon fontSize="small" />}
+          sx={isMobile ? mobileToolbarButtonSx : undefined}
+          aria-label={t('financeTransactions.actions.automation')}
+        >
+          {!isMobile ? t('financeTransactions.actions.automation') : null}
+        </Button>
+      )}
+      {actionButtonsRevealEnabled && !isMobile ? (
+        <Button
+          variant="outlined"
+          startIcon={<UploadIcon />}
+          endIcon={<ArrowDropDownIcon />}
+          onClick={(e) => setImportMenuAnchor(e.currentTarget)}
+          aria-haspopup="menu"
+          aria-expanded={!!importMenuAnchor}
+          aria-controls={importMenuAnchor ? 'finance-transactions-import-menu' : undefined}
+          data-open={!!importMenuAnchor}
+          data-testid="btn-open-import-drawer"
+          sx={getActionButtonsRevealSx({
+            expandedWidth: actionButtonsRevealExpandedWidth,
+            hasEndIcon: true,
+            expandedSelector: '&[data-open="true"]',
+            notExpandedSelector: ':not([data-open="true"])',
+          })}
+        >
+          <Box component="span" className="revealLabel">
+            {t('financeTransactions.import.button')}
+          </Box>
+        </Button>
+      ) : (
+        <Button
+          variant="outlined"
+          startIcon={<UploadIcon />}
+          endIcon={isMobile ? undefined : <ArrowDropDownIcon />}
+          onClick={(e) => setImportMenuAnchor(e.currentTarget)}
+          aria-haspopup="menu"
+          aria-expanded={!!importMenuAnchor}
+          aria-controls={importMenuAnchor ? 'finance-transactions-import-menu' : undefined}
+          data-testid="btn-open-import-drawer"
+          sx={isMobile ? mobileToolbarButtonSx : undefined}
+          aria-label={t('financeTransactions.import.button')}
+        >
+          {!isMobile ? t('financeTransactions.import.button') : null}
+        </Button>
+      )}
+      <Menu
+        id="finance-transactions-import-menu"
+        anchorEl={importMenuAnchor}
+        open={!!importMenuAnchor}
+        onClose={() => setImportMenuAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <MenuItem
+          onClick={() => {
+            setImportMenuAnchor(null);
+            onOpenNfceImport();
+          }}
+        >
+          <ListItemIcon>
+            <QrCode2Icon fontSize="small" />
+          </ListItemIcon>
+          {t('financeTransactions.nfce.button')}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setImportMenuAnchor(null);
+            onOpenImportTransactions();
+          }}
+        >
+          <ListItemIcon>
+            <AccountBalanceIcon fontSize="small" />
+          </ListItemIcon>
+          {t('financeTransactions.import.menu.file')}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setImportMenuAnchor(null);
+            onOpenImportBill();
+          }}
+        >
+          <ListItemIcon>
+            <CreditCardIcon fontSize="small" />
+          </ListItemIcon>
+          {t('financeTransactions.import.menu.cardBill')}
+        </MenuItem>
+      </Menu>
+      <Button
+        sx={{
+          boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.28)}`,
+          display: { xs: 'none', md: 'flex' },
+          '&:hover': {
+            boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.36)}`,
+          },
+        }}
+        variant="contained"
+        startIcon={<AddIcon />}
+        onClick={onCreateTransaction}
+        disabled={isCreatingTransaction}
+        data-testid="btn-new-transaction"
+      >
+        {t('financeTransactions.quickAdd')}
+      </Button>
+    </Stack>
+  );
+}
