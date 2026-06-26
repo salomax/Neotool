@@ -721,15 +721,13 @@ export function CreateFinancialAccountDrawer({
   };
 
   const renderTypeSelection = () => (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, p: 2, alignItems: 'stretch', justifyContent: 'flex-start', height: '100%' }}>
-      {/* Title Section */}
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, md: 4 }, alignItems: 'stretch', justifyContent: 'flex-start', height: '100%' }}>
       <Box sx={{ gap: 1, display: 'flex', flexDirection: 'column' }}>
         <Typography variant="subtitle2" color="text.secondary">
           {t('financeTransactions.createAccount.step1.title')}
         </Typography>
       </Box>
 
-      {/* Bento Style Grid for Options */}
       <FinancialAccountTypeSelection onSelect={handleTypeSelect} />
     </Box>
   );
@@ -938,39 +936,49 @@ export function CreateFinancialAccountDrawer({
 
             <Divider />  
 
-            <Drawer.ActionButtons
-              cancelText={t('financeTransactions.actions.cancel')}
-              submitText={
-                isEditing
-                  ? t('financeTransactions.actions.save')
-                  : (effectiveSelectedType === 'BANK' ? t('financeTransactions.actions.addAccount') : t('financeTransactions.actions.addCard'))
-              }
-              submittingText={t('financeTransactions.actions.saving')}
-              onCancel={handleClose}
-              deleteText={isEditing ? t('financeTransactions.actions.deleteAccount') : undefined}
-              onDelete={
-                isEditing
-                  ? () => {
-                      setDeleteError(null);
-                      setDeleteConfirmOpen(true);
-                    }
-                  : undefined
-              }
-              submitForm="create-financial-account-form"
-              cancelDisabled={creating || updating || deleting}
-              submitDisabled={creating || updating || deleting || !isValid || (isEditing && !loadedEditAccount)}
-              deleteDisabled={creating || updating || deleting}
-              submitting={creating || updating}
-              cancelTestId="account-form-cancel"
-              submitTestId="account-form-submit"
-              deleteTestId="account-form-remove"
-            />
-
           </FormStack>
         </form>
       </FormProvider>
     </Box>
   );
+
+  const renderFooter = () => {
+    if (isTypeSelectionStep || (isEditing && !loadedEditAccount)) {
+      return null;
+    }
+
+    return (
+      <Drawer.ActionButtons
+        cancelText={t('financeTransactions.actions.cancel')}
+        submitText={
+          isEditing
+            ? t('financeTransactions.actions.save')
+            : (effectiveSelectedType === 'BANK' ? t('financeTransactions.actions.addAccount') : t('financeTransactions.actions.addCard'))
+        }
+        submittingText={t('financeTransactions.actions.saving')}
+        onCancel={handleClose}
+        deleteText={isEditing ? t('financeTransactions.actions.deleteAccount') : undefined}
+        onDelete={
+          isEditing
+            ? () => {
+                setDeleteError(null);
+                setDeleteConfirmOpen(true);
+              }
+            : undefined
+        }
+        submitForm="create-financial-account-form"
+        cancelDisabled={creating || updating || deleting}
+        submitDisabled={creating || updating || deleting || !isValid || (isEditing && !loadedEditAccount)}
+        deleteDisabled={creating || updating || deleting}
+        submitting={creating || updating}
+        cancelTestId="account-form-cancel"
+        submitTestId="account-form-submit"
+        deleteTestId="account-form-remove"
+      />
+    );
+  };
+
+  const footer = renderFooter();
 
   return (
     <Drawer
@@ -978,6 +986,7 @@ export function CreateFinancialAccountDrawer({
       onClose={onClose}
       anchor="right"
       size="md"
+      mobilePresentation="bottom-sheet-full"
       data-testid="create-account-drawer"
     >
       <Drawer.Header
@@ -1008,6 +1017,7 @@ export function CreateFinancialAccountDrawer({
             ? (editLoadErrorMessage ? renderEditErrorState() : renderEditLoadingState())
             : renderForm()}
       </Drawer.Body>
+      {footer ? <Drawer.Footer>{footer}</Drawer.Footer> : null}
 
       <ConfirmDialog
         open={deleteConfirmOpen}

@@ -210,3 +210,53 @@ test("BI-H-01: flat assignment review omits empty last-four bucket after reassig
   await expect(page.getByText("Uber BI-H-01")).toBeVisible();
   await expect(page.getByText("iFood BI-H-01")).toBeVisible();
 });
+
+test.describe("Bill import — mobile viewport", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("BI-M-01: mobile bill import drawer keeps upload actions in footer", async ({
+    page,
+    pfUser,
+  }) => {
+    const cardAccount = await createFinancialAccount(
+      {
+        name: uniqueCardName("Cartão mobile E2E"),
+        type: "CREDIT",
+        subtype: "CREDIT_CARD",
+        issuerName: "Banco E2E Bill Import Mobile",
+        cardData: {
+          closingDay: 7,
+          dueDay: 15,
+        },
+      },
+      pfUser.token,
+    );
+
+    await openBillImportDrawer(page, cardAccount);
+
+    await page.locator('input[type="file"]').setInputFiles({
+      name: "fatura-mobile.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("date,description,amount\n2026-06-03,Cafe mobile,12\n"),
+    });
+
+    await expect(page.getByText("fatura-mobile.csv")).toBeVisible();
+
+    const submit = page.getByTestId("bill-import-submit-button");
+    await expect(submit).toBeVisible();
+    await expect(submit).toBeEnabled();
+
+    const overflow = await page.evaluate(() => ({
+      body: document.body.scrollWidth > document.body.clientWidth,
+      dialog: (() => {
+        const el = document.querySelector('[role="dialog"]');
+        return el ? el.scrollWidth > el.clientWidth : false;
+      })(),
+    }));
+    expect(overflow.body).toBe(false);
+    expect(overflow.dialog).toBe(false);
+
+    await page.getByTestId("bill-import-cancel-button").click();
+    await expect(page.getByRole("heading", { name: /importar fatura|import statement/i })).toBeHidden();
+  });
+});

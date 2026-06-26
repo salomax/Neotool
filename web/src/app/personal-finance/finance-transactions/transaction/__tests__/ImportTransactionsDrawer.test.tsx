@@ -53,6 +53,7 @@ describe.sequential('ImportTransactionsDrawer', () => {
       <ImportTransactionsDrawer open onClose={onClose} selectedAccountId="acc-1" selectedAccountType={FinancialAccountType.Bank} />,
     );
     expect(screen.getAllByText(/Select file|Selecione o arquivo/).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('import-transactions-submit-button')).toBeInTheDocument();
   });
 
   it('givenConsolidatedViewWithMultipleBanks_whenRendered_thenShowsAccountSelectionStep', () => {
@@ -86,6 +87,7 @@ describe.sequential('ImportTransactionsDrawer', () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText('Conta XP')).toBeInTheDocument();
+    expect(screen.getByTestId('import-transactions-cancel-button')).toBeInTheDocument();
   });
 
   it('givenConsolidatedViewWithSingleBank_whenRendered_thenSkipsAccountSelectionStep', async () => {

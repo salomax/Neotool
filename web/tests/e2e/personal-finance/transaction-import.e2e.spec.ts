@@ -1217,3 +1217,37 @@ test.describe("Transaction Import — negative paths", () => {
     });
   });
 });
+
+test.describe("Transaction import — mobile viewport", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("IM-M-01: mobile drawer shows file-selected state with footer actions reachable", async ({
+    page,
+    pfUser,
+    bankAccount,
+  }) => {
+    await signIntoPage(page, pfUser.token);
+    await openImportDrawer(page, bankAccount);
+
+    const dlg = importDialogLocator(page);
+    await dlg.getByTestId("import-transactions-file-input").setInputFiles(CSV_VALID);
+    await expect(dlg.getByText(path.basename(CSV_VALID))).toBeVisible();
+
+    const submit = dlg.getByTestId("import-transactions-submit-button");
+    await expect(submit).toBeVisible();
+    await expect(submit).toBeEnabled();
+
+    const overflow = await page.evaluate(() => ({
+      body: document.body.scrollWidth > document.body.clientWidth,
+      dialog: (() => {
+        const el = document.querySelector('[role="dialog"]');
+        return el ? el.scrollWidth > el.clientWidth : false;
+      })(),
+    }));
+    expect(overflow.body).toBe(false);
+    expect(overflow.dialog).toBe(false);
+
+    await page.getByRole("button", { name: /close|fechar/i }).first().click();
+    await waitForImportDrawerClosed(page);
+  });
+});

@@ -5,7 +5,6 @@ import {
   Box,
   Typography,
   Stack,
-  Button,
   LinearProgress,
   Alert,
   Paper,
@@ -14,11 +13,11 @@ import {
   ListItemButton,
   ListItemText,
   CircularProgress,
-  Divider,
   alpha,
 } from '@mui/material';
 import { CloudUpload as UploadIcon, Add as AddIcon, AccountBalance as BankIcon, InsertDriveFile as FileIcon, TipsAndUpdates as TipsAndUpdatesIcon } from '@mui/icons-material';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
+import { DRAWER_LAYOUT } from '@/shared/components/ui/layout/drawerLayoutConstants';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
@@ -432,12 +431,6 @@ export function ImportTransactionsDrawer({
               {t('financeTransactions.import.accountStep.createAccount')}
           </Link>
         </Box>
-        <Divider sx={{ my: 2 }} />
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Drawer.CancelButton onClick={handleClose}>
-            {t('financeTransactions.actions.cancel')}
-          </Drawer.CancelButton>
-        </Box>
       </Box>
     );
   };
@@ -447,17 +440,6 @@ export function ImportTransactionsDrawer({
       return (
         <Box sx={{ p: 1 }}>
           <Alert severity="info">{t('financeTransactions.import.uploadStep.selectAccount')}</Alert>
-          <Divider sx={{ my: 2 }} />
-          <Drawer.ActionButtons
-            cancelText={t('financeTransactions.actions.cancel')}
-            submitText={t('financeTransactions.import.button')}
-            submittingText={t('financeTransactions.actions.saving')}
-            onCancel={handleCancelFromUpload}
-            onSubmit={handleSubmit}
-            submitDisabled
-            submitting={mutating}
-            submitTestId="import-transactions-submit-button"
-          />
         </Box>
       );
     }
@@ -491,7 +473,7 @@ export function ImportTransactionsDrawer({
             border: '3px dashed',
             borderColor: fileError ? 'error.main' : 'divider',
             borderRadius: 2,
-            p: 4,
+            p: { xs: DRAWER_LAYOUT.mobileSheet.uploadZone.p, md: 4 },
             textAlign: 'center',
             bgcolor: file ? 'action.selected' : 'transparent',
             cursor: 'pointer',
@@ -504,7 +486,7 @@ export function ImportTransactionsDrawer({
         >
           <Stack direction="column" alignItems="center">
             <Box>
-              <UploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1, display: 'block', mx: 'auto' }} />
+              <UploadIcon sx={{ fontSize: { xs: DRAWER_LAYOUT.mobileSheet.uploadZone.iconSize, md: 48 }, color: 'primary.main', mb: 1, display: 'block', mx: 'auto' }} />
               <Typography variant="body2" color="primary.main" sx={{ mb: 1, fontWeight: 'medium' }}>
                 {t('financeTransactions.import.uploadStep.dragDrop')}
               </Typography>
@@ -544,17 +526,6 @@ export function ImportTransactionsDrawer({
         {fileError && (
           <Alert severity="error" sx={{ mt: 2 }}>{fileError}</Alert>
         )}
-        <Divider sx={{ my: 2 }} />
-        <Drawer.ActionButtons
-          cancelText={t('financeTransactions.actions.cancel')}
-          submitText={t('financeTransactions.import.button')}
-          submittingText={t('financeTransactions.actions.saving')}
-          onCancel={handleCancelFromUpload}
-          onSubmit={handleSubmit}
-          submitDisabled={!file || mutating || !targetAccountId}
-          submitting={mutating}
-          submitTestId="import-transactions-submit-button"
-        />
       </Box>
     );
   };
@@ -585,9 +556,6 @@ export function ImportTransactionsDrawer({
           skipped: lastEvent?.skippedCount ?? 0,
         })}
         </Alert>
-      <Button variant="contained" fullWidth onClick={handleClose}>
-        {t('financeTransactions.import.resultStep.close')}
-      </Button>
     </Box>
   );
 
@@ -612,12 +580,52 @@ export function ImportTransactionsDrawer({
           <Typography variant="caption" component="div" sx={{ mt: 1 }}>{errorDetails}</Typography>
         )}
       </Alert>
-      <Stack direction="row" spacing={2}>
-        <Button variant="outlined" onClick={handleRetry}>{t('financeTransactions.import.errorStep.retry')}</Button>
-        <Button variant="contained" onClick={handleClose}>{t('financeTransactions.actions.cancel')}</Button>
-      </Stack>
     </Box>
   );
+
+  const renderFooter = () => {
+    switch (step) {
+      case 'account':
+        return (
+          <Drawer.CancelButton onClick={handleClose} data-testid="import-transactions-cancel-button" sx={{ width: '100%' }}>
+            {t('financeTransactions.actions.cancel')}
+          </Drawer.CancelButton>
+        );
+      case 'upload':
+        return (
+          <Drawer.ActionButtons
+            cancelText={t('financeTransactions.actions.cancel')}
+            submitText={t('financeTransactions.import.button')}
+            submittingText={t('financeTransactions.actions.saving')}
+            onCancel={handleCancelFromUpload}
+            onSubmit={handleSubmit}
+            submitDisabled={!file || mutating || !targetAccountId}
+            submitting={mutating}
+            submitTestId="import-transactions-submit-button"
+            cancelTestId="import-transactions-cancel-button"
+          />
+        );
+      case 'result':
+        return (
+          <Drawer.SubmitButton onClick={handleClose} data-testid="import-transactions-close-button" sx={{ width: '100%' }}>
+            {t('financeTransactions.import.resultStep.close')}
+          </Drawer.SubmitButton>
+        );
+      case 'error':
+        return (
+          <Drawer.ActionButtons
+            cancelText={t('financeTransactions.actions.cancel')}
+            submitText={t('financeTransactions.import.errorStep.retry')}
+            onCancel={handleClose}
+            onSubmit={handleRetry}
+            submitTestId="import-transactions-retry-button"
+            cancelTestId="import-transactions-cancel-button"
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   const body =
     step === 'account' ? renderAccountStep() :
@@ -627,14 +635,23 @@ export function ImportTransactionsDrawer({
     step === 'review' ? renderReviewStep() :
     renderErrorStep();
 
+  const footer = renderFooter();
+
   return (
-    <Drawer open={open} onClose={handleClose} anchor="right" size="md">
+    <Drawer
+      open={open}
+      onClose={handleClose}
+      anchor="right"
+      size="md"
+      mobilePresentation="bottom-sheet-full"
+    >
       <Drawer.Header
         title={t('financeTransactions.import.title')}
         showCloseButton
         closeButtonAriaLabel={t('financeTransactions.actions.close')}
       />
       <Drawer.Body>{body}</Drawer.Body>
+      {footer ? <Drawer.Footer>{footer}</Drawer.Footer> : null}
     </Drawer>
   );
 }

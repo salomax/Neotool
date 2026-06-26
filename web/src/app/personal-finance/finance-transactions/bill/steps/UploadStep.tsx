@@ -1,8 +1,9 @@
-import { Alert, Box, Button, CircularProgress, Divider, Stack, TextField, Typography, alpha } from '@mui/material';
+import { Alert, Box, Stack, TextField, Typography, alpha } from '@mui/material';
 import { CloudUpload as UploadIcon, InsertDriveFile as FileIcon } from '@mui/icons-material';
 import React, { memo, type ChangeEvent, type DragEvent, type RefObject } from 'react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../../i18n';
+import { DRAWER_LAYOUT } from '@/shared/components/ui/layout/drawerLayoutConstants';
 import { ACCEPTED_TYPES, MAX_FILE_BYTES } from '../billImportTypes';
 
 interface UploadStepProps {
@@ -11,12 +12,9 @@ interface UploadStepProps {
   fileError: string | null;
   isEncryptedPdf: boolean;
   pdfPassword: string;
-  submitting: boolean;
   onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onDrop: (e: DragEvent) => void;
   onPdfPasswordChange: (value: string) => void;
-  onSubmit: () => void;
-  onCancel: () => void;
 }
 
 export const UploadStep = memo(function UploadStep({
@@ -25,12 +23,9 @@ export const UploadStep = memo(function UploadStep({
   fileError,
   isEncryptedPdf,
   pdfPassword,
-  submitting,
   onFileChange,
   onDrop,
   onPdfPasswordChange,
-  onSubmit,
-  onCancel,
 }: UploadStepProps) {
   const { t } = useTranslation(personalFinanceTranslations);
 
@@ -64,7 +59,7 @@ export const UploadStep = memo(function UploadStep({
           border: '3px dashed',
           borderColor: fileError ? 'error.main' : 'divider',
           borderRadius: 2,
-          p: 4,
+          p: { xs: DRAWER_LAYOUT.mobileSheet.uploadZone.p, md: 4 },
           textAlign: 'center',
           cursor: 'pointer',
           bgcolor: file ? 'action.selected' : 'transparent',
@@ -75,7 +70,7 @@ export const UploadStep = memo(function UploadStep({
           },
         }}
       >
-        <UploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1, display: 'block', mx: 'auto' }} />
+        <UploadIcon sx={{ fontSize: { xs: DRAWER_LAYOUT.mobileSheet.uploadZone.iconSize, md: 48 }, color: 'primary.main', mb: 1, display: 'block', mx: 'auto' }} />
         <Typography variant="body2" color="primary.main" fontWeight="medium" sx={{ mb: 0.5 }}>
           {t('financeTransactions.billImport.uploadStep.dragDrop')}
         </Typography>
@@ -121,23 +116,6 @@ export const UploadStep = memo(function UploadStep({
       )}
 
       {fileError && <Alert severity="error" sx={{ mt: 2 }}>{fileError}</Alert>}
-
-      <Divider sx={{ my: 3 }} />
-      <Stack direction="row" spacing={2} justifyContent="flex-end">
-        <Button variant="outlined" onClick={onCancel}>
-          {t('financeTransactions.actions.cancel')}
-        </Button>
-        <Button
-          variant="contained"
-          onClick={onSubmit}
-          disabled={!file || submitting || (isEncryptedPdf && !pdfPassword.trim())}
-          startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
-        >
-          {submitting
-            ? t('financeTransactions.billImport.uploadStep.submitting')
-            : t('financeTransactions.billImport.uploadStep.submit')}
-        </Button>
-      </Stack>
     </Box>
   );
 });

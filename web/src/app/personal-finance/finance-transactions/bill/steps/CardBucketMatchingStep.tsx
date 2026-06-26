@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Chip,
-  Divider,
   FormControl,
   InputLabel,
   MenuItem as SelectMenuItem,
@@ -30,12 +29,9 @@ interface CardBucketMatchingStepProps {
   cardResolutions: CardResolution[];
   cardAccountOptionsById: Map<string, CardAccountOption>;
   selectedIssuerKey: string | null;
-  allCardsResolved: boolean;
   getAvailableOptionsForCard: (card: ReviewCard) => CardAccountOption[];
   onResolveCard: (ci: number, accountId: string | null) => void;
   onCreateCardForIndex: (ci: number) => void;
-  onContinue: () => void;
-  onCancel: () => void;
 }
 
 export const CardBucketMatchingStep = memo(function CardBucketMatchingStep({
@@ -43,12 +39,9 @@ export const CardBucketMatchingStep = memo(function CardBucketMatchingStep({
   cardResolutions,
   cardAccountOptionsById,
   selectedIssuerKey,
-  allCardsResolved,
   getAvailableOptionsForCard,
   onResolveCard,
   onCreateCardForIndex,
-  onContinue,
-  onCancel,
 }: CardBucketMatchingStepProps) {
   const { t } = useTranslation(personalFinanceTranslations);
 
@@ -142,16 +135,6 @@ export const CardBucketMatchingStep = memo(function CardBucketMatchingStep({
           </Paper>
         );
       })}
-
-      <Divider sx={{ my: 3 }} />
-      <Stack direction="row" spacing={2} justifyContent="flex-end">
-        <Button variant="outlined" onClick={onCancel}>
-          {t('financeTransactions.actions.cancel')}
-        </Button>
-        <Button variant="contained" disabled={!allCardsResolved} onClick={onContinue}>
-          {t('financeTransactions.billImport.cardMatchingStep.reviewTransactions')}
-        </Button>
-      </Stack>
     </Box>
   );
 });

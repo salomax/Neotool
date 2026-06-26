@@ -108,6 +108,9 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => {
   const DrawerBody = function DrawerBody({ children }: { children: React.ReactNode }) {
     return <div>{children}</div>;
   };
+  const DrawerFooter = function DrawerFooter({ children }: { children: React.ReactNode }) {
+    return <div data-testid="drawer-footer">{children}</div>;
+  };
   const DrawerActionButtons = function DrawerActionButtons({
     cancelText,
     submitText,
@@ -149,6 +152,7 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => {
   };
   Drawer.Header = DrawerHeader;
   Drawer.Body = DrawerBody;
+  Drawer.Footer = DrawerFooter;
   Drawer.ActionButtons = DrawerActionButtons;
   return { Drawer };
 });
