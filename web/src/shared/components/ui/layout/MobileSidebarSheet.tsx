@@ -25,8 +25,14 @@ export function MobileSidebarSheet({
       onClose={onClose}
       anchor="bottom"
       variant="temporary"
+      height="auto"
+      sx={{
+        '& .MuiDrawer-paper': {
+          maxHeight: '85vh',
+        },
+      }}
     >
-      <Drawer.Body sx={{ maxHeight: "85vh", overflow: "auto", p: 0 }}>
+      <Drawer.Body sx={{ overflow: "auto", p: 0 }}>
         <Box
           sx={{
             position: "sticky",

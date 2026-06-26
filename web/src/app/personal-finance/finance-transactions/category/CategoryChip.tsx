@@ -21,6 +21,7 @@ export interface CategoryChipProps {
   placeholder?: React.ReactNode;
   maxWidthCh?: number;
   decorationAlpha?: CategoryChipDecorationAlpha;
+  labelFontSize?: string;
 }
 
 export type CategoryChipDecorationAlpha = Readonly<{
@@ -49,10 +50,10 @@ export function CategoryChip({
   placeholder,
   maxWidthCh = 22,
   decorationAlpha = DEFAULT_DECORATION_ALPHA,
+  labelFontSize = FINANCE_TABLE_BODY_FONT_SIZE,
 }: CategoryChipProps) {
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
-  const labelFontSize = FINANCE_TABLE_BODY_FONT_SIZE;
   const isClickable = typeof onClick === 'function';
 
   if (!category && !placeholder) return null;

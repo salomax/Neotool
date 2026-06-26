@@ -4,14 +4,18 @@ import Typography from '@mui/material/Typography';
 import type { TypographyProps } from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 
+export const LABEL_FONT_SIZE = '0.7rem';
+export const LABEL_LINE_HEIGHT = 1.35;
+
 /** Typography aligned with `<Label />` for reuse (e.g. MUI date picker month header and month grid). */
 export function labelTypographySx(theme: Theme): SxProps<Theme> {
   return {
     ...theme.typography.subtitle2,
     color: theme.palette.text.secondary,
     textTransform: 'uppercase',
-    fontSize: '0.7rem',
+    fontSize: LABEL_FONT_SIZE,
     fontWeight: 400,
+    lineHeight: LABEL_LINE_HEIGHT,
     letterSpacing: 0.5,
   };
 }

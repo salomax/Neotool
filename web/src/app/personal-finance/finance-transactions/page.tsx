@@ -7,15 +7,20 @@ import { personalFinanceTranslations } from '../i18n';
 import {
   Container,
   Box,
+  Fab,
+  Stack,
   Typography,
-  useTheme,
 } from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
+import AddIcon from '@mui/icons-material/Add';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { Page } from '@/shared/components/ui/layout';
 import { SidebarLayout } from '@/shared/components/ui/layout/SidebarLayout';
 import { useDebounce, usePageTitle } from '@/shared/hooks/ui';
 import { QueryErrorState } from '@/shared/components/ui/feedback';
 import { LoadingSpinner } from '@/shared/components/ui/primitives/LoadingSpinner';
+import { TransactionDirectionBadge } from '@/shared/components/ui/data-display';
 import { CreateFinancialAccountDrawer } from './account/CreateFinancialAccountDrawer';
 import { EmptyFinancialAccountsState } from './account/EmptyFinancialAccountsState';
 import { FINANCIAL_ACCOUNTS, TRANSACTIONS, TRANSACTION_IMPORTS, MONTH_SUMMARY } from '@/lib/graphql/operations/banking/queries';
@@ -34,8 +39,11 @@ import { FinanceTransactionsActiveFilters } from './FinanceTransactionsActiveFil
 import { FinanceTransactionsDialogs } from './FinanceTransactionsDialogs';
 import { FinanceTransactionsContentPanel } from './FinanceTransactionsContentPanel';
 import { FinanceTransactionsSidebar } from './FinanceTransactionsSidebar';
+import { FinanceTransactionsToolbar } from './FinanceTransactionsToolbar';
 import { useScopedToggleFilter } from './hooks/useScopedToggleFilter';
 import { usePaginatedTransactions } from './hooks/usePaginatedTransactions';
+import type { TransactionSuccessPayload } from './transaction/transactionFormShared';
+import { SIDEBAR_LAYOUT_MOBILE_TRIGGER_HEIGHT_CSS_VAR } from '@/shared/components/ui/layout/sidebarLayout.constants';
 
 const TRANSACTION_ACCOUNT_TYPES: FinancialAccountType[] = [
   FinancialAccountType.Bank,
@@ -72,6 +80,7 @@ export default function FinanceTransactionsPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const initialTypeResetTimeoutRef = useRef<number | null>(null);
 
   const { data, loading, error: financialAccountsError, refetch: refetchFinancialAccounts } = useQuery<FinancialAccountsQuery>(FINANCIAL_ACCOUNTS, {
@@ -382,7 +391,7 @@ export default function FinanceTransactionsPage() {
   const handleClosePayBillDialog = useCallback(() => setIsPayBillDialogOpen(false), []);
   const handleCancelCreate = useCallback(() => setIsCreatingTransaction(false), []);
 
-  const handleSuccessCreate = useCallback(async () => {
+  const handleSuccessCreate = useCallback(async (_payload?: TransactionSuccessPayload) => {
     await Promise.all([refetchTransactions(), refetchSummary()]);
   }, [refetchTransactions, refetchSummary]);
 
@@ -445,7 +454,7 @@ export default function FinanceTransactionsPage() {
     <Box
       sx={{
         px: 3,
-        py: 1.5,
+        py: 1.25,
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
@@ -456,18 +465,57 @@ export default function FinanceTransactionsPage() {
         <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.2 }}>
           {selectedAccountName}
         </Typography>
-        <Typography
-          variant="body2"
+        <Stack
+          direction="row"
+          spacing={1.25}
+          alignItems="center"
           sx={{
-            color: 'text.secondary',
-            mt: 0.25,
+            mt: 0.5,
+            minWidth: 0,
             overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
           }}
         >
-          {`${formatCurrency(monthIncome, locale)} · -${formatCurrency(monthExpenses, locale).replace(/^-/, '')}`}
-        </Typography>
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minWidth: 0 }}>
+            <TransactionDirectionBadge
+              creditDebitType={CreditDebitType.Credit}
+              transactionType={TransactionType.OtherIncome}
+              size={18}
+            />
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'success.main',
+                fontWeight: 600,
+                fontSize: '0.75rem',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {formatCurrency(monthIncome, locale)}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ minWidth: 0 }}>
+            <TransactionDirectionBadge
+              creditDebitType={CreditDebitType.Debit}
+              transactionType={TransactionType.OtherExpense}
+              size={18}
+            />
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'error.main',
+                fontWeight: 600,
+                fontSize: '0.75rem',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {`-${formatCurrency(monthExpenses, locale).replace(/^-/, '')}`}
+            </Typography>
+          </Stack>
+        </Stack>
       </Box>
       <ExpandMoreIcon sx={{ color: 'text.secondary', flexShrink: 0 }} />
     </Box>
@@ -523,10 +571,13 @@ export default function FinanceTransactionsPage() {
       <Page>
         <Container
           maxWidth="xl"
+          disableGutters
           sx={{
-            py: 4,
+            pt: { xs: 0, md: 4 },
+            pb: { xs: 0, md: 4 },
+            px: { xs: 0, md: 3 },
             minWidth: 0, // Keep the transaction workspace from widening past the mobile sheet layout.
-            overflowX: 'hidden',
+            overflowX: 'clip',
           }}
         >
           <FinanceTransactionsHeaderBar
@@ -537,25 +588,39 @@ export default function FinanceTransactionsPage() {
               reviewRequiredJobs: reviewRequiredJobs.length > 0 ? reviewRequiredJobs : null,
               onOpenReviewJobs: handleOpenReviewJobs,
             }}
-            navigation={{
-              isCalendarMode: displayMode.kind === 'calendar',
-              selectedMonth: headerNavMonth,
-              selectedYear: headerNavYear,
-              onDateChange: handleDateChange,
-              bills: displayMode.kind === 'bill' ? displayMode.bills : [],
-              selectedBillId: displayMode.kind === 'bill' ? (displayMode.selectedBill?.id ?? null) : null,
-              onSelectBill: handleSelectBill,
-            }}
-            searchQuery={searchQuery}
-            onSearchQueryChange={setSearchQuery}
-            actions={{
-              onOpenNfceImport: handleOpenNfceImport,
-              onOpenImportTransactions: handleOpenImportTransactions,
-              onOpenImportBill: handleOpenImportBill,
-              onCreateTransaction: handleCreateTransaction,
-              isCreating: isCreatingTransaction,
-            }}
           />
+          <Box
+            sx={{
+              position: { xs: 'sticky', md: 'static' },
+              top: { xs: `var(${SIDEBAR_LAYOUT_MOBILE_TRIGGER_HEIGHT_CSS_VAR})`, md: 'auto' },
+              zIndex: { xs: 1, md: 'auto' },
+              bgcolor: { xs: 'background.default', md: 'transparent' },
+              borderBottom: { xs: '1px solid', md: 'none' },
+              borderColor: { xs: 'divider', md: 'transparent' },
+              py: { xs: 0.75, md: 0 },
+            }}
+          >
+            <FinanceTransactionsToolbar
+              navigation={{
+                isCalendarMode: displayMode.kind === 'calendar',
+                selectedMonth: headerNavMonth,
+                selectedYear: headerNavYear,
+                onDateChange: handleDateChange,
+                bills: displayMode.kind === 'bill' ? displayMode.bills : [],
+                selectedBillId: displayMode.kind === 'bill' ? (displayMode.selectedBill?.id ?? null) : null,
+                onSelectBill: handleSelectBill,
+              }}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              actions={{
+                onOpenNfceImport: handleOpenNfceImport,
+                onOpenImportTransactions: handleOpenImportTransactions,
+                onOpenImportBill: handleOpenImportBill,
+                onCreateTransaction: handleCreateTransaction,
+                isCreating: isCreatingTransaction,
+              }}
+            />
+          </Box>
           {displayMode.kind === 'calendar' && (
             <FinanceTransactionsActiveFilters
               open={activeFiltersOpen}
@@ -594,6 +659,24 @@ export default function FinanceTransactionsPage() {
             selectedMonth={displayMode.kind === 'calendar' ? displayMode.month : undefined}
             selectedYear={displayMode.kind === 'calendar' ? displayMode.year : undefined}
           />
+          {isMobile ? (
+            <Fab
+              color="primary"
+              aria-label={t('financeTransactions.quickAdd')}
+              onClick={handleCreateTransaction}
+              disabled={isCreatingTransaction}
+              data-testid="transaction-create-fab"
+              sx={{
+                position: 'fixed',
+                right: 16,
+                bottom: (theme.custom?.layout?.mobile?.bottomNavHeight ?? 80) + 16,
+                display: { xs: 'flex', md: 'none' },
+                zIndex: theme.zIndex.fab,
+              }}
+            >
+              <AddIcon />
+            </Fab>
+          ) : null}
         </Container>
       </Page>
       <FinanceTransactionsDialogs

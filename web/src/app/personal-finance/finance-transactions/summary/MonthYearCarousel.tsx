@@ -1,12 +1,14 @@
 'use client';
 
-import { Box, IconButton, Stack, Typography, Link } from '@mui/material';
+import { Box, IconButton, Stack, Typography, Link, useTheme } from '@mui/material';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import dayjs from 'dayjs';
 import 'dayjs/locale/pt-br';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
+import { LABEL_LINE_HEIGHT, labelTypographySx } from '@/shared/components/ui/primitives/Label';
 
 interface MonthYearCarouselProps {
   selectedMonth: number; // 1-12
@@ -16,6 +18,8 @@ interface MonthYearCarouselProps {
 
 export function MonthYearCarousel({ selectedMonth, selectedYear, onChange }: MonthYearCarouselProps) {
   const { t } = useTranslation(personalFinanceTranslations);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const handlePrevMonth = () => {
     if (selectedMonth === 1) {
@@ -45,7 +49,7 @@ export function MonthYearCarousel({ selectedMonth, selectedYear, onChange }: Mon
   return (
     <Box>
       <Stack spacing={0} sx={{ width: 'fit-content', alignItems: 'stretch' }}>
-        {!isCurrentMonth && (
+        {!isCurrentMonth && !isMobile && (
           <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
             <Link
               component="button"
@@ -59,23 +63,28 @@ export function MonthYearCarousel({ selectedMonth, selectedYear, onChange }: Mon
           </Box>
         )}
 
-        <Stack direction="row" alignItems="center" spacing={0.5}>
+        <Stack direction="row" alignItems="center" spacing={isMobile ? 0 : 0.25}>
           <IconButton
             onClick={handlePrevMonth}
             size="small"
             aria-label={t('financeTransactions.monthYearCarousel.prevAriaLabel')}
             data-testid="btn-prev-month"
+            sx={isMobile ? { p: 0.25 } : { p: 0.375 }}
           >
             <ChevronLeftIcon fontSize="small" />
           </IconButton>
           <Typography
             variant="body1"
-            fontWeight="bold"
             data-testid="month-year-carousel-current"
             sx={{
+              ...labelTypographySx(theme),
               textTransform: 'capitalize',
-              minWidth: 140,
-              textAlign: 'center'
+              minWidth: isMobile ? 108 : 156,
+              textAlign: 'center',
+              mb: 0,
+              fontSize: isMobile ? '0.8rem' : '.9rem',
+              lineHeight: isMobile ? LABEL_LINE_HEIGHT : 1.45,
+              fontWeight: isMobile ? 500 : 600,
             }}
           >
             {currentDate.format('MMMM YYYY')}
@@ -85,6 +94,7 @@ export function MonthYearCarousel({ selectedMonth, selectedYear, onChange }: Mon
             size="small"
             aria-label={t('financeTransactions.monthYearCarousel.nextAriaLabel')}
             data-testid="btn-next-month"
+            sx={isMobile ? { p: 0.25 } : { p: 0.375 }}
           >
             <ChevronRightIcon fontSize="small" />
           </IconButton>

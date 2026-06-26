@@ -331,10 +331,17 @@
     "start": "Início",
     "end": "Fim",
     "placeholder": "Selecione a data",
+    "toolbarTitle": "Selecione a data",
     "formatHint": "dd/mm/aaaa",
     "fieldDay": "dd",
     "fieldMonth": "mm",
     "fieldYear": "aaaa",
+    "actions": {
+      "cancel": "Cancelar",
+      "confirm": "Confirmar",
+      "clear": "Limpar",
+      "today": "Hoje"
+    },
     "errors": {
       "invalidDate": "Data inválida",
       "minDate": "A data deve ser igual ou posterior a {{date}}",

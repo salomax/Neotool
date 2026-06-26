@@ -12,6 +12,7 @@ interface AccountSelectProps {
   error?: boolean;
   helperText?: string;
   inputBottomBorderSx: object;
+  variant?: 'standard' | 'field';
 }
 
 export const AccountSelect = memo(function AccountSelect({
@@ -22,25 +23,47 @@ export const AccountSelect = memo(function AccountSelect({
   error,
   helperText,
   inputBottomBorderSx,
+  variant = 'standard',
 }: AccountSelectProps) {
   const theme = useTheme();
+  const isFieldVariant = variant === 'field';
 
   return (
     <TextField
       select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      variant="standard"
+      variant={isFieldVariant ? 'outlined' : 'standard'}
       fullWidth
       disabled={isReadonly}
       error={error}
       helperText={helperText}
       InputProps={{
-        disableUnderline: true,
+        disableUnderline: !isFieldVariant,
         readOnly: isReadonly,
-        sx: inputBottomBorderSx,
+        sx: isFieldVariant
+          ? {
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: error ? 'error.main' : 'divider',
+                borderWidth: 1,
+              },
+              '&:hover .MuiOutlinedInput-notchedOutline': {
+                borderColor: error ? 'error.main' : 'divider',
+              },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: error ? 'error.main' : 'divider',
+                borderWidth: 1,
+              },
+            }
+          : inputBottomBorderSx,
       }}
-      sx={{ minWidth: 120 }}
+      sx={{
+        minWidth: isFieldVariant ? 0 : 120,
+        '& .MuiInputBase-root': {
+          minHeight: isFieldVariant ? 40 : undefined,
+          borderRadius: isFieldVariant ? 1 : undefined,
+        },
+      }}
     >
       {accounts.map((account) => (
         <MenuItem key={account.id} value={account.id}>

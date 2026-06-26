@@ -1,4 +1,4 @@
-import { Box, MenuItem, Select, Stack, Typography } from '@mui/material';
+import { Box, ButtonBase, MenuItem, Select, Stack, Typography } from '@mui/material';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
@@ -32,9 +32,35 @@ interface TypeSelectorProps {
   isReadonly: boolean;
   onChange: (value: CreditDebitTypeExtended) => void;
   t: (key: string) => string;
+  variant?: 'select' | 'carousel';
 }
 
-export const TypeSelector = memo(function TypeSelector({ value, isReadonly, onChange, t }: TypeSelectorProps) {
+const TYPE_OPTIONS: Array<{
+  value: CreditDebitTypeExtended;
+  labelKey: 'financeTransactions.debit' | 'financeTransactions.credit' | 'financeTransactions.internalTransferIn' | 'financeTransactions.internalTransferOut';
+}> = [
+  { value: CreditDebitType.Credit, labelKey: 'financeTransactions.credit' },
+  { value: CreditDebitType.Debit, labelKey: 'financeTransactions.debit' },
+  { value: 'TRANSFER_OUT', labelKey: 'financeTransactions.internalTransferOut' },
+  { value: 'TRANSFER_IN', labelKey: 'financeTransactions.internalTransferIn' },
+];
+
+function resolveCarouselLabel(
+  option: (typeof TYPE_OPTIONS)[number],
+  t: (key: string) => string,
+): string {
+  if (option.value === 'TRANSFER_OUT') return t('financeTransactions.typeShort.internalTransferOut');
+  if (option.value === 'TRANSFER_IN') return t('financeTransactions.typeShort.internalTransferIn');
+  return t(option.labelKey);
+}
+
+export const TypeSelector = memo(function TypeSelector({
+  value,
+  isReadonly,
+  onChange,
+  t,
+  variant = 'select',
+}: TypeSelectorProps) {
   const { icon, paletteColor } = resolveTypeIconProps(value);
 
   const typeIconBox = (
@@ -61,6 +87,84 @@ export const TypeSelector = memo(function TypeSelector({ value, isReadonly, onCh
       >
         {typeIconBox}
       </Stack>
+    );
+  }
+
+  if (variant === 'carousel') {
+    return (
+      <Box
+        data-testid="tx-credit-debit-type-carousel"
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gap: 0.5,
+          width: '100%',
+        }}
+      >
+        {TYPE_OPTIONS.map((option) => {
+          const isSelected = option.value === value;
+          const { icon: optionIcon, paletteColor: optionPaletteColor } = resolveTypeIconProps(option.value);
+
+          return (
+            <ButtonBase
+              key={option.value}
+              onClick={() => onChange(option.value)}
+              data-testid={`tx-credit-debit-type-option-${option.value}`}
+              sx={{
+                minWidth: 0,
+                width: '100%',
+                borderRadius: 0.75,
+                border: 1,
+                borderColor: isSelected ? `${optionPaletteColor}.main` : 'divider',
+                backgroundColor: isSelected
+                  ? (theme: Theme) => alpha(theme.palette[optionPaletteColor].main, 0.1)
+                  : 'background.paper',
+                px: 0.375,
+                py: 0.675,
+                minHeight: 34,
+                justifyContent: 'center',
+                textAlign: 'center',
+              }}
+            >
+              <Stack
+                direction="row"
+                spacing={0.375}
+                alignItems="center"
+                justifyContent="center"
+                sx={{ width: '100%', minWidth: 0 }}
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    '& .MuiSvgIcon-root': {
+                      fontSize: 14,
+                      color: isSelected ? `${optionPaletteColor}.main` : `${optionPaletteColor}.main`,
+                    },
+                  }}
+                >
+                  {optionIcon}
+                </Box>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: isSelected ? `${optionPaletteColor}.main` : 'text.primary',
+                    fontWeight: isSelected ? 600 : 500,
+                    lineHeight: 1,
+                    fontSize: '0.64rem',
+                    minWidth: 0,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {resolveCarouselLabel(option, t)}
+                </Typography>
+              </Stack>
+            </ButtonBase>
+          );
+        })}
+      </Box>
     );
   }
 

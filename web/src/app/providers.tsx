@@ -1,12 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { LocalizationProvider } from '@mui/x-date-pickers';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import 'dayjs/locale/pt-br';
 import { AppThemeProvider } from "@/styles/themes/AppThemeProvider";
 import { GraphQLProvider } from "@/lib/graphql/GraphQLProvider";
 import { AppQueryProvider, ToastProvider, AuthProvider, AuthorizationProvider, FeatureFlagsProvider, PreferencesProvider } from "@/shared/providers";
+import { AppLocalizationProvider } from "@/shared/i18n/AppLocalizationProvider";
 import { BreadcrumbLabelProvider } from "@/shared/hooks/ui/useBreadcrumbLabel";
 import type { UnleashEvaluationContext } from "@/shared/types/unleash";
 import "@/shared/i18n/config";
@@ -24,7 +22,7 @@ export default function Providers({
 }: ProvidersProps) {
   return (
     <AppThemeProvider>
-      <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
+      <AppLocalizationProvider>
         <AppQueryProvider>
           <GraphQLProvider>
             <AuthProvider>
@@ -45,7 +43,7 @@ export default function Providers({
             </AuthProvider>
           </GraphQLProvider>
         </AppQueryProvider>
-      </LocalizationProvider>
+      </AppLocalizationProvider>
     </AppThemeProvider>
   );
 }

@@ -79,7 +79,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     easing: theme.transitions.easing.easeInOut,
                   }),
               willChange: prefersReducedMotion ? undefined : "margin-top",
-              paddingBottom: { xs: hideMobileChrome ? 0 : "80px", md: 0 }, // Reserve bottom-nav space only where the mobile chrome is visible.
+              paddingBottom: {
+                xs: hideMobileChrome
+                  ? 0
+                  : `calc(${theme.custom?.layout?.mobile?.bottomNavHeight || 64}px + env(safe-area-inset-bottom))`,
+                md: 0,
+              }, // Reserve only the actual bottom-nav footprint on mobile.
             }}
           >
             <RequireAuthGuard>{children}</RequireAuthGuard>

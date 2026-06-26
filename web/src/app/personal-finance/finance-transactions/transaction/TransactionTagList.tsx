@@ -22,9 +22,13 @@ const TAG_BORDER_RADIUS = '.3rem';
 
 interface TransactionTagListProps {
   tags: string[];
+  fontSize?: string;
 }
 
-export const TransactionTagList = memo(function TransactionTagList({ tags }: TransactionTagListProps) {
+export const TransactionTagList = memo(function TransactionTagList({
+  tags,
+  fontSize = '0.7rem',
+}: TransactionTagListProps) {
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
 
@@ -38,7 +42,7 @@ export const TransactionTagList = memo(function TransactionTagList({ tags }: Tra
         return (
           <Chip
             key={`${tag}-${tagIndex}`}
-            label={<Typography variant="body2">{tag}</Typography>}
+            label={<Typography variant="body2" sx={{ fontSize }}>{tag}</Typography>}
             size="small"
             variant="filled"
             sx={{ bgcolor: alpha(color, 0.05), color, borderRadius: TAG_BORDER_RADIUS }}
@@ -64,7 +68,7 @@ export const TransactionTagList = memo(function TransactionTagList({ tags }: Tra
             sx={{
               px: 0.5,
               borderRadius: TAG_BORDER_RADIUS,
-              fontSize: '0.7rem',
+              fontSize,
               fontWeight: 600,
               color: theme.palette.primary.main,
               '&:hover': { textDecoration: 'underline' },

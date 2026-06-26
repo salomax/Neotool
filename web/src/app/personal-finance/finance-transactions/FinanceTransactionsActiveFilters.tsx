@@ -80,7 +80,7 @@ export function FinanceTransactionsActiveFilters({
           exit: theme.transitions.easing.sharp,
         }}
       >
-        <Box sx={{ width: '100%', mb: 2, pt: 0.25 }}>
+        <Box sx={{ width: '100%', px: { xs: 2, md: 0 }, mb: 2, pt: 0.25 }}>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ width: '100%' }}>
             {summaryCreditDebitTypeFilter && (
               <Chip

@@ -7,11 +7,15 @@ import { personalFinanceTranslations } from '../../i18n';
 interface InstallmentProgressProps {
   installmentNumber: number;
   totalInstallments: number;
+  fontSize?: string;
+  lineHeight?: number;
 }
 
 export const InstallmentProgress = memo(function InstallmentProgress({
   installmentNumber,
   totalInstallments,
+  fontSize = '0.7rem',
+  lineHeight = 1.35,
 }: InstallmentProgressProps) {
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
@@ -19,7 +23,7 @@ export const InstallmentProgress = memo(function InstallmentProgress({
 
   return (
     <Stack spacing={0.5} sx={{ maxWidth: 200 }}>
-      <Typography variant="caption" color="text.secondary">
+      <Typography variant="caption" color="text.secondary" sx={{ fontSize, lineHeight }}>
         {installmentNumber} of {totalInstallments}
       </Typography>
       <Box
