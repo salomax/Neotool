@@ -1,0 +1,97 @@
+{
+  "name": "Invistus DevPod",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "enableNonRootDocker": "true",
+      "moby": "true"
+    }
+  },
+  "remoteUser": "dev",
+  "mounts": [
+    {
+      "source": "invistus-gradle-cache",
+      "target": "/home/dev/.gradle",
+      "type": "volume"
+    },
+    {
+      "source": "invistus-npm-cache",
+      "target": "/home/dev/.npm",
+      "type": "volume"
+    },
+    {
+      "source": "${localEnv:HOME}/.vault-keys",
+      "target": "/home/dev/.vault-keys",
+      "type": "bind",
+      "readonly": true
+    },
+    {
+      "source": "invistus-web-node-modules",
+      "target": "/workspaces/invistus/web/node_modules",
+      "type": "volume"
+    },
+    {
+      "source": "invistus-web-next-cache",
+      "target": "/workspaces/invistus/web/.next",
+      "type": "volume"
+    }
+  ],
+  "forwardPorts": [
+    3000,
+    4000,
+    8080,
+    8082,
+    8083,
+    8091,
+    5432,
+    6432,
+    9092,
+    9094,
+    9000,
+    9001,
+    3001,
+    9090,
+    3100,
+    3200,
+    4317,
+    4318,
+    8200,
+    4242,
+    3063,
+    3002,
+    8088,
+    9091
+  ],
+  "postCreateCommand": {
+    "neotool-symlink": "sudo ln -sf /workspaces/invistus/scripts/cli/cli /usr/local/bin/neotool && sudo chmod +x /usr/local/bin/neotool",
+    "versions": "echo '=== DevPod environment ready ===' && java -version 2>&1 | head -1 && node --version && npm --version && git --version && gh --version | head -1 && echo '================================'",
+    "setup-env": ".devcontainer/setup-env.sh"
+  },
+  "postStartCommand": ".devcontainer/start-infra.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "fwcd.kotlin",
+        "redhat.java",
+        "vscjava.vscode-gradle",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker",
+        "ms-vscode-remote.remote-containers",
+        "GraphQL.vscode-graphql",
+        "ms-playwright.playwright",
+        "github.vscode-pull-request-github",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "java.jdt.ls.java.home": "/usr/lib/jvm/temurin-21-amd64",
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true
+      }
+    }
+  }
+}

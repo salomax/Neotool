@@ -18,6 +18,7 @@ venv
 /cli
 /retry-worker
 *.tsbuildinfo
+.pnpm-store/
 
 *.code-workspace
 .idea
