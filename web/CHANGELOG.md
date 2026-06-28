@@ -1,3 +1,13 @@
+## 0.7.28 (2026-06-28)
+
+### 🚀 Features
+
+- **devcontainer:** set up development environment with Docker and tmux ([bb33dbc5](https://github.com/invistus/invistus/commit/bb33dbc5))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.27 (2026-06-26)
 
 ### 🚀 Features
