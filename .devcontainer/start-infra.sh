@@ -23,7 +23,25 @@ docker compose \
   -f "$COMPOSE_FILE" \
   --env-file "$ENV_FILE" \
   up -d --wait --quiet-pull \
-  postgres pgbouncer kafka minio vault router
+  postgres pgbouncer kafka minio vault
+
+# Router precisa do profile gateway e NÃO deve bloquear com --wait
+# pois ele fica em erro até os serviços Kotlin estarem no ar (comportamento esperado)
+echo "▶ [infra] Subindo API gateway (router)..."
+docker compose \
+  -f "$COMPOSE_FILE" \
+  --env-file "$ENV_FILE" \
+  --profile gateway \
+  up -d --quiet-pull \
+  router \
+  && echo "✓ [infra] Router iniciado (conectará aos serviços quando estiverem no ar)" \
+  || echo "⚠ [infra] Router falhou ao iniciar — verifique: docker logs neotool-graphql-router"
+
+echo "▶ [infra] Criando buckets MinIO..."
+docker exec neotool-minio mc alias set local http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1 || true
+docker exec neotool-minio mc mb --ignore-existing local/neotool-assets-public  && echo "  ✓ neotool-assets-public" || true
+docker exec neotool-minio mc mb --ignore-existing local/neotool-assets-private && echo "  ✓ neotool-assets-private" || true
+docker exec neotool-minio mc anonymous set download local/neotool-assets-public >/dev/null 2>&1 || true
 
 echo "▶ [infra] Inicializando bancos auxiliares (unleash_db, umami_db)..."
 docker compose \
@@ -61,7 +79,12 @@ VAULT_BACKUP_TMP=""
 vault_restore() {
     local backup_file="$1"
     echo "▶ [vault] Restaurando segredos JWT (secret/jwt/keys)..."
-    VAULT_TOKEN="$VAULT_TOKEN" neotool vault restore \
+    local neotool="$WORKSPACE_ROOT/scripts/cli/cli"
+    if [[ ! -f "$neotool" ]]; then
+        echo "⚠ [vault] CLI não encontrado — pulando restore"
+        return 1
+    fi
+    VAULT_TOKEN="$VAULT_TOKEN" "$neotool" vault restore \
         --secret-path secret/jwt/keys \
         --input "$backup_file" \
         && echo "✓ [vault] JWT keys restauradas" \
@@ -85,6 +108,46 @@ else
     echo "   Mac:   coloque o backup em ~/.vault-keys/backup.json"
     echo "   Cloud: export VAULT_JWT_BACKUP_B64=\$(base64 -i ~/.vault-keys/backup.json)"
     echo "   Manual: VAULT_TOKEN=myroot neotool vault restore --secret-path secret/jwt/keys --input <arquivo>"
+fi
+
+# =============================================================================
+# API Keys: carregar de ~/.vault-keys/api-keys.env (mesmo bind-mount do Vault)
+# =============================================================================
+# Formato do arquivo no Mac (~/.vault-keys/api-keys.env):
+#   ANTHROPIC_API_KEY=sk-ant-...
+#   OPENAI_API_KEY=sk-...          # opcional
+#
+# Cloud / CI: export API_KEYS_B64=$(base64 -i ~/.vault-keys/api-keys.env)
+# =============================================================================
+
+API_KEYS_FILE="${HOME}/.vault-keys/api-keys.env"
+API_KEYS_MARKER="# api-keys.env (gerado por start-infra.sh)"
+
+load_api_keys() {
+    local src="$1"
+    # Evita duplicatas: remove bloco anterior antes de reescrever
+    if grep -qF "$API_KEYS_MARKER" "${HOME}/.bashrc" 2>/dev/null; then
+        sed -i "/$API_KEYS_MARKER/,/# fim api-keys/d" "${HOME}/.bashrc"
+    fi
+    {
+        echo "$API_KEYS_MARKER"
+        grep -E '^[A-Z_]+=.+' "$src" | sed 's/^/export /'
+        echo "# fim api-keys"
+    } >> "${HOME}/.bashrc"
+    echo "✓ [api-keys] Variáveis carregadas em ~/.bashrc"
+}
+
+if [ -f "$API_KEYS_FILE" ]; then
+    load_api_keys "$API_KEYS_FILE"
+elif [ -n "${API_KEYS_B64:-}" ]; then
+    API_KEYS_TMP="$(mktemp /tmp/api-keys-XXXXXX.env)"
+    echo "$API_KEYS_B64" | base64 -d > "$API_KEYS_TMP"
+    load_api_keys "$API_KEYS_TMP"
+    rm -f "$API_KEYS_TMP"
+else
+    echo "⚠ [api-keys] Nenhum api-keys.env encontrado."
+    echo "   Mac:   crie ~/.vault-keys/api-keys.env com ANTHROPIC_API_KEY=..."
+    echo "   Cloud: export API_KEYS_B64=\$(base64 -i ~/.vault-keys/api-keys.env)"
 fi
 
 echo ""

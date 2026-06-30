@@ -64,12 +64,15 @@
     3063,
     3002,
     8088,
-    9091
+    9091,
+    8084,
+    8092
   ],
   "postCreateCommand": {
     "neotool-symlink": "sudo ln -sf /workspaces/invistus/scripts/cli/cli /usr/local/bin/neotool && sudo chmod +x /usr/local/bin/neotool",
     "versions": "echo '=== DevPod environment ready ===' && java -version 2>&1 | head -1 && node --version && npm --version && git --version && gh --version | head -1 && echo '================================'",
-    "setup-env": ".devcontainer/setup-env.sh"
+    "setup-env": ".devcontainer/setup-env.sh",
+    "fix-volume-perms": "sudo chown -R dev:dev /home/dev/.gradle /home/dev/.npm /workspaces/invistus/web/node_modules /workspaces/invistus/web/.next 2>/dev/null || true"
   },
   "postStartCommand": ".devcontainer/start-infra.sh",
   "customizations": {
@@ -88,10 +91,16 @@
         "eamodio.gitlens"
       ],
       "settings": {
-        "java.jdt.ls.java.home": "/usr/lib/jvm/temurin-21-amd64",
+        "java.jdt.ls.java.home": "/usr/lib/jvm/temurin-21",
         "terminal.integrated.defaultProfile.linux": "bash",
         "editor.formatOnSave": true
       }
     }
+  },
+  "remoteEnv": {
+    // "GOOSE_PROVIDER": "anthropic",
+    // "GOOSE_MODEL": "claude-sonnet-4-5"
+    "GOOSE_PROVIDER": "openai",
+    "GOOSE_MODEL": "gpt-4o"
   }
 }

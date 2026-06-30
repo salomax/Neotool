@@ -114,6 +114,121 @@ Invistus is implemented on top of NeoTool.
 | **Observability** | Golden signals, metrics/logging standards, alerting baseline | [`docs/10-observability/observability-overview.md`](docs/10-observability/observability-overview.md) |
 | **Operations** | K8S runbooks, Cloudflare/R2 setup, staging/prod operational flows | [`docs/11-infrastructure/`](docs/11-infrastructure/) |
 
+
+## Local Development
+
+The dev environment runs inside a [DevPod](https://devpod.sh) container (Docker-in-Docker).
+All services, infra, and tooling are reproducible from a single command.
+
+### Prerequisites (Mac)
+
+**1. Colima** — Docker runtime for Mac
+
+```bash
+brew install colima docker docker-compose
+colima start --cpu 6 --memory 12 --disk 80 --vm-type vz --vz-rosetta
+```
+
+**2. DevPod CLI**
+
+```bash
+brew install --cask devpod
+devpod provider add docker
+devpod provider use docker
+```
+
+**3. Vault JWT keys backup**
+
+The Vault instance inside DevPod starts empty on every `devpod up`. JWT keys are
+restored automatically from a local backup file bind-mounted into the container.
+
+Create the backup once (after generating your keys for the first time):
+
+```bash
+mkdir -p ~/.vault-keys
+# Inside DevPod, after running neotool vault create-secret kid-1:
+neotool vault backup --output ~/.vault-keys/backup.json
+```
+
+From that point on, every `neotool dev init` restores the keys automatically.
+
+---
+
+### First-time setup
+
+```bash
+# 1. Start DevPod workspace (builds image, starts infra, restores Vault keys)
+./neotool dev init
+
+# 2. Start the security service first (other services depend on it for JWT validation)
+./neotool dev start security
+# Auto-attaches to tmux. Wait for "Micronaut... startup completed". Ctrl+b d to detach.
+
+# 3. Register all service principals and write generated secrets to .env.local
+./neotool dev seed
+
+# 4. Start all remaining services and workers
+./neotool dev start
+```
+
+---
+
+### Daily workflow
+
+```bash
+./neotool dev init            # resume workspace + activate port forwarding (idempotent)
+./neotool dev start           # start all services and workers
+./neotool dev status          # check ports and tmux windows
+./neotool dev attach          # open tmux session
+./neotool dev attach web      # jump directly to a service window
+./neotool dev logs banking    # tail logs without attaching
+./neotool dev restart web     # restart a single service
+./neotool dev stop            # stop all
+```
+
+**Services:** `security` (8080) · `assets` (8082) · `assistant` (8083) · `comms` (8084) · `financialdata` (8091) · `banking` (8092) · `web` (3000)
+
+**Workers:** `asset-brand` · `b3-cotahist` · `b3-corporate-events` · `bacen-ifdata` · `cvm-funds` · `indicators` · `institution-consumer` · `ratings` · `pdf-extractor`
+
+---
+
+### Port reference
+
+| Service | Port |
+|---------|------|
+| Web (Next.js) | 3000 |
+| Security | 8080 |
+| Assets | 8082 |
+| Assistant | 8083 |
+| Comms | 8084 |
+| FinancialData | 8091 |
+| Banking | 8092 |
+| Apollo Router (GraphQL) | 4000 |
+| Postgres (direct) | 5432 |
+| Postgres (pgbouncer) | 6432 |
+| Kafka | 9094 |
+| MinIO console | 9001 |
+| Vault UI | 8200 |
+
+---
+
+### Vault keys — troubleshooting
+
+If the security service returns HTTP 500 on `/.well-known/jwks.json`, the JWT keys
+are missing from Vault. Restore manually from inside the DevPod:
+
+```bash
+neotool vault restore --secret-path secret/jwt/keys --input ~/.vault-keys/backup.json
+
+# Verify
+docker exec -e VAULT_ADDR=http://localhost:8200 -e VAULT_TOKEN=myroot \
+  neotool-vault vault kv list secret/jwt/keys
+
+./neotool dev restart security
+```
+
+> Full DevPod documentation: [`.devcontainer/README.md`](.devcontainer/README.md)
+
 ## Monorepo Layout
 
 | Path | Purpose |

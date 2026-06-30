@@ -55,6 +55,11 @@ Commands:
     Subcommands: create-secret, backup, restore
     Run '$0 vault --help' for more information.
 
+  $(log "dev" "$GREEN") <subcommand> [service]
+    Manage development services via tmux sessions.
+    Subcommands: start, stop, status, attach, logs
+    Run '$0 dev --help' for more information.
+
   $(log "service" "$GREEN") <subcommand>
     Manage service registration with Security Service.
     Subcommands: register
@@ -160,6 +165,12 @@ main() {
         exit $?
     fi
     
+    # Handle dev command (has subcommands)
+    if [[ "$command" == "dev" ]]; then
+        execute_command "dev" "$@"
+        exit $?
+    fi
+
     # Handle service command (has subcommands)
     if [[ "$command" == "service" ]]; then
         execute_command "service" "$@"

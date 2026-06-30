@@ -29,6 +29,8 @@ copy_env "$WORKSPACE_ROOT/service/kotlin/security/.env.example"
 copy_env "$WORKSPACE_ROOT/service/kotlin/assets/.env.example"
 copy_env "$WORKSPACE_ROOT/service/kotlin/assistant/.env.example"
 copy_env "$WORKSPACE_ROOT/service/kotlin/financialdata/.env.example"
+copy_env "$WORKSPACE_ROOT/service/kotlin/comms/.env.example"
+copy_env "$WORKSPACE_ROOT/service/kotlin/banking/.env.example"
 
 # Workers Golang
 copy_env "$WORKSPACE_ROOT/workers/golang/common/asset_brand_job/.env.example"

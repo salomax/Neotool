@@ -1,0 +1,50 @@
+[
+  {
+    "serviceId": "banking-service",
+    "envFile": "service/kotlin/banking/.env.local",
+    "envVar": "SECURITY_SERVICE_SECRET",
+    "permissions": [
+      "assets:asset:delete",
+      "assets:asset:upload",
+      "assets:asset:view",
+      "security:account-membership:view"
+    ]
+  },
+  {
+    "serviceId": "asset-brand-job",
+    "envFile": "workers/golang/common/asset_brand_job/.env.local",
+    "envVar": "SECURITY_SERVICE_SECRET",
+    "permissions": [
+      "assets:asset:delete",
+      "assets:asset:upload",
+      "assets:asset:view"
+    ]
+  },
+  {
+    "serviceId": "institution_enhancement_consumer",
+    "envFile": "workers/golang/financial_data/institution_enhancement_consumer/.env.local",
+    "envVar": "SECURITY_SERVICE_SECRET",
+    "permissions": [
+      "assets:asset:upload",
+      "assets:asset:view"
+    ]
+  },
+  {
+    "serviceId": "pdf-extractor-consumer",
+    "envFile": "workers/python/pdf-extractor/.env.local",
+    "envVar": "SECURITY_SERVICE_SECRET",
+    "permissions": [
+      "assets:asset:delete",
+      "assets:asset:upload",
+      "assets:asset:view"
+    ]
+  },
+  {
+    "serviceId": "security",
+    "envFile": "service/kotlin/security/.env.local",
+    "envVar": "SECURITY_SERVICE_SECRET",
+    "permissions": [
+      "comms:email:send"
+    ]
+  }
+]

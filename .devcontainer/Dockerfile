@@ -26,6 +26,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         locales \
         procps \
         tmux \
+        vim \
+        lsof \
         python3 \
         python3-pip \
         python3-venv \
@@ -47,9 +49,10 @@ RUN curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public \
         > /etc/apt/sources.list.d/adoptium.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends temurin-21-jdk \
+    && ln -sf /usr/lib/jvm/temurin-21-jdk-$(dpkg --print-architecture) /usr/lib/jvm/temurin-21 \
     && rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_HOME=/usr/lib/jvm/temurin-21-amd64
+ENV JAVA_HOME=/usr/lib/jvm/temurin-21
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 # -----------------------------------------------------------------------------
@@ -63,7 +66,16 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && ln -sf "$(which npx)" /usr/local/bin/npx
 
 # -----------------------------------------------------------------------------
-# 4. GitHub CLI
+# 4. Go
+# -----------------------------------------------------------------------------
+ARG GO_VERSION=1.23.4
+RUN ARCH=$(dpkg --print-architecture)     && curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz"         | tar -xz -C /usr/local     && ln -sf /usr/local/go/bin/go /usr/local/bin/go     && ln -sf /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+
+ENV GOPATH=/home/dev/go
+ENV PATH="${PATH}:/usr/local/go/bin:/home/dev/go/bin"
+
+# -----------------------------------------------------------------------------
+# 5. GitHub CLI
 # -----------------------------------------------------------------------------
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
         | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
@@ -77,12 +89,12 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && rm -rf /var/lib/apt/lists/*
 
 # -----------------------------------------------------------------------------
-# 5. AI agent CLIs via npm
+# 6. AI agent CLIs via npm
 # -----------------------------------------------------------------------------
 RUN npm install -g         pnpm         @anthropic-ai/claude-code         @openai/codex         @google/gemini-cli     && npm cache clean --force
 
 # -----------------------------------------------------------------------------
-# 6. Cursor CLI (headless agent — cursor.com/docs/cli)
+# 7. Cursor CLI (headless agent — cursor.com/docs/cli)
 #    O script oficial instala o binário `agent` em /root/.local/bin durante
 #    o build.  Copiamos para /usr/local/bin/cursor para ficar acessível ao
 #    usuário não-root e ao PATH padrão do container.
@@ -92,13 +104,13 @@ RUN curl -fsSL https://cursor.com/install | bash \
     && chmod 755 /usr/local/bin/cursor
 
 # -----------------------------------------------------------------------------
-# 7. uv — Python package manager (needed by Trae Agent)
+# 8. uv — Python package manager (needed by Trae Agent)
 # -----------------------------------------------------------------------------
 RUN curl -LsSf https://astral.sh/uv/install.sh \
         | UV_INSTALL_DIR=/usr/local/bin sh
 
 # -----------------------------------------------------------------------------
-# 8. Trae Agent CLI (bytedance/trae-agent)
+# 9. Trae Agent CLI (bytedance/trae-agent)
 #    Python-based, multi-LLM software engineering agent.
 #    Installed system-wide at /opt/trae-agent; trae-cli symlinked globally.
 # -----------------------------------------------------------------------------
@@ -110,7 +122,31 @@ RUN git clone --depth 1 https://github.com/bytedance/trae-agent.git /opt/trae-ag
     && chmod -R a+rX /opt/trae-agent
 
 # -----------------------------------------------------------------------------
-# 9. Non-root dev user
+# 10. Goose — Block's AI coding agent (github.com/aaif-goose/goose)
+# -----------------------------------------------------------------------------
+RUN ARCH=$(dpkg --print-architecture) \
+    && GOOSE_REPO="aaif-goose/goose" \
+    && GOOSE_VERSION=$(curl -fsSL "https://api.github.com/repos/${GOOSE_REPO}/releases/latest" \
+        | jq -r '.tag_name') \
+    && GOOSE_VER="${GOOSE_VERSION#v}" \
+    && case "$ARCH" in \
+        amd64) \
+            curl -fsSL "https://github.com/${GOOSE_REPO}/releases/download/${GOOSE_VERSION}/goose_${GOOSE_VER}_amd64.deb" \
+                -o /tmp/goose.deb \
+            && dpkg -i /tmp/goose.deb \
+            && rm /tmp/goose.deb ;; \
+        arm64) \
+            mkdir -p /tmp/goose-install \
+            && curl -fsSL "https://github.com/${GOOSE_REPO}/releases/download/${GOOSE_VERSION}/goose-aarch64-unknown-linux-gnu.tar.gz" \
+                | tar -xz -C /tmp/goose-install \
+            && find /tmp/goose-install -name "goose" -type f | head -1 | xargs -I{} cp {} /usr/local/bin/goose \
+            && rm -rf /tmp/goose-install ;; \
+        *) echo "Unsupported arch: $ARCH" && exit 1 ;; \
+    esac \
+    && chmod 755 /usr/local/bin/goose
+
+# -----------------------------------------------------------------------------
+# 11. Non-root dev user
 # -----------------------------------------------------------------------------
 ARG USERNAME=dev
 ARG USER_UID=1000
@@ -140,7 +176,7 @@ RUN chmod -R 755 /ms-playwright 2>/dev/null || true
 ENV GRADLE_USER_HOME=/home/${USERNAME}/.gradle
 
 # -----------------------------------------------------------------------------
-# 10. Finalize
+# 12. Finalize
 # -----------------------------------------------------------------------------
 USER ${USERNAME}
 WORKDIR /workspaces
@@ -152,4 +188,5 @@ RUN java -version \
     && git --version \
     && gh --version \
     && cursor --help > /dev/null 2>&1 || true \
-    && trae-cli --help > /dev/null 2>&1 || true
+    && trae-cli --help > /dev/null 2>&1 || true \
+    && goose --version 2>&1 || true
