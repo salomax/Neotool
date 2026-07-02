@@ -364,6 +364,7 @@ export function useCardMatchingState({
                 issuerKey: null,
                 maskedNumber: null,
                 isMultiCard: false,
+                dueDay: null,
               }
             );
           })

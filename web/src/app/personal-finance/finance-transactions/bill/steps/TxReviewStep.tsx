@@ -13,7 +13,7 @@ import { useTranslation } from '@/shared/i18n';
 import { formatDateOnly } from '@/shared/utils/date/dateOnly';
 import { personalFinanceTranslations } from '../../../i18n';
 import { DateTimePicker } from '@/shared/components/ui/primitives/DateTimePicker';
-import { getReviewCardLabel, txSelectionKey, getBillDateValidation } from '../billImportUtils';
+import { getReviewCardLabel, txSelectionKey, getBillDateValidation, canResolveDueDateWithoutManualInput } from '../billImportUtils';
 import { TxReviewItem } from './TxReviewItem';
 import type {
   BillDateOverrides,
@@ -101,15 +101,32 @@ export const TxReviewStep = memo(function TxReviewStep({
     [onSetBillDateOverrides],
   );
 
+  const cardAccountOptionsById = React.useMemo(
+    () => new Map(cardAccountOptions.map((account) => [account.id, account])),
+    [cardAccountOptions],
+  );
+  const canResolveDueDate = React.useMemo(
+    () =>
+      canResolveDueDateWithoutManualInput(
+        cards.map((card) => ({
+          importedDueDate: card.importedDueDate,
+          financialAccountId: card.financialAccountId,
+        })),
+        cardAccountOptionsById,
+      ),
+    [cardAccountOptionsById, cards],
+  );
+
   const billDateValidation = React.useMemo(
-    () => getBillDateValidation(closingDateInput, dueDateInput),
-    [closingDateInput, dueDateInput],
+    () => getBillDateValidation(closingDateInput, dueDateInput, canResolveDueDate),
+    [canResolveDueDate, closingDateInput, dueDateInput],
   );
   const {
     hasBillClosingDate,
     closingDateInvalid,
     dueDateInvalid,
     dueDateBeforeClosingDate,
+    dueDateMissing,
   } = billDateValidation;
   const closingDateValue = closingDateInput && closingDateInput.isValid() ? closingDateInput : null;
   const dueDateValue = dueDateInput && dueDateInput.isValid() ? dueDateInput : null;
@@ -165,16 +182,19 @@ export const TxReviewStep = memo(function TxReviewStep({
               value={dueDateInput}
               onChange={(v) => handleBillDateChange('dueDate', setDueDateInput, v)}
               minDateTime={closingDateValue ?? undefined}
-              error={dueDateInvalid || dueDateBeforeClosingDate}
+              required={!canResolveDueDate}
+              error={dueDateInvalid || dueDateBeforeClosingDate || dueDateMissing}
               errorMessage={
                 dueDateInvalid
                   ? invalidDateMessage
                   : dueDateBeforeClosingDate
                   ? t('financeTransactions.billImport.txReviewStep.dueDateHint')
+                  : dueDateMissing
+                  ? t('financeTransactions.billImport.txReviewStep.dueDateRequired')
                   : undefined
               }
               helperText={
-                !dueDateInvalid && !dueDateBeforeClosingDate
+                !dueDateInvalid && !dueDateBeforeClosingDate && !dueDateMissing
                   ? t('financeTransactions.billImport.txReviewStep.dueDateHint')
                   : undefined
               }
