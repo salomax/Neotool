@@ -60,6 +60,19 @@ class TransactionCategoryRepositoryIT : BankingPostgresIntegrationTest() {
             val outros = roots.find { it.name == "Outros" }
             assertThat(outros).isNotNull
             assertThat(outros!!.icon).isEqualTo("help_outline")
+            val direitosTrabalhistas = roots.find { it.name == "Direitos Trabalhistas" }
+            assertThat(direitosTrabalhistas).isNotNull
+            assertThat(direitosTrabalhistas!!.icon).isEqualTo("gavel")
+            assertThat(direitosTrabalhistas.color).isEqualTo("#00695C")
+            val children = all.filter { it.parentId == direitosTrabalhistas.id }
+            val fgts = children.find { it.name == "FGTS" }
+            assertThat(fgts).isNotNull
+            assertThat(fgts!!.icon).isEqualTo("savings")
+            assertThat(fgts.color).isEqualTo("#00695C")
+            val seguroDesemprego = children.find { it.name == "Seguro Desemprego" }
+            assertThat(seguroDesemprego).isNotNull
+            assertThat(seguroDesemprego!!.icon).isEqualTo("shield")
+            assertThat(seguroDesemprego.color).isEqualTo("#00695C")
             val withParent = all.filter { it.parentId != null }
             assertThat(withParent).allMatch { cat -> all.any { it.id == cat.parentId } }
         }
