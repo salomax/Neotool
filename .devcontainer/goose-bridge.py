@@ -286,6 +286,26 @@ def slack_update(token: str, channel: str, ts: str, text: str) -> None:
         log.error("slack.update exception: %s", e)
 
 
+def run_usage_check(channel: str, ts: str, slack_token: str) -> None:
+    """Roda check-usage.sh e posta resultado no Slack."""
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "check-usage.sh")
+    log.info(">>> /uso — rodando check-usage.sh")
+    try:
+        result = subprocess.run(
+            ["bash", script],
+            capture_output=True, text=True, timeout=60,
+            cwd=WORKSPACE, env={**os.environ},
+        )
+        raw = result.stdout.strip() or result.stderr.strip() or "_(sem dados)_"
+        if len(raw) > MAX_CHARS:
+            raw = raw[:MAX_CHARS] + "\n_(truncado)_"
+        text = f"```\n{raw}\n```"
+    except Exception as e:
+        text = f"❌ Erro ao verificar uso: {e}"
+    log.info("<<< /uso — %d chars", len(text))
+    slack_update(slack_token, channel, ts, text)
+
+
 def run_goose(session: str, message: str, resume: bool,
               channel: str, ts: str, slack_token: str) -> None:
     """Roda em background thread. Chama Goose e atualiza o Slack diretamente."""
@@ -385,6 +405,18 @@ class Handler(BaseHTTPRequestHandler):
             return
         if not channel or not ts or not slack_token:
             self.send_json(400, {"error": "channel, ts e slack_token são obrigatórios"})
+            return
+
+        # Comandos especiais — resolvidos no bridge, sem custo de tokens do Goose
+        _is_uso = message.strip().lower() in {"check-usage", "/check-usage"}
+        if _is_uso:
+            t = threading.Thread(
+                target=run_usage_check,
+                args=(channel, ts, slack_token),
+                daemon=True,
+            )
+            t.start()
+            self.send_json(202, {"status": "processing", "session": "usage-check"})
             return
 
         # Dispara Goose em background e responde imediatamente
