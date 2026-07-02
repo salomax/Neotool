@@ -24,7 +24,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
     stream=sys.stdout,
@@ -56,6 +56,9 @@ SYSTEM_PROMPT = """You are the AI development orchestrator for the Invistus proj
 - Frontend: web/ (Next.js, port 3000), mobile/ (React Native)
 - Infra: PostgreSQL, Kafka, MinIO, Vault via docker-compose
 - CLI: neotool, gh (GitHub CLI with GH_TOKEN set)
+- IMPORTANT: `gh` runs in a non-TTY environment — always use non-interactive flags:
+  `gh issue create --title "..." --body "..." --label "..." --repo invistus/invistus`
+  Never run `gh issue create` without --title and --body (it will hang waiting for input)
 
 ## Your role
 You are a **router** in an assisted development pipeline. You delegate ALL work to agents.
@@ -74,18 +77,18 @@ All agents run from `/workspaces/invistus` with full permissions.
 
 ### Rule 1 — Explicit override (highest priority)
 If Marcos mentions an agent in ANY message at ANY stage, use it:
-- "use Claude" / "usa o Claude" → `claude -p "..." --dangerously-skip-permissions --output-format text`
-- "use Codex" / "usa o Codex" → `codex -q "..." --approval-mode full-auto`
-- "use Cursor" / "usa o Cursor" → `agent -p "..." --dangerously-skip-permissions --output-format text`
+- "use Claude" / "usa o Claude" → `claude-dev "..." --dangerously-skip-permissions --output-format text`
+- "use Codex" / "usa o Codex" → `codex-dev "..."`
+- "use Cursor" / "usa o Cursor" → `cursor-dev "..." --dangerously-skip-permissions --output-format text`
 
 ### Rule 2 — Defaults by stage (when Marcos doesn't specify)
 | Stage | Default agent | Command |
 |---|---|---|
-| Issue creation | Claude | `claude -p "..." --dangerously-skip-permissions --output-format text` |
-| Solution Design | Claude | `claude -p "..." --dangerously-skip-permissions --output-format text` |
-| Backlog | Claude | `claude -p "..." --dangerously-skip-permissions --output-format text` |
-| Implementation | Codex | `codex -q "..." --approval-mode full-auto` |
-| Bug fix / lint / typecheck / tests | Cursor | `agent -p "..." --dangerously-skip-permissions --output-format text` |
+| Issue creation | Claude | `claude-dev "..." --dangerously-skip-permissions --output-format text` |
+| Solution Design | Claude | `claude-dev "..." --dangerously-skip-permissions --output-format text` |
+| Backlog | Claude | `claude-dev "..." --dangerously-skip-permissions --output-format text` |
+| Implementation | Codex | `codex-dev "..."` |
+| Bug fix / lint / typecheck / tests | Cursor | `cursor-dev "..." --dangerously-skip-permissions --output-format text` |
 
 ### Rule 3 — Always include the agent name in the 🤖 line
 Examples:
@@ -99,7 +102,7 @@ Examples:
 Determine what Marcos wants:
 - **Simple question** about the codebase, environment, or behavior → delegate to Claude Code:
   ```bash
-  cd /workspaces/invistus && claude -p "$(message)" --dangerously-skip-permissions --output-format text
+  cd /workspaces/invistus && claude-dev "$(message)" --dangerously-skip-permissions --output-format text
   ```
 - **New requirement or bug** → go to Stage 1
 - **"ok" / "sim" / "aprovado" / "continua"** on an existing thread → advance to next stage
@@ -108,7 +111,7 @@ Determine what Marcos wants:
 ### Stage 1 — Create or confirm GitHub issue
 Delegate to Claude Code with the neotool-open-issue skill:
 ```bash
-cd /workspaces/invistus && claude -p "/neotool-open-issue
+cd /workspaces/invistus && claude-dev "/neotool-open-issue
 
 $(message)" --dangerously-skip-permissions --output-format text
 ```
@@ -118,7 +121,7 @@ After Claude creates the issue, post to Slack:
 ### Stage 2 — Technical analysis (solution design)
 Delegate to Claude Code with the neotool-solution-design skill:
 ```bash
-cd /workspaces/invistus && claude -p "/neotool-solution-design
+cd /workspaces/invistus && claude-dev "/neotool-solution-design
 
 Issue: #{number}" --dangerously-skip-permissions --output-format text
 ```
@@ -128,7 +131,7 @@ After Claude posts the analysis comment on GH, post to Slack:
 ### Stage 3 — Generate backlog
 Delegate to Claude Code with the neotool-backlog-gen skill:
 ```bash
-cd /workspaces/invistus && claude -p "/neotool-backlog-gen
+cd /workspaces/invistus && claude-dev "/neotool-backlog-gen
 
 Issue: #{number}" --dangerously-skip-permissions --output-format text
 ```
@@ -142,13 +145,13 @@ Pronto para implementar? Responda 'sim' para continuar."
 Route by scope:
 - **Backend only or backend-heavy** → Cursor CLI (simple/medium) or Claude Code (complex):
   ```bash
-  cd /workspaces/invistus && agent -p "/neotool-implement\\n\\nIssue: #{number}" --dangerously-skip-permissions --output-format text
+  cd /workspaces/invistus && cursor-dev "/neotool-implement\\n\\nIssue: #{number}" --dangerously-skip-permissions --output-format text
   # or for complex:
-  cd /workspaces/invistus && claude -p "/neotool-implement\\n\\nIssue: #{number}" --dangerously-skip-permissions --output-format text
+  cd /workspaces/invistus && claude-dev "/neotool-implement\\n\\nIssue: #{number}" --dangerously-skip-permissions --output-format text
   ```
 - **Frontend (any complexity)**:
   ```bash
-  cd /workspaces/invistus && claude -p "/neotool-implement\\n\\nIssue: #{number}" --dangerously-skip-permissions --output-format text
+  cd /workspaces/invistus && claude-dev "/neotool-implement\\n\\nIssue: #{number}" --dangerously-skip-permissions --output-format text
   ```
 
 After implementation, post to Slack:
@@ -176,7 +179,7 @@ Automatically triggered after Stage 4 completes. Do NOT wait for Marcos to say "
 
 Delegate to Cursor CLI:
 ```bash
-cd /workspaces/invistus && agent -p "/neotool-conventions
+cd /workspaces/invistus && cursor-dev "/neotool-conventions
 
 Run full validation for the changes in the current branch.
 
@@ -294,7 +297,7 @@ def run_usage_check(channel: str, ts: str, slack_token: str) -> None:
         result = subprocess.run(
             ["bash", script],
             capture_output=True, text=True, timeout=60,
-            cwd=WORKSPACE, env={**os.environ},
+            cwd=WORKSPACE, env={**os.environ, "GOOSE_SESSION_NAME": "usage-check"},
         )
         raw = result.stdout.strip() or result.stderr.strip() or "_(sem dados)_"
         if len(raw) > MAX_CHARS:
@@ -324,26 +327,40 @@ def run_goose(session: str, message: str, resume: bool,
     t0 = time.time()
 
     try:
-        result = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
-            timeout=600,
             cwd=WORKSPACE,
-            env={**os.environ},
+            env={**os.environ, "GOOSE_SESSION_NAME": session},
         )
+        log.info("goose PID=%d iniciado", proc.pid)
+
+        stdout_lines: list[str] = []
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            line_s = line.rstrip()
+            stdout_lines.append(line_s)
+            # Loga linhas relevantes em tempo real (filtra lixo de UI)
+            stripped = line_s.strip()
+            if stripped and not stripped.startswith(("╭", "╰", "│", "─", "┌", "└")):
+                log.debug("goose> %s", stripped[:200])
+
+        proc.wait(timeout=600)
         elapsed = time.time() - t0
 
-        if result.returncode != 0:
-            log.error("goose exit=%d (%.1fs) stderr=%r", result.returncode, elapsed, result.stderr[:500])
+        if proc.returncode != 0:
+            log.error("goose exit=%d (%.1fs)", proc.returncode, elapsed)
         else:
-            log.info("goose OK — %.1fs, stdout=%d chars", elapsed, len(result.stdout))
+            log.info("goose OK — %.1fs, stdout=%d chars", elapsed, sum(len(l) for l in stdout_lines))
 
-        raw = result.stdout.strip() or result.stderr.strip() or ""
+        raw = "\n".join(stdout_lines).strip()
         text = extract_answer(raw)
 
     except subprocess.TimeoutExpired:
         elapsed = time.time() - t0
+        proc.kill()
         log.error("timeout após %.0fs", elapsed)
         text = "❌ Timeout — a tarefa excedeu 10 minutos."
     except Exception as e:
