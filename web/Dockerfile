@@ -4,8 +4,8 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml* package-lock.json* yarn.lock* ./
+# Copy package files (pnpm-workspace.yaml holds overrides that must match the lockfile)
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* package-lock.json* yarn.lock* ./
 
 # Copy scripts and codegen config needed for postinstall hook
 COPY scripts/ ./scripts/
@@ -13,7 +13,7 @@ COPY codegen.ts ./
 
 # Install dependencies (this will trigger postinstall script)
 RUN if [ -f pnpm-lock.yaml ]; then \
-        npm i -g pnpm && pnpm i --frozen-lockfile; \
+        corepack enable && pnpm i --frozen-lockfile; \
     elif [ -f yarn.lock ]; then \
         yarn install --frozen-lockfile; \
     elif [ -f package-lock.json ]; then \
