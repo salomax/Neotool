@@ -1,3 +1,13 @@
+## 0.7.30 (2026-07-02)
+
+### 🩹 Fixes
+
+- **web:** Change recurring payments button label ([#319](https://github.com/invistus/invistus/pull/319))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.29 (2026-06-30)
 
 ### 🚀 Features
