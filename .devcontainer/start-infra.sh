@@ -150,6 +150,20 @@ else
     echo "   Cloud: export API_KEYS_B64=\$(base64 -i ~/.vault-keys/api-keys.env)"
 fi
 
+
+# =============================================================================
+# Git: usar HTTPS com GH_TOKEN em vez de SSH (evita bloqueio de porta 22)
+# =============================================================================
+if [ -n "${GH_TOKEN:-}" ]; then
+    _GH="https://${GH_TOKEN}@github.com/"
+    git config --global "url.${_GH}.insteadOf" "git@github.com:"
+    git config --global "url.${_GH}.insteadOf" "https://github.com/"
+    git config --global push.autoSetupRemote true
+    echo "✓ [git] HTTPS com GH_TOKEN configurado (push via HTTPS)"
+else
+    echo "⚠ [git] GH_TOKEN não definido — push via SSH pode falhar no DevPod"
+fi
+
 # =============================================================================
 # Goose Bridge + Cloudflare Tunnel (opcional)
 # =============================================================================
