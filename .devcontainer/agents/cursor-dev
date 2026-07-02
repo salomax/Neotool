@@ -13,10 +13,10 @@ _log() { echo "$(date '+%Y-%m-%d %H:%M:%S') [cursor-dev] $*" >> "$LOG"; }
 _log "▶ START thread=$THREAD session=${SESSION:-new} prompt=${*:0:120}"
 
 if [ -n "$SESSION" ]; then
-    OUTPUT=$(agent --resume="$SESSION" "$*" 2>&1) || \
-    OUTPUT=$(agent "$*" 2>&1)
+    OUTPUT=$(agent --model auto --resume="$SESSION" "$*" 2>&1) || \
+    OUTPUT=$(agent --model auto "$*" 2>&1)
 else
-    OUTPUT=$(agent "$*" 2>&1)
+    OUTPUT=$(agent --model auto "$*" 2>&1)
 fi
 
 ELAPSED=$(( ($(date +%s%N) - T0) / 1000000 ))

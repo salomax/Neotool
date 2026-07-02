@@ -13,11 +13,11 @@ _log() { echo "$(date '+%Y-%m-%d %H:%M:%S') [claude-dev] $*" >> "$LOG"; }
 _log "▶ START thread=$THREAD session=${SESSION:-new} prompt=${*:0:120}"
 
 if [ -n "$SESSION" ]; then
-    OUTPUT=$(claude --resume "$SESSION" -p "$*" \
+    OUTPUT=$(claude --model claude-sonnet-4-6 --resume "$SESSION" -p "$*" \
         --dangerously-skip-permissions --output-format json 2>&1) || \
-    OUTPUT=$(claude -p "$*" --dangerously-skip-permissions --output-format json 2>&1)
+    OUTPUT=$(claude --model claude-sonnet-4-6 -p "$*" --dangerously-skip-permissions --output-format json 2>&1)
 else
-    OUTPUT=$(claude -p "$*" --dangerously-skip-permissions --output-format json 2>&1)
+    OUTPUT=$(claude --model claude-sonnet-4-6 -p "$*" --dangerously-skip-permissions --output-format json 2>&1)
 fi
 
 ELAPSED=$(( ($(date +%s%N) - T0) / 1000000 ))

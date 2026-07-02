@@ -13,10 +13,10 @@ _log() { echo "$(date '+%Y-%m-%d %H:%M:%S') [codex-dev] $*" >> "$LOG"; }
 _log "▶ START thread=$THREAD session=${SESSION:-new} prompt=${*:0:120}"
 
 if [ -n "$SESSION" ]; then
-    OUTPUT=$(codex exec resume "$SESSION" --dangerously-bypass-approvals-and-sandbox "$*" 2>&1) || \
-    OUTPUT=$(codex exec --dangerously-bypass-approvals-and-sandbox "$*" 2>&1)
+    OUTPUT=$(codex exec resume "$SESSION" -m gpt-5.4 --dangerously-bypass-approvals-and-sandbox "$*" 2>&1) || \
+    OUTPUT=$(codex exec -m gpt-5.4 --dangerously-bypass-approvals-and-sandbox "$*" 2>&1)
 else
-    OUTPUT=$(codex exec --dangerously-bypass-approvals-and-sandbox "$*" 2>&1)
+    OUTPUT=$(codex exec -m gpt-5.4 --dangerously-bypass-approvals-and-sandbox "$*" 2>&1)
 fi
 
 ELAPSED=$(( ($(date +%s%N) - T0) / 1000000 ))
