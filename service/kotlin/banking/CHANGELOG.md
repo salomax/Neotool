@@ -1,3 +1,14 @@
+## 0.8.0 (2026-07-02)
+
+### 🚀 Features
+
+- **banking:** add labor rights income categories (FGTS, unemployment insurance) ([99793bdd](https://github.com/invistus/invistus/commit/99793bdd))
+
+### ❤️ Thank You
+
+- Claude Sonnet 5
+- Marcos Salomao @salomax
+
 ## 0.7.9 (2026-06-26)
 
 ### 🚀 Features
