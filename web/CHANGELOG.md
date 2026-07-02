@@ -1,3 +1,13 @@
+## 0.7.29 (2026-06-30)
+
+### 🚀 Features
+
+- **devcontainer:** enhance development environment setup ([6db6b55e](https://github.com/invistus/invistus/commit/6db6b55e))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.28 (2026-06-28)
 
 ### 🚀 Features
