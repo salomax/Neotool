@@ -24,7 +24,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
     stream=sys.stdout,
@@ -327,26 +327,40 @@ def run_goose(session: str, message: str, resume: bool,
     t0 = time.time()
 
     try:
-        result = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
-            timeout=600,
             cwd=WORKSPACE,
             env={**os.environ, "GOOSE_SESSION_NAME": session},
         )
+        log.info("goose PID=%d iniciado", proc.pid)
+
+        stdout_lines: list[str] = []
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            line_s = line.rstrip()
+            stdout_lines.append(line_s)
+            # Loga linhas relevantes em tempo real (filtra lixo de UI)
+            stripped = line_s.strip()
+            if stripped and not stripped.startswith(("╭", "╰", "│", "─", "┌", "└")):
+                log.debug("goose> %s", stripped[:200])
+
+        proc.wait(timeout=600)
         elapsed = time.time() - t0
 
-        if result.returncode != 0:
-            log.error("goose exit=%d (%.1fs) stderr=%r", result.returncode, elapsed, result.stderr[:500])
+        if proc.returncode != 0:
+            log.error("goose exit=%d (%.1fs)", proc.returncode, elapsed)
         else:
-            log.info("goose OK — %.1fs, stdout=%d chars", elapsed, len(result.stdout))
+            log.info("goose OK — %.1fs, stdout=%d chars", elapsed, sum(len(l) for l in stdout_lines))
 
-        raw = result.stdout.strip() or result.stderr.strip() or ""
+        raw = "\n".join(stdout_lines).strip()
         text = extract_answer(raw)
 
     except subprocess.TimeoutExpired:
         elapsed = time.time() - t0
+        proc.kill()
         log.error("timeout após %.0fs", elapsed)
         text = "❌ Timeout — a tarefa excedeu 10 minutos."
     except Exception as e:

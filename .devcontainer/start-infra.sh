@@ -158,9 +158,12 @@ fi
 # =============================================================================
 if [ -n "${GH_TOKEN:-}" ]; then
     _GH="https://${GH_TOKEN}@github.com/"
-    git config --global "url.${_GH}.insteadOf" "git@github.com:"
-    git config --global "url.${_GH}.insteadOf" "https://github.com/"
     git config --global push.autoSetupRemote true
+    # Remove entradas antigas para evitar duplicatas
+    git config --global --remove-section "url.${_GH}" 2>/dev/null || true
+    # Adiciona as duas regras com --add
+    git config --global "url.${_GH}.insteadOf" "git@github.com:"
+    git config --global --add "url.${_GH}.insteadOf" "https://github.com/"
     echo "✓ [git] HTTPS com GH_TOKEN configurado (push via HTTPS)"
 else
     echo "⚠ [git] GH_TOKEN não definido — push via SSH pode falhar no DevPod"
