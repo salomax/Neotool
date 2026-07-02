@@ -2133,7 +2133,7 @@
     "WITHDRAWAL": "Saque"
   },
   "recurringPayments": {
-    "newButton": "Nova movimentação",
+    "newButton": "Novo recorrente",
     "emptyTitle": "Nenhuma movimentação recorrente",
     "emptyDescription": "Cadastre contas e assinaturas para acompanhar os próximos vencimentos.",
     "variableAmountBadge": "estimativa variável",

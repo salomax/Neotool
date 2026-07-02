@@ -6,6 +6,8 @@
 set -euo pipefail
 
 WORKSPACE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+AGENTS_BIN="$WORKSPACE_ROOT/.devcontainer/agents"
+export PATH="$AGENTS_BIN:$PATH"
 COMPOSE_FILE="$WORKSPACE_ROOT/infra/docker/docker-compose.local.yml"
 ENV_FILE="$WORKSPACE_ROOT/infra/docker/.env.local"
 

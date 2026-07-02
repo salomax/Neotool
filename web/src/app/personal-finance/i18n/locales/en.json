@@ -2128,7 +2128,7 @@
     "WITHDRAWAL": "Withdrawal"
   },
   "recurringPayments": {
-    "newButton": "New transaction",
+    "newButton": "New recurring",
     "emptyTitle": "No recurring transactions",
     "emptyDescription": "Add bills and subscriptions to track upcoming due dates.",
     "variableAmountBadge": "variable estimate",
