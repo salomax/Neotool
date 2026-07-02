@@ -1,3 +1,13 @@
+## 0.7.31 (2026-07-02)
+
+### 🩹 Fixes
+
+- **web:** update Dockerfile for improved dependency management ([ca6c62fc](https://github.com/invistus/invistus/commit/ca6c62fc))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.30 (2026-07-02)
 
 ### 🩹 Fixes
