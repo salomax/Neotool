@@ -150,6 +150,65 @@ else
     echo "   Cloud: export API_KEYS_B64=\$(base64 -i ~/.vault-keys/api-keys.env)"
 fi
 
+
+# =============================================================================
+# Git: usar HTTPS com GH_TOKEN em vez de SSH (evita bloqueio de porta 22)
+# =============================================================================
+if [ -n "${GH_TOKEN:-}" ]; then
+    _GH="https://${GH_TOKEN}@github.com/"
+    git config --global "url.${_GH}.insteadOf" "git@github.com:"
+    git config --global "url.${_GH}.insteadOf" "https://github.com/"
+    git config --global push.autoSetupRemote true
+    echo "✓ [git] HTTPS com GH_TOKEN configurado (push via HTTPS)"
+else
+    echo "⚠ [git] GH_TOKEN não definido — push via SSH pode falhar no DevPod"
+fi
+
+# =============================================================================
+# Goose Bridge + Cloudflare Tunnel (opcional)
+# =============================================================================
+# Controlado por GOOSE_ENABLED em ~/.vault-keys/api-keys.env
+#   GOOSE_ENABLED=true  → sobe bridge + cloudflared (modo Slack/Goose)
+#   GOOSE_ENABLED=false → skip (trabalho manual com agentes desktop)
+# =============================================================================
+
+if [ "${GOOSE_ENABLED:-true}" = "true" ]; then
+    GOOSE_LOG="${HOME}/.local/share/goose/acp-server.log"
+    mkdir -p "$(dirname "$GOOSE_LOG")"
+
+    # Carrega api-keys.env ANTES de subir o bridge (garante GOOGLE_API_KEY disponível)
+    if [ -f "${HOME}/.vault-keys/api-keys.env" ]; then
+        set -a; source "${HOME}/.vault-keys/api-keys.env"; set +a
+    fi
+
+    echo "▶ [goose-bridge] Iniciando HTTP bridge na porta 3285..."
+    GOOSE_BRIDGE_PORT=3285 \
+    GOOSE_SERVER_SECRET="${GOOSE_SERVER_SECRET:-}" \
+    GOOSE_PROVIDER="${GOOSE_PROVIDER:-google}" \
+    GOOSE_MODEL="${GOOSE_MODEL:-gemini-2.5-flash}" \
+    nohup python3 /workspaces/invistus/.devcontainer/goose-bridge.py \
+        > "${HOME}/.local/share/goose/bridge.log" 2>&1 &
+    sleep 2
+    if curl -sf "http://127.0.0.1:3285/health" >/dev/null 2>&1; then
+        echo "✓ [goose-bridge] Pronto em http://127.0.0.1:3285"
+    else
+        echo "⚠ [goose-bridge] Não respondeu — verifique: tail ~/.local/share/goose/bridge.log"
+    fi
+
+    if [ -n "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
+        echo "▶ [cloudflare] Iniciando tunnel..."
+        nohup cloudflared tunnel --no-autoupdate run --token "$CLOUDFLARE_TUNNEL_TOKEN" \
+            > "${HOME}/.local/share/goose/cloudflared.log" 2>&1 &
+        echo "✓ [cloudflare] Tunnel iniciado (pid $!)"
+        echo "   Logs: tail ~/.local/share/goose/cloudflared.log"
+    else
+        echo "⚠ [cloudflare] CLOUDFLARE_TUNNEL_TOKEN não encontrado — tunnel não iniciado"
+        echo "   Adicione CLOUDFLARE_TUNNEL_TOKEN em ~/.vault-keys/api-keys.env"
+    fi
+else
+    echo "⚠ [goose] Stack desabilitada (GOOSE_ENABLED=false) — modo manual ativo"
+fi
+
 echo ""
 echo "✓ Infra stack rodando:"
 docker ps --format "table {{.Names}}\t{{.Status}}" \
@@ -159,3 +218,49 @@ echo ""
 echo "Próximos passos (manualmente conforme necessidade):"
 echo "  Observability:   docker compose -f infra/docker/docker-compose.local.yml --profile observability up -d"
 echo "  Serviços Kotlin: .devcontainer/start-dev.sh kotlin"
+
+# =============================================================================
+# Agent Skills: criar symlinks para cada agente a partir do bind-mount
+# =============================================================================
+# As skills ficam versionadas em ~/.agents/skills/ (bind-mount de ~/src/invistus/.agents/skills/)
+# e cada agente as enxerga no path que espera.
+# =============================================================================
+
+AGENTS_SKILLS_DIR="${HOME}/.agents/skills"
+
+if [ -d "$AGENTS_SKILLS_DIR" ]; then
+    echo "▶ [skills] Sincronizando symlinks de agent skills..."
+
+    # Claude Code → .claude/skills/ no projeto (não bind-mounted, não polui o Mac)
+    CLAUDE_SKILLS_DIR="${WORKSPACE_FOLDER:-/workspaces/invistus}/.claude/skills"
+    mkdir -p "$CLAUDE_SKILLS_DIR"
+    for skill in "${AGENTS_SKILLS_DIR}"/neotool-*; do
+        [ -d "$skill" ] || continue
+        ln -sf "$skill" "$CLAUDE_SKILLS_DIR/$(basename "$skill")"
+    done
+    echo "✓ [skills] Claude Code: $(ls "$CLAUDE_SKILLS_DIR/" | wc -l | tr -d ' ') skills em $CLAUDE_SKILLS_DIR"
+
+    # Remove symlinks quebrados do ~/.claude/skills/ se existirem do setup anterior
+    if [ -d "${HOME}/.claude/skills" ]; then
+        find "${HOME}/.claude/skills" -maxdepth 1 -name "neotool-*" -type l -delete 2>/dev/null || true
+    fi
+
+    # Goose → ~/.config/goose/skills/
+    mkdir -p "${HOME}/.config/goose/skills"
+    for skill in "${AGENTS_SKILLS_DIR}"/neotool-*; do
+        [ -d "$skill" ] || continue
+        ln -sf "$skill" "${HOME}/.config/goose/skills/$(basename "$skill")"
+    done
+    echo "✓ [skills] Goose: $(ls "${HOME}/.config/goose/skills/" | wc -l | tr -d ' ') skills"
+
+    # Codex → ~/.codex/skills/
+    mkdir -p "${HOME}/.codex/skills"
+    for skill in "${AGENTS_SKILLS_DIR}"/neotool-*; do
+        [ -d "$skill" ] || continue
+        ln -sf "$skill" "${HOME}/.codex/skills/$(basename "$skill")"
+    done
+    echo "✓ [skills] Codex: $(ls "${HOME}/.codex/skills/" | wc -l | tr -d ' ') skills"
+else
+    echo "⚠ [skills] ~/.agents/skills não encontrado — bind-mount do .agents ausente?"
+    echo "   Verifique devcontainer.json e reconstrua o DevPod se necessário."
+fi

@@ -99,35 +99,23 @@ RUN npm install -g         pnpm         @anthropic-ai/claude-code         @opena
 #    o build.  Copiamos para /usr/local/bin/cursor para ficar acessível ao
 #    usuário não-root e ao PATH padrão do container.
 # -----------------------------------------------------------------------------
-RUN curl -fsSL https://cursor.com/install | bash \
-    && cp /root/.local/bin/agent /usr/local/bin/cursor \
-    && chmod 755 /usr/local/bin/cursor
+RUN mkdir -p /root/.local/bin \
+    && curl -fsSL https://cursor.com/install | bash \
+    && AGENT_DIR=$(dirname "$(readlink -f /root/.local/bin/agent)") \
+    && cp -r "$AGENT_DIR" /usr/local/cursor-cli \
+    && ln -sf /usr/local/cursor-cli/agent /usr/local/bin/agent \
+    && ln -sf /usr/local/cursor-cli/agent /usr/local/bin/cursor \
+    && chmod 755 /usr/local/cursor-cli/agent
+
+
 
 # -----------------------------------------------------------------------------
-# 8. uv — Python package manager (needed by Trae Agent)
+# 8. Goose — Block's AI coding agent (github.com/aaif-goose/goose)
 # -----------------------------------------------------------------------------
-RUN curl -LsSf https://astral.sh/uv/install.sh \
-        | UV_INSTALL_DIR=/usr/local/bin sh
+ARG GOOSE_VERSION=v1.39.0
 
-# -----------------------------------------------------------------------------
-# 9. Trae Agent CLI (bytedance/trae-agent)
-#    Python-based, multi-LLM software engineering agent.
-#    Installed system-wide at /opt/trae-agent; trae-cli symlinked globally.
-# -----------------------------------------------------------------------------
-RUN git clone --depth 1 https://github.com/bytedance/trae-agent.git /opt/trae-agent \
-    && cd /opt/trae-agent \
-    && uv sync --all-extras \
-    && cp /opt/trae-agent/.venv/bin/trae-cli /usr/local/bin/trae-cli \
-    && chmod 755 /usr/local/bin/trae-cli \
-    && chmod -R a+rX /opt/trae-agent
-
-# -----------------------------------------------------------------------------
-# 10. Goose — Block's AI coding agent (github.com/aaif-goose/goose)
-# -----------------------------------------------------------------------------
 RUN ARCH=$(dpkg --print-architecture) \
     && GOOSE_REPO="aaif-goose/goose" \
-    && GOOSE_VERSION=$(curl -fsSL "https://api.github.com/repos/${GOOSE_REPO}/releases/latest" \
-        | jq -r '.tag_name') \
     && GOOSE_VER="${GOOSE_VERSION#v}" \
     && case "$ARCH" in \
         amd64) \
@@ -137,8 +125,10 @@ RUN ARCH=$(dpkg --print-architecture) \
             && rm /tmp/goose.deb ;; \
         arm64) \
             mkdir -p /tmp/goose-install \
-            && curl -fsSL "https://github.com/${GOOSE_REPO}/releases/download/${GOOSE_VERSION}/goose-aarch64-unknown-linux-gnu.tar.gz" \
-                | tar -xz -C /tmp/goose-install \
+            && curl -fsSL --retry 3 --retry-delay 2 \
+                "https://github.com/${GOOSE_REPO}/releases/download/${GOOSE_VERSION}/goose-aarch64-unknown-linux-gnu.tar.gz" \
+                -o /tmp/goose-install/goose.tar.gz \
+            && tar -xz -C /tmp/goose-install -f /tmp/goose-install/goose.tar.gz \
             && find /tmp/goose-install -name "goose" -type f | head -1 | xargs -I{} cp {} /usr/local/bin/goose \
             && rm -rf /tmp/goose-install ;; \
         *) echo "Unsupported arch: $ARCH" && exit 1 ;; \
@@ -146,7 +136,20 @@ RUN ARCH=$(dpkg --print-architecture) \
     && chmod 755 /usr/local/bin/goose
 
 # -----------------------------------------------------------------------------
-# 11. Non-root dev user
+# 9. cloudflared — Cloudflare Tunnel client
+# -----------------------------------------------------------------------------
+RUN ARCH=$(dpkg --print-architecture) \
+    && case "$ARCH" in \
+        amd64) CF_ARCH="amd64" ;; \
+        arm64) CF_ARCH="arm64" ;; \
+        *) echo "Unsupported arch: $ARCH" && exit 1 ;; \
+    esac \
+    && curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CF_ARCH}" \
+        -o /usr/local/bin/cloudflared \
+    && chmod 755 /usr/local/bin/cloudflared
+
+# -----------------------------------------------------------------------------
+# 10. Non-root dev user
 # -----------------------------------------------------------------------------
 ARG USERNAME=dev
 ARG USER_UID=1000
@@ -176,7 +179,7 @@ RUN chmod -R 755 /ms-playwright 2>/dev/null || true
 ENV GRADLE_USER_HOME=/home/${USERNAME}/.gradle
 
 # -----------------------------------------------------------------------------
-# 12. Finalize
+# 11. Finalize
 # -----------------------------------------------------------------------------
 USER ${USERNAME}
 WORKDIR /workspaces
@@ -188,5 +191,5 @@ RUN java -version \
     && git --version \
     && gh --version \
     && cursor --help > /dev/null 2>&1 || true \
-    && trae-cli --help > /dev/null 2>&1 || true \
-    && goose --version 2>&1 || true
+    && goose --version 2>&1 || true \
+    && cloudflared --version 2>&1 || true

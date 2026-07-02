@@ -30,6 +30,22 @@
       "readonly": true
     },
     {
+      "source": "${localEnv:HOME}/src/invistus/.agents",
+      "target": "/home/dev/.agents",
+      "type": "bind",
+      "readonly": true
+    },
+    {
+      "source": "${localEnv:HOME}/.claude",
+      "target": "/home/dev/.claude",
+      "type": "bind"
+    },
+    {
+      "source": "${localEnv:HOME}/.codex",
+      "target": "/home/dev/.codex",
+      "type": "bind"
+    },
+    {
       "source": "invistus-web-node-modules",
       "target": "/workspaces/invistus/web/node_modules",
       "type": "volume"
@@ -41,32 +57,11 @@
     }
   ],
   "forwardPorts": [
-    3000,
-    4000,
-    8080,
-    8082,
-    8083,
-    8091,
-    5432,
-    6432,
-    9092,
-    9094,
-    9000,
-    9001,
-    3001,
-    9090,
-    3100,
-    3200,
-    4317,
-    4318,
-    8200,
-    4242,
-    3063,
-    3002,
-    8088,
-    9091,
-    8084,
-    8092
+    3000, 4000, 8080, 8082, 8083, 8091,
+    5432, 6432, 9092, 9094, 9000, 9001,
+    3001, 9090, 3100, 3200, 4317, 4318,
+    8200, 4242, 3063, 3002, 8088, 9091,
+    8084, 8092
   ],
   "postCreateCommand": {
     "neotool-symlink": "sudo ln -sf /workspaces/invistus/scripts/cli/cli /usr/local/bin/neotool && sudo chmod +x /usr/local/bin/neotool",
@@ -75,32 +70,8 @@
     "fix-volume-perms": "sudo chown -R dev:dev /home/dev/.gradle /home/dev/.npm /workspaces/invistus/web/node_modules /workspaces/invistus/web/.next 2>/dev/null || true"
   },
   "postStartCommand": ".devcontainer/start-infra.sh",
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "fwcd.kotlin",
-        "redhat.java",
-        "vscjava.vscode-gradle",
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode",
-        "ms-azuretools.vscode-docker",
-        "ms-vscode-remote.remote-containers",
-        "GraphQL.vscode-graphql",
-        "ms-playwright.playwright",
-        "github.vscode-pull-request-github",
-        "eamodio.gitlens"
-      ],
-      "settings": {
-        "java.jdt.ls.java.home": "/usr/lib/jvm/temurin-21",
-        "terminal.integrated.defaultProfile.linux": "bash",
-        "editor.formatOnSave": true
-      }
-    }
-  },
   "remoteEnv": {
-    // "GOOSE_PROVIDER": "anthropic",
-    // "GOOSE_MODEL": "claude-sonnet-4-5"
-    "GOOSE_PROVIDER": "openai",
-    "GOOSE_MODEL": "gpt-4o"
+    "GOOSE_PROVIDER": "google",
+    "GOOSE_MODEL": "gemini-2.5-flash"
   }
 }
