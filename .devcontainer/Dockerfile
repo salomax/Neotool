@@ -101,11 +101,14 @@ RUN npm install -g         pnpm         @anthropic-ai/claude-code         @opena
 # -----------------------------------------------------------------------------
 RUN mkdir -p /root/.local/bin \
     && curl -fsSL https://cursor.com/install | bash \
-    && AGENT_DIR=$(dirname "$(readlink -f /root/.local/bin/agent)") \
-    && cp -r "$AGENT_DIR" /usr/local/cursor-cli \
-    && ln -sf /usr/local/cursor-cli/agent /usr/local/bin/agent \
-    && ln -sf /usr/local/cursor-cli/agent /usr/local/bin/cursor \
-    && chmod 755 /usr/local/cursor-cli/agent
+    && AGENT_BIN=$(find /root/.local/bin -maxdepth 3 -type f -executable 2>/dev/null | head -1) \
+    && if [ -n "$AGENT_BIN" ]; then \
+        cp "$(readlink -f "$AGENT_BIN")" /usr/local/bin/cursor \
+        && chmod 755 /usr/local/bin/cursor \
+        && ln -sf /usr/local/bin/cursor /usr/local/bin/agent; \
+    else \
+        echo "Warning: cursor binary not found after install, skipping"; \
+    fi
 
 
 

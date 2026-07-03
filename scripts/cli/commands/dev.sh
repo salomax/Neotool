@@ -486,7 +486,7 @@ dev_init() {
 
     # 2. Start / recreate the DevPod workspace
     echo "▶ [1/3] Starting DevPod workspace..."
-    devpod up invistus --provider docker --ide none
+    devpod up "$PROJECT_ROOT" --provider docker --ide none
     echo "✓ DevPod ready"
 
     # 3. Wait for infra (start-infra.sh runs via postStartCommand, give it time)
