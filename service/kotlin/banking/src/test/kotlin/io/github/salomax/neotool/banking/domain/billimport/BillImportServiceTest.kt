@@ -25,6 +25,7 @@ import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
 import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewCardCommand
 import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewTransactionCommand
@@ -43,6 +44,7 @@ import io.github.salomax.neotool.banking.service.preferences.UserRuleCreationMod
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.common.error.BusinessRuleException
 import io.github.salomax.neotool.common.error.ValidationException
 import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
@@ -441,13 +443,13 @@ class BillImportServiceTest {
         }
 
         @Test
-        fun `submit nubank account CSV as bill returns validation error`() {
+        fun `submit nubank account CSV as bill returns unsupported format error`() {
             val fileBytes = loadFixture("/fixtures/csv/nubank_account_sample.csv")
 
             whenever(repository.findByAccountIdAndFileHash(eq(accountId), any())).thenReturn(null)
 
             val ex =
-                assertThrows<ValidationException> {
+                assertThrows<BusinessRuleException> {
                     service.submitBillImport(
                         accountId = accountId,
                         userId = userId,
@@ -458,10 +460,161 @@ class BillImportServiceTest {
                     )
                 }
 
-            assertThat(ex.field).isEqualTo("fileName")
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.IMPORT_FILE_FORMAT_NOT_SUPPORTED)
             verify(repository, never()).save(any())
             verify(submittedProducer, never()).publish(any())
             verify(billAssetStorage, never()).uploadPdf(any(), any(), any())
+        }
+
+        @Test
+        fun `submit XP CSV with holder creates grouped review cards`() {
+            val fileBytes = xpCsvWithHolderBytes()
+            val savedJobId = UUID.randomUUID()
+
+            whenever(repository.findByAccountIdAndFileHash(eq(accountId), any())).thenReturn(null)
+            whenever(repository.save(any())).thenAnswer {
+                val job = it.getArgument<BillImportJob>(0)
+                job.copy(id = savedJobId)
+            }
+
+            val result =
+                service.submitBillImport(
+                    accountId = accountId,
+                    userId = userId,
+                    importType = ImportDocumentType.CREDIT_CARD_BILL,
+                    financialAccountId = null,
+                    fileName = "fatura-xp.csv",
+                    fileBytes = fileBytes,
+                )
+
+            assertThat(result.status).isEqualTo(BillImportJobStatus.AWAITING_REVIEW)
+
+            val savedJobCaptor = argumentCaptor<BillImportJob>()
+            verify(repository).save(savedJobCaptor.capture())
+            val review = objectMapper.readValue(savedJobCaptor.firstValue.reviewPayload, BillImportReview::class.java)
+
+            assertThat(review.cards).hasSize(2)
+            assertThat(review.cards.map { it.holderName }).containsExactlyInAnyOrder("Joao Silva", "Maria Souza")
+            assertThat(review.cards.flatMap { it.transactions }).hasSize(3)
+            assertThat(review.cards.map { it.closingDate }).containsOnly(LocalDate.of(2026, 3, 2))
+        }
+
+        @Test
+        fun `submit XP CSV with malformed row returns validation error`() {
+            val fileBytes =
+                """
+                Data;Estabelecimento;Valor;Parcela
+                01/03/2026;Mercado Extra;R$ 100,00;-
+                invalid-date;Farmacia;R$ 50,00;-
+                """.trimIndent().toByteArray(Charsets.UTF_8)
+
+            whenever(repository.findByAccountIdAndFileHash(eq(accountId), any())).thenReturn(null)
+
+            val ex =
+                assertThrows<ValidationException> {
+                    service.submitBillImport(
+                        accountId = accountId,
+                        userId = userId,
+                        importType = ImportDocumentType.CREDIT_CARD_BILL,
+                        financialAccountId = null,
+                        fileName = "fatura-xp.csv",
+                        fileBytes = fileBytes,
+                    )
+                }
+
+            assertThat(ex.field).isEqualTo("fileBase64")
+            verify(repository, never()).save(any())
+        }
+
+        @Test
+        fun `submit XP CSV without holder creates single review card`() {
+            val fileBytes = xpCsvWithoutHolderBytes()
+            val savedJobId = UUID.randomUUID()
+
+            whenever(repository.findByAccountIdAndFileHash(eq(accountId), any())).thenReturn(null)
+            whenever(repository.save(any())).thenAnswer {
+                val job = it.getArgument<BillImportJob>(0)
+                job.copy(id = savedJobId)
+            }
+
+            val result =
+                service.submitBillImport(
+                    accountId = accountId,
+                    userId = userId,
+                    importType = ImportDocumentType.CREDIT_CARD_BILL,
+                    financialAccountId = null,
+                    fileName = "fatura-xp.csv",
+                    fileBytes = fileBytes,
+                )
+
+            assertThat(result.status).isEqualTo(BillImportJobStatus.AWAITING_REVIEW)
+
+            val savedJobCaptor = argumentCaptor<BillImportJob>()
+            verify(repository).save(savedJobCaptor.capture())
+            val review = objectMapper.readValue(savedJobCaptor.firstValue.reviewPayload, BillImportReview::class.java)
+
+            assertThat(review.cards).hasSize(1)
+            assertThat(review.cards.single().holderName).isNull()
+            assertThat(review.cards.single().transactions).hasSize(2)
+        }
+
+        @Test
+        fun `submit XP CSV refund reduces computed total`() {
+            val fileBytes = xpCsvWithRefundBytes()
+            val savedJobId = UUID.randomUUID()
+
+            whenever(repository.findByAccountIdAndFileHash(eq(accountId), any())).thenReturn(null)
+            whenever(repository.save(any())).thenAnswer {
+                val job = it.getArgument<BillImportJob>(0)
+                job.copy(id = savedJobId)
+            }
+
+            service.submitBillImport(
+                accountId = accountId,
+                userId = userId,
+                importType = ImportDocumentType.CREDIT_CARD_BILL,
+                financialAccountId = null,
+                fileName = "fatura-xp.csv",
+                fileBytes = fileBytes,
+            )
+
+            val savedJobCaptor = argumentCaptor<BillImportJob>()
+            verify(repository).save(savedJobCaptor.capture())
+            val review = objectMapper.readValue(savedJobCaptor.firstValue.reviewPayload, BillImportReview::class.java)
+            val card = review.cards.single()
+
+            assertThat(card.transactions).hasSize(2)
+            assertThat(card.transactions.map { it.creditDebitType }).containsExactly(
+                CreditDebitType.DEBIT,
+                CreditDebitType.CREDIT,
+            )
+            assertThat(card.computedTotal).isEqualByComparingTo(BigDecimal("48.85"))
+        }
+
+        @Test
+        fun `submit unsupported CSV layout returns unsupported format error`() {
+            val fileBytes =
+                """
+                Data,Descricao,Valor
+                01/03/2026,Compra,45.90
+                """.trimIndent().toByteArray(Charsets.UTF_8)
+
+            whenever(repository.findByAccountIdAndFileHash(eq(accountId), any())).thenReturn(null)
+
+            val ex =
+                assertThrows<BusinessRuleException> {
+                    service.submitBillImport(
+                        accountId = accountId,
+                        userId = userId,
+                        importType = ImportDocumentType.CREDIT_CARD_BILL,
+                        financialAccountId = null,
+                        fileName = "unknown.csv",
+                        fileBytes = fileBytes,
+                    )
+                }
+
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.IMPORT_FILE_FORMAT_NOT_SUPPORTED)
+            verify(repository, never()).save(any())
         }
 
         @Test
@@ -2538,6 +2691,28 @@ class BillImportServiceTest {
         )
 
     private fun loadFixture(path: String): ByteArray = javaClass.getResourceAsStream(path)!!.readBytes()
+
+    private fun xpCsvWithHolderBytes(): ByteArray =
+        """
+        Data;Estabelecimento;Portador;Valor;Parcela
+        01/03/2026;Mercado Extra;Joao Silva;R$ 100,00;1 de 3
+        02/03/2026;Farmacia;Maria Souza;R$ 50,00;-
+        15/02/2026;Posto;Joao Silva;R$ 20,00;-
+        """.trimIndent().toByteArray(Charsets.UTF_8)
+
+    private fun xpCsvWithoutHolderBytes(): ByteArray =
+        """
+        Data;Estabelecimento;Valor;Parcela
+        01/03/2026;Mercado Extra;R$ 100,00;1 de 3
+        02/03/2026;Farmacia;R$ 50,00;7 de 7
+        """.trimIndent().toByteArray(Charsets.UTF_8)
+
+    private fun xpCsvWithRefundBytes(): ByteArray =
+        """
+        Data;Estabelecimento;Valor;Parcela
+        01/03/2026;Mercado Extra;R$ 100,00;-
+        02/03/2026;Estorno Loja;R$ -51,15;-
+        """.trimIndent().toByteArray(Charsets.UTF_8)
 
     private fun buildTabularWorkbookBytes(): ByteArray {
         val workbook: Workbook = XSSFWorkbook()

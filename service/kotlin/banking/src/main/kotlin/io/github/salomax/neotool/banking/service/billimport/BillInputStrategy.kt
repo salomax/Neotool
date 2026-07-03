@@ -16,6 +16,7 @@ import io.github.salomax.neotool.banking.domain.billimport.DateRange
 import io.github.salomax.neotool.banking.domain.billimport.ImportDocumentType
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.job.import.ImportCallbackContext
 import io.github.salomax.neotool.banking.model.domain.imports.ImportTextDecoder
 import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
@@ -155,6 +156,13 @@ internal class DeterministicOfxBillInputStrategy(
     }
 }
 
+private enum class BillCsvLayout {
+    NUBANK_CREDIT_CARD,
+    XP_WITH_HOLDER,
+    XP_WITHOUT_HOLDER,
+    UNSUPPORTED,
+}
+
 internal class CsvBillInputStrategy(
     private val repository: BillImportJobRepository,
     private val objectMapper: ObjectMapper,
@@ -167,14 +175,18 @@ internal class CsvBillInputStrategy(
     ): Boolean = importType == ImportDocumentType.CREDIT_CARD_BILL && fileName.endsWith(".csv", ignoreCase = true)
 
     override fun submit(request: BillImportSubmissionRequest): BillImportJob {
-        if (!isNubankCreditCardCsv(request.fileBytes)) {
-            throw ValidationException(
-                CommonErrorCode.INVALID_INPUT,
-                field = "fileName",
-                parameters = mapOf("reason" to "CSV bill import currently supports Nubank credit card CSV only"),
-            )
+        return when (detectBillCsvLayout(request.fileBytes)) {
+            BillCsvLayout.UNSUPPORTED ->
+                throw BusinessRuleException(
+                    errorCode = BankingErrorCode.IMPORT_FILE_FORMAT_NOT_SUPPORTED,
+                )
+            BillCsvLayout.NUBANK_CREDIT_CARD -> submitNubankCreditCardCsv(request)
+            BillCsvLayout.XP_WITH_HOLDER -> submitXpBillCsv(request, XpBillCsvLayout.WITH_HOLDER)
+            BillCsvLayout.XP_WITHOUT_HOLDER -> submitXpBillCsv(request, XpBillCsvLayout.WITHOUT_HOLDER)
         }
+    }
 
+    private fun submitNubankCreditCardCsv(request: BillImportSubmissionRequest): BillImportJob {
         val rows = CsvNubankParser.parse(request.fileBytes)
         if (rows.isEmpty()) {
             throw ValidationException(
@@ -202,6 +214,63 @@ internal class CsvBillInputStrategy(
             reviewPayloadJson = reviewPayloadJson,
             extractionMetadata = extractionMetadata,
         )
+    }
+
+    private fun submitXpBillCsv(
+        request: BillImportSubmissionRequest,
+        layout: XpBillCsvLayout,
+    ): BillImportJob {
+        val rows =
+            try {
+                CsvXpBillParser.parse(request.fileBytes, layout)
+            } catch (ex: XpBillCsvRowParseException) {
+                throw ValidationException(
+                    CommonErrorCode.INVALID_INPUT,
+                    field = "fileBase64",
+                    parameters = mapOf("reason" to "CSV file has malformed row at line ${ex.lineNumber}"),
+                    cause = ex,
+                )
+            }
+        if (rows.isEmpty()) {
+            throw ValidationException(
+                CommonErrorCode.INVALID_INPUT,
+                field = "fileBase64",
+                parameters = mapOf("reason" to "CSV file has no transactions to review"),
+            )
+        }
+
+        val now = Instant.now()
+        val reviewPayloadJson = objectMapper.writeValueAsString(buildXpBillReview(rows, layout))
+        val extractionMetadata =
+            objectMapper.writeValueAsString(
+                mapOf(
+                    "ingest_source" to "CSV",
+                    "reader_id" to "csv-xp-credit-card-bill",
+                    "layout" to
+                        when (layout) {
+                            XpBillCsvLayout.WITH_HOLDER -> "xp_credit_card_with_holder"
+                            XpBillCsvLayout.WITHOUT_HOLDER -> "xp_credit_card_without_holder"
+                        },
+                ),
+            )
+
+        return saveAwaitingReviewJob(
+            repository = repository,
+            request = request,
+            now = now,
+            reviewPayloadJson = reviewPayloadJson,
+            extractionMetadata = extractionMetadata,
+        )
+    }
+
+    private fun detectBillCsvLayout(bytes: ByteArray): BillCsvLayout {
+        if (isNubankCreditCardCsv(bytes)) return BillCsvLayout.NUBANK_CREDIT_CARD
+
+        return when (CsvXpBillParser.detectLayout(bytes)) {
+            XpBillCsvLayout.WITH_HOLDER -> BillCsvLayout.XP_WITH_HOLDER
+            XpBillCsvLayout.WITHOUT_HOLDER -> BillCsvLayout.XP_WITHOUT_HOLDER
+            null -> BillCsvLayout.UNSUPPORTED
+        }
     }
 
     private fun isNubankCreditCardCsv(bytes: ByteArray): Boolean {
@@ -385,6 +454,61 @@ internal class ExcelBillInputStrategy(
 }
 
 private const val BILL_IMPORT_EXCEL_ASSISTANT_SOURCE_TOPIC = "banking.bill-import.excel-extracted"
+
+private fun buildXpBillReview(
+    rows: List<XpBillCsvRow>,
+    layout: XpBillCsvLayout,
+): BillImportReview {
+    val groupedRows =
+        if (layout == XpBillCsvLayout.WITH_HOLDER) {
+            rows.groupBy { it.holderName?.trim().orEmpty() }
+        } else {
+            mapOf("" to rows)
+        }
+
+    val statementClosingDate = rows.maxOfOrNull { it.date }
+
+    val cards =
+        groupedRows.entries.mapIndexed { index, (holderKey, holderRows) ->
+            val transactions =
+                holderRows.map { row ->
+                    val (creditDebitType, amount) = CsvXpBillParser.toCreditDebitType(row.signedAmount)
+                    BillImportReviewTransaction(
+                        date = row.date,
+                        description = row.merchant,
+                        amount = amount,
+                        creditDebitType = creditDebitType,
+                        installment = row.installment,
+                        isBillPayment =
+                            BillTransactionEnricher.isBillPayment(
+                                creditDebitType,
+                                row.merchant,
+                            ),
+                    )
+                }.sortedWith(compareBy({ it.date }, { it.description }))
+            val computedTotal = computeSignedTotal(transactions)
+
+            BillImportReviewCard(
+                reviewCardId = "card-${index + 1}",
+                holderName = holderKey.takeIf { it.isNotBlank() },
+                closingDate = statementClosingDate,
+                declaredTotal = computedTotal,
+                computedTotal = computedTotal,
+                totalMatchesDeclared = true,
+                transactions = transactions,
+            )
+        }
+
+    return BillImportReview(
+        reviewMode = BillImportReviewMode.CARD_BUCKET_MATCHING,
+        statementPeriod =
+            DateRange(
+                from = rows.minOfOrNull { it.date },
+                to = rows.maxOfOrNull { it.date },
+            ),
+        cards = cards,
+    )
+}
 
 private fun buildSingleCardBillReview(
     rows: List<ParsedTransaction>,

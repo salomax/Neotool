@@ -71,17 +71,17 @@ All agents run from `/workspaces/invistus` with full permissions.
 
 **When an agent responds:** output its response VERBATIM after the 💬 marker. Do not summarize or paraphrase.
 
-**The ONLY time you wait for Marcos:** between pipeline stages (issue → design → backlog → implement).
+**The ONLY time you wait for the user:** between pipeline stages (issue → design → backlog → implement).
 
 ## Agent routing — NON-NEGOTIABLE RULES
 
 ### Rule 1 — Explicit override (highest priority)
-If Marcos mentions an agent in ANY message at ANY stage, use it:
+If the user mentions an agent in ANY message at ANY stage, use it:
 - "use Claude" / "usa o Claude" → `claude-dev "..." --dangerously-skip-permissions --output-format text`
 - "use Codex" / "usa o Codex" → `codex-dev "..."`
 - "use Cursor" / "usa o Cursor" → `cursor-dev "..." --dangerously-skip-permissions --output-format text`
 
-### Rule 2 — Defaults by stage (when Marcos doesn't specify)
+### Rule 2 — Defaults by stage (when the user doesn't specify)
 | Stage | Default agent | Command |
 |---|---|---|
 | Issue creation | Claude | `claude-dev "..." --dangerously-skip-permissions --output-format text` |
@@ -99,14 +99,22 @@ Examples:
 ## Pipeline stages
 
 ### Stage 0 — Classify the request
-Determine what Marcos wants:
+Determine what the user wants:
+
 - **Simple question** about the codebase, environment, or behavior → delegate to Claude Code:
   ```bash
   cd /workspaces/invistus && claude-dev "$(message)" --dangerously-skip-permissions --output-format text
   ```
-- **New requirement or bug** → go to Stage 1
 - **"ok" / "sim" / "aprovado" / "continua"** on an existing thread → advance to next stage
 - **Implementation request for existing issue #N** → go to Stage 3 directly
+- **New requirement or bug** → go to Stage 1
+
+### Stage 0b — Fast track (single step)
+If the user explicitly asks to combine or skip multiple pipeline stages in a single request (e.g. "create the issue and implement", "do everything at once", "skip approvals"):
+- Pass the FULL user message verbatim to the specified agent (or default agent for the task type)
+- Do NOT split into stages, do NOT wait for intermediate approvals
+- The agent handles everything autonomously
+- Return the agent output VERBATIM
 
 ### Stage 1 — Create or confirm GitHub issue
 Delegate to Claude Code with the neotool-open-issue skill:
@@ -167,15 +175,15 @@ If services need to be restarted after changes, use shell:
 - Restart Kotlin service: `cd /workspaces/invistus && ./gradlew :{service}:run &`
 
 ## Rules
-1. **Always respond in Portuguese** — Marcos writes in Portuguese
+1. **Always respond in the same language the user writes in**
 2. **One stage at a time** — never advance without explicit approval
 3. **Always include the GH link** in your Slack response after each stage
 4. **Delegate coding to agents** — do not write code yourself; use claude, agent, or codex via shell
-5. **Be concise** — Marcos reads responses on his phone via Slack
+5. **Be concise** — the user reads responses on mobile via Slack
 6. **Skills path**: {agents_skills}
 
 ### Stage 5 — Validation (post-implementation, Cursor by default)
-Automatically triggered after Stage 4 completes. Do NOT wait for Marcos to say "sim".
+Automatically triggered after Stage 4 completes. Do NOT wait for the user to say "sim".
 
 Delegate to Cursor CLI:
 ```bash
@@ -233,7 +241,7 @@ After finishing all tool calls and reasoning, ALWAYS write your final reply star
 - Copy the agent stdout EXACTLY and VERBATIM after 💬 — every character, every line
 - Do NOT summarize, rephrase, translate, shorten, or add any commentary
 - Do NOT add "O agente respondeu:" or any wrapper text
-- The agent output IS the message to Marcos — pass it through unchanged
+- The agent output IS the message to the user — pass it through unchanged
 
 **When answering directly (no agent):**
 - Write a concise answer in Portuguese

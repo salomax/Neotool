@@ -8,6 +8,7 @@ import {
 } from './billImportTypes';
 import dayjs, { type Dayjs } from 'dayjs';
 import { parseDateOnly } from '@/shared/utils/date/dateOnly';
+import i18n from '@/shared/i18n/config';
 
 // ── Issuer key helpers ───────────────────────────────────────────────────────
 
@@ -168,6 +169,15 @@ export function resolveFriendlyImportErrorMessage(
     normalizedMessage.includes('high demand')
   ) {
     return t('financeTransactions.billImport.errorStep.processingUnavailable');
+  }
+  if (
+    normalizedCode === 'import_file_format_not_supported' ||
+    normalizedMessage.includes('import_file_format_not_supported')
+  ) {
+    const lng = (i18n.language || i18n.resolvedLanguage || 'en').toLowerCase().startsWith('en') ? 'en' : 'pt';
+    return i18n.getFixedT(lng, 'common')('errors.IMPORT_FILE_FORMAT_NOT_SUPPORTED', {
+      defaultValue: 'Import file format is not supported.',
+    });
   }
   return t('financeTransactions.billImport.errorStep.generic');
 }

@@ -4,8 +4,8 @@ import {
   canResolveDueDateWithoutManualInput,
   getBillDateValidation,
   isBillDateConfirmDisabled,
-} from '../billImportUtils';
-import type { CardAccountOption } from '../billImportTypes';
+  resolveFriendlyImportErrorMessage,
+} from '../billImportUtils';import type { CardAccountOption } from '../billImportTypes';
 
 function account(id: string, dueDay: number | null): CardAccountOption {
   return {
@@ -79,5 +79,25 @@ describe('bill import due date validation', () => {
 
     expect(validation.dueDateBeforeClosingDate).toBe(true);
     expect(isBillDateConfirmDisabled(validation)).toBe(true);
+  });
+});
+
+describe('resolveFriendlyImportErrorMessage', () => {
+  const t = (key: string) => key;
+
+  it('returns format-not-supported message for IMPORT_FILE_FORMAT_NOT_SUPPORTED', () => {
+    const message = resolveFriendlyImportErrorMessage(t, 'IMPORT_FILE_FORMAT_NOT_SUPPORTED');
+
+    expect(message).not.toBe('financeTransactions.billImport.errorStep.generic');
+    expect([
+      'Import file format is not supported.',
+      'O formato do arquivo de importação não é suportado.',
+    ]).toContain(message);
+  });
+
+  it('falls back to generic bill import message for unknown codes', () => {
+    expect(resolveFriendlyImportErrorMessage(t, 'UNKNOWN_ERROR')).toBe(
+      'financeTransactions.billImport.errorStep.generic',
+    );
   });
 });

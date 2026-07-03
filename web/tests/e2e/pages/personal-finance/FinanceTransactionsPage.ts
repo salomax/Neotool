@@ -34,15 +34,26 @@ export class FinanceTransactionsPage {
       this.page.getByTestId('btn-new-account').isVisible().catch(() => false),
       this.page.getByTestId('account-type-BANK').isVisible().catch(() => false),
       this.page.getByText(/nova conta ou cartão/i).isVisible().catch(() => false),
+      // Mobile layout hides AppHeader (and its h1 page title); use functional chrome instead.
+      this.page.getByTestId('btn-open-import-drawer').isVisible().catch(() => false),
     ]);
     return checks.some(Boolean);
+  }
+
+  private async dismissMobileAppBannerIfVisible(): Promise<void> {
+    const dismissBanner = this.page.getByRole('button', {
+      name: /fechar banner do aplicativo|dismiss app banner/i,
+    });
+    if (await dismissBanner.isVisible().catch(() => false)) {
+      await dismissBanner.click().catch(() => {});
+    }
   }
 
   // ── Navigation ──────────────────────────────────────────────────────────────
 
   async goto(): Promise<void> {
     await this.page.goto('/personal-finance/finance-transactions');
-    await this.page.getByRole('heading', { name: /movimentações financeiras/i }).waitFor({ state: 'visible' });
+    await this.dismissMobileAppBannerIfVisible();
     await expect
       .poll(
         async () => {
@@ -50,11 +61,62 @@ export class FinanceTransactionsPage {
           if (await retryButton.isVisible().catch(() => false)) {
             await retryButton.click().catch(() => {});
           }
-          return this.anyMainStateVisible();
+          const desktopHeadingVisible = await this.page
+            .getByRole('heading', { name: /movimentações financeiras|financial transactions/i })
+            .isVisible()
+            .catch(() => false);
+          return desktopHeadingVisible || (await this.anyMainStateVisible());
         },
         { timeout: 60000 },
       )
       .toBe(true);
+  }
+
+  private mobileSidebarTrigger(): Locator {
+    return this.page.getByTestId('sidebarlayout-mobile-trigger');
+  }
+
+  private async openMobileAccountSidebarIfNeeded(): Promise<void> {
+    const selector = this.page.getByTestId('account-selector');
+    if (await selector.isVisible().catch(() => false)) {
+      return;
+    }
+
+    const mobileTrigger = this.mobileSidebarTrigger();
+    if (!(await mobileTrigger.isVisible().catch(() => false))) {
+      return;
+    }
+
+    await mobileTrigger.click();
+    await selector.waitFor({ state: 'visible', timeout: 10_000 });
+  }
+
+  private async closeMobileAccountSidebarIfOpen(): Promise<void> {
+    const selector = this.page.getByTestId('account-selector');
+    if (!(await selector.isVisible().catch(() => false))) {
+      return;
+    }
+
+    await this.page.keyboard.press('Escape').catch(() => {});
+    await selector.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
+  }
+
+  private async accountLabelVisible(accountName: string): Promise<boolean> {
+    const surfaces = [
+      this.page.getByTestId('account-selector'),
+      this.mobileSidebarTrigger(),
+    ];
+
+    for (const surface of surfaces) {
+      if (await surface.isVisible().catch(() => false)) {
+        const text = (await surface.textContent()) ?? '';
+        if (text.includes(accountName)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   // ── Account selector ────────────────────────────────────────────────────────
@@ -67,13 +129,24 @@ export class FinanceTransactionsPage {
    * not open the popover — this method verifies the trigger label instead of waiting on the popover.
    */
   async selectAccount(accountName: string, accountId?: string): Promise<void> {
+    if (await this.accountLabelVisible(accountName)) {
+      await this.closeMobileAccountSidebarIfOpen();
+      await Promise.all([
+        this.summary.waitForMetricsReady(),
+        this.transactionTable.waitForLoad(),
+      ]);
+      return;
+    }
+
+    await this.openMobileAccountSidebarIfNeeded();
+
     const selector = this.page.getByTestId('account-selector');
     await selector.waitFor({ state: 'visible', timeout: 10_000 });
 
-    const labelShowsAccount = async (): Promise<boolean> =>
-      ((await selector.textContent()) ?? '').includes(accountName);
+    const labelShowsAccount = async (): Promise<boolean> => this.accountLabelVisible(accountName);
 
     if (await labelShowsAccount()) {
+      await this.closeMobileAccountSidebarIfOpen();
       await Promise.all([
         this.summary.waitForMetricsReady(),
         this.transactionTable.waitForLoad(),
@@ -111,6 +184,7 @@ export class FinanceTransactionsPage {
     await expect
       .poll(async () => labelShowsAccount(), { timeout: 15_000 })
       .toBe(true);
+    await this.closeMobileAccountSidebarIfOpen();
     await Promise.all([
       this.summary.waitForMetricsReady(),
       this.transactionTable.waitForLoad(),
