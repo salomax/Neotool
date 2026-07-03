@@ -145,7 +145,8 @@
   "pnpm": {
     "overrides": {
       "browserslist": "$browserslist",
-      "caniuse-lite": "$caniuse-lite"
+      "caniuse-lite": "$caniuse-lite",
+      "rollup@3.29.4": "3.30.0"
     }
   },
   "msw": {
