@@ -11,23 +11,28 @@ T0=$(date +%s%N)
 
 _log() { echo "$(date '+%Y-%m-%d %H:%M:%S') [claude-dev] $*" >> "$LOG"; }
 
-_log "▶ START thread=$THREAD session=${SESSION:-new} prompt=${*:0:120}"
+_log "▶ START thread=$THREAD session=${SESSION:-new}"
+_log "  prompt: $*"
 bash "$STATUS" "🤖 _Claude (sonnet-4-6)_ — iniciando..." 2>/dev/null || true
 
+# Tenta com --output-format json para capturar session_id e tokens
 if [ -n "$SESSION" ]; then
-    OUTPUT=$(claude --model claude-sonnet-4-6 --resume "$SESSION" -p "$*" \
+    RAW=$(claude --model claude-sonnet-4-6 --resume "$SESSION" -p "$*" \
         --dangerously-skip-permissions --output-format json 2>&1) || \
-    OUTPUT=$(claude --model claude-sonnet-4-6 -p "$*" \
-        --dangerously-skip-permissions --output-format json 2>&1)
+    RAW=$(claude --model claude-sonnet-4-6 -p "$*" \
+        --dangerously-skip-permissions --output-format json 2>&1) || true
 else
-    OUTPUT=$(claude --model claude-sonnet-4-6 -p "$*" \
-        --dangerously-skip-permissions --output-format json 2>&1)
+    RAW=$(claude --model claude-sonnet-4-6 -p "$*" \
+        --dangerously-skip-permissions --output-format json 2>&1) || true
 fi
 
+EXIT_CODE=$?
 ELAPSED=$(( ($(date +%s%N) - T0) / 1000000 ))
+_log "  exit_code=$EXIT_CODE elapsed=${ELAPSED}ms raw_chars=${#RAW}"
+_log "  raw_preview: ${RAW:0:300}"
 
-# Extrai session_id e tokens
-PARSED=$(echo "$OUTPUT" | python3 -c "
+# Extrai session_id, tokens e resultado do JSON
+PARSED=$(echo "$RAW" | python3 -c "
 import sys, json
 session_id = ''; in_tok = 0; out_tok = 0; result_text = ''
 for line in sys.stdin:
@@ -48,17 +53,27 @@ for line in sys.stdin:
                     result_text += blk['text']
     except Exception: pass
 print(f'{session_id}|||{in_tok}|||{out_tok}|||{result_text}')
-" 2>/dev/null || echo "||||||")
+" 2>/dev/null || echo "|||0|||0|||")
 
-NEW_SESSION=$(echo "$PARSED" | cut -d'|' -f1 | tr -d '|')
-IN_TOK=$(echo "$PARSED"     | awk -F'\\|\\|\\|' '{print $2}')
-OUT_TOK=$(echo "$PARSED"    | awk -F'\\|\\|\\|' '{print $3}')
-RESULT=$(echo "$PARSED"     | awk -F'\\|\\|\\|' '{print $4}')
+NEW_SESSION=$(echo "$PARSED" | awk -F'\|\|\|' '{print $1}')
+IN_TOK=$(echo "$PARSED"     | awk -F'\|\|\|' '{print $2}')
+OUT_TOK=$(echo "$PARSED"    | awk -F'\|\|\|' '{print $3}')
+RESULT=$(echo "$PARSED"     | awk -F'\|\|\|' '{print $4}')
 
 [ -n "$NEW_SESSION" ] && $MGR save claude "$NEW_SESSION" 2>/dev/null || true
 
-_log "✓ DONE elapsed=${ELAPSED}ms session=${NEW_SESSION:-?} in=${IN_TOK} out=${OUT_TOK}"
+_log "  session_id=${NEW_SESSION:-?} in=${IN_TOK} out=${OUT_TOK}"
+_log "  result_preview: ${RESULT:0:200}"
+
 bash "$STATUS" "🤖 _Claude_ respondeu em $((ELAPSED/1000))s (in:${IN_TOK} out:${OUT_TOK})" 2>/dev/null || true
 
-# Output VERBATIM — sem modificação
-echo "$RESULT"
+# Output: prefere resultado parseado, fallback para raw se vazio
+if [ -n "$RESULT" ]; then
+    echo "$RESULT"
+elif [ -n "$RAW" ]; then
+    _log "  WARN: JSON parse vazio, usando raw output"
+    echo "$RAW"
+else
+    _log "  ERROR: sem output do Claude (exit=$EXIT_CODE)"
+    echo "(sem resposta do Claude — exit code $EXIT_CODE)"
+fi

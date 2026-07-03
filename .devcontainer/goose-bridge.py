@@ -23,6 +23,10 @@ import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# Router próprio (substitui Goose)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import router as _router
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -453,12 +457,23 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(202, {"status": "processing", "session": "usage-check"})
             return
 
-        # Dispara Goose em background e responde imediatamente
-        t = threading.Thread(
-            target=run_goose,
-            args=(session, message, resume, channel, ts, slack_token),
-            daemon=True,
-        )
+        # Dispara router em background e responde imediatamente
+        def _run_router():
+            try:
+                output = _router.route(message, session, channel, ts, slack_token)
+                log.info("router output: %r", (output or "")[:200])
+                if output is None:
+                    return  # check_usage já tratado antes
+                text = output.strip() or "_(sem resposta)_"
+                log.info("posting to slack: %d chars — %r", len(text), text[:120])
+                if len(text) > MAX_CHARS:
+                    text = text[:MAX_CHARS] + "\n_(truncado)_"
+                slack_update(slack_token, channel, ts, text)
+            except Exception as e:
+                log.exception("router error: %s", e)
+                slack_update(slack_token, channel, ts, f"❌ Erro interno: {e}")
+
+        t = threading.Thread(target=_run_router, daemon=True)
         t.start()
 
         self.send_json(202, {"status": "processing", "session": session})
