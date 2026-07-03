@@ -1,3 +1,13 @@
+## 0.7.34 (2026-07-03)
+
+### 🚀 Features
+
+- **goose-bridge:** add fast track stage for direct requests ([c7c83709](https://github.com/invistus/invistus/commit/c7c83709))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.33 (2026-07-03)
 
 This was a version bump only for neotool-web to align it with other projects, there were no code changes.

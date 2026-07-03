@@ -1,3 +1,13 @@
+## 0.8.1 (2026-07-03)
+
+### 🚀 Features
+
+- **goose-bridge:** add fast track stage for direct requests ([c7c83709](https://github.com/invistus/invistus/commit/c7c83709))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.8.0 (2026-07-02)
 
 ### 🚀 Features
