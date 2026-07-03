@@ -157,6 +157,9 @@ From that point on, every `neotool dev init` restores the keys automatically.
 ### First-time setup
 
 ```bash
+# 0. Authenticate with GitHub Container Registry (required to pull devcontainer features)
+echo $GH_TOKEN | docker login ghcr.io -u <your-github-username> --password-stdin
+
 # 1. Start DevPod workspace (builds image, starts infra, restores Vault keys)
 ./neotool dev init
 

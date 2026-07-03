@@ -56,7 +56,7 @@ start_kotlin_service() {
         load_env="set -a && source $env_file && set +a && "
     fi
     echo "▶ $name (:$port)"
-    new_window "$name" "bash -c '${load_env}cd $WORKSPACE_ROOT/service/kotlin && ./gradlew :${name}:run --continuous'"
+    new_window "$name" "bash -c '${load_env}\"$WORKSPACE_ROOT/scripts/cli/gradlew-dev.sh\" :${name}:run'"
 }
 
 case "$MODE" in
