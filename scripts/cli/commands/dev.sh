@@ -20,6 +20,8 @@ source "$CLI_DIR/utils.sh"
 TMUX_SESSION="dev"
 KOTLIN_ROOT="$PROJECT_ROOT/service/kotlin"
 WEB_ROOT="$PROJECT_ROOT/web"
+GRADLEW_DEV="$CLI_DIR/gradlew-dev.sh"
+GRADLE_LOCK_FILE="/tmp/neotool-gradle.lock"
 
 # Ordered list for start all (bash 3 compatible — no associative arrays)
 ALL_SERVICES=(security assets assistant financialdata comms banking web)
@@ -250,6 +252,17 @@ start_web() {
     log "  ✓ web → tmux window 'web' (port 3000)" "$GREEN"
 }
 
+gradle_reset() {
+    log "▶ Resetting Gradle locks and daemons..." "$BLUE"
+    if [[ -x "$KOTLIN_ROOT/gradlew" ]]; then
+        (cd "$KOTLIN_ROOT" && ./gradlew --stop) 2>/dev/null || true
+    fi
+    pkill -f "GradleDaemon" 2>/dev/null || true
+    rm -f "$GRADLE_LOCK_FILE" "$KOTLIN_ROOT/.gradle/8.14/fileHashes/fileHashes.lock"
+    log "✓ Gradle reset complete" "$GREEN"
+    log "  You can now run: neotool dev start <service>" "$GRAY"
+}
+
 start_kotlin() {
     local name="$1"
     local port; port=$(service_port "$name")
@@ -259,7 +272,8 @@ start_kotlin() {
     env_cmd=$(load_env_cmd "$env_file")
     # JAVA_HOME: detecta arch automaticamente
     local java_home_cmd="export JAVA_HOME=\$(ls -d /usr/lib/jvm/temurin-21-jdk-* 2>/dev/null | head -1) && "
-    new_window "$name" "bash -c '${java_home_cmd}${env_cmd}cd $KOTLIN_ROOT && ./gradlew :${name}:run --no-configuration-cache'"
+    # gradlew-dev serializes :classes with flock before :run to avoid fileHashes lock contention
+    new_window "$name" "bash -c '${java_home_cmd}${env_cmd}\"$GRADLEW_DEV\" :${name}:run'"
     log "  ✓ $name → tmux window '$name' (port $port)" "$GREEN"
 }
 
@@ -387,6 +401,10 @@ Subcommands:
   $(log "logs" "$GREEN") <service>
     Show the last lines of output for a service (without attaching).
 
+  $(log "gradle-reset" "$GREEN")
+    Stop Gradle daemons and clear stale lock files (use if builds fail with
+    fileHashes lock or corrupt cache errors).
+
 Available services:
   web, security, assets, assistant, financialdata, comms, banking
 
@@ -404,6 +422,7 @@ Examples:
   neotool dev logs security
   neotool dev restart web
   neotool dev restart
+  neotool dev gradle-reset
 EOF
 }
 
@@ -711,6 +730,9 @@ main() {
                 done
                 log "✓ All services restarted." "$GREEN"
             fi
+            ;;
+        gradle-reset)
+            gradle_reset
             ;;
         forward)
             local pidfile="/tmp/devpod-forward.pid"

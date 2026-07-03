@@ -4,6 +4,9 @@ This section contains all frontend development documentation for NeoTool web app
 
 ## Organization
 
+### Mobile
+- **[Invistus Mobile — High-Level Plan](mobile/README.md)** — Strategic source of truth for the mobile sub-project (scope, architecture, phases, dev pipeline). Start here.
+
 ### Roadmaps
 - **[Web to mobile migration roadmap](mobile-migration-roadmap.md)** — Phased plan for parity-driven migration from `web/` to `mobile/`
 - **[Phase 0 discovery baseline](mobile-phase-0-discovery-baseline.md)** — Initial parity matrix and migration priority baseline
