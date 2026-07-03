@@ -4,7 +4,7 @@
 #       Firefox and WebKit pre-installed.  Everything else is layered on top.
 # =============================================================================
 
-FROM mcr.microsoft.com/playwright:v1.56.0-noble
+FROM mcr.microsoft.com/playwright:v1.58.2-noble
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -101,11 +101,11 @@ RUN npm install -g         pnpm         @anthropic-ai/claude-code         @opena
 # -----------------------------------------------------------------------------
 RUN mkdir -p /root/.local/bin \
     && curl -fsSL https://cursor.com/install | bash \
-    && AGENT_DIR=$(dirname "$(readlink -f /root/.local/bin/agent)") \
-    && cp -r "$AGENT_DIR" /usr/local/cursor-cli \
-    && ln -sf /usr/local/cursor-cli/agent /usr/local/bin/agent \
-    && ln -sf /usr/local/cursor-cli/agent /usr/local/bin/cursor \
-    && chmod 755 /usr/local/cursor-cli/agent
+    && AGENT_BIN=$(find /root/.local/bin -maxdepth 1 -name "agent" 2>/dev/null | head -1) \
+    && [ -n "$AGENT_BIN" ] || AGENT_BIN=$(readlink -f /root/.local/bin/agent) \
+    && cp "$AGENT_BIN" /usr/local/bin/agent \
+    && chmod 755 /usr/local/bin/agent \
+    && ln -sf /usr/local/bin/agent /usr/local/bin/cursor
 
 
 

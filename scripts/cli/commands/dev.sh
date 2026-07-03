@@ -27,6 +27,41 @@ ALL_SERVICES=(security assets assistant financialdata comms banking web)
 # All workers (golang + python)
 ALL_WORKERS=(asset-brand b3-cotahist b3-corporate-events bacen-ifdata cvm-funds indicators institution-consumer ratings pdf-extractor)
 
+# Infra containers (docker compose services)
+ALL_INFRA=(postgres pgbouncer kafka minio vault router)
+COMPOSE_FILE="$PROJECT_ROOT/infra/docker/docker-compose.local.yml"
+COMPOSE_ENV="$PROJECT_ROOT/infra/docker/.env.local"
+
+# Returns docker container name for an infra service
+infra_container() {
+    case "$1" in
+        postgres)  echo "neotool-postgres" ;;
+        pgbouncer) echo "neotool-pgbouncer" ;;
+        kafka)     echo "neotool-kafka" ;;
+        minio)     echo "neotool-minio" ;;
+        vault)     echo "neotool-vault" ;;
+        router)    echo "neotool-graphql-router" ;;
+        *)         echo "" ;;
+    esac
+}
+
+# Returns compose profile flag if needed
+infra_profile() {
+    case "$1" in
+        router) echo "--profile gateway" ;;
+        *)      echo "" ;;
+    esac
+}
+
+is_infra() {
+    [[ -n "$(infra_container "$1")" ]]
+}
+
+infra_running() {
+    local container; container=$(infra_container "$1")
+    docker ps --format "{{.Names}}" 2>/dev/null | grep -qx "$container"
+}
+
 # Returns filesystem path (relative to PROJECT_ROOT) for a worker
 worker_path() {
     case "$1" in
@@ -346,11 +381,114 @@ show_status() {
     done
     echo ""
 
+    echo ""
+    printf "%-16s %s\n" "INFRA" "STATUS"
+    printf "%-16s %s\n" "-----" "------"
+    for name in "${ALL_INFRA[@]}"; do
+        local container; container=$(infra_container "$name")
+        local status color
+        if docker ps --format "{{.Names}}" 2>/dev/null | grep -qx "$container"; then
+            status="✓ up"; color="$GREEN"
+        else
+            status="✗ down"; color="$RED"
+        fi
+        printf "%-16s " "$name"
+        echo -e "${color}${status}${RESET}"
+    done
+    echo ""
+
+    # Vault JWT keys check
+    local vault_url="http://localhost:8200"
+    local vault_token="${VAULT_TOKEN:-myroot}"
+    echo ""
+    if infra_running vault; then
+        local key_count
+        key_count=$(curl -sf             -H "X-Vault-Token: $vault_token"             "${vault_url}/v1/secret/metadata/jwt/keys?list=true"             2>/dev/null | jq -r '.data.keys | length' 2>/dev/null || echo "0")
+        if [[ "$key_count" -gt 0 ]] 2>/dev/null; then
+            echo -e "${GREEN}✓ Vault JWT keys loaded (${key_count} key(s))${RESET}"
+        else
+            echo -e "${RED}✗ Vault JWT keys missing${RESET}"
+            echo -e "${YELLOW}  Fix: neotool vault restore --secret-path secret/jwt/keys --input ~/.vault-keys/backup.json${RESET}"
+            echo -e "${YELLOW}  Then: neotool dev restart security${RESET}"
+        fi
+    else
+        echo -e "${YELLOW}⚠ Vault not running — cannot check JWT keys${RESET}"
+    fi
+    echo ""
+
     if tmux_session_exists; then
         log "tmux session '$TMUX_SESSION' active. To enter: neotool dev attach" "$GRAY"
     else
         log "No active tmux session." "$GRAY"
     fi
+}
+
+# =============================================================================
+# Infra management
+# =============================================================================
+
+dev_infra() {
+    local action="${1:-}"
+    local target="${2:-}"
+
+    if [[ -z "$action" ]] || [[ "$action" == "--help" ]]; then
+        echo "Usage: neotool dev infra <start|stop|restart|status> [service]"
+        echo "Services: ${ALL_INFRA[*]}"
+        return 0
+    fi
+
+    if [[ "$action" == "status" ]]; then
+        printf "%-16s %s\n" "INFRA" "STATUS"
+        printf "%-16s %s\n" "-----" "------"
+        for name in "${ALL_INFRA[@]}"; do
+            local container; container=$(infra_container "$name")
+            local status color
+            if docker ps --format "{{.Names}}" 2>/dev/null | grep -qx "$container"; then
+                status="✓ up"; color="$GREEN"
+            else
+                status="✗ down"; color="$RED"
+            fi
+            printf "%-16s " "$name"
+            echo -e "${color}${status}${RESET}"
+        done
+        return 0
+    fi
+
+    local targets=()
+    if [[ -n "$target" ]]; then
+        if ! is_infra "$target"; then
+            log_error "Unknown infra service: $target. Available: ${ALL_INFRA[*]}"
+            exit 1
+        fi
+        targets=("$target")
+    else
+        targets=("${ALL_INFRA[@]}")
+    fi
+
+    for svc in "${targets[@]}"; do
+        local profile; profile=$(infra_profile "$svc")
+        case "$action" in
+            start)
+                log "▶ Starting infra: $svc..." "$BLUE"
+                # shellcheck disable=SC2086
+                docker compose -f "$COMPOSE_FILE" --env-file "$COMPOSE_ENV"                     $profile up -d "$svc"                     && log "  ✓ $svc up" "$GREEN"                     || log_error "  ✗ failed to start $svc"
+                ;;
+            stop)
+                log "▶ Stopping infra: $svc..." "$BLUE"
+                # shellcheck disable=SC2086
+                docker compose -f "$COMPOSE_FILE" --env-file "$COMPOSE_ENV"                     $profile stop "$svc"                     && log "  ✓ $svc stopped" "$GREEN"                     || log_error "  ✗ failed to stop $svc"
+                ;;
+            restart)
+                log "▶ Restarting infra: $svc..." "$BLUE"
+                # shellcheck disable=SC2086
+                docker compose -f "$COMPOSE_FILE" --env-file "$COMPOSE_ENV"                     $profile restart "$svc"                     && log "  ✓ $svc restarted" "$GREEN"                     || log_error "  ✗ failed to restart $svc"
+                ;;
+            *)
+                log_error "Unknown action: $action. Use start|stop|restart|status"
+                exit 1
+                ;;
+        esac
+    done
 }
 
 # =============================================================================
@@ -389,6 +527,14 @@ Subcommands:
 
 Available services:
   web, security, assets, assistant, financialdata, comms, banking
+
+Available workers:
+  asset-brand, b3-cotahist, b3-corporate-events, bacen-ifdata,
+  cvm-funds, indicators, institution-consumer, ratings, pdf-extractor
+
+Infra subcommand:
+  neotool dev infra <start|stop|restart|status> [service]
+  Services: postgres, pgbouncer, kafka, minio, vault, router
 
 Available workers:
   asset-brand, b3-cotahist, b3-corporate-events, bacen-ifdata,
@@ -694,6 +840,9 @@ main() {
             ;;
         seed)
             dev_seed "${@}"
+            ;;
+        infra)
+            dev_infra "${@}"
             ;;
         restart)
             if [[ -n "$target" ]]; then
