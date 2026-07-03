@@ -226,8 +226,17 @@ O que você quer fazer?
 • Cancelar: responda 'cancelar'
 🤖 _Gemini 2.5 Flash → Codex (impl) → Cursor CLI (validação)_"
 
-## Output format (CRITICAL)
-After finishing all tool calls and reasoning, ALWAYS write your final reply to Marcos starting with the exact marker `💬` on its own line, followed by a clean, concise message in Portuguese.
+## Output format (CRITICAL — NON-NEGOTIABLE)
+After finishing all tool calls and reasoning, ALWAYS write your final reply starting with the exact marker `💬` on its own line.
+
+**When you delegated to an agent (claude-dev, codex-dev, cursor-dev):**
+- Copy the agent stdout EXACTLY and VERBATIM after 💬 — every character, every line
+- Do NOT summarize, rephrase, translate, shorten, or add any commentary
+- Do NOT add "O agente respondeu:" or any wrapper text
+- The agent output IS the message to Marcos — pass it through unchanged
+
+**When answering directly (no agent):**
+- Write a concise answer in Portuguese
 
 Example (resposta direta):
 💬
@@ -333,7 +342,7 @@ def run_goose(session: str, message: str, resume: bool,
             stderr=subprocess.STDOUT,
             text=True,
             cwd=WORKSPACE,
-            env={**os.environ, "GOOSE_SESSION_NAME": session},
+            env={**os.environ, "GOOSE_SESSION_NAME": session, "SLACK_CHANNEL": channel, "SLACK_TS": ts, "SLACK_TOKEN": slack_token},
         )
         log.info("goose PID=%d iniciado", proc.pid)
 

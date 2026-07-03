@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# codex-dev — wrapper Codex com session management + logging
+# codex-dev — wrapper Codex com session management, status updates e output verbatim
 set -euo pipefail
 
 LOG=/tmp/goose-bridge.log
 MGR="python3 /workspaces/invistus/.devcontainer/agents/session-mgr.py"
+STATUS="/workspaces/invistus/.devcontainer/agents/slack-status.sh"
 SESSION=$($MGR load codex 2>/dev/null || true)
 THREAD="${GOOSE_SESSION_NAME:-default}"
 T0=$(date +%s%N)
@@ -11,12 +12,16 @@ T0=$(date +%s%N)
 _log() { echo "$(date '+%Y-%m-%d %H:%M:%S') [codex-dev] $*" >> "$LOG"; }
 
 _log "▶ START thread=$THREAD session=${SESSION:-new} prompt=${*:0:120}"
+bash "$STATUS" "🔷 _Codex (gpt-5.4)_ — iniciando..." 2>/dev/null || true
 
 if [ -n "$SESSION" ]; then
-    OUTPUT=$(codex exec resume "$SESSION" -m gpt-5.4 --dangerously-bypass-approvals-and-sandbox "$*" 2>&1) || \
-    OUTPUT=$(codex exec -m gpt-5.4 --dangerously-bypass-approvals-and-sandbox "$*" 2>&1)
+    OUTPUT=$(codex exec resume "$SESSION" -m gpt-5.4 \
+        --dangerously-bypass-approvals-and-sandbox "$*" 2>&1) || \
+    OUTPUT=$(codex exec -m gpt-5.4 \
+        --dangerously-bypass-approvals-and-sandbox "$*" 2>&1)
 else
-    OUTPUT=$(codex exec -m gpt-5.4 --dangerously-bypass-approvals-and-sandbox "$*" 2>&1)
+    OUTPUT=$(codex exec -m gpt-5.4 \
+        --dangerously-bypass-approvals-and-sandbox "$*" 2>&1)
 fi
 
 ELAPSED=$(( ($(date +%s%N) - T0) / 1000000 ))
@@ -24,7 +29,8 @@ ELAPSED=$(( ($(date +%s%N) - T0) / 1000000 ))
 NEW_SESSION=$(echo "$OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true)
 [ -n "$NEW_SESSION" ] && $MGR save codex "$NEW_SESSION" 2>/dev/null || true
 
-PREVIEW=$(echo "$OUTPUT" | tail -3 | tr '\n' ' ' | cut -c1-150)
-_log "✓ DONE elapsed=${ELAPSED}ms session=${NEW_SESSION:-?} preview=$PREVIEW"
+_log "✓ DONE elapsed=${ELAPSED}ms session=${NEW_SESSION:-?}"
+bash "$STATUS" "🔷 _Codex_ respondeu em $((ELAPSED/1000))s" 2>/dev/null || true
 
+# Output VERBATIM
 echo "$OUTPUT"

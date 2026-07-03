@@ -3,6 +3,7 @@ import {
   MAX_FILE_BYTES,
   type BillDateValidation,
   type CardAccountOption,
+  type DueDateResolutionCard,
   type SharedCardTemplate,
 } from './billImportTypes';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -32,9 +33,25 @@ export function formatTxDisplayDate(date: string | null | undefined, locale?: st
   return new Intl.DateTimeFormat(locale, { dateStyle: 'short' }).format(dateObj);
 }
 
+export function canResolveDueDateWithoutManualInput(
+  cards: DueDateResolutionCard[],
+  cardAccountOptionsById: Map<string, CardAccountOption>,
+): boolean {
+  if (cards.length === 0) return false;
+
+  return cards.every((card) => {
+    if (card.importedDueDate) return true;
+    if (!card.financialAccountId) return false;
+
+    const dueDay = cardAccountOptionsById.get(card.financialAccountId)?.dueDay;
+    return dueDay != null && dueDay >= 1 && dueDay <= 31;
+  });
+}
+
 export function getBillDateValidation(
   closingDateInput: Dayjs | null,
   dueDateInput: Dayjs | null,
+  canResolveDueDateWithoutManualInput = false,
 ): BillDateValidation {
   const hasBillClosingDate = closingDateInput !== null;
   const closingDateInvalid = Boolean(closingDateInput && !closingDateInput.isValid());
@@ -43,12 +60,15 @@ export function getBillDateValidation(
   const dueDateValue = dueDateInput && dueDateInput.isValid() ? dueDateInput : null;
   const dueDateBeforeClosingDate =
     !!closingDateValue && !!dueDateValue && dueDateValue.isBefore(closingDateValue, 'day');
+  const hasManualDueDate = dueDateValue !== null;
+  const dueDateMissing = !hasManualDueDate && !canResolveDueDateWithoutManualInput;
 
   return {
     hasBillClosingDate,
     closingDateInvalid,
     dueDateInvalid,
     dueDateBeforeClosingDate,
+    dueDateMissing,
   };
 }
 
@@ -57,7 +77,8 @@ export function isBillDateConfirmDisabled(validation: BillDateValidation): boole
     !validation.hasBillClosingDate ||
     validation.closingDateInvalid ||
     validation.dueDateInvalid ||
-    validation.dueDateBeforeClosingDate
+    validation.dueDateBeforeClosingDate ||
+    validation.dueDateMissing
   );
 }
 
@@ -192,10 +213,11 @@ export function buildCardAccountOption(account: {
   issuer?: { id?: string | null; name?: string | null } | null;
   issuerName?: string | null;
   issuerId?: string | null;
-  cardData?: { maskedNumber?: string | null; isMultiCard?: boolean | null } | null;
+  cardData?: { maskedNumber?: string | null; isMultiCard?: boolean | null; dueDay?: number | null } | null;
 }): CardAccountOption {
   const issuerId = account.issuer?.id ?? account.issuerId ?? null;
   const issuerName = account.issuer?.name ?? account.issuerName ?? null;
+  const dueDay = account.cardData?.dueDay ?? null;
   return {
     id: account.id,
     name: account.name,
@@ -204,5 +226,6 @@ export function buildCardAccountOption(account: {
     issuerKey: toIssuerKey(issuerId, issuerName),
     maskedNumber: account.cardData?.maskedNumber ?? null,
     isMultiCard: account.cardData?.isMultiCard ?? false,
+    dueDay: dueDay != null && dueDay >= 1 && dueDay <= 31 ? dueDay : null,
   };
 }

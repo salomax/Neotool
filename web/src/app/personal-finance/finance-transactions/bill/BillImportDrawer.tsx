@@ -420,6 +420,7 @@ export function BillImportDrawer({ open, onClose, onImportCompleted, defaultFina
           reviewCardId: draft.draftCardId,
           lastFourDigits: draft.lastFourDigits,
           financialAccountId: draft.financialAccountId,
+          importedDueDate: flatSourceCard.dueDate,
           transactions: flatSourceCard.transactions
             .map((tx, txIndex) => ({ ...tx, __sourceTxIndex: txIndex }))
             .filter((tx) => cardMatching.flatTxAssignments[tx.__sourceTxIndex] === draft.draftCardId),
@@ -430,6 +431,7 @@ export function BillImportDrawer({ open, onClose, onImportCompleted, defaultFina
       reviewCardId: card.reviewCardId,
       lastFourDigits: card.lastFourDigits,
       financialAccountId: cardMatching.cardResolutions[ci]?.financialAccountId ?? null,
+      importedDueDate: card.dueDate,
       transactions: card.transactions,
     }));
   }, [isFlatAssignmentMode, flatSourceCard, reviewCards, cardMatching]);
