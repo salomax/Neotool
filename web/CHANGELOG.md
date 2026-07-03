@@ -1,3 +1,14 @@
+## 0.7.32 (2026-07-03)
+
+### 🩹 Fixes
+
+- **web:** require due date in bill import review when card has no due day ([ddb19aad](https://github.com/invistus/invistus/commit/ddb19aad))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Marcos Salomao @salomax
+
 ## 0.7.31 (2026-07-02)
 
 ### 🩹 Fixes
