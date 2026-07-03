@@ -26,6 +26,7 @@ search_keywords: [adr, architecture, decisions, index]
 - [ADR-0009: Resource Ownership Strategy](./0009-resource-ownership-strategy.md)
 - [ADR-0010: React Native + Expo Mobile](./0010-react-native-expo-mobile.md)
 - [ADR-0011: LLM Orchestrator Service](./0011-llm-orchestrator-service.md)
+- [ADR-0014: Web/Mobile Code-Sharing Strategy](./0014-web-mobile-code-sharing-strategy.md)
 
 ## Related Documentation
 

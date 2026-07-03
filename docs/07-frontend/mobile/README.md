@@ -97,7 +97,7 @@ The biggest open decision. ADR-0010 proposes `packages/shared-*`; today nothing 
 - **Mechanism:** introduce Nx-managed shared libraries consumed by both `web/` and `mobile/`. Start **narrow** — one shared library for GraphQL operations + types and one for validation/formatters — before generalizing. Avoid a premature cross-platform UI abstraction (explicitly discouraged by the roadmap).
 - **Interim:** until shared libs land, keep mobile self-contained but mirror the web's operation and schema definitions to minimize later merge cost. Treat contract drift as a tracked risk.
 
-This decision should be ratified as a short ADR addendum before Phase 1 foundation lock-in, because it affects every downstream slice.
+This decision is ratified in [ADR-0014: Web/Mobile Code-Sharing Strategy](../../92-adr/0014-web-mobile-code-sharing-strategy.md) (accepted): share behavior and contracts, not rendering; contracts are identical across web and mobile.
 
 ### Backend adaptation policy
 
@@ -206,7 +206,7 @@ P1/P2 epics (national indicators, PF breadth, investment comparison, verify-emai
 
 ## Next Actions
 
-1. Ratify the **code-sharing decision** as a short ADR addendum (shared Nx libraries for GraphQL + validation).
+1. ~~Ratify the code-sharing decision~~ — **Done**: [ADR-0014](../../92-adr/0014-web-mobile-code-sharing-strategy.md) (shared Nx libraries for GraphQL + validation; identical contracts).
 2. Confirm the **extended parity matrix** and the authorization-management product decision.
 3. Create the **GitHub epics** above in the Mobile project and run the first (Foundation) through `neotool-solution-design` → `neotool-backlog-gen`.
 4. Scaffold the **`neotool-expo-mobile`** skill and update `neotool-implement` routing.
