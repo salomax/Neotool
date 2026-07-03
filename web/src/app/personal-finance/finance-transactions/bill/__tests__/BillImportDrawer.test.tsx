@@ -88,6 +88,9 @@ vi.mock('../../account/CreateFinancialAccountDrawer', () => ({
   CreateFinancialAccountDrawer: () => null,
 }));
 
+import { isBillDateConfirmDisabled, getBillDateValidation } from '../billImportUtils';
+import dayjs from 'dayjs';
+
 describe.sequential('BillImportDrawer footer composition', () => {
   const onClose = vi.fn();
 
@@ -123,5 +126,17 @@ describe.sequential('BillImportDrawer footer composition', () => {
 
     await user.click(screen.getByTestId('bill-import-cancel-button'));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('BillImportDrawer due date confirm gating', () => {
+  it('disables confirmation when due date is missing and no fallback due day exists', () => {
+    const validation = getBillDateValidation(dayjs('2026-02-07'), null, false);
+    expect(isBillDateConfirmDisabled(validation)).toBe(true);
+  });
+
+  it('keeps confirmation enabled when due date can be derived from account due day', () => {
+    const validation = getBillDateValidation(dayjs('2026-02-07'), null, true);
+    expect(isBillDateConfirmDisabled(validation)).toBe(false);
   });
 });

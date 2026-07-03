@@ -15,6 +15,7 @@ const translations: Record<string, string> = {
   'financeTransactions.billImport.txReviewStep.closingDateHint': 'Closing hint',
   'financeTransactions.billImport.txReviewStep.dueDateLabel': 'Due date',
   'financeTransactions.billImport.txReviewStep.dueDateHint': 'Due hint',
+  'financeTransactions.billImport.txReviewStep.dueDateRequired': 'Due date is required',
   'financeTransactions.billImport.txReviewStep.confirming': 'Confirming...',
   'financeTransactions.billImport.txReviewStep.confirmButton': 'Confirm {{count}} transaction(s)',
   'financeTransactions.billImport.common.back': 'Back',
@@ -39,15 +40,18 @@ vi.mock('@/shared/components/ui/primitives/DateTimePicker', () => ({
     onChange,
     errorMessage,
     helperText,
+    required,
   }: {
     label: string;
     value?: Dayjs | null;
     onChange?: (value: Dayjs | null) => void;
     errorMessage?: string;
     helperText?: string;
+    required?: boolean;
   }) => (
     <div data-testid={`picker-${label}`}>
       <span>{label}</span>
+      {required ? <span data-testid={`required-${label}`}>required</span> : null}
       <span data-testid={`value-${label}`}>
         {value == null ? 'empty' : value.isValid() ? value.format('YYYY-MM-DD') : 'invalid'}
       </span>
@@ -71,9 +75,37 @@ vi.mock('../steps/TxReviewItem', () => ({
 
 const theme = createTheme();
 
-function renderHarness(initialOverrides: BillDateOverrides) {
+function renderHarness(
+  initialOverrides: BillDateOverrides,
+  options?: {
+    cardAccountOptions?: Array<{
+      id: string;
+      name: string;
+      issuerId: string | null;
+      issuerName: string | null;
+      issuerKey: string | null;
+      maskedNumber: string | null;
+      isMultiCard: boolean;
+      dueDay: number | null;
+    }>;
+    importedDueDate?: string | null;
+    onBillDateValidationChange?: (validation: unknown) => void;
+  },
+) {
   function Harness() {
     const [billDateOverrides, setBillDateOverrides] = React.useState(initialOverrides);
+    const cardAccountOptions = options?.cardAccountOptions ?? [
+      {
+        id: 'account-1',
+        name: 'Card',
+        issuerId: null,
+        issuerName: null,
+        issuerKey: null,
+        maskedNumber: '1234',
+        isMultiCard: false,
+        dueDay: null,
+      },
+    ];
 
     return (
       <>
@@ -83,6 +115,7 @@ function renderHarness(initialOverrides: BillDateOverrides) {
               reviewCardId: 'card-1',
               lastFourDigits: '1234',
               financialAccountId: 'account-1',
+              importedDueDate: options?.importedDueDate ?? null,
               transactions: [],
             },
           ]}
@@ -94,12 +127,12 @@ function renderHarness(initialOverrides: BillDateOverrides) {
           isFlatAssignmentMode={false}
           allCardsResolved
           allCategories={[]}
-          cardAccountOptions={[{ id: 'account-1', name: 'Card', issuerId: null, issuerName: null, issuerKey: null, maskedNumber: '1234', isMultiCard: false }]}
+          cardAccountOptions={cardAccountOptions}
           onSetTxSelections={vi.fn()}
           onSetFlatTxInclusions={vi.fn()}
           onSetBillDateOverrides={setBillDateOverrides}
           onUpdateCategory={vi.fn()}
-          onBillDateValidationChange={vi.fn()}
+          onBillDateValidationChange={options?.onBillDateValidationChange ?? vi.fn()}
         />
         <pre data-testid="bill-date-overrides">{JSON.stringify(billDateOverrides)}</pre>
       </>
@@ -158,7 +191,7 @@ describe.sequential('TxReviewStep', () => {
           isFlatAssignmentMode={false}
           allCardsResolved
           allCategories={[]}
-          cardAccountOptions={[{ id: 'account-1', name: 'Card', issuerId: null, issuerName: null, issuerKey: null, maskedNumber: '1234', isMultiCard: false }]}
+          cardAccountOptions={[{ id: 'account-1', name: 'Card', issuerId: null, issuerName: null, issuerKey: null, maskedNumber: '1234', isMultiCard: false, dueDay: null }]}
           onSetTxSelections={vi.fn()}
           onSetFlatTxInclusions={vi.fn()}
           onSetBillDateOverrides={setBillDateOverrides}
@@ -179,6 +212,55 @@ describe.sequential('TxReviewStep', () => {
     expect(onBillDateValidationChange).toHaveBeenCalledWith(
       expect.objectContaining({
         dueDateInvalid: true,
+      }),
+    );
+  });
+
+  it('shows missing-due-date validation when no fallback due day exists', () => {
+    renderHarness(
+      { closingDate: '2026-02-07', dueDate: '' },
+      { importedDueDate: null },
+    );
+
+    expect(screen.getByText('Due date is required')).toBeInTheDocument();
+    expect(screen.getByTestId('required-Due date')).toBeInTheDocument();
+  });
+
+  it('does not require manual due date when the selected account has dueDay', () => {
+    renderHarness(
+      { closingDate: '2026-02-07', dueDate: '' },
+      {
+        importedDueDate: null,
+        cardAccountOptions: [
+          {
+            id: 'account-1',
+            name: 'Card',
+            issuerId: null,
+            issuerName: null,
+            issuerKey: null,
+            maskedNumber: '1234',
+            isMultiCard: false,
+            dueDay: 15,
+          },
+        ],
+      },
+    );
+
+    expect(screen.queryByText('Due date is required')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('required-Due date')).not.toBeInTheDocument();
+    expect(screen.getByText('Due hint')).toBeInTheDocument();
+  });
+
+  it('reports missing due date validation to the parent', () => {
+    const onBillDateValidationChange = vi.fn();
+    renderHarness(
+      { closingDate: '2026-02-07', dueDate: '' },
+      { importedDueDate: null, onBillDateValidationChange },
+    );
+
+    expect(onBillDateValidationChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dueDateMissing: true,
       }),
     );
   });

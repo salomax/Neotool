@@ -1865,6 +1865,7 @@
         "closingDateHint": "Usamos essa data para identificar a fatura correta.",
         "dueDateLabel": "Data de vencimento",
         "dueDateHint": "A data de vencimento deve ser igual ou posterior à data de fechamento.",
+        "dueDateRequired": "Informe a data de vencimento. O cartão selecionado não tem dia de vencimento configurado.",
         "paymentChip": "Pagamento",
         "suggestedBadge": "Sugerido",
         "confirming": "Confirmando...",

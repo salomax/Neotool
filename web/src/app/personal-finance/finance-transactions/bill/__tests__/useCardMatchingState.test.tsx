@@ -66,6 +66,7 @@ describe.sequential('useCardMatchingState', () => {
         issuerKey: 'id:issuer-1',
         maskedNumber: '•••• 1234',
         isMultiCard: false,
+        dueDay: null,
       },
     ];
 
@@ -93,6 +94,7 @@ describe.sequential('useCardMatchingState', () => {
         issuerKey: 'id:issuer-1',
         maskedNumber: '•••• 1234',
         isMultiCard: false,
+        dueDay: null,
       },
     ];
 
@@ -120,6 +122,7 @@ describe.sequential('useCardMatchingState', () => {
         issuerKey: 'id:issuer-1',
         maskedNumber: '•••• 1234',
         isMultiCard: false,
+        dueDay: null,
       },
     ];
 
@@ -146,6 +149,7 @@ describe.sequential('useCardMatchingState', () => {
         issuerKey: 'id:issuer-1',
         maskedNumber: null,
         isMultiCard: true,
+        dueDay: null,
       },
     ];
 
@@ -168,6 +172,7 @@ describe.sequential('useCardMatchingState', () => {
         issuerKey: 'id:issuer-1',
         maskedNumber: null,
         isMultiCard: false,
+        dueDay: null,
       },
     ];
 
@@ -190,6 +195,7 @@ describe.sequential('useCardMatchingState', () => {
         issuerKey: 'id:issuer-1',
         maskedNumber: '•••• 1234',
         isMultiCard: false,
+        dueDay: null,
       },
       {
         id: 'card-2',
@@ -199,6 +205,7 @@ describe.sequential('useCardMatchingState', () => {
         issuerKey: 'id:issuer-1',
         maskedNumber: '•••• 9876',
         isMultiCard: false,
+        dueDay: null,
       },
     ];
 

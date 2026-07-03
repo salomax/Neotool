@@ -67,6 +67,7 @@ export interface CardAccountOption {
   issuerKey: string | null;
   maskedNumber: string | null;
   isMultiCard: boolean;
+  dueDay: number | null;
 }
 
 export interface DraftCardResolution {
@@ -95,6 +96,11 @@ export interface SharedCardTemplate {
   descriptionBase: string;
 }
 
+export interface DueDateResolutionCard {
+  importedDueDate?: string | null;
+  financialAccountId: string | null;
+}
+
 export interface BillDateOverrides {
   closingDate: string;
   dueDate: string;
@@ -105,6 +111,7 @@ export interface BillDateValidation {
   closingDateInvalid: boolean;
   dueDateInvalid: boolean;
   dueDateBeforeClosingDate: boolean;
+  dueDateMissing: boolean;
 }
 
 // ── Transaction selection types ──────────────────────────────────────────────
@@ -153,5 +160,6 @@ export interface ReviewCardForTxReview {
   reviewCardId: string;
   lastFourDigits?: string | null;
   financialAccountId: string | null;
+  importedDueDate?: string | null;
   transactions: Array<ReviewTransaction & { __sourceTxIndex?: number }>;
 }

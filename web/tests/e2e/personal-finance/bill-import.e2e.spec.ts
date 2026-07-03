@@ -211,6 +211,206 @@ test("BI-H-01: flat assignment review omits empty last-four bucket after reassig
   await expect(page.getByText("iFood BI-H-01")).toBeVisible();
 });
 
+async function mockBillImportReviewFlow(
+  page: import("@playwright/test").Page,
+  options: {
+    mockedJobId: string;
+    accountId: string;
+    dueDate?: string | null;
+  },
+): Promise<void> {
+  await page.route("**/graphql", async (route) => {
+    const request = route.request();
+    if (request.method() !== "POST" || !/graphql/i.test(request.url())) {
+      await route.continue();
+      return;
+    }
+
+    const rawBody = request.postData();
+    if (!rawBody) {
+      await route.continue();
+      return;
+    }
+
+    let operation: { operationName?: string; query?: string } | null = null;
+    try {
+      operation = JSON.parse(rawBody) as { operationName?: string; query?: string };
+    } catch {
+      await route.continue();
+      return;
+    }
+
+    const operationName = typeof operation?.operationName === "string" ? operation.operationName : "";
+    const query = typeof operation?.query === "string" ? operation.query : "";
+
+    if (operationName === "SubmitBillImport" || query.includes("submitBillImport")) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            submitBillImport: {
+              __typename: "BillImportJob",
+              id: options.mockedJobId,
+              status: "EXTRACTING",
+              fileName: "fatura-due-date.csv",
+              createdAt: "2026-06-24T12:00:00.000Z",
+              errorMessage: null,
+              errorCode: null,
+              errorParameters: null,
+            },
+          },
+        }),
+      });
+      return;
+    }
+
+    if (operationName === "BillImportJob" || query.includes("billImportJob")) {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            billImportJob: {
+              __typename: "BillImportJob",
+              id: options.mockedJobId,
+              status: "AWAITING_REVIEW",
+              fileName: "fatura-due-date.csv",
+              createdAt: "2026-06-24T12:00:00.000Z",
+              errorMessage: null,
+              errorCode: null,
+              errorParameters: null,
+              reviewPayload: {
+                __typename: "BillImportReview",
+                bankName: "Banco E2E Due Date",
+                reviewMode: "CARD_BUCKET_MATCHING",
+                statementPeriod: {
+                  __typename: "DateRange",
+                  from: "2026-06-01",
+                  to: "2026-06-30",
+                },
+                cards: [
+                  {
+                    __typename: "BillImportReviewCard",
+                    reviewCardId: "review-card-due-date",
+                    lastFourDigits: "4242",
+                    holderName: null,
+                    computedTotal: 42,
+                    declaredTotal: 42,
+                    totalMatchesDeclared: true,
+                    matchedFinancialAccountId: options.accountId,
+                    matchAmbiguous: false,
+                    closingDate: "2026-06-07",
+                    dueDate: options.dueDate ?? null,
+                    matchCandidates: [],
+                    transactions: [
+                      {
+                        __typename: "BillImportReviewTransaction",
+                        date: "2026-06-03",
+                        description: "Due date enforcement E2E",
+                        amount: 42,
+                        creditDebitType: "DEBIT",
+                        isBillPayment: false,
+                        categoryId: null,
+                        categorySource: null,
+                        installment: null,
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        }),
+      });
+      return;
+    }
+
+    await route.continue();
+  });
+}
+
+async function reachTxReviewStep(
+  page: import("@playwright/test").Page,
+  account: { id: string; name: string },
+): Promise<void> {
+  await openBillImportDrawer(page, account);
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "fatura-due-date.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("date,description,amount\n2026-06-03,Due date enforcement E2E,42\n"),
+  });
+  await expect(page.getByText("fatura-due-date.csv")).toBeVisible();
+  await page.getByRole("button", { name: /processar fatura|upload/i }).click();
+
+  await expect(page.getByRole("heading", { name: /associar cartões|associate cards/i })).toBeVisible();
+  await page.getByRole("button", { name: /revisar transações|review transactions/i }).click();
+  await expect(page.getByRole("heading", { name: /revisar transações|review transactions/i })).toBeVisible();
+}
+
+test("BI-D-01: blocks confirmation when due date is missing and card has no due day", async ({
+  page,
+  pfUser,
+}) => {
+  const cardAccount = await createFinancialAccount(
+    {
+      name: uniqueCardName("Cartão sem due day E2E"),
+      type: "CREDIT",
+      subtype: "CREDIT_CARD",
+      issuerName: "Banco E2E Due Date",
+      cardData: {
+        closingDay: 7,
+      },
+    },
+    pfUser.token,
+  );
+
+  const mockedJobId = `bill-import-due-date-blocked-${Date.now()}`;
+  await mockBillImportReviewFlow(page, {
+    mockedJobId,
+    accountId: cardAccount.id,
+    dueDate: null,
+  });
+
+  await reachTxReviewStep(page, cardAccount);
+
+  const confirmButton = page.getByTestId("bill-import-confirm-button");
+  await expect(confirmButton).toBeDisabled();
+  await expect(
+    page.getByText(/informe a data de vencimento|enter the due date/i),
+  ).toBeVisible();
+});
+
+test("BI-D-02: allows confirmation without manual due date when card has due day", async ({
+  page,
+  pfUser,
+}) => {
+  const cardAccount = await createFinancialAccount(
+    {
+      name: uniqueCardName("Cartão com due day E2E"),
+      type: "CREDIT",
+      subtype: "CREDIT_CARD",
+      issuerName: "Banco E2E Due Date",
+      cardData: {
+        closingDay: 7,
+        dueDay: 15,
+      },
+    },
+    pfUser.token,
+  );
+
+  const mockedJobId = `bill-import-due-date-allowed-${Date.now()}`;
+  await mockBillImportReviewFlow(page, {
+    mockedJobId,
+    accountId: cardAccount.id,
+    dueDate: null,
+  });
+
+  await reachTxReviewStep(page, cardAccount);
+
+  const confirmButton = page.getByTestId("bill-import-confirm-button");
+  await expect(confirmButton).toBeEnabled();
+});
+
 test.describe("Bill import — mobile viewport", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 

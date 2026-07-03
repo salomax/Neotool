@@ -1861,6 +1861,7 @@
         "closingDateHint": "We use this date to resolve the correct bill cycle.",
         "dueDateLabel": "Due date",
         "dueDateHint": "Due date must be on or after the closing date.",
+        "dueDateRequired": "Enter the due date. The selected card has no configured due day.",
         "paymentChip": "Payment",
         "suggestedBadge": "Suggested",
         "confirming": "Confirming...",

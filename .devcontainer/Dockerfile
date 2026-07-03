@@ -4,7 +4,7 @@
 #       Firefox and WebKit pre-installed.  Everything else is layered on top.
 # =============================================================================
 
-FROM mcr.microsoft.com/playwright:v1.56.0-noble
+FROM mcr.microsoft.com/playwright:v1.58.2-noble
 
 ARG DEBIAN_FRONTEND=noninteractive
 
