@@ -1843,7 +1843,7 @@ class BillImportServiceTest {
         }
 
         @Test
-        fun `confirm bill payment without linked bank saves BILL_PAYMENT CREDIT on card only`() {
+        fun `confirm bill payment without linked bank saves TRANSFER CREDIT on card only`() {
             val jobId = UUID.randomUUID()
             val cardA = UUID.randomUUID()
             val billPaymentCategoryId = UUID.randomUUID()
@@ -1895,7 +1895,7 @@ class BillImportServiceTest {
             val txCaptor = argumentCaptor<Transaction>()
             verify(transactionRepository, times(1)).save(txCaptor.capture())
             val savedTx = txCaptor.firstValue
-            assertThat(savedTx.type).isEqualTo(TransactionType.BILL_PAYMENT)
+            assertThat(savedTx.type).isEqualTo(TransactionType.TRANSFER)
             assertThat(savedTx.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
             assertThat(savedTx.categoryId).isEqualTo(billPaymentCategoryId)
             assertThat(savedTx.categorySource).isEqualTo(CategorySource.IMPORTED)
@@ -1909,7 +1909,7 @@ class BillImportServiceTest {
         }
 
         @Test
-        fun `confirm bill payment with linked bank creates BILL_PAYMENT on card and bank with category`() {
+        fun `confirm bill payment with linked bank creates TRANSFER on card and bank with category`() {
             val jobId = UUID.randomUUID()
             val cardA = UUID.randomUUID()
             val linkedBankId = UUID.randomUUID()
@@ -1966,14 +1966,14 @@ class BillImportServiceTest {
             verify(transactionRepository, times(2)).save(saveCaptor.capture())
 
             val cardSide = saveCaptor.allValues.first { it.financialAccountId == cardA }
-            assertThat(cardSide.type).isEqualTo(TransactionType.BILL_PAYMENT)
+            assertThat(cardSide.type).isEqualTo(TransactionType.TRANSFER)
             assertThat(cardSide.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
             assertThat(cardSide.categoryId).isEqualTo(billPaymentCategoryId)
             assertThat(cardSide.categorySource).isEqualTo(CategorySource.IMPORTED)
             assertThat(cardSide.billId).isNull()
 
             val bankSide = saveCaptor.allValues.first { it.financialAccountId == linkedBankId }
-            assertThat(bankSide.type).isEqualTo(TransactionType.BILL_PAYMENT)
+            assertThat(bankSide.type).isEqualTo(TransactionType.TRANSFER)
             assertThat(bankSide.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
             assertThat(bankSide.categoryId).isEqualTo(billPaymentCategoryId)
             assertThat(bankSide.categorySource).isEqualTo(CategorySource.IMPORTED)
@@ -2044,9 +2044,69 @@ class BillImportServiceTest {
             val txCaptor = argumentCaptor<Transaction>()
             verify(transactionRepository, times(1)).save(txCaptor.capture())
             val savedTx = txCaptor.firstValue
-            assertThat(savedTx.type).isEqualTo(TransactionType.BILL_PAYMENT)
+            assertThat(savedTx.type).isEqualTo(TransactionType.TRANSFER)
             assertThat(savedTx.categoryId).isNull()
             assertThat(savedTx.categorySource).isNull()
+        }
+
+        @Test
+        fun `confirm bill payment description without isBillPayment flag saves TRANSFER on card`() {
+            val jobId = UUID.randomUUID()
+            val cardA = UUID.randomUUID()
+            val billPaymentCategoryId = UUID.randomUUID()
+            val job = awaitingReviewJob(jobId)
+            val command =
+                ConfirmBillImportCommand(
+                    jobId = jobId,
+                    cards =
+                        listOf(
+                            ConfirmBillReviewCardCommand(
+                                reviewCardId = "card-1",
+                                financialAccountId = cardA,
+                                transactions =
+                                    listOf(
+                                        ConfirmBillReviewTransactionCommand(
+                                            date = LocalDate.of(2026, 2, 7),
+                                            description = "Pagamento em 07 FEV",
+                                            amount = BigDecimal("301.65"),
+                                            creditDebitType = CreditDebitType.CREDIT,
+                                            include = true,
+                                            isBillPayment = false,
+                                        ),
+                                    ),
+                            ),
+                        ),
+                )
+
+            whenever(repository.findById(jobId, accountId)).thenReturn(job)
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(
+                listOf(cardAccount(cardA, "1234")),
+            )
+            whenever(
+                transactionCategoryEntityRepository.findSystemSubcategoryId(
+                    "Transferência enviada",
+                    "Pagamento de fatura",
+                ),
+            ).thenReturn(billPaymentCategoryId)
+            whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-payment")
+            whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
+            whenever(transactionRepository.save(any())).thenAnswer {
+                it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+
+            val result = service.confirmBillImport(accountId, userId, command)
+
+            assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
+            val txCaptor = argumentCaptor<Transaction>()
+            verify(transactionRepository, times(1)).save(txCaptor.capture())
+            val savedTx = txCaptor.firstValue
+            assertThat(savedTx.type).isEqualTo(TransactionType.TRANSFER)
+            assertThat(savedTx.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
+            assertThat(savedTx.categoryId).isEqualTo(billPaymentCategoryId)
+            assertThat(savedTx.categorySource).isEqualTo(CategorySource.IMPORTED)
+            verify(categorizationService, never()).suggestFromRules(any(), any(), any())
+            verify(categorizationService, never()).suggestFromRulesRecordingMatch(any(), any(), any())
         }
 
         @Test

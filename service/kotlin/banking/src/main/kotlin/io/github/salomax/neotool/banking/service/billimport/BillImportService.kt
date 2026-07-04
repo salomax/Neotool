@@ -25,6 +25,7 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewTransactionCommand
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
@@ -328,7 +329,7 @@ open class BillImportService(
                         val amountCents = toAmountCents(tx.amount)
 
                         val now = Instant.now()
-                        if (tx.isBillPayment) {
+                        if (isBillPaymentTransaction(tx)) {
                             val fingerprint =
                                 importFingerprintService.compute(
                                     financialAccountId = financialAccountId,
@@ -341,7 +342,7 @@ open class BillImportService(
                             if (duplicate) return@forEach
 
                             // Bill payment settles the bill; it is not an itemized charge on it — billId stays null by design.
-                            // Creates BILL_PAYMENT pair: CREDIT on card, DEBIT on linked bank (if configured).
+                            // Creates TRANSFER pair: CREDIT on card, DEBIT on linked bank (if configured).
                             val cardSide =
                                 transactionRepository.save(
                                     Transaction(
@@ -350,7 +351,7 @@ open class BillImportService(
                                         createdByUserId = userId,
                                         belongsToUserId = userId,
                                         creditDebitType = CreditDebitType.CREDIT,
-                                        type = TransactionType.BILL_PAYMENT,
+                                        type = TransactionType.TRANSFER,
                                         status = TransactionStatus.POSTED,
                                         source = TransactionSource.PDF,
                                         amount = tx.amount,
@@ -379,7 +380,7 @@ open class BillImportService(
                                             createdByUserId = userId,
                                             belongsToUserId = userId,
                                             creditDebitType = CreditDebitType.DEBIT,
-                                            type = TransactionType.BILL_PAYMENT,
+                                            type = TransactionType.TRANSFER,
                                             status = TransactionStatus.POSTED,
                                             source = TransactionSource.PDF,
                                             amount = tx.amount,
@@ -757,6 +758,13 @@ open class BillImportService(
                 },
         )
     }
+
+    private fun isBillPaymentTransaction(tx: ConfirmBillReviewTransactionCommand): Boolean =
+        tx.isBillPayment ||
+            BillTransactionEnricher.isBillPayment(
+                tx.creditDebitType,
+                tx.description,
+            )
 
     private fun resolveBillPaymentCategoryId(): UUID? {
         val categoryId =

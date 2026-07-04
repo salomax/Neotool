@@ -335,7 +335,7 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
     }
 
     @Test
-    fun `confirm bill payment assigns BILL_PAYMENT type and Pagamento de fatura category`() {
+    fun `confirm bill payment assigns TRANSFER type and Pagamento de fatura category`() {
         val billPaymentCategoryId = lookupPagamentoDeFaturaCategoryId()
         val job = movePendingJobToAwaitingReview()
         val jobId = requireNotNull(job.id)
@@ -368,7 +368,7 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
         val imported = transactionRepository.findByAccount(accountId).filter { it.importJobId == jobId }
         assertThat(imported).hasSize(1)
         val tx = imported.single()
-        assertThat(tx.type).isEqualTo(TransactionType.BILL_PAYMENT)
+        assertThat(tx.type).isEqualTo(TransactionType.TRANSFER)
         assertThat(tx.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
         assertThat(tx.categoryId).isEqualTo(billPaymentCategoryId)
         assertThat(tx.categorySource).isEqualTo(CategorySource.IMPORTED)
