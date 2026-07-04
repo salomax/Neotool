@@ -39,6 +39,16 @@ class BillTransactionEnricherTest {
     }
 
     @Test
+    fun `marks pagamento em credit as bill payment`() {
+        assertThat(
+            BillTransactionEnricher.isBillPayment(
+                creditDebitType = CreditDebitType.CREDIT,
+                description = "Pagamento em 07 FEV",
+            ),
+        ).isTrue()
+    }
+
+    @Test
     fun `maps parsed transaction into bill review transaction with enrichment`() {
         val enriched =
             BillTransactionEnricher.toBillReviewTransaction(

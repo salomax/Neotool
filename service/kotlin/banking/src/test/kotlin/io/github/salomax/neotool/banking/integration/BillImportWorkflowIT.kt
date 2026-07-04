@@ -14,6 +14,7 @@ import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.job.import.BillImportStatusConsumer
 import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
 import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewCardCommand
@@ -331,6 +332,72 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
         assertThat(imported).hasSize(1)
         assertThat(imported.single().categoryId).isNotNull()
         assertThat(imported.single().categorySource).isEqualTo(CategorySource.RULE)
+    }
+
+    @Test
+    fun `confirm bill payment assigns TRANSFER type and Pagamento de fatura category`() {
+        val billPaymentCategoryId = lookupPagamentoDeFaturaCategoryId()
+        val job = movePendingJobToAwaitingReview()
+        val jobId = requireNotNull(job.id)
+        val command =
+            ConfirmBillImportCommand(
+                jobId = jobId,
+                cards =
+                    listOf(
+                        ConfirmBillReviewCardCommand(
+                            reviewCardId = "card-1",
+                            financialAccountId = cardAId,
+                            transactions =
+                                listOf(
+                                    ConfirmBillReviewTransactionCommand(
+                                        date = LocalDate.of(2026, 2, 7),
+                                        description = "Pagamento em 07 FEV",
+                                        amount = BigDecimal("301.65"),
+                                        creditDebitType = CreditDebitType.CREDIT,
+                                        include = true,
+                                        isBillPayment = true,
+                                    ),
+                                ),
+                        ),
+                    ),
+            )
+
+        val result = billImportService.confirmBillImport(accountId, userId, command)
+
+        assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
+        val imported = transactionRepository.findByAccount(accountId).filter { it.importJobId == jobId }
+        assertThat(imported).hasSize(1)
+        val tx = imported.single()
+        assertThat(tx.type).isEqualTo(TransactionType.TRANSFER)
+        assertThat(tx.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
+        assertThat(tx.categoryId).isEqualTo(billPaymentCategoryId)
+        assertThat(tx.categorySource).isEqualTo(CategorySource.IMPORTED)
+        assertThat(tx.billId).isNull()
+    }
+
+    private fun lookupPagamentoDeFaturaCategoryId(): UUID {
+        val container = getPgContainer()
+        val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+        DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+            conn.createStatement().use { stmt ->
+                val rs =
+                    stmt.executeQuery(
+                        """
+                        SELECT c.id
+                        FROM banking.transaction_categories c
+                        JOIN banking.transaction_categories p ON p.id = c.parent_id
+                        WHERE c.name = 'Pagamento de fatura'
+                          AND p.name = 'Transferência enviada'
+                          AND c.is_system = true
+                          AND c.account_id IS NULL
+                          AND c.deleted_at IS NULL
+                        LIMIT 1
+                        """.trimIndent(),
+                    )
+                check(rs.next()) { "System category Pagamento de fatura not found" }
+                return UUID.fromString(rs.getString("id"))
+            }
+        }
     }
 
     private fun createCardAccount(

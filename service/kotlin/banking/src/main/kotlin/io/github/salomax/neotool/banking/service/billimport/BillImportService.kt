@@ -25,8 +25,10 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewTransactionCommand
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.service.preferences.UserRuleCreationModeService
@@ -57,6 +59,7 @@ open class BillImportService(
     private val repository: BillImportJobRepository,
     private val financialAccountRepository: FinancialAccountRepository,
     private val transactionRepository: TransactionRepository,
+    private val transactionCategoryEntityRepository: TransactionCategoryEntityRepository,
     private val importFingerprintService: ImportFingerprintService,
     private val categorizationService: TransactionRuleEngine,
     private val userRuleCreationModeService: UserRuleCreationModeService,
@@ -297,6 +300,7 @@ open class BillImportService(
         return try {
             val affectedBills = mutableSetOf<UUID>()
             val snapshotRecomputeByAccount = mutableMapOf<UUID, Pair<Int, Int>>()
+            val billPaymentCategoryId = resolveBillPaymentCategoryId()
 
             preparedCommit.cards.forEach { card ->
                 val account = card.financialAccount
@@ -325,7 +329,7 @@ open class BillImportService(
                         val amountCents = toAmountCents(tx.amount)
 
                         val now = Instant.now()
-                        if (tx.isBillPayment) {
+                        if (isBillPaymentTransaction(tx)) {
                             val fingerprint =
                                 importFingerprintService.compute(
                                     financialAccountId = financialAccountId,
@@ -337,7 +341,8 @@ open class BillImportService(
                             val duplicate = importFingerprintService.isDuplicate(financialAccountId, fingerprint)
                             if (duplicate) return@forEach
 
-                            // Bill payment = TRANSFER pair: CREDIT on card, DEBIT on linked bank (if configured)
+                            // Bill payment settles the bill; it is not an itemized charge on it — billId stays null by design.
+                            // Creates TRANSFER pair: CREDIT on card, DEBIT on linked bank (if configured).
                             val cardSide =
                                 transactionRepository.save(
                                     Transaction(
@@ -354,6 +359,9 @@ open class BillImportService(
                                         date = tx.date,
                                         description = tx.description.trim(),
                                         cardIdentifier = normalizedCardIdentifier(reviewCard?.lastFourDigits),
+                                        categoryId = billPaymentCategoryId,
+                                        categorySource =
+                                            billPaymentCategoryId?.let { CategorySource.IMPORTED },
                                         importFingerprint = fingerprint,
                                         importJobId = command.jobId,
                                         createdAt = now,
@@ -379,6 +387,9 @@ open class BillImportService(
                                             currencyCode = "BRL",
                                             date = tx.date,
                                             description = tx.description.trim(),
+                                            categoryId = billPaymentCategoryId,
+                                            categorySource =
+                                                billPaymentCategoryId?.let { CategorySource.IMPORTED },
                                             transferPeerTransactionId = cardSide.id,
                                             importJobId = command.jobId,
                                             createdAt = now,
@@ -746,6 +757,25 @@ open class BillImportService(
                     )
                 },
         )
+    }
+
+    private fun isBillPaymentTransaction(tx: ConfirmBillReviewTransactionCommand): Boolean =
+        tx.isBillPayment ||
+            BillTransactionEnricher.isBillPayment(
+                tx.creditDebitType,
+                tx.description,
+            )
+
+    private fun resolveBillPaymentCategoryId(): UUID? {
+        val categoryId =
+            transactionCategoryEntityRepository.findSystemSubcategoryId(
+                "Transferência enviada",
+                "Pagamento de fatura",
+            )
+        if (categoryId == null) {
+            logger.warn("System category missing: Transferência enviada > Pagamento de fatura")
+        }
+        return categoryId
     }
 
     private fun preloadCategorizationRules(

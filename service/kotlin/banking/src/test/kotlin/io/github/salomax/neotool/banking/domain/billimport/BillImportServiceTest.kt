@@ -32,6 +32,7 @@ import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewT
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
 import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.service.billimport.AssistantBillMetaValidator
 import io.github.salomax.neotool.banking.service.billimport.AssistantBillReviewBuilder
@@ -78,6 +79,7 @@ class BillImportServiceTest {
     private lateinit var repository: BillImportJobRepository
     private lateinit var financialAccountRepository: FinancialAccountRepository
     private lateinit var transactionRepository: TransactionRepository
+    private lateinit var transactionCategoryEntityRepository: TransactionCategoryEntityRepository
     private lateinit var importFingerprintService: ImportFingerprintService
     private lateinit var snapshotComputationService: SnapshotComputationService
     private lateinit var creditCardBillService: CreditCardBillService
@@ -102,6 +104,7 @@ class BillImportServiceTest {
         repository = mock()
         financialAccountRepository = mock()
         transactionRepository = mock()
+        transactionCategoryEntityRepository = mock()
         importFingerprintService = mock()
         snapshotComputationService = mock()
         creditCardBillRepository = mock()
@@ -118,6 +121,7 @@ class BillImportServiceTest {
                 repository = repository,
                 financialAccountRepository = financialAccountRepository,
                 transactionRepository = transactionRepository,
+                transactionCategoryEntityRepository = transactionCategoryEntityRepository,
                 importFingerprintService = importFingerprintService,
                 categorizationService = categorizationService,
                 userRuleCreationModeService = userRuleCreationModeService,
@@ -1842,6 +1846,7 @@ class BillImportServiceTest {
         fun `confirm bill payment without linked bank saves TRANSFER CREDIT on card only`() {
             val jobId = UUID.randomUUID()
             val cardA = UUID.randomUUID()
+            val billPaymentCategoryId = UUID.randomUUID()
             val job = awaitingReviewJob(jobId)
             val command =
                 ConfirmBillImportCommand(
@@ -1871,6 +1876,12 @@ class BillImportServiceTest {
             whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(
                 listOf(cardAccount(cardA, "1234")),
             )
+            whenever(
+                transactionCategoryEntityRepository.findSystemSubcategoryId(
+                    "Transferência enviada",
+                    "Pagamento de fatura",
+                ),
+            ).thenReturn(billPaymentCategoryId)
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
             whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-payment")
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
@@ -1886,16 +1897,23 @@ class BillImportServiceTest {
             val savedTx = txCaptor.firstValue
             assertThat(savedTx.type).isEqualTo(TransactionType.TRANSFER)
             assertThat(savedTx.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
+            assertThat(savedTx.categoryId).isEqualTo(billPaymentCategoryId)
+            assertThat(savedTx.categorySource).isEqualTo(CategorySource.IMPORTED)
             assertThat(savedTx.billId).isNull()
+            verify(transactionCategoryEntityRepository).findSystemSubcategoryId(
+                "Transferência enviada",
+                "Pagamento de fatura",
+            )
             verify(transactionRepository, never()).update(any())
             verify(creditCardBillService, never()).resolveBillForReviewedCycle(any(), any(), any(), any())
         }
 
         @Test
-        fun `confirm bill payment with linked bank creates paired TRANSFER on both accounts`() {
+        fun `confirm bill payment with linked bank creates TRANSFER on card and bank with category`() {
             val jobId = UUID.randomUUID()
             val cardA = UUID.randomUUID()
             val linkedBankId = UUID.randomUUID()
+            val billPaymentCategoryId = UUID.randomUUID()
             val job = awaitingReviewJob(jobId)
             val command =
                 ConfirmBillImportCommand(
@@ -1924,6 +1942,12 @@ class BillImportServiceTest {
             whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(
                 listOf(cardAccount(cardA, "1234", linkedBankAccountId = linkedBankId)),
             )
+            whenever(
+                transactionCategoryEntityRepository.findSystemSubcategoryId(
+                    "Transferência enviada",
+                    "Pagamento de fatura",
+                ),
+            ).thenReturn(billPaymentCategoryId)
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
             whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-payment")
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
@@ -1944,12 +1968,21 @@ class BillImportServiceTest {
             val cardSide = saveCaptor.allValues.first { it.financialAccountId == cardA }
             assertThat(cardSide.type).isEqualTo(TransactionType.TRANSFER)
             assertThat(cardSide.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
+            assertThat(cardSide.categoryId).isEqualTo(billPaymentCategoryId)
+            assertThat(cardSide.categorySource).isEqualTo(CategorySource.IMPORTED)
             assertThat(cardSide.billId).isNull()
 
             val bankSide = saveCaptor.allValues.first { it.financialAccountId == linkedBankId }
             assertThat(bankSide.type).isEqualTo(TransactionType.TRANSFER)
             assertThat(bankSide.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
+            assertThat(bankSide.categoryId).isEqualTo(billPaymentCategoryId)
+            assertThat(bankSide.categorySource).isEqualTo(CategorySource.IMPORTED)
             assertThat(bankSide.transferPeerTransactionId).isEqualTo(cardTxId)
+
+            verify(transactionCategoryEntityRepository).findSystemSubcategoryId(
+                "Transferência enviada",
+                "Pagamento de fatura",
+            )
 
             val updateCaptor = argumentCaptor<Transaction>()
             verify(transactionRepository).update(updateCaptor.capture())
@@ -1958,6 +1991,122 @@ class BillImportServiceTest {
             verify(snapshotComputationService).recomputeChain(eq(cardA), eq(accountId), any(), any())
             verify(snapshotComputationService).recomputeChain(eq(linkedBankId), eq(accountId), any(), any())
             verify(creditCardBillService, never()).resolveBillForReviewedCycle(any(), any(), any(), any())
+        }
+
+        @Test
+        fun `confirm bill payment completes without category when system category is missing`() {
+            val jobId = UUID.randomUUID()
+            val cardA = UUID.randomUUID()
+            val job = awaitingReviewJob(jobId)
+            val command =
+                ConfirmBillImportCommand(
+                    jobId = jobId,
+                    cards =
+                        listOf(
+                            ConfirmBillReviewCardCommand(
+                                reviewCardId = "card-1",
+                                financialAccountId = cardA,
+                                transactions =
+                                    listOf(
+                                        ConfirmBillReviewTransactionCommand(
+                                            date = LocalDate.of(2026, 2, 7),
+                                            description = "Pagamento em 07 FEV",
+                                            amount = BigDecimal("301.65"),
+                                            creditDebitType = CreditDebitType.CREDIT,
+                                            include = true,
+                                            isBillPayment = true,
+                                        ),
+                                    ),
+                            ),
+                        ),
+                )
+
+            whenever(repository.findById(jobId, accountId)).thenReturn(job)
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(
+                listOf(cardAccount(cardA, "1234")),
+            )
+            whenever(
+                transactionCategoryEntityRepository.findSystemSubcategoryId(
+                    "Transferência enviada",
+                    "Pagamento de fatura",
+                ),
+            ).thenReturn(null)
+            whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-payment")
+            whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
+            whenever(transactionRepository.save(any())).thenAnswer {
+                it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+
+            val result = service.confirmBillImport(accountId, userId, command)
+
+            assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
+            val txCaptor = argumentCaptor<Transaction>()
+            verify(transactionRepository, times(1)).save(txCaptor.capture())
+            val savedTx = txCaptor.firstValue
+            assertThat(savedTx.type).isEqualTo(TransactionType.TRANSFER)
+            assertThat(savedTx.categoryId).isNull()
+            assertThat(savedTx.categorySource).isNull()
+        }
+
+        @Test
+        fun `confirm bill payment description without isBillPayment flag saves TRANSFER on card`() {
+            val jobId = UUID.randomUUID()
+            val cardA = UUID.randomUUID()
+            val billPaymentCategoryId = UUID.randomUUID()
+            val job = awaitingReviewJob(jobId)
+            val command =
+                ConfirmBillImportCommand(
+                    jobId = jobId,
+                    cards =
+                        listOf(
+                            ConfirmBillReviewCardCommand(
+                                reviewCardId = "card-1",
+                                financialAccountId = cardA,
+                                transactions =
+                                    listOf(
+                                        ConfirmBillReviewTransactionCommand(
+                                            date = LocalDate.of(2026, 2, 7),
+                                            description = "Pagamento em 07 FEV",
+                                            amount = BigDecimal("301.65"),
+                                            creditDebitType = CreditDebitType.CREDIT,
+                                            include = true,
+                                            isBillPayment = false,
+                                        ),
+                                    ),
+                            ),
+                        ),
+                )
+
+            whenever(repository.findById(jobId, accountId)).thenReturn(job)
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(
+                listOf(cardAccount(cardA, "1234")),
+            )
+            whenever(
+                transactionCategoryEntityRepository.findSystemSubcategoryId(
+                    "Transferência enviada",
+                    "Pagamento de fatura",
+                ),
+            ).thenReturn(billPaymentCategoryId)
+            whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-payment")
+            whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
+            whenever(transactionRepository.save(any())).thenAnswer {
+                it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+
+            val result = service.confirmBillImport(accountId, userId, command)
+
+            assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
+            val txCaptor = argumentCaptor<Transaction>()
+            verify(transactionRepository, times(1)).save(txCaptor.capture())
+            val savedTx = txCaptor.firstValue
+            assertThat(savedTx.type).isEqualTo(TransactionType.TRANSFER)
+            assertThat(savedTx.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
+            assertThat(savedTx.categoryId).isEqualTo(billPaymentCategoryId)
+            assertThat(savedTx.categorySource).isEqualTo(CategorySource.IMPORTED)
+            verify(categorizationService, never()).suggestFromRules(any(), any(), any())
+            verify(categorizationService, never()).suggestFromRulesRecordingMatch(any(), any(), any())
         }
 
         @Test
