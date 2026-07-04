@@ -1,3 +1,16 @@
+## 0.8.2 (2026-07-04)
+
+### 🩹 Fixes
+
+- **banking:** re-detect bill payments at confirm and assign category ([edb477e7](https://github.com/invistus/invistus/commit/edb477e7))
+- **banking:** type bill payments as BILL_PAYMENT and auto-assign category ([#323](https://github.com/invistus/invistus/issues/323))
+- **banking:** set bank-side bill payment to BILL_PAYMENT during import ([#323](https://github.com/invistus/invistus/issues/323))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Marcos Salomao @salomax
+
 ## 0.8.1 (2026-07-03)
 
 ### 🚀 Features
