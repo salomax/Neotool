@@ -2,11 +2,11 @@
 # codex-dev — wrapper Codex com session management, status updates e output verbatim
 set -euo pipefail
 
-LOG=/tmp/goose-bridge.log
+LOG=/tmp/neotool-agent.log
 MGR="python3 /workspaces/invistus/.devcontainer/agents/session-mgr.py"
 STATUS="/workspaces/invistus/.devcontainer/agents/slack-status.sh"
 SESSION=$($MGR load codex 2>/dev/null || true)
-THREAD="${GOOSE_SESSION_NAME:-default}"
+THREAD="${NEOTOOL_THREAD:-default}"
 T0=$(date +%s%N)
 
 _log() { echo "$(date '+%Y-%m-%d %H:%M:%S') [codex-dev] $*" >> "$LOG"; }

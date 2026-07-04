@@ -7,7 +7,8 @@ set -euo pipefail
 
 WORKSPACE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AGENTS_BIN="$WORKSPACE_ROOT/.devcontainer/agents"
-export PATH="$AGENTS_BIN:$PATH"
+DEVCONTAINER_BIN="$WORKSPACE_ROOT/.devcontainer"
+export PATH="$AGENTS_BIN:$DEVCONTAINER_BIN:$PATH"
 COMPOSE_FILE="$WORKSPACE_ROOT/infra/docker/docker-compose.local.yml"
 ENV_FILE="$WORKSPACE_ROOT/infra/docker/.env.local"
 
@@ -170,48 +171,40 @@ else
 fi
 
 # =============================================================================
-# Goose Bridge + Cloudflare Tunnel (opcional)
+# neotool-dev-agent — bridge HTTP para pipeline Slack → Agentes
 # =============================================================================
-# Controlado por GOOSE_ENABLED em ~/.vault-keys/api-keys.env
-#   GOOSE_ENABLED=true  → sobe bridge + cloudflared (modo Slack/Goose)
-#   GOOSE_ENABLED=false → skip (trabalho manual com agentes desktop)
+# Controlado por NEOTOOL_AGENT_ENABLED em ~/.vault-keys/api-keys.env
+#   NEOTOOL_AGENT_ENABLED=true  → sobe o bridge (padrão)
+#   NEOTOOL_AGENT_ENABLED=false → skip (trabalho manual)
+#
+# Cloudflare Tunnel: NÃO é iniciado automaticamente.
+# Use: neotool-tunnel start <devpod-n>
+# Isso permite rodar múltiplos DevPods em paralelo sem conflito.
 # =============================================================================
 
-if [ "${GOOSE_ENABLED:-true}" = "true" ]; then
-    GOOSE_LOG="${HOME}/.local/share/goose/acp-server.log"
-    mkdir -p "$(dirname "$GOOSE_LOG")"
+NEOTOOL_LOG="${HOME}/.local/share/neotool"
+mkdir -p "$NEOTOOL_LOG"
 
-    # Carrega api-keys.env ANTES de subir o bridge (garante GOOGLE_API_KEY disponível)
-    if [ -f "${HOME}/.vault-keys/api-keys.env" ]; then
-        set -a; source "${HOME}/.vault-keys/api-keys.env"; set +a
-    fi
+# Carrega api-keys.env antes de subir o bridge
+if [ -f "${HOME}/.vault-keys/api-keys.env" ]; then
+    set -a; source "${HOME}/.vault-keys/api-keys.env"; set +a
+fi
 
-    echo "▶ [goose-bridge] Iniciando HTTP bridge na porta 3285..."
-    GOOSE_BRIDGE_PORT=3285 \
-    GOOSE_SERVER_SECRET="${GOOSE_SERVER_SECRET:-}" \
-    GOOSE_PROVIDER="${GOOSE_PROVIDER:-google}" \
-    GOOSE_MODEL="${GOOSE_MODEL:-gemini-2.5-flash}" \
-    nohup python3 /workspaces/invistus/.devcontainer/goose-bridge.py \
-        > "${HOME}/.local/share/goose/bridge.log" 2>&1 &
+if [ "${NEOTOOL_AGENT_ENABLED:-true}" = "true" ]; then
+    echo "▶ [neotool-dev-agent] Iniciando bridge na porta 3285..."
+    NEOTOOL_AGENT_PORT=3285 \
+    NEOTOOL_AGENT_SECRET="${NEOTOOL_AGENT_SECRET:-}" \
+    nohup python3 /workspaces/invistus/.devcontainer/neotool-dev-agent.py \
+        > "$NEOTOOL_LOG/agent.log" 2>&1 &
     sleep 2
     if curl -sf "http://127.0.0.1:3285/health" >/dev/null 2>&1; then
-        echo "✓ [goose-bridge] Pronto em http://127.0.0.1:3285"
+        echo "✓ [neotool-dev-agent] Pronto em http://127.0.0.1:3285"
     else
-        echo "⚠ [goose-bridge] Não respondeu — verifique: tail ~/.local/share/goose/bridge.log"
+        echo "⚠ [neotool-dev-agent] Não respondeu — verifique: tail $NEOTOOL_LOG/agent.log"
     fi
-
-    if [ -n "${CLOUDFLARE_TUNNEL_TOKEN:-}" ]; then
-        echo "▶ [cloudflare] Iniciando tunnel..."
-        nohup cloudflared tunnel --no-autoupdate run --token "$CLOUDFLARE_TUNNEL_TOKEN" \
-            > "${HOME}/.local/share/goose/cloudflared.log" 2>&1 &
-        echo "✓ [cloudflare] Tunnel iniciado (pid $!)"
-        echo "   Logs: tail ~/.local/share/goose/cloudflared.log"
-    else
-        echo "⚠ [cloudflare] CLOUDFLARE_TUNNEL_TOKEN não encontrado — tunnel não iniciado"
-        echo "   Adicione CLOUDFLARE_TUNNEL_TOKEN em ~/.vault-keys/api-keys.env"
-    fi
+    echo "   Tunnel: execute 'neotool-tunnel start <devpod-n>' para expor via Cloudflare"
 else
-    echo "⚠ [goose] Stack desabilitada (GOOSE_ENABLED=false) — modo manual ativo"
+    echo "⚠ [neotool-dev-agent] Desabilitado (NEOTOOL_AGENT_ENABLED=false)"
 fi
 
 echo ""
@@ -249,14 +242,6 @@ if [ -d "$AGENTS_SKILLS_DIR" ]; then
     if [ -d "${HOME}/.claude/skills" ]; then
         find "${HOME}/.claude/skills" -maxdepth 1 -name "neotool-*" -type l -delete 2>/dev/null || true
     fi
-
-    # Goose → ~/.config/goose/skills/
-    mkdir -p "${HOME}/.config/goose/skills"
-    for skill in "${AGENTS_SKILLS_DIR}"/neotool-*; do
-        [ -d "$skill" ] || continue
-        ln -sf "$skill" "${HOME}/.config/goose/skills/$(basename "$skill")"
-    done
-    echo "✓ [skills] Goose: $(ls "${HOME}/.config/goose/skills/" | wc -l | tr -d ' ') skills"
 
     # Codex → ~/.codex/skills/
     mkdir -p "${HOME}/.codex/skills"

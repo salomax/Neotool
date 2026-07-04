@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # check-usage.sh — resumo de uso dos agentes de desenvolvimento
 
-LOG=/tmp/goose-bridge.log
+LOG=/tmp/neotool-agent.log
 TODAY=$(date '+%Y-%m-%d')
 
 echo "📊 *Status dos Agentes — $(date '+%d/%m %H:%M')*"
@@ -91,16 +91,16 @@ echo "Limites: https://cursor.com/dashboard/usage"
 
 echo ""
 
-# ── Gemini 2.5 Flash (via bridge logs) ───────────────────────────────────────
-echo "🧠 *Gemini 2.5 Flash (Goose)*"
+# ── neotool-dev-agent (via bridge logs) ──────────────────────────────────────
+echo "🧠 *neotool-dev-agent (Gemini router)*"
 if [ -f "$LOG" ]; then
-    total=$(grep -c "goose OK" "$LOG" 2>/dev/null || echo 0)
-    total_today=$(grep "$TODAY" "$LOG" 2>/dev/null | grep -c "goose OK" || echo 0)
-    last_ok=$(grep "goose OK" "$LOG" 2>/dev/null | tail -1 | grep -oP '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}' | head -1)
-    echo "• Sessões hoje: $total_today  |  Total (log): $total"
-    [ -n "$last_ok" ] && echo "• Última: $last_ok"
-    errors=$(grep -c "goose ERRO\|Traceback" "$LOG" 2>/dev/null || echo 0)
+    total=$(grep -c "agent done" "$LOG" 2>/dev/null || echo 0)
+    total_today=$(grep "$TODAY" "$LOG" 2>/dev/null | grep -c "agent done" || echo 0)
+    last_ok=$(grep "slack.update OK" "$LOG" 2>/dev/null | tail -1 | grep -oP '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}' | head -1)
+    echo "• Requests hoje: $total_today  |  Total (log): $total"
+    [ -n "$last_ok" ] && echo "• Último: $last_ok"
+    errors=$(grep -c "Traceback\|router error" "$LOG" 2>/dev/null || echo 0)
     [ "$errors" -gt 0 ] && echo "• ⚠️ Erros no log: $errors"
 else
-    echo "• _(log não encontrado)_"
+    echo "• _(log não encontrado — bridge rodando?)_"
 fi

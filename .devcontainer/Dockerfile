@@ -113,32 +113,6 @@ RUN mkdir -p /root/.local/bin \
 
 
 # -----------------------------------------------------------------------------
-# 8. Goose — Block's AI coding agent (github.com/aaif-goose/goose)
-# -----------------------------------------------------------------------------
-ARG GOOSE_VERSION=v1.39.0
-
-RUN ARCH=$(dpkg --print-architecture) \
-    && GOOSE_REPO="aaif-goose/goose" \
-    && GOOSE_VER="${GOOSE_VERSION#v}" \
-    && case "$ARCH" in \
-        amd64) \
-            curl -fsSL "https://github.com/${GOOSE_REPO}/releases/download/${GOOSE_VERSION}/goose_${GOOSE_VER}_amd64.deb" \
-                -o /tmp/goose.deb \
-            && dpkg -i /tmp/goose.deb \
-            && rm /tmp/goose.deb ;; \
-        arm64) \
-            mkdir -p /tmp/goose-install \
-            && curl -fsSL --retry 3 --retry-delay 2 \
-                "https://github.com/${GOOSE_REPO}/releases/download/${GOOSE_VERSION}/goose-aarch64-unknown-linux-gnu.tar.gz" \
-                -o /tmp/goose-install/goose.tar.gz \
-            && tar -xz -C /tmp/goose-install -f /tmp/goose-install/goose.tar.gz \
-            && find /tmp/goose-install -name "goose" -type f | head -1 | xargs -I{} cp {} /usr/local/bin/goose \
-            && rm -rf /tmp/goose-install ;; \
-        *) echo "Unsupported arch: $ARCH" && exit 1 ;; \
-    esac \
-    && chmod 755 /usr/local/bin/goose
-
-# -----------------------------------------------------------------------------
 # 9. cloudflared — Cloudflare Tunnel client
 # -----------------------------------------------------------------------------
 RUN ARCH=$(dpkg --print-architecture) \
@@ -194,5 +168,4 @@ RUN java -version \
     && git --version \
     && gh --version \
     && cursor --help > /dev/null 2>&1 || true \
-    && goose --version 2>&1 || true \
     && cloudflared --version 2>&1 || true

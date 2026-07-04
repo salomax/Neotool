@@ -250,7 +250,7 @@ def dispatch(
 
     env = {
         **os.environ,
-        "GOOSE_SESSION_NAME": thread,
+        "NEOTOOL_THREAD": thread,
         "SLACK_CHANNEL":      channel,
         "SLACK_TS":           ts,
         "SLACK_TOKEN":        slack_token,

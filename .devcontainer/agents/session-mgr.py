@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Gerencia sessões dos agentes por thread do Slack (GOOSE_SESSION_NAME)."""
+"""Gerencia sessões dos agentes por thread do Slack (NEOTOOL_THREAD)."""
 import json, os, sys
 
 SESSION_DIR = "/tmp/bridge-sessions"
 
 def get_session_file():
-    thread = os.environ.get("GOOSE_SESSION_NAME", "default")
+    thread = os.environ.get("NEOTOOL_THREAD", "default")
     os.makedirs(SESSION_DIR, exist_ok=True)
     return os.path.join(SESSION_DIR, f"{thread}.json")
 
