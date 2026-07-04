@@ -1892,7 +1892,7 @@ class BillImportServiceTest {
         }
 
         @Test
-        fun `confirm bill payment with linked bank creates paired TRANSFER on both accounts`() {
+        fun `confirm bill payment with linked bank creates TRANSFER on card and BILL_PAYMENT on bank`() {
             val jobId = UUID.randomUUID()
             val cardA = UUID.randomUUID()
             val linkedBankId = UUID.randomUUID()
@@ -1947,7 +1947,7 @@ class BillImportServiceTest {
             assertThat(cardSide.billId).isNull()
 
             val bankSide = saveCaptor.allValues.first { it.financialAccountId == linkedBankId }
-            assertThat(bankSide.type).isEqualTo(TransactionType.TRANSFER)
+            assertThat(bankSide.type).isEqualTo(TransactionType.BILL_PAYMENT)
             assertThat(bankSide.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
             assertThat(bankSide.transferPeerTransactionId).isEqualTo(cardTxId)
 

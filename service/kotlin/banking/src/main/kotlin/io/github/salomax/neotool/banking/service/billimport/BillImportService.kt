@@ -372,7 +372,7 @@ open class BillImportService(
                                             createdByUserId = userId,
                                             belongsToUserId = userId,
                                             creditDebitType = CreditDebitType.DEBIT,
-                                            type = TransactionType.TRANSFER,
+                                            type = TransactionType.BILL_PAYMENT,
                                             status = TransactionStatus.POSTED,
                                             source = TransactionSource.PDF,
                                             amount = tx.amount,
