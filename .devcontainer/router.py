@@ -58,10 +58,10 @@ Rules:
 - "stage_issue" = create or enrich a GitHub issue
 - "stage_design" = solution design, technical analysis, viability, impact
 - "stage_backlog" = generate task backlog
-- "stage_impl" = implement code (default agent: codex)
+- "stage_impl" = write/implement new code, create files, apply backlog tasks (default agent: codex). NEVER use for review/analysis requests.
 - "stage_pr" = create pull request
 - "stage_validate" = run tests, lint, typecheck
-- "question" = simple question about codebase/behavior (default agent: claude)
+- "question" = any question, code review, analysis, "revise", "analise", "verifique", "confira", "olha", "o que acha", "está certo" (default agent: claude)
 - agent override: look for "@claude", "@codex", "@cursor", "use claude/codex/cursor", "pelo claude/codex/cursor"
 - model override: look for "model X", "gpt-X", "sonnet-X", "-m X"
 - if fast_track, list ALL stages mentioned in "stages" array
@@ -235,7 +235,9 @@ def dispatch(
     agent  = classification.get("agent") or DEFAULT_AGENTS.get(intent, "claude")
     model  = classification.get("model")
 
-    log.info("dispatch intent=%s agent=%s model=%s", intent, agent, model)
+    # Timeout por agente: análise=10min, implementação/validação=30min
+    TIMEOUT = {"claude": 1800, "codex": 1800, "cursor": 1800}.get(agent, 1800)
+    log.info("dispatch intent=%s agent=%s model=%s timeout=%ds", intent, agent, model, TIMEOUT)
 
     wrapper = WRAPPER.get(agent, WRAPPER["claude"])
     cmd = [wrapper]
@@ -257,22 +259,24 @@ def dispatch(
         "PATH":               f"{AGENTS_BIN}:{os.environ.get('PATH', '')}",
     }
 
-    log.info("running: %s %s", wrapper, prompt[:80])
+    log.info("running: %s", " ".join(str(x) for x in cmd[:2]) + " " + prompt[:80])
     t0 = time.time()
     try:
         result = subprocess.run(
             cmd, capture_output=True, text=True,
-            timeout=600, cwd=WORKSPACE, env=env,
+            timeout=TIMEOUT, cwd=WORKSPACE, env=env,
         )
         elapsed = time.time() - t0
         output = result.stdout.strip() or result.stderr.strip()
         log.info("agent done in %.1fs exit=%d chars=%d", elapsed, result.returncode, len(output))
         if result.returncode != 0:
-            log.error("stderr: %s", result.stderr[:300])
+            log.error("agent stderr: %s", result.stderr[:300])
+            log.error("agent stdout: %s", result.stdout[:300])
         return output or f"_(sem resposta do agente — exit {result.returncode})_"
     except subprocess.TimeoutExpired:
-        log.error("timeout after 600s")
-        return "❌ Timeout — agente excedeu 10 minutos."
+        log.error("timeout after %ds", TIMEOUT)
+        mins = TIMEOUT // 60
+        return f"❌ Timeout — agente excedeu {mins} minutos."
     except Exception as e:
         log.exception("dispatch error: %s", e)
         return f"❌ Erro interno: {e}"

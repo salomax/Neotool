@@ -1980,6 +1980,7 @@
         "moreAriaLabel": "Ver mais {{count}} tags"
       },
       "installments": {
+        "of": "de",
         "progressAriaLabel": "Parcela {{current}} de {{total}}"
       },
       "rowActions": {

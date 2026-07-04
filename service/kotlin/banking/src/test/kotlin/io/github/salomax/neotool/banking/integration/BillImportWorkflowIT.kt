@@ -9,6 +9,7 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJob
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJobStatus
 import io.github.salomax.neotool.banking.domain.billimport.BillImportReview
+import io.github.salomax.neotool.banking.domain.billimport.InstallmentInfo
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
@@ -373,6 +374,63 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
         assertThat(tx.categoryId).isEqualTo(billPaymentCategoryId)
         assertThat(tx.categorySource).isEqualTo(CategorySource.IMPORTED)
         assertThat(tx.billId).isNull()
+    }
+
+    @Test
+    fun `confirm installment import persists bill due date and original purchase date`() {
+        val job = movePendingJobToAwaitingReview()
+        val jobId = requireNotNull(job.id)
+        val command =
+            ConfirmBillImportCommand(
+                jobId = jobId,
+                cards =
+                    listOf(
+                        ConfirmBillReviewCardCommand(
+                            reviewCardId = "card-1",
+                            financialAccountId = cardAId,
+                            transactions =
+                                listOf(
+                                    ConfirmBillReviewTransactionCommand(
+                                        date = LocalDate.of(2026, 1, 15),
+                                        description = "ARTVITALCIOT03",
+                                        amount = BigDecimal("999.00"),
+                                        creditDebitType = CreditDebitType.DEBIT,
+                                        include = true,
+                                        installment = InstallmentInfo(current = 1, total = 12),
+                                    ),
+                                ),
+                        ),
+                    ),
+            )
+
+        val result = billImportService.confirmBillImport(accountId, userId, command)
+
+        assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
+        val imported = transactionRepository.findByAccount(accountId).filter { it.importJobId == jobId }
+        assertThat(imported).hasSize(1)
+        val tx = imported.single()
+        assertThat(tx.date).isEqualTo(LocalDate.of(2026, 2, 15))
+        assertThat(tx.billPostDate).isEqualTo(LocalDate.of(2026, 1, 15))
+
+        val container = getPgContainer()
+        val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+        DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+            conn.prepareStatement(
+                """
+                SELECT date, bill_post_date
+                FROM banking.transactions
+                WHERE id = ?
+                """.trimIndent(),
+            ).use { statement ->
+                statement.setObject(1, tx.id)
+                statement.executeQuery().use { rs ->
+                    assertThat(rs.next()).isTrue()
+                    assertThat(rs.getObject("date", LocalDate::class.java)).isEqualTo(LocalDate.of(2026, 2, 15))
+                    assertThat(rs.getObject("bill_post_date", LocalDate::class.java))
+                        .isEqualTo(LocalDate.of(2026, 1, 15))
+                }
+            }
+        }
     }
 
     private fun lookupPagamentoDeFaturaCategoryId(): UUID {

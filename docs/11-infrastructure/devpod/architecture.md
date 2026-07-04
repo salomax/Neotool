@@ -145,12 +145,15 @@ NEOTOOL_AGENT_SECRET=...       # opcional — autenticação do bridge
 .devcontainer/start-infra.sh
 ```
 
-### Reiniciar o bridge manualmente
+### Gerenciar o bridge (neotool-dev-agent)
 
 ```bash
-pkill -f neotool-dev-agent.py || true
-source ~/.vault-keys/api-keys.env
-python3 /workspaces/invistus/.devcontainer/neotool-dev-agent.py &
+neotool dev agent start     # inicia (carrega api-keys automaticamente)
+neotool dev agent stop      # para
+neotool dev agent restart   # para e reinicia
+neotool dev agent logs      # tail -f do log (Ctrl-C para sair)
+neotool dev agent attach    # roda em foreground (debug)
+neotool dev agent status    # mostra PID e health check
 ```
 
 ### Expor via Cloudflare Tunnel (on-demand)
@@ -174,7 +177,7 @@ O tunnel é iniciado **on-demand** (não automático) para permitir múltiplos D
 ### Ver logs do agente
 
 ```bash
-tail -f /tmp/neotool-agent.log
+neotool dev agent logs
 ```
 
 ### Limpar estado de uma thread

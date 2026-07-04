@@ -119,6 +119,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(404, {"error": "not found"})
             return
 
+        log.info("→ POST /chat from %s | headers: %s", self.client_address[0], dict(self.headers))
+
         if SECRET:
             auth = self.headers.get("Authorization", "")
             if auth != f"Bearer {SECRET}":
@@ -159,19 +161,23 @@ class Handler(BaseHTTPRequestHandler):
 
         # Despacha para o router em background
         def _run():
+            log.info("▶ thread=%s msg=%r", session, message[:120])
             try:
                 output = _router.route(message, session, channel, ts, slack_token)
-                log.info("router output: %r", (output or "")[:200])
+                log.info("◀ router output: %r", (output or "")[:200])
                 if output is None:
+                    log.info("  check_usage handled internally")
                     return
                 text = output.strip() or "_(sem resposta)_"
-                log.info("posting to slack: %d chars — %r", len(text), text[:120])
+                log.info("  posting to slack: %d chars", len(text))
                 if len(text) > MAX_CHARS:
                     text = text[:MAX_CHARS] + "\n_(truncado)_"
                 slack_update(slack_token, channel, ts, text)
             except Exception as e:
-                log.exception("router error: %s", e)
+                log.exception("✗ router error: %s", e)
                 slack_update(slack_token, channel, ts, f"❌ Erro interno: {e}")
+            finally:
+                log.info("■ thread=%s done", session)
 
         threading.Thread(target=_run, daemon=True).start()
         self.send_json(202, {"status": "processing", "session": session})

@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
 # neotool-tunnel — gerencia o Cloudflare Tunnel do DevPod on-demand
 #
-# Uso:
-#   neotool-tunnel start <n>    inicia tunnel do devpod-N (usa ~/.cloudflare/devpod-N.yml)
-#   neotool-tunnel stop         para o tunnel em execução
-#   neotool-tunnel status       mostra se está rodando e quais hostnames estão ativos
-#   neotool-tunnel logs         tail dos logs do cloudflared
+# Dois modos de autenticação:
 #
-# Config esperada em ~/.cloudflare/devpod-N.yml:
-#   tunnel: <tunnel-id>
-#   credentials-file: /home/dev/.cloudflare/devpod-N.json
-#   ingress:
-#     - hostname: devpod-N-agent.invistus.com.br
-#       service: http://localhost:3285
-#     - hostname: devpod-N-web.invistus.com.br
-#       service: http://localhost:3000
-#     - service: http_status:404
+# 1. Token (recomendado para tunnels criados pelo dashboard):
+#    No Mac: cloudflared tunnel token <tunnel-id> > ~/.cloudflare/devpod-N.token
+#    O arquivo .token é montado no container via bind-mount de ~/.cloudflare
+#
+# 2. Config file (para tunnels criados com cloudflared tunnel create):
+#    Crie ~/.cloudflare/devpod-N.yml com:
+#      tunnel: <tunnel-id>
+#      credentials-file: /home/dev/.cloudflare/<tunnel-id>.json
+#      ingress:
+#        - hostname: devpod-N-agent.invistus.com.br
+#          service: http://localhost:3285
+#        - hostname: devpod-N-web.invistus.com.br
+#          service: http://localhost:3000
+#        - service: http_status:404
 
 set -euo pipefail
 
@@ -41,18 +42,43 @@ case "$cmd" in
   start)
     n="${2:-}"
     if [ -z "$n" ]; then
-        echo "Uso: neotool-tunnel start <n>  (ex: neotool-tunnel start 1)"
+        echo "Uso: neotool dev tunnel start <n>  (ex: start 1)"
         exit 1
     fi
 
+    if _running; then
+        echo "⚠ Tunnel já está rodando (pid $(_pid)). Use 'neotool dev tunnel stop' primeiro."
+        exit 0
+    fi
+
+    token_file="$CLOUDFLARE_DIR/devpod-${n}.token"
     config="$CLOUDFLARE_DIR/devpod-${n}.yml"
-    if [ ! -f "$config" ]; then
-        echo "❌ Config não encontrada: $config"
+
+    if [ -f "$token_file" ]; then
+        # Modo token — não precisa de credentials-file nem config
+        TOKEN=$(cat "$token_file")
+        echo "▶ Iniciando tunnel devpod-${n} via token..."
+        nohup cloudflared tunnel --no-autoupdate run --token "$TOKEN" \
+            > "$LOG_FILE" 2>&1 &
+        echo $! > "$PID_FILE"
+    elif [ -f "$config" ]; then
+        # Modo config file
+        echo "▶ Iniciando tunnel devpod-${n} com $config..."
+        nohup cloudflared tunnel --no-autoupdate --config "$config" run \
+            > "$LOG_FILE" 2>&1 &
+        echo $! > "$PID_FILE"
+    else
+        echo "❌ Nenhuma config encontrada para devpod-${n}."
         echo ""
-        echo "Crie o arquivo com:"
+        echo "Opção 1 — token (recomendado, tunnel criado pelo dashboard):"
+        echo "  No Mac:"
+        echo "    cloudflared tunnel token <tunnel-id> > ~/.cloudflare/devpod-${n}.token"
+        echo ""
+        echo "Opção 2 — config file (tunnel criado via cloudflared CLI):"
+        echo "  Crie ~/.cloudflare/devpod-${n}.yml com:"
         cat << YAML
-tunnel: <tunnel-id-do-devpod-${n}>
-credentials-file: /home/dev/.cloudflare/devpod-${n}.json
+tunnel: <tunnel-id>
+credentials-file: /home/dev/.cloudflare/<tunnel-id>.json
 
 ingress:
   - hostname: devpod-${n}-agent.invistus.com.br
@@ -64,26 +90,18 @@ YAML
         exit 1
     fi
 
-    if _running; then
-        echo "⚠ Tunnel já está rodando (pid $(_pid)). Use 'neotool-tunnel stop' primeiro."
-        exit 0
-    fi
-
-    echo "▶ Iniciando tunnel devpod-${n} com $config..."
-    nohup cloudflared tunnel --no-autoupdate --config "$config" run \
-        > "$LOG_FILE" 2>&1 &
-    echo $! > "$PID_FILE"
     sleep 2
 
     if _running; then
         echo "✓ Tunnel ativo (pid $(cat $PID_FILE))"
+        if [ -f "$config" ]; then
+            grep "hostname:" "$config" | awk '{print "  https://"$2}' || true
+        fi
         echo ""
-        # Extrai hostnames do yml
-        grep "hostname:" "$config" | awk '{print "  https://"$2}' || true
-        echo ""
-        echo "Logs: neotool-tunnel logs"
+        echo "Logs: neotool dev tunnel logs"
     else
-        echo "❌ Tunnel falhou ao iniciar. Verifique: neotool-tunnel logs"
+        echo "❌ Tunnel falhou ao iniciar. Verifique:"
+        tail -5 "$LOG_FILE" 2>/dev/null || true
         exit 1
     fi
     ;;
@@ -101,11 +119,10 @@ YAML
   status)
     if _running; then
         echo "✓ Tunnel rodando (pid $(_pid))"
-        # Tenta mostrar hostnames do log
         grep -oE 'https://[a-z0-9._-]+\.invistus\.com\.br' "$LOG_FILE" 2>/dev/null | sort -u | sed 's/^/  /' || true
     else
         echo "○ Tunnel parado"
-        echo "  Inicie com: neotool-tunnel start <n>"
+        echo "  Inicie com: neotool dev tunnel start <n>"
     fi
     ;;
 
@@ -114,7 +131,7 @@ YAML
     ;;
 
   *)
-    echo "Uso: neotool-tunnel <start <n>|stop|status|logs>"
+    echo "Uso: neotool dev tunnel <start <n>|stop|status|logs>"
     exit 1
     ;;
 esac

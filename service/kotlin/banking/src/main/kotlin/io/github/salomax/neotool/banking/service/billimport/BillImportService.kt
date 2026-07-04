@@ -400,15 +400,23 @@ open class BillImportService(
                                 trackSnapshotRecompute(snapshotRecomputeByAccount, bankSide)
                             }
                         } else {
-                            // tx.date is the original purchase date (year-inference already applied at review time).
-                            // cardBillId was resolved once above for this card — all transactions share the same bill.
-                            val transactionDate =
+                            // normalizeInstallmentDate derives the original purchase date (stored in billPostDate),
+                            // not the effective financial impact date used for month totals.
+                            val originalPurchaseDate =
                                 normalizeInstallmentDate(
                                     date = tx.date,
                                     installment = tx.installment,
                                     cycleAnchor = cycleAnchor,
                                 )
                             val billId = resolveCardBillId()
+                            val transactionDate =
+                                if (tx.installment != null && billId != null) {
+                                    card.dueDate ?: card.closingDate ?: originalPurchaseDate
+                                } else {
+                                    originalPurchaseDate
+                                }
+                            val billPostDate =
+                                if (tx.installment != null && billId != null) originalPurchaseDate else null
                             val fingerprint =
                                 if (billId != null) {
                                     importFingerprintService.computeForBill(
@@ -513,6 +521,7 @@ open class BillImportService(
                                         amount = tx.amount,
                                         currencyCode = "BRL",
                                         date = transactionDate,
+                                        billPostDate = billPostDate,
                                         description = suggestion?.descriptionOverride ?: tx.description.trim(),
                                         billId = billId,
                                         installmentNumber = tx.installment?.current,

@@ -1,150 +1,150 @@
-# Setup: Slack Bot + Cloudflare Tunnel + Goose
+# Setup: DevPod + Slack Channel
 
-## Visão geral
+Guia para configurar um novo DevPod com pipeline de IA integrado ao Slack.
+
+## Arquitetura
 
 ```
-Slack (celular/desktop)
-  └─▶ Cloudflare Worker (invistus-slack-bot)
-        └─▶ Cloudflare Tunnel (devpod-N.invistus.com.br)
-              └─▶ Goose ACP server (porta 8888, dentro do DevPod)
-                    └─▶ código do Invistus
+Slack → Cloudflare Worker → Cloudflare Tunnel → neotool-dev-agent (:3285)
+                                                       └─▶ router.py (Gemini)
+                                                             ├─▶ claude-dev
+                                                             ├─▶ codex-dev
+                                                             └─▶ cursor-dev
 ```
 
 ---
 
 ## Pré-requisitos
 
-- Conta Cloudflare com o domínio `invistus.com.br` configurado
-- `wrangler` instalado: `npm install -g wrangler` + `wrangler login`
+- Conta Cloudflare com domínio `invistus.com.br`
+- `cloudflared` instalado no Mac: `brew install cloudflared`
+- `wrangler` instalado: `npm install -g wrangler && wrangler login`
 - DevPod rodando (`neotool dev init`)
 
 ---
 
 ## Passo 1 — Criar o Cloudflare Tunnel
 
-Para cada DevPod, faça no **dashboard Cloudflare**:
+No **dashboard Cloudflare → Zero Trust → Networks → Tunnels → Create tunnel**:
 
-1. Acesse **Zero Trust → Networks → Tunnels → Create tunnel**
-2. Nome sugerido: `devpod-1`
-3. Copie o **tunnel token** exibido
-4. Em **Public hostnames**, adicione:
-   - Subdomain: `devpod-1`
-   - Domain: `invistus.com.br`
-   - Service: `HTTP` → `localhost:8888`
-5. Salve
+1. Connector: **Cloudflared** → nome: `devpod-N`
+2. Em **Public Hostnames**, adicione duas entradas:
 
-Adicione o token em `~/.vault-keys/api-keys.env` no Mac:
+   | Subdomain           | Domain          | Service                |
+   |---------------------|-----------------|------------------------|
+   | `devpod-N-agent`    | `invistus.com.br` | `http://localhost:3285` |
+   | `devpod-N-web`      | `invistus.com.br` | `http://localhost:3000` |
+
+3. Copie o **Tunnel ID** (formato UUID) exibido na tela
+
+Salve o token do tunnel no Mac:
+```bash
+cloudflared tunnel login   # abre browser (uma vez por máquina)
+cloudflared tunnel token <tunnel-id> > ~/.cloudflare/devpod-N.token
 ```
-   =eyJhIjoiMTIzNDU...
-GOOSE_SERVER_SECRET=gere-um-secret-aleatorio-aqui
-```
-
-Gere o `GOOSE_SERVER_SECRET` com: `openssl rand -hex 32`
 
 ---
 
 ## Passo 2 — Criar o Slack App
 
-1. Acesse https://api.slack.com/apps → **Create New App** → **From scratch**
-2. Nome: `Goose DevPod` | Workspace: seu workspace
-3. Em **OAuth & Permissions → Scopes → Bot Token Scopes**, adicione:
+1. Acesse https://api.slack.com/apps → **Create New App → From scratch**
+2. Nome: `Invistus Dev` | Workspace: seu workspace
+3. Em **OAuth & Permissions → Bot Token Scopes**, adicione:
    - `chat:write`
    - `chat:write.public`
-4. Em **OAuth & Permissions**, clique **Install to Workspace** e copie o **Bot User OAuth Token** (`xoxb-...`)
+4. Clique **Install to Workspace** e copie o **Bot Token** (`xoxb-...`)
 5. Em **Basic Information**, copie o **Signing Secret**
 
 ---
 
-## Passo 3 — Criar KV namespace no Cloudflare
+## Passo 3 — Criar canal no Slack
 
-```bash
-wrangler kv namespace create SESSIONS
-```
-
-Copie o `id` retornado e substitua em `wrangler.toml`:
-```toml
-[[kv_namespaces]]
-binding = "SESSIONS"
-id = "SEU_ID_AQUI"
-```
+1. Crie o canal `#devpod-N`
+2. `/invite @Invistus Dev` dentro do canal
+3. Obtenha o **Channel ID**: clique no nome do canal → *Copy link* → o ID é a parte final da URL (`C0BEEESR2DS`)
 
 ---
 
-## Passo 4 — Obter o Channel ID do Slack
+## Passo 4 — Configurar api-keys.env no DevPod
 
-Para cada canal DevPod que você criar (ex: `#devpod-1`):
-1. Abra o canal no Slack desktop
-2. Clique no nome do canal → **Copy link**
-3. O ID é a parte final da URL: `https://app.slack.com/client/TXXXXXX/**C12345ABC**`
+Em `~/.vault-keys/api-keys.env` dentro do DevPod:
 
-Edite `wrangler.toml`:
-```toml
-[vars]
-CHANNEL_DEVPOD_MAP = "C12345ABC:devpod-1.invistus.com.br"
-# Para múltiplos DevPods:
-# CHANNEL_DEVPOD_MAP = "C12345ABC:devpod-1.invistus.com.br,C67890DEF:devpod-2.invistus.com.br"
+```env
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+GOOGLE_API_KEY=...
+GH_TOKEN=ghp_...
+NEOTOOL_AGENT_SECRET=<openssl rand -hex 32>
 ```
 
 ---
 
 ## Passo 5 — Deploy do Worker
 
+Configure os secrets e variáveis:
+
 ```bash
 cd scripts/slack-bot
 npm install
 
-# Adicionar secrets (não ficam no wrangler.toml)
-wrangler secret put SLACK_BOT_TOKEN        # cole o xoxb-...
-wrangler secret put SLACK_SIGNING_SECRET   # cole o signing secret
-wrangler secret put GOOSE_SERVER_SECRET    # mesmo valor do api-keys.env
+# Secrets (não ficam no wrangler.toml)
+wrangler secret put SLACK_BOT_TOKEN        # xoxb-...
+wrangler secret put SLACK_SIGNING_SECRET   # signing secret do app
+wrangler secret put NEOTOOL_AGENT_SECRET   # mesmo valor do api-keys.env
+```
 
-# Deploy
+Edite `wrangler.toml` para adicionar o canal:
+```toml
+[vars]
+CHANNEL_DEVPOD_MAP = "C0BEEESR2DS:devpod-N-agent.invistus.com.br"
+# Múltiplos DevPods (separados por vírgula):
+# CHANNEL_DEVPOD_MAP = "C0BEEESR2DS:devpod-1-agent.invistus.com.br,CXXXXXXXX:devpod-2-agent.invistus.com.br"
+```
+
+Deploy:
+```bash
 npm run deploy
-
-✔ Would you like to register a workers.dev subdomain now? … yes
-✔ What would you like your workers.dev subdomain to be? It will be accessible at https://<subdomain>.workers.dev … invistus-goose
-
-Deployed invistus-slack-bot triggers (98.88 sec)
-  https://invistus-slack-bot.invistus-goose.workers.dev
+# → https://invistus-slack-bot.invistus-goose.workers.dev
 ```
 
 ---
 
 ## Passo 6 — Configurar Event Subscriptions no Slack
 
-1. No Slack app, vá em **Event Subscriptions → Enable Events**
+1. No Slack app → **Event Subscriptions → Enable Events**
 2. Request URL: `https://invistus-slack-bot.invistus-goose.workers.dev`
-3. O Slack vai verificar a URL (o Worker responde ao challenge automaticamente)
-4. Em **Subscribe to bot events**, adicione: `message.channels`
-5. Salve e reinstale o app no workspace
+   - O Slack verifica a URL automaticamente
+3. Em **Subscribe to bot events**, adicione: `message.channels`
+4. Salve e reinstale o app
 
 ---
 
-## Passo 7 — Criar canais e convidar o bot
+## Passo 7 — Iniciar o DevPod
 
-No Slack:
-1. Crie o canal `#devpod-1` (ou o nome que quiser)
-2. `/invite @Goose DevPod` dentro do canal
-3. Anote o Channel ID (Passo 4) e atualize `wrangler.toml`
-4. Redeploy: `npm run deploy`
+Dentro do DevPod:
+
+```bash
+# Iniciar o bridge (carrega api-keys automaticamente)
+neotool dev agent start
+
+# Expor via Cloudflare Tunnel (on-demand)
+neotool dev tunnel start N
+
+# Verificar
+neotool dev agent status
+neotool dev tunnel status
+```
 
 ---
 
-## Uso
+## Operação diária
 
-**Nova tarefa** — manda uma mensagem no canal:
-```
-cria um endpoint GET /portfolios no banking-service com paginação
-```
-
-**Continuação** — responde na mesma thread:
-```
-adiciona um filtro por data também
+```bash
+neotool dev agent start|stop|restart|logs|attach|status
+neotool dev tunnel start <N>|stop|status|logs
 ```
 
-**Múltiplos DevPods** — use canais separados:
-- `#devpod-1` → tarefas no DevPod 1
-- `#devpod-2` → tarefas no DevPod 2
+O tunnel é **on-demand** — inicie quando quiser receber mensagens do Slack e pare quando não precisar. Múltiplos DevPods podem rodar em paralelo sem conflito.
 
 ---
 
@@ -152,8 +152,9 @@ adiciona um filtro por data também
 
 | Problema | Verificar |
 |---|---|
-| Bot não responde | `wrangler tail` (logs em tempo real) |
-| Goose não conecta | `tail ~/.local/share/goose/acp-server.log` no DevPod |
-| Tunnel offline | `tail ~/.local/share/goose/cloudflared.log` no DevPod |
-| Sessão perdida | Threads têm 7 dias de validade no KV |
-
+| Bot não responde no Slack | Cloudflare Worker → Observability → Logs |
+| Request não chega no agent | `neotool dev agent logs` |
+| Tunnel offline | `neotool dev tunnel status` e `neotool dev tunnel logs` |
+| Dois cloudflared rodando | `ps aux \| grep cloudflared` → mate o antigo |
+| SECRET inválido | Confirme que `NEOTOOL_AGENT_SECRET` bate entre `api-keys.env` e Worker |
+| Sessão Claude corrompida | `rm /tmp/bridge-sessions/<thread-id>.json` |

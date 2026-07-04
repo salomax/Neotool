@@ -166,11 +166,12 @@ export function TransactionTable({
     const groups: { date: string; transactions: Transaction[] }[] = [];
     const sorted = transactions
       .map((transaction) => {
-        const parts = parseFinanceDateKey(transaction.date as string);
+        const displayDate = (transaction.billPostDate ?? transaction.date) as string;
+        const parts = parseFinanceDateKey(displayDate);
         return {
           transaction,
           sortKey: parts?.sortKey ?? 0,
-          dateKey: parts?.dateKey ?? (transaction.date as string),
+          dateKey: parts?.dateKey ?? displayDate,
         };
       })
       .sort((a, b) => b.sortKey - a.sortKey);

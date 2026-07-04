@@ -6,6 +6,10 @@ LOG=/tmp/neotool-agent.log
 MGR="python3 /workspaces/invistus/.devcontainer/agents/session-mgr.py"
 STATUS="/workspaces/invistus/.devcontainer/agents/slack-status.sh"
 SESSION=$($MGR load cursor 2>/dev/null || true)
+# Rejeita SESSION que não seja UUID válido
+if [[ ! "$SESSION" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+    SESSION=""
+fi
 THREAD="${NEOTOOL_THREAD:-default}"
 T0=$(date +%s%N)
 

@@ -994,4 +994,58 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
             assertThat(aprilRows.mapNotNull { it.id }).doesNotContain(installmentWithoutBill.id)
         }
     }
+
+    @Nested
+    @DisplayName("getMonthTotals")
+    inner class GetMonthTotalsTests {
+        @Test
+        fun `installment amount counts in bill due date month not original purchase month`() {
+            val cardFinancialAccountId = UUID.randomUUID()
+            val billId = UUID.randomUUID()
+            val dueDate = LocalDate.of(2026, 5, 25)
+            val originalPurchaseDate = LocalDate.of(2025, 7, 27)
+
+            val container = getPgContainer()
+            val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+            DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+                conn.createStatement().executeUpdate(
+                    """
+                    INSERT INTO banking.financial_accounts (id, account_id, created_by_user_id, type, subtype, name, currency_code, created_at, updated_at)
+                    VALUES ('$cardFinancialAccountId', '$accountId', '$userId', 'CREDIT', 'CREDIT_CARD', 'IT Card', 'BRL', NOW(), NOW())
+                    """.trimIndent(),
+                )
+                conn.createStatement().executeUpdate(
+                    """
+                    INSERT INTO banking.credit_card_bills (id, financial_account_id, account_id, closing_date, due_date, status, created_at, updated_at)
+                    VALUES ('$billId', '$cardFinancialAccountId', '$accountId', '2026-05-17', '2026-05-25', 'OPEN', NOW(), NOW())
+                    """.trimIndent(),
+                )
+            }
+
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = cardFinancialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.CARD,
+                    amount = BigDecimal("999.00"),
+                    date = dueDate,
+                    billPostDate = originalPurchaseDate,
+                    description = "ARTVITALCIOT03",
+                    billId = billId,
+                    installmentNumber = 10,
+                    totalInstallments = 12,
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+
+            val mayTotals = transactionRepository.getMonthTotals(cardFinancialAccountId, 2026, 5)
+            val julyTotals = transactionRepository.getMonthTotals(cardFinancialAccountId, 2025, 7)
+
+            assertThat(mayTotals.totalExpenses).isEqualByComparingTo("999.00")
+            assertThat(julyTotals.totalExpenses).isEqualByComparingTo(BigDecimal.ZERO)
+        }
+    }
 }
