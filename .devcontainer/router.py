@@ -338,6 +338,10 @@ def route(
                  "stage_impl": 4, "stage_validate": 5}
     if intent in stage_map:
         updates["current_stage"] = stage_map[intent]
+    elif intent == "advance":
+        # avança current_stage para que o próximo "sim" pegue o stage seguinte
+        stage_idx = state.get("current_stage", 0)
+        updates["current_stage"] = min(stage_idx + 1, len(STAGES))
     if updates:
         save_state(thread, updates)
 

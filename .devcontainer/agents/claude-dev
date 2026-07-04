@@ -31,34 +31,57 @@ ELAPSED=$(( ($(date +%s%N) - T0) / 1000000 ))
 _log "  exit_code=$EXIT_CODE elapsed=${ELAPSED}ms raw_chars=${#RAW}"
 _log "  raw_preview: ${RAW:0:300}"
 
-# Extrai session_id, tokens e resultado do JSON
-PARSED=$(echo "$RAW" | python3 -c "
+# Extrai session_id, tokens e resultado do JSON (campos separados para evitar bug multi-linha)
+NEW_SESSION=$(echo "$RAW" | python3 -c "
 import sys, json
-session_id = ''; in_tok = 0; out_tok = 0; result_text = ''
 for line in sys.stdin:
-    line = line.strip()
+    try:
+        d = json.loads(line.strip())
+        if 'session_id' in d:
+            print(d['session_id'])
+            break
+    except: pass
+" 2>/dev/null || true)
+
+IN_TOK=$(echo "$RAW" | python3 -c "
+import sys, json
+t=0
+for line in sys.stdin:
+    try:
+        d=json.loads(line.strip())
+        t+=d.get('usage',{}).get('input_tokens',0)
+    except: pass
+print(t)
+" 2>/dev/null || echo 0)
+
+OUT_TOK=$(echo "$RAW" | python3 -c "
+import sys, json
+t=0
+for line in sys.stdin:
+    try:
+        d=json.loads(line.strip())
+        t+=d.get('usage',{}).get('output_tokens',0)
+    except: pass
+print(t)
+" 2>/dev/null || echo 0)
+
+RESULT=$(echo "$RAW" | python3 -c "
+import sys, json
+result=''
+for line in sys.stdin:
+    line=line.strip()
     if not line: continue
     try:
-        d = json.loads(line)
-        if 'session_id' in d: session_id = d['session_id']
-        if 'usage' in d:
-            u = d['usage']
-            in_tok += u.get('input_tokens', 0)
-            out_tok += u.get('output_tokens', 0)
-        if d.get('type') == 'result':
-            result_text = d.get('result', '')
-        elif d.get('type') == 'assistant':
-            for blk in d.get('message', {}).get('content', []):
-                if blk.get('type') == 'text':
-                    result_text += blk['text']
-    except Exception: pass
-print(f'{session_id}|||{in_tok}|||{out_tok}|||{result_text}')
-" 2>/dev/null || echo "|||0|||0|||")
-
-NEW_SESSION=$(echo "$PARSED" | awk -F'\|\|\|' '{print $1}')
-IN_TOK=$(echo "$PARSED"     | awk -F'\|\|\|' '{print $2}')
-OUT_TOK=$(echo "$PARSED"    | awk -F'\|\|\|' '{print $3}')
-RESULT=$(echo "$PARSED"     | awk -F'\|\|\|' '{print $4}')
+        d=json.loads(line)
+        if d.get('type')=='result':
+            result=d.get('result','')
+        elif d.get('type')=='assistant':
+            for blk in d.get('message',{}).get('content',[]):
+                if blk.get('type')=='text':
+                    result+=blk['text']
+    except: pass
+print(result)
+" 2>/dev/null || true)
 
 [ -n "$NEW_SESSION" ] && $MGR save claude "$NEW_SESSION" 2>/dev/null || true
 

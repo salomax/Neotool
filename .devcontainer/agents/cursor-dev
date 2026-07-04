@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # cursor-dev — wrapper Cursor CLI com session management, status updates e output verbatim
-set -euo pipefail
+set -uo pipefail
 
 LOG=/tmp/goose-bridge.log
 MGR="python3 /workspaces/invistus/.devcontainer/agents/session-mgr.py"
@@ -11,23 +11,48 @@ T0=$(date +%s%N)
 
 _log() { echo "$(date '+%Y-%m-%d %H:%M:%S') [cursor-dev] $*" >> "$LOG"; }
 
-_log "▶ START thread=$THREAD session=${SESSION:-new} prompt=${*:0:120}"
-bash "$STATUS" "🖱️ _Cursor CLI (auto)_ — iniciando..." 2>/dev/null || true
+PROMPT="${1:-}"
+_log "▶ START thread=$THREAD session=${SESSION:-new} prompt=${PROMPT:0:120}"
+bash "$STATUS" "🖱️ _Cursor Agent_ — iniciando..." 2>/dev/null || true
+
+CLI=$(command -v agent 2>/dev/null || command -v cursor 2>/dev/null || true)
+if [ -z "$CLI" ]; then
+    _log "ERROR: agent/cursor não encontrado no PATH=$PATH"
+    echo "❌ Cursor Agent não encontrado no PATH."
+    exit 1
+fi
+_log "  CLI binary: $CLI"
+
+EXIT_CODE=0
+OUTPUT=""
 
 if [ -n "$SESSION" ]; then
-    OUTPUT=$(agent --model auto --resume="$SESSION" "$*" 2>&1) || \
-    OUTPUT=$(agent --model auto "$*" 2>&1)
+    _log "  resuming session $SESSION"
+    OUTPUT=$("$CLI" --yolo --resume="$SESSION" "$PROMPT" 2>&1) || {
+        EXIT_CODE=$?
+        _log "  resume failed (exit $EXIT_CODE): ${OUTPUT:0:200}"
+        _log "  tentando nova sessão"
+        OUTPUT=$("$CLI" --yolo "$PROMPT" 2>&1) || EXIT_CODE=$?
+    }
 else
-    OUTPUT=$(agent --model auto "$*" 2>&1)
+    _log "  nova sessão"
+    OUTPUT=$("$CLI" --yolo "$PROMPT" 2>&1) || EXIT_CODE=$?
 fi
 
 ELAPSED=$(( ($(date +%s%N) - T0) / 1000000 ))
+_log "  exit_code=$EXIT_CODE elapsed=${ELAPSED}ms output_chars=${#OUTPUT}"
+_log "  output_preview: ${OUTPUT:0:300}"
 
+# Salva session ID se encontrado no output
 NEW_SESSION=$(echo "$OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true)
 [ -n "$NEW_SESSION" ] && $MGR save cursor "$NEW_SESSION" 2>/dev/null || true
 
 _log "✓ DONE elapsed=${ELAPSED}ms session=${NEW_SESSION:-?}"
 bash "$STATUS" "🖱️ _Cursor_ respondeu em $((ELAPSED/1000))s" 2>/dev/null || true
 
-# Output VERBATIM
+if [ -z "$OUTPUT" ] && [ "$EXIT_CODE" -ne 0 ]; then
+    echo "❌ Cursor Agent falhou (exit $EXIT_CODE). Log: tail -50 $LOG"
+    exit $EXIT_CODE
+fi
+
 echo "$OUTPUT"
