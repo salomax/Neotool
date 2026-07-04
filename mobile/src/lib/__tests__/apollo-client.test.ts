@@ -3,11 +3,10 @@ import {
   RequestPasswordResetDocument,
 } from '@invistus/shared-graphql';
 
-jest.mock('apollo3-cache-persist', () => ({
-  persistCache: jest.fn().mockResolvedValue(undefined),
-  AsyncStorageWrapper: class AsyncStorageWrapper {
-    constructor(_storage: unknown) {}
-  },
+jest.mock('../cache-persistence', () => ({
+  restorePersistedCache: jest.fn().mockResolvedValue(undefined),
+  attachCachePersistence: jest.fn().mockReturnValue(jest.fn()),
+  clearPersistedCache: jest.fn().mockResolvedValue(undefined),
 }));
 
 const currentUserPayload = {

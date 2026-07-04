@@ -11,8 +11,6 @@ import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
 import { RetryLink } from '@apollo/client/link/retry';
 import { CombinedGraphQLErrors } from '@apollo/client/errors';
-import { persistCache, AsyncStorageWrapper } from 'apollo3-cache-persist';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import {
   RefreshAccessTokenDocument,
@@ -22,6 +20,11 @@ import {
 import { env } from '@/shared/config/env';
 import { buildTraceparent } from './trace-context';
 import { classifyAppError, extractErrorCode, isRetryableAppError } from './error-handling';
+import {
+  attachCachePersistence,
+  clearPersistedCache,
+  restorePersistedCache,
+} from './cache-persistence';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -47,6 +50,7 @@ const sessionExpiredListeners = new Set<SessionExpiredListener>();
 
 let refreshPromise: Promise<SessionRefreshResult | null> | null = null;
 let apolloClient: ApolloClient | undefined;
+let detachCachePersistence: (() => void) | null = null;
 
 // HTTP Link
 const httpLink = createHttpLink({
@@ -260,15 +264,13 @@ export async function initializeApolloClient(): Promise<ApolloClient> {
   }
 
   try {
-    await persistCache({
-      cache,
-      storage: new AsyncStorageWrapper(AsyncStorage),
-      maxSize: 1048576 * 10,
-      debug: __DEV__,
-    });
+    await restorePersistedCache(cache);
   } catch (error) {
     console.error('Error restoring Apollo cache:', error);
   }
+
+  detachCachePersistence?.();
+  detachCachePersistence = attachCachePersistence(cache);
 
   apolloClient = new ApolloClient({
     link: from([retryLink, errorLink, authLink, httpLink]),
@@ -300,4 +302,6 @@ export async function clearApolloCache(): Promise<void> {
   if (apolloClient) {
     await apolloClient.clearStore();
   }
+
+  await clearPersistedCache();
 }
