@@ -591,32 +591,12 @@ class AssistantBillTransactionExtractor {
 
     // --- Bill payment detection ---
 
-    private fun detectIsBillPayment(description: String): Boolean {
-        val normalized = normalizeForSearch(description)
-        return BILL_PAYMENT_KEYWORDS.any { normalized.contains(it) }
-    }
+    private fun detectIsBillPayment(description: String): Boolean =
+        BillTransactionEnricher.matchesBillPaymentDescription(description)
 
     private fun normalizeForSearch(text: String): String {
         val nfd = Normalizer.normalize(text.uppercase(), Normalizer.Form.NFD)
         return nfd.replace(Regex("\\p{M}"), "")
-    }
-
-    private companion object {
-        private val BILL_PAYMENT_KEYWORDS =
-            listOf(
-                "PAGAMENTO DE FATURA",
-                "PAGAMENTO FATURA",
-                "PAGTO FATURA",
-                "PGTO FATURA",
-                "PAGAMENTO DE CARTAO",
-                "PAGAMENTO CARTAO",
-                "PAGAMENTO EM ",
-                // Banco do Brasil statements often label card bill payments this way.
-                "PGTO DEBITO CONTA",
-                "PAG DEBITO AUTOMATICO",
-                "PAGAMENTO VIA PIX",
-                "PAGAMENTO APP",
-            )
     }
 }
 
