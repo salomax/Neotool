@@ -4,18 +4,18 @@ set -euo pipefail
 
 # Validate Command
 # 
-# Runs all validations for both frontend and backend:
+# Runs all validations for web, mobile, and backend:
 # Backend validation order:
 # - Compile (classes - compiles main sources, runs KSP processing, catches type errors)
 # - Tests (test - includes unit and integration)
 # - Lint (ktlint)
 # - Coverage (kover)
 # - Security scan (trivy fs, if available)
-# Frontend validation order:
+# Web/mobile validation order:
 # - Typecheck (tsc)
-# - Tests (vitest)
+# - Tests (vitest/jest)
 # - Lint (eslint)
-# - Coverage (vitest coverage)
+# - Coverage (vitest/jest coverage)
 
 # Get script directory and project root
 COMMAND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,6 +29,7 @@ source "$CLI_DIR/utils.sh"
 
 # Paths
 WEB_DIR="$PROJECT_ROOT/web"
+MOBILE_DIR="$PROJECT_ROOT/mobile"
 BACKEND_DIR="$PROJECT_ROOT/service/kotlin"
 
 # Track validation results
@@ -75,15 +76,15 @@ $(log "Validation Command" "$BRIGHT")
 Usage: $0 [options]
 Usage: $0 e2e
 
-Runs all validations for both frontend and backend:
-  - Lint (frontend: eslint, backend: ktlint)
-  - Typecheck (frontend: tsc, backend: compile classes)
-  - Tests (frontend: vitest, backend: test - includes unit and integration)
-  - Coverage (frontend: vitest coverage, backend: kover)
+Runs all validations for web, mobile, and backend:
+  - Lint (web/mobile: eslint, backend: ktlint)
+  - Typecheck (web/mobile: tsc, backend: compile classes)
+  - Tests (web: vitest, mobile: jest, backend: test - includes unit and integration)
+  - Coverage (web: vitest coverage, mobile: jest coverage, backend: kover)
   - Security scan (trivy fs, same as CI, when trivy is installed)
 
 Modes:
-  (default)          Full code validation (frontend + backend + security)
+  (default)          Full code validation (web + mobile + backend + security)
   e2e                Pre-push E2E bundle for investments TWR:
                      - tests/e2e/personal-finance/investments-twr.e2e.spec.ts
                      - tests/e2e/personal-finance/investments-twr-phase2.e2e.spec.ts
@@ -99,18 +100,20 @@ Modes:
 
 Options:
   --web              Run only web (frontend) validations
+  --mobile           Run only mobile validations
   --service [name]   Run only service (backend) validations
                      If service name is provided, validate only that service
                      Available services: ${available_services:-app, assistant, security, common}
                      If no name provided, validate all services
   --skip-coverage    Skip coverage checks (faster validation)
-  --no-parallel      Run web/service/security validations sequentially (default is parallel when running full validation)
+  --no-parallel      Run web/mobile/service/security validations sequentially (default is parallel when running full validation)
   --help             Show this help message
 
 Examples:
   $0                      # Run all validations
   $0 e2e                  # Run pre-push investments TWR E2E bundle
   $0 --web                # Run only web validations
+  $0 --mobile             # Run only mobile validations
   $0 --service             # Run all service validations
   $0 --service security    # Run only security service validations
   $0 --service app         # Run only app service validations
@@ -523,6 +526,110 @@ run_frontend_validations_simple() {
     return 0
 }
 
+# Run mobile validations
+run_mobile_validations() {
+    local skip_coverage="${1:-false}"
+
+    if [[ ! -d "$MOBILE_DIR" ]]; then
+        log_error "Error: Mobile directory not found at $MOBILE_DIR"
+        return 1
+    fi
+
+    cd "$MOBILE_DIR"
+
+    if ! command -v pnpm &> /dev/null; then
+        log_error "Error: pnpm is not installed or not in PATH"
+        return 1
+    fi
+
+    add_new_task "mobile typecheck" "pnpm run typecheck"
+    local task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "pnpm run typecheck" "mobile typecheck" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    add_new_task "mobile test" "pnpm run test"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "pnpm run test" "mobile test" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    add_new_task "mobile lint" "pnpm run lint"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "pnpm run lint" "mobile lint" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    if [[ "$skip_coverage" == "false" ]]; then
+        add_new_task "mobile coverage" "pnpm run test:coverage"
+        task_idx=$CURRENT_TASK_INDEX
+        if ! run_command_silently "pnpm run test:coverage" "mobile coverage" "$task_idx"; then
+            VALIDATION_FAILED=true
+        fi
+    fi
+}
+
+# Run mobile validations without interactive UI (used for parallel mode)
+run_mobile_validations_simple() {
+    local skip_coverage="${1:-false}"
+    local first_failed_step=""
+    local first_failed_cmd=""
+
+    if [[ ! -d "$MOBILE_DIR" ]]; then
+        log_error "Error: Mobile directory not found at $MOBILE_DIR"
+        return 1
+    fi
+
+    cd "$MOBILE_DIR"
+
+    if ! command -v pnpm &> /dev/null; then
+        log_error "Error: pnpm is not installed or not in PATH"
+        return 1
+    fi
+
+    local cmd=""
+    echo "==> mobile: typecheck"
+    cmd="pnpm run typecheck"
+    $cmd || {
+        first_failed_step="${first_failed_step:-mobile: typecheck}"
+        first_failed_cmd="${first_failed_cmd:-$cmd}"
+    }
+
+    echo ""
+    echo "==> mobile: test"
+    cmd="pnpm run test"
+    $cmd || {
+        first_failed_step="${first_failed_step:-mobile: test}"
+        first_failed_cmd="${first_failed_cmd:-$cmd}"
+    }
+
+    echo ""
+    echo "==> mobile: lint"
+    cmd="pnpm run lint"
+    $cmd || {
+        first_failed_step="${first_failed_step:-mobile: lint}"
+        first_failed_cmd="${first_failed_cmd:-$cmd}"
+    }
+
+    if [[ "$skip_coverage" == "false" ]]; then
+        echo ""
+        echo "==> mobile: coverage"
+        cmd="pnpm run test:coverage"
+        $cmd || {
+            first_failed_step="${first_failed_step:-mobile: coverage}"
+            first_failed_cmd="${first_failed_cmd:-$cmd}"
+        }
+    fi
+
+    if [[ -n "$first_failed_step" ]]; then
+        echo ""
+        echo "FAILED STEP: $first_failed_step"
+        echo "FAILED COMMAND: $first_failed_cmd"
+        return 1
+    fi
+    return 0
+}
+
 # Run backend validations
 run_backend_validations() {
     local skip_coverage="${1:-false}"
@@ -706,33 +813,38 @@ run_security_validation_simple() {
     }
 }
 
-# Run full validation (web + backend + security scan) in parallel.
+# Run full validation (web + mobile + backend + security scan) in parallel.
 # Keeps sequential (UI) execution available via --no-parallel.
 run_full_validations_parallel() {
     local skip_coverage="${1:-false}"
 
     log "\n🔍 Starting Validation Process (parallel)\n" "$BRIGHT"
 
-    local web_log backend_log security_log
+    local web_log mobile_log backend_log security_log
     web_log="$(mktemp -t neotool-validate-web.XXXXXX)"
+    mobile_log="$(mktemp -t neotool-validate-mobile.XXXXXX)"
     backend_log="$(mktemp -t neotool-validate-backend.XXXXXX)"
     security_log="$(mktemp -t neotool-validate-security.XXXXXX)"
 
     log "Logs:" "$GRAY"
     log "  web:      $web_log" "$GRAY"
+    log "  mobile:   $mobile_log" "$GRAY"
     log "  service:  $backend_log" "$GRAY"
     log "  security: $security_log\n" "$GRAY"
 
-    local web_pid backend_pid security_pid
+    local web_pid mobile_pid backend_pid security_pid
     ( run_frontend_validations_simple "$skip_coverage" ) >"$web_log" 2>&1 & web_pid=$!
+    ( run_mobile_validations_simple "$skip_coverage" ) >"$mobile_log" 2>&1 & mobile_pid=$!
     ( run_backend_validations_simple "$skip_coverage" "" ) >"$backend_log" 2>&1 & backend_pid=$!
     ( run_security_validation_simple ) >"$security_log" 2>&1 & security_pid=$!
 
     local web_rc=0
+    local mobile_rc=0
     local backend_rc=0
     local security_rc=0
 
     wait "$web_pid" || web_rc=$?
+    wait "$mobile_pid" || mobile_rc=$?
     wait "$backend_pid" || backend_rc=$?
     wait "$security_pid" || security_rc=$?
 
@@ -750,6 +862,22 @@ run_full_validations_parallel() {
         echo ""
     else
         log "✅ web validation passed" "$GREEN"
+    fi
+
+    if [[ $mobile_rc -ne 0 ]]; then
+        VALIDATION_FAILED=true
+        log_error "❌ mobile validation failed"
+        local summary
+        summary=$(grep -E '^FAILED (STEP|COMMAND):' "$mobile_log" 2>/dev/null | tail -n 2 || true)
+        if [[ -n "$summary" ]]; then
+            log "$summary" "$YELLOW"
+            echo ""
+        fi
+        log "Last output (mobile):" "$YELLOW"
+        tail -n 50 "$mobile_log" 2>/dev/null || true
+        echo ""
+    else
+        log "✅ mobile validation passed" "$GREEN"
     fi
 
     if [[ $backend_rc -ne 0 ]]; then
@@ -789,7 +917,7 @@ run_full_validations_parallel() {
     # Only cleanup logs if everything passed.
     # On failures, keep logs so users can inspect full output.
     if [[ "$VALIDATION_FAILED" != true ]]; then
-        rm -f "$web_log" "$backend_log" "$security_log" 2>/dev/null || true
+        rm -f "$web_log" "$mobile_log" "$backend_log" "$security_log" 2>/dev/null || true
     fi
 }
 
@@ -890,6 +1018,7 @@ run_investments_twr_e2e_validations() {
 main() {
     local validation_mode="default"
     local web_only=false
+    local mobile_only=false
     local service_only=false
     local service_name=""
     local skip_coverage=false
@@ -904,6 +1033,10 @@ main() {
                 ;;
             --web)
                 web_only=true
+                shift
+                ;;
+            --mobile)
+                mobile_only=true
                 shift
                 ;;
             --service)
@@ -938,14 +1071,24 @@ main() {
     done
     
     # Validate mutually exclusive options
+    if [[ "$web_only" == true && "$mobile_only" == true ]]; then
+        log_error "Error: --web and --mobile cannot be used together"
+        exit 1
+    fi
+
     if [[ "$web_only" == true && "$service_only" == true ]]; then
         log_error "Error: --web and --service cannot be used together"
         exit 1
     fi
 
+    if [[ "$mobile_only" == true && "$service_only" == true ]]; then
+        log_error "Error: --mobile and --service cannot be used together"
+        exit 1
+    fi
+
     if [[ "$validation_mode" == "e2e" ]]; then
-        if [[ "$web_only" == true || "$service_only" == true || "$skip_coverage" == true || "$parallel" == false ]]; then
-            log_error "Error: e2e mode does not accept --web, --service, --skip-coverage, or --no-parallel"
+        if [[ "$web_only" == true || "$mobile_only" == true || "$service_only" == true || "$skip_coverage" == true || "$parallel" == false ]]; then
+            log_error "Error: e2e mode does not accept --web, --mobile, --service, --skip-coverage, or --no-parallel"
             exit 1
         fi
 
@@ -977,6 +1120,10 @@ main() {
             init_validation_ui
             trap cleanup_ui EXIT
             run_frontend_validations "$skip_coverage"
+        elif [[ "$mobile_only" == true ]]; then
+            init_validation_ui
+            trap cleanup_ui EXIT
+            run_mobile_validations "$skip_coverage"
         elif [[ "$service_only" == true ]]; then
             init_validation_ui
             trap cleanup_ui EXIT
@@ -985,10 +1132,11 @@ main() {
             if [[ "$parallel" == true ]]; then
                 run_full_validations_parallel "$skip_coverage"
             else
-                # Run full validation set sequentially (frontend, backend, and security scan)
+                # Run full validation set sequentially (web, mobile, backend, and security scan)
                 init_validation_ui
                 trap cleanup_ui EXIT
                 run_frontend_validations "$skip_coverage"
+                run_mobile_validations "$skip_coverage"
                 run_backend_validations "$skip_coverage" "$service_name"
                 run_security_validation
             fi

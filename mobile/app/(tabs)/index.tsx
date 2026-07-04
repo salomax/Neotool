@@ -11,7 +11,7 @@ export default function DashboardScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         <Text variant="headlineLarge" style={styles.title}>
-          {t('dashboard.welcome', { name: user?.fullName || user?.email })}
+          {t('dashboard.welcome', { name: user?.displayName || user?.email })}
         </Text>
 
         <Card style={styles.card}>

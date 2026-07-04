@@ -1,32 +1,43 @@
 import { useState } from 'react';
 import { StyleSheet, View, ScrollView } from 'react-native';
-import { Text, Button, TextInput } from 'react-native-paper';
+import { Text, Button, TextInput, Snackbar } from 'react-native-paper';
 import { Link, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '@/shared/hooks/useAuth';
+import { useTheme } from '@/shared/hooks/useTheme';
+import { translateAppError } from '@/lib/error-handling';
 
-const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-});
+const createLoginSchema = (t: (key: string, defaultValue?: string) => string) =>
+  z.object({
+    email: z.string().email(t('auth.validation.invalidEmail', 'Invalid email address')),
+    password: z.string().min(8, t('auth.validation.passwordMinLength', 'Password must be at least 8 characters')),
+  });
 
-type LoginFormData = z.infer<typeof loginSchema>;
+type LoginFormData = {
+  email: string;
+  password: string;
+};
 
 export default function LoginScreen() {
   const { t } = useTranslation();
+  const { colors } = useTheme();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const translateWithFallback = (key: string, fallback?: string) => t(key, fallback ?? key);
 
   const {
     control,
+    clearErrors,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver(createLoginSchema(translateWithFallback)),
     defaultValues: {
       email: '',
       password: '',
@@ -36,11 +47,27 @@ export default function LoginScreen() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       setLoading(true);
+      setErrorMessage(null);
+      clearErrors();
       await login(data.email, data.password);
       router.replace('/(tabs)');
     } catch (error) {
       console.error('Login failed:', error);
-      // TODO: Show error message to user
+      const translatedError = translateAppError(error, t);
+
+      if (translatedError.fieldErrors?.email) {
+        setError('email', {
+          message: t(translatedError.fieldErrors.email, translatedError.message),
+        });
+      }
+
+      if (translatedError.fieldErrors?.password) {
+        setError('password', {
+          message: t(translatedError.fieldErrors.password, translatedError.message),
+        });
+      }
+
+      setErrorMessage(translatedError.message);
     } finally {
       setLoading(false);
     }
@@ -74,7 +101,7 @@ export default function LoginScreen() {
             )}
           />
           {errors.email && (
-            <Text variant="bodySmall" style={styles.error}>
+            <Text variant="bodySmall" style={[styles.error, { color: colors.error }]}>
               {errors.email.message}
             </Text>
           )}
@@ -102,7 +129,7 @@ export default function LoginScreen() {
             )}
           />
           {errors.password && (
-            <Text variant="bodySmall" style={styles.error}>
+            <Text variant="bodySmall" style={[styles.error, { color: colors.error }]}>
               {errors.password.message}
             </Text>
           )}
@@ -131,6 +158,13 @@ export default function LoginScreen() {
           </View>
         </View>
       </View>
+      <Snackbar
+        visible={errorMessage !== null}
+        onDismiss={() => setErrorMessage(null)}
+        duration={4000}
+      >
+        {errorMessage}
+      </Snackbar>
     </ScrollView>
   );
 }
@@ -159,7 +193,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   error: {
-    color: 'red',
     marginBottom: 8,
   },
   forgotPassword: {

@@ -30,9 +30,10 @@ search_keywords: [commands, cli, reference]
 
 ### Validation
 ```bash
-./neotool validate                    # Run all validations (web + services)
+./neotool validate                    # Run all validations (web + mobile + services)
 ./neotool validate e2e                # Run investments TWR E2E pre-push bundle (API + UI + stress)
 ./neotool validate --web              # Run only web (frontend) validations
+./neotool validate --mobile           # Run only mobile validations
 ./neotool validate --service          # Run all service (backend) validations
 ./neotool validate --service security # Run only security service validations
 ./neotool validate --service app      # Run only app service validations

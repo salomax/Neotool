@@ -1,5 +1,54 @@
 import { ExpoConfig, ConfigContext } from 'expo/config';
 
+type AppEnv = 'development' | 'staging' | 'production';
+
+const LOCAL_GRAPHQL_ENDPOINT = 'http://localhost:4000/graphql';
+
+function normalizeAppEnv(raw: string | undefined): AppEnv {
+  const normalized = raw?.trim().toLowerCase();
+
+  if (normalized === 'production' || normalized === 'prod') {
+    return 'production';
+  }
+
+  if (normalized === 'staging' || normalized === 'stage') {
+    return 'staging';
+  }
+
+  return 'development';
+}
+
+function readEnvVariable(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function resolveGraphqlEndpoint(appEnv: AppEnv): string {
+  const explicitEndpoint = readEnvVariable(process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT);
+  if (explicitEndpoint) {
+    return explicitEndpoint;
+  }
+
+  const envSpecificEndpoint =
+    appEnv === 'production'
+      ? readEnvVariable(process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT_PRODUCTION)
+      : appEnv === 'staging'
+        ? readEnvVariable(process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT_STAGING)
+        : readEnvVariable(process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT_DEVELOPMENT);
+
+  if (envSpecificEndpoint) {
+    return envSpecificEndpoint;
+  }
+
+  if (appEnv === 'development') {
+    return LOCAL_GRAPHQL_ENDPOINT;
+  }
+
+  throw new Error(
+    `Missing GraphQL endpoint for ${appEnv}. Configure EXPO_PUBLIC_GRAPHQL_ENDPOINT or EXPO_PUBLIC_GRAPHQL_ENDPOINT_${appEnv.toUpperCase()}.`
+  );
+}
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'NeoTool',
@@ -63,12 +112,18 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   experiments: {
     typedRoutes: true,
   },
-  extra: {
-    router: {
-      origin: false,
-    },
-    eas: {
-      projectId: process.env.EXPO_PUBLIC_PROJECT_ID || '',
-    },
-  },
+  extra: (() => {
+    const appEnv = normalizeAppEnv(process.env.EXPO_PUBLIC_APP_ENV);
+
+    return {
+      router: {
+        origin: false,
+      },
+      appEnv,
+      graphqlEndpoint: resolveGraphqlEndpoint(appEnv),
+      eas: {
+        projectId: process.env.EXPO_PUBLIC_PROJECT_ID || '',
+      },
+    };
+  })(),
 });

@@ -19,14 +19,23 @@
     "login": "Entrar",
     "signup": "Cadastrar",
     "logout": "Sair",
+    "name": "Nome",
     "email": "E-mail",
     "password": "Senha",
+    "confirmPassword": "Confirmar senha",
     "forgotPassword": "Esqueceu a senha?",
     "loginSubtitle": "Bem-vindo de volta! Faça login para continuar.",
     "signupSubtitle": "Crie sua conta para começar.",
     "forgotPasswordSubtitle": "Digite seu e-mail para redefinir sua senha.",
     "dontHaveAccount": "Não tem uma conta?",
-    "alreadyHaveAccount": "Já tem uma conta?"
+    "alreadyHaveAccount": "Já tem uma conta?",
+    "forgotPasswordComingSoon": "Formulário de recuperação de senha em breve...",
+    "validation": {
+      "nameMinLength": "O nome deve ter pelo menos 2 caracteres",
+      "invalidEmail": "Formato de e-mail inválido",
+      "passwordMinLength": "A senha deve ter pelo menos 8 caracteres",
+      "passwordsDoNotMatch": "As senhas não coincidem"
+    }
   },
   "tabs": {
     "dashboard": "Painel",
@@ -49,6 +58,26 @@
     "generic": "Algo deu errado. Por favor, tente novamente.",
     "network": "Erro de rede. Verifique sua conexão.",
     "unauthorized": "Você não está autorizado a realizar esta ação.",
-    "notFound": "O recurso solicitado não foi encontrado."
+    "notFound": "O recurso solicitado não foi encontrado.",
+    "codes": {
+      "AUTH_INVALID_OR_EXPIRED_ACCESS_TOKEN": "Sua sessão não é mais válida. Faça login novamente.",
+      "AUTH_INVALID_CREDENTIALS": "E-mail ou senha inválidos.",
+      "AUTH_SESSION_EXPIRED": "A sessão expirou. Faça login novamente.",
+      "AUTH_AUTHENTICATION_REQUIRED": "Autenticação obrigatória.",
+      "AUTH_AUTHORIZATION_DENIED": "Acesso negado.",
+      "AUTH_INSUFFICIENT_PERMISSIONS": "Permissões insuficientes.",
+      "AUTH_RESOURCE_ACCESS_DENIED": "Acesso a este recurso foi negado.",
+      "AUTH_TOKEN_EXPIRED": "O token de autenticação expirou.",
+      "AUTH_TOKEN_INVALID": "Token de autenticação inválido.",
+      "UNAUTHENTICATED": "Autenticação obrigatória.",
+      "GRAPHQL_VALIDATION_FAILED": "Não foi possível concluir sua solicitação. Tente novamente.",
+      "HTTP_REQUEST_FAILED": "Não foi possível contatar o servidor. Tente novamente em alguns instantes.",
+      "USER_EMAIL_ALREADY_EXISTS": "Este e-mail já está em uso.",
+      "USER_EMAIL_INVALID": "Formato de e-mail inválido.",
+      "USER_EMAIL_REQUIRED": "E-mail é obrigatório.",
+      "USER_PASSWORD_REQUIRED": "Senha é obrigatória.",
+      "USER_PASSWORD_TOO_SHORT": "A senha é muito curta.",
+      "USER_PASSWORD_TOO_WEAK": "A senha deve ter pelo menos 8 caracteres com maiúsculas, minúsculas, número e caractere especial."
+    }
   }
 }

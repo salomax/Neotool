@@ -1,11 +1,33 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
+import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Icon } from 'react-native-paper';
+import { ActivityIndicator, Icon } from 'react-native-paper';
+import { useAuth } from '@/shared/hooks/useAuth';
 import { useTheme } from '@/shared/hooks/useTheme';
 
 export default function TabLayout() {
   const { t } = useTranslation();
   const { colors } = useTheme();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.background,
+        }}
+      >
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   return (
     <Tabs

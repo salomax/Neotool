@@ -30,9 +30,9 @@ Commands:
     Run '$0 graphql --help' for more information.
 
   $(log "validate" "$GREEN") [options | e2e]
-    Run code validations (web/services/security) or the investments TWR E2E pre-push bundle.
+    Run code validations (web/mobile/services/security) or the investments TWR E2E pre-push bundle.
     Default includes: lint, typecheck, test/testIntegration, coverage, and Trivy scan (if installed).
-    Options: --web, --service [name], --skip-coverage, --no-parallel, e2e
+    Options: --web, --mobile, --service [name], --skip-coverage, --no-parallel, e2e
     Run '$0 validate --help' for more information.
 
   $(log "deploy" "$GREEN") <namespace> --tag <tag>
@@ -84,6 +84,7 @@ Examples:
   $0 validate
   $0 validate e2e
   $0 validate --web
+  $0 validate --mobile
   $0 validate --service security
   $0 validate --no-parallel
   $0 deploy production --tag v0.1.49
