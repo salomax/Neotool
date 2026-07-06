@@ -15,27 +15,19 @@ const sizeMap = {
   xlarge: { width: 647, height: 142 },
 };
 
-export function Wordmark({ 
-  variant = 'blue', 
-  size = 'medium',
-  width,
-  height,
-}: WordmarkProps) {
+export function Wordmark({ variant = 'blue', size = 'medium', width, height }: WordmarkProps) {
   const dimensions = sizeMap[size];
   const logoWidth = width || dimensions.width;
   const logoHeight = height || dimensions.height;
 
-  const source = variant === 'white' 
-    ? require('@/assets/logos/wordmark-white-transparent.svg')
-    : require('@/assets/logos/wordmark-blue-transparent.svg');
+  const source =
+    variant === 'white'
+      ? require('@/assets/logos/wordmark-white-transparent.svg')
+      : require('@/assets/logos/wordmark-blue-transparent.svg');
 
   return (
     <View style={{ width: logoWidth, height: logoHeight }}>
-      <Image
-        source={source}
-        style={styles.image}
-        contentFit="contain"
-      />
+      <Image source={source} style={styles.image} contentFit="contain" />
     </View>
   );
 }

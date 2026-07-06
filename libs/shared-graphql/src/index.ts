@@ -1,4 +1,4 @@
-export * from './auth';
+export * from "./auth";
 export type {
   CurrentUserQuery,
   CurrentUserQueryVariables,
@@ -12,4 +12,4 @@ export type {
   SignInMutationVariables,
   SignUpMutation,
   SignUpMutationVariables,
-} from './generated/graphql';
+} from "./generated/graphql";

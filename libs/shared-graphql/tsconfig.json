@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "paths": {
+      "graphql": ["../../mobile/node_modules/graphql"],
+      "@graphql-typed-document-node/core": [
+        "../../mobile/node_modules/@graphql-typed-document-node/core"
+      ]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "src/generated"]
+}

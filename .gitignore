@@ -31,7 +31,9 @@ venv
 out/
 *.log
 *.hprof
-mobile/*.zip
+# Mobile / EAS credentials (never commit)
+mobile/google-service-account.json
+**/google-service-account.json
 
 .venv/
 .trae/

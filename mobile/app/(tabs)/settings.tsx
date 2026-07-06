@@ -1,5 +1,5 @@
 import { StyleSheet, View, ScrollView } from 'react-native';
-import { Text, List, Switch, Button } from 'react-native-paper';
+import { List, Switch, Button } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { router } from 'expo-router';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -35,13 +35,13 @@ export default function SettingsScreen() {
           title="English"
           onPress={() => changeLanguage('en')}
           left={(props) => <List.Icon {...props} icon="translate" />}
-          right={() => i18n.language === 'en' ? <List.Icon icon="check" /> : null}
+          right={() => (i18n.language === 'en' ? <List.Icon icon="check" /> : null)}
         />
         <List.Item
           title="Português"
           onPress={() => changeLanguage('pt')}
           left={(props) => <List.Icon {...props} icon="translate" />}
-          right={() => i18n.language === 'pt' ? <List.Icon icon="check" /> : null}
+          right={() => (i18n.language === 'pt' ? <List.Icon icon="check" /> : null)}
         />
       </List.Section>
 
@@ -66,6 +66,5 @@ const styles = StyleSheet.create({
     padding: 16,
     marginTop: 24,
   },
-  logoutButton: {
-  },
+  logoutButton: {},
 });

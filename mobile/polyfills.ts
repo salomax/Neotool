@@ -1,14 +1,6 @@
-declare global {
-  var FinalizationRegistry:
-    | (new (cleanupCallback: (heldValue: unknown) => void) => {
-        register(target: object, heldValue: unknown, unregisterToken?: object): void;
-        unregister(unregisterToken: object): boolean;
-      })
-    | undefined;
-}
-
 if (typeof globalThis.FinalizationRegistry === 'undefined') {
   class NoopFinalizationRegistry {
+    // eslint-disable-next-line @typescript-eslint/no-useless-constructor
     constructor(_cleanupCallback: (heldValue: unknown) => void) {}
 
     register(_target: object, _heldValue: unknown, _unregisterToken?: object) {}
@@ -18,8 +10,9 @@ if (typeof globalThis.FinalizationRegistry === 'undefined') {
     }
   }
 
-  globalThis.FinalizationRegistry =
-    NoopFinalizationRegistry as typeof globalThis.FinalizationRegistry;
+  Object.assign(globalThis, {
+    FinalizationRegistry: NoopFinalizationRegistry,
+  });
 }
 
 export {};

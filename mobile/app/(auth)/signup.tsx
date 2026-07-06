@@ -13,7 +13,9 @@ import { translateAppError } from '@/lib/error-handling';
 const createSignupSchema = (t: (key: string, defaultValue?: string) => string) =>
   z
     .object({
-      name: z.string().min(2, t('auth.validation.nameMinLength', 'Name must be at least 2 characters')),
+      name: z
+        .string()
+        .min(2, t('auth.validation.nameMinLength', 'Name must be at least 2 characters')),
       email: z.string().email(t('auth.validation.invalidEmail', 'Invalid email address')),
       password: z
         .string()

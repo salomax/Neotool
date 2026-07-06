@@ -10,7 +10,9 @@ const TRACE_FLAGS_SAMPLED = '01';
 
 function getRandomBytes(size: number): Uint8Array {
   const bytes = new Uint8Array(size);
-  const cryptoApi = (globalThis as { crypto?: { getRandomValues?: (array: Uint8Array) => Uint8Array } }).crypto;
+  const cryptoApi = (
+    globalThis as { crypto?: { getRandomValues?: (array: Uint8Array) => Uint8Array } }
+  ).crypto;
 
   if (cryptoApi?.getRandomValues) {
     return cryptoApi.getRandomValues(bytes);
@@ -49,4 +51,3 @@ function generateSpanId(): string {
 export function buildTraceparent(): string {
   return `${TRACEPARENT_VERSION}-${generateTraceId()}-${generateSpanId()}-${TRACE_FLAGS_SAMPLED}`;
 }
-

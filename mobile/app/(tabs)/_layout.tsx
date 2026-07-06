@@ -48,7 +48,9 @@ export default function TabLayout() {
         name="index"
         options={{
           title: t('tabs.dashboard'),
-          tabBarIcon: ({ color, size }) => <Icon source="view-dashboard" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <Icon source="view-dashboard" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { View, StyleSheet, DimensionValue } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 
 export interface LogoProps {
   variant?: 'white' | 'blue';
@@ -15,27 +15,19 @@ const sizeMap = {
   xlarge: { width: 150, height: 142 },
 };
 
-export function Logo({ 
-  variant = 'blue', 
-  size = 'medium',
-  width,
-  height,
-}: LogoProps) {
+export function Logo({ variant = 'blue', size = 'medium', width, height }: LogoProps) {
   const dimensions = sizeMap[size];
   const logoWidth = width || dimensions.width;
   const logoHeight = height || dimensions.height;
 
-  const source = variant === 'white' 
-    ? require('@/assets/logos/invistus-logo-white-transparent.svg')
-    : require('@/assets/logos/invistus-logo-blue-transparent.svg');
+  const source =
+    variant === 'white'
+      ? require('@/assets/logos/invistus-logo-white-transparent.svg')
+      : require('@/assets/logos/invistus-logo-blue-transparent.svg');
 
   return (
     <View style={{ width: logoWidth, height: logoHeight }}>
-      <Image
-        source={source}
-        style={styles.image}
-        contentFit="contain"
-      />
+      <Image source={source} style={styles.image} contentFit="contain" />
     </View>
   );
 }

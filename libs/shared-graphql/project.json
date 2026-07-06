@@ -4,6 +4,27 @@
   "sourceRoot": "libs/shared-graphql/src",
   "projectType": "library",
   "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec tsc --noEmit -p ../libs/shared-graphql/tsconfig.json",
+        "cwd": "mobile"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node ../../mobile/node_modules/eslint/bin/eslint.js . --max-warnings=0",
+        "cwd": "libs/shared-graphql"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec jest --passWithNoTests --config jest.config.js --roots ../libs/shared-graphql",
+        "cwd": "mobile"
+      }
+    },
     "codegen": {
       "executor": "nx:run-commands",
       "options": {
