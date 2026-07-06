@@ -19,14 +19,23 @@
     "login": "Login",
     "signup": "Sign Up",
     "logout": "Logout",
+    "name": "Name",
     "email": "Email",
     "password": "Password",
+    "confirmPassword": "Confirm Password",
     "forgotPassword": "Forgot Password?",
     "loginSubtitle": "Welcome back! Please login to continue.",
     "signupSubtitle": "Create your account to get started.",
     "forgotPasswordSubtitle": "Enter your email to reset your password.",
     "dontHaveAccount": "Don't have an account?",
-    "alreadyHaveAccount": "Already have an account?"
+    "alreadyHaveAccount": "Already have an account?",
+    "forgotPasswordComingSoon": "Forgot password form coming soon...",
+    "validation": {
+      "nameMinLength": "Name must be at least 2 characters",
+      "invalidEmail": "Invalid email address",
+      "passwordMinLength": "Password must be at least 8 characters",
+      "passwordsDoNotMatch": "Passwords do not match"
+    }
   },
   "tabs": {
     "dashboard": "Dashboard",
@@ -49,6 +58,26 @@
     "generic": "Something went wrong. Please try again.",
     "network": "Network error. Please check your connection.",
     "unauthorized": "You are not authorized to perform this action.",
-    "notFound": "The requested resource was not found."
+    "notFound": "The requested resource was not found.",
+    "codes": {
+      "AUTH_INVALID_OR_EXPIRED_ACCESS_TOKEN": "Your session is no longer valid. Please sign in again.",
+      "AUTH_INVALID_CREDENTIALS": "Invalid email or password.",
+      "AUTH_SESSION_EXPIRED": "Session has expired. Please sign in again.",
+      "AUTH_AUTHENTICATION_REQUIRED": "Authentication required.",
+      "AUTH_AUTHORIZATION_DENIED": "Access denied.",
+      "AUTH_INSUFFICIENT_PERMISSIONS": "Insufficient permissions.",
+      "AUTH_RESOURCE_ACCESS_DENIED": "Access to this resource is denied.",
+      "AUTH_TOKEN_EXPIRED": "Authentication token has expired.",
+      "AUTH_TOKEN_INVALID": "Invalid authentication token.",
+      "UNAUTHENTICATED": "Authentication required.",
+      "GRAPHQL_VALIDATION_FAILED": "We couldn't complete your request. Please try again.",
+      "HTTP_REQUEST_FAILED": "We couldn't reach the server. Please try again in a few moments.",
+      "USER_EMAIL_ALREADY_EXISTS": "Email already exists.",
+      "USER_EMAIL_INVALID": "Invalid email format.",
+      "USER_EMAIL_REQUIRED": "Email is required.",
+      "USER_PASSWORD_REQUIRED": "Password is required.",
+      "USER_PASSWORD_TOO_SHORT": "Password is too short.",
+      "USER_PASSWORD_TOO_WEAK": "Password must be at least 8 characters with uppercase, lowercase, number and special character."
+    }
   }
 }

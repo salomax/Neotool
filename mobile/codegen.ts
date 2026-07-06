@@ -1,14 +1,14 @@
 import type { CodegenConfig } from '@graphql-codegen/cli';
 
 const config: CodegenConfig = {
-  schema: process.env.EXPO_PUBLIC_GRAPHQL_ENDPOINT || 'http://localhost:4000/graphql',
-  documents: ['src/**/*.{ts,tsx}'],
+  schema: '../contracts/graphql/supergraph/supergraph.local.graphql',
+  documents: ['../libs/shared-graphql/src/**/*.{ts,tsx}'],
   generates: {
-    './src/generated/': {
+    '../libs/shared-graphql/src/generated/': {
       preset: 'client',
       plugins: [],
       presetConfig: {
-        gqlTagName: 'gql',
+        gqlTagName: 'graphql',
       },
     },
   },

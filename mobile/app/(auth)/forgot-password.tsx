@@ -18,7 +18,7 @@ export default function ForgotPasswordScreen() {
 
         {/* TODO: Implement forgot password form */}
         <Text variant="bodyMedium" style={styles.placeholder}>
-          Forgot password form coming soon...
+          {t('auth.forgotPasswordComingSoon')}
         </Text>
 
         <Link href="/(auth)/login" asChild>

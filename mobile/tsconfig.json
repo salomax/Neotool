@@ -6,6 +6,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "moduleResolution": "bundler",
+    "types": ["jest", "react", "react-native"],
     "paths": {
       "@/*": ["./src/*"],
       "@/shared/*": ["./src/shared/*"],
@@ -19,7 +20,10 @@
       "@/theme/*": ["./src/shared/theme/*"],
       "@/lib/*": ["./src/lib/*"],
       "@/generated/*": ["./src/generated/*"],
-      "@/assets/*": ["./assets/*"]
+      "@/assets/*": ["./assets/*"],
+      "@invistus/shared-graphql": ["../libs/shared-graphql/src/index.ts"],
+      "graphql": ["./node_modules/graphql"],
+      "@graphql-typed-document-node/core": ["./node_modules/@graphql-typed-document-node/core"]
     }
   },
   "include": [
