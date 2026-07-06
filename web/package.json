@@ -1,6 +1,6 @@
 {
   "name": "neotool-web",
-  "version": "0.7.34",
+  "version": "0.7.35",
   "private": true,
   "scripts": {
     "dev": "node scripts/dev-with-env.mjs",

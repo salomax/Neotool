@@ -1,3 +1,13 @@
+## 0.7.35 (2026-07-06)
+
+### 💅 Refactors
+
+- enhance neotool-dev-agent and tunnel management ([6489c7ba](https://github.com/invistus/invistus/commit/6489c7ba))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.34 (2026-07-03)
 
 ### 🚀 Features
