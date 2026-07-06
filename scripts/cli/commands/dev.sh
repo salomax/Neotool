@@ -506,6 +506,132 @@ dev_infra() {
 }
 
 # =============================================================================
+# Agent — neotool-dev-agent process management
+# =============================================================================
+
+AGENT_SCRIPT="/workspaces/invistus/.devcontainer/neotool-dev-agent.py"
+AGENT_LOG="/tmp/neotool-agent.log"
+AGENT_PID_FILE="/tmp/neotool-agent.pid"
+AGENT_API_KEYS="${HOME}/.vault-keys/api-keys.env"
+AGENT_PORT="${NEOTOOL_AGENT_PORT:-3285}"
+
+agent_running() {
+    local pid
+    pid=$(cat "$AGENT_PID_FILE" 2>/dev/null || true)
+    [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+}
+
+agent_stop() {
+    pkill -f "neotool-dev-agent.py" 2>/dev/null || true
+    rm -f "$AGENT_PID_FILE"
+    log "✓ neotool-dev-agent stopped" "$GREEN"
+}
+
+agent_start() {
+    if agent_running; then
+        log "⚠ neotool-dev-agent already running (PID $(cat $AGENT_PID_FILE))" "$YELLOW"
+        return 0
+    fi
+
+    # Load API keys
+    if [[ -f "$AGENT_API_KEYS" ]]; then
+        # shellcheck disable=SC1090
+        source "$AGENT_API_KEYS"
+        log "  ✓ api-keys loaded" "$GRAY"
+    else
+        log "  ⚠ $AGENT_API_KEYS not found — skipping" "$YELLOW"
+    fi
+
+    # Start in background
+    python3 "$AGENT_SCRIPT" >> "$AGENT_LOG" 2>&1 &
+    local pid=$!
+    echo "$pid" > "$AGENT_PID_FILE"
+    log "  ✓ started (PID $pid) → $AGENT_LOG" "$GRAY"
+
+    # Wait for health
+    local waited=0
+    while [[ $waited -lt 10 ]]; do
+        if curl -sf "http://127.0.0.1:${AGENT_PORT}/health" >/dev/null 2>&1; then
+            log "✓ neotool-dev-agent healthy on :${AGENT_PORT}" "$GREEN"
+            return 0
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+    log "⚠ agent started but health check timed out — check: neotool dev agent logs" "$YELLOW"
+}
+
+dev_agent() {
+    local action="${1:-}"
+
+    if [[ -z "$action" ]] || [[ "$action" == "--help" ]]; then
+        cat << EOF
+Usage: neotool dev agent <start|stop|restart|logs|attach|status>
+
+  start    Start neotool-dev-agent in background (loads api-keys automatically)
+  stop     Stop neotool-dev-agent
+  restart  Stop then start
+  logs     Tail agent log (Ctrl-C to exit)
+  attach   Run agent in foreground (logs to stdout)
+  status   Show running status and health
+EOF
+        return 0
+    fi
+
+    case "$action" in
+        start)
+            log "▶ Starting neotool-dev-agent..." "$BLUE"
+            agent_start
+            ;;
+        stop)
+            log "▶ Stopping neotool-dev-agent..." "$BLUE"
+            agent_stop
+            ;;
+        restart)
+            log "▶ Restarting neotool-dev-agent..." "$BLUE"
+            agent_stop
+            sleep 1
+            agent_start
+            ;;
+        logs)
+            if [[ ! -f "$AGENT_LOG" ]]; then
+                log "No log file yet: $AGENT_LOG" "$YELLOW"
+                return 0
+            fi
+            tail -f "$AGENT_LOG"
+            ;;
+        attach)
+            log "▶ Attaching neotool-dev-agent (foreground — Ctrl-C to stop)..." "$BLUE"
+            pkill -f "neotool-dev-agent.py" 2>/dev/null || true
+            rm -f "$AGENT_PID_FILE"
+            if [[ -f "$AGENT_API_KEYS" ]]; then
+                # shellcheck disable=SC1090
+                source "$AGENT_API_KEYS"
+            fi
+            python3 "$AGENT_SCRIPT"
+            ;;
+        status)
+            if agent_running; then
+                local pid; pid=$(cat "$AGENT_PID_FILE")
+                log "✓ neotool-dev-agent running (PID $pid)" "$GREEN"
+                if curl -sf "http://127.0.0.1:${AGENT_PORT}/health" >/dev/null 2>&1; then
+                    log "  health: ok on :${AGENT_PORT}" "$GREEN"
+                else
+                    log "  health: not responding on :${AGENT_PORT}" "$RED"
+                fi
+            else
+                log "✗ neotool-dev-agent not running" "$RED"
+                log "  Start with: neotool dev agent start" "$GRAY"
+            fi
+            ;;
+        *)
+            log_error "Unknown action: $action. Use start|stop|restart|logs|attach|status"
+            exit 1
+            ;;
+    esac
+}
+
+# =============================================================================
 # Help
 # =============================================================================
 
@@ -538,6 +664,14 @@ Subcommands:
 
   $(log "logs" "$GREEN") <service>
     Show the last lines of output for a service (without attaching).
+
+  $(log "agent" "$GREEN") <start|stop|restart|logs|attach|status>
+    Manage the neotool-dev-agent (Slack → AI pipeline bridge).
+    start: loads api-keys and starts the bridge; stop/restart/logs/attach/status as expected.
+
+  $(log "tunnel" "$GREEN") <start <n>|stop|status|logs>
+    Manage the Cloudflare Tunnel for DevPod N.
+    Example: neotool dev tunnel start 1
 
   $(log "gradle-reset" "$GREEN")
     Stop Gradle daemons and clear stale lock files (use if builds fail with
@@ -879,6 +1013,12 @@ main() {
                 done
                 log "✓ All services restarted." "$GREEN"
             fi
+            ;;
+        agent)
+            dev_agent "${@}"
+            ;;
+        tunnel)
+            exec "/workspaces/invistus/.devcontainer/neotool-tunnel" "${@}"
             ;;
         gradle-reset)
             gradle_reset

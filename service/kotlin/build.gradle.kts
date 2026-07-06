@@ -57,6 +57,7 @@ allprojects {
         testLogging {
             events("passed", "skipped", "failed")
         }
+        systemProperty("api.version", "1.41")
     }
 }
 

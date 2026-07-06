@@ -1589,7 +1589,7 @@ class BillImportServiceTest {
             val jobId = UUID.randomUUID()
             val cardA = UUID.randomUUID()
             val billA = UUID.randomUUID()
-            val job = awaitingReviewJob(jobId)
+            val job = awaitingReviewJobWithDueDate(jobId, lastFour = "1234", dueDate = LocalDate.of(2026, 3, 15))
             val command =
                 ConfirmBillImportCommand(
                     jobId = jobId,
@@ -1621,9 +1621,6 @@ class BillImportServiceTest {
             whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
             whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
             doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
-            doReturn(
-                creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 3, 15)),
-            ).whenever(creditCardBillService).requireBillForAccount(eq(billA), eq(accountId))
             whenever(
                 transactionRepository.save(any()),
             ).thenAnswer { it.getArgument<Transaction>(0).copy(id = UUID.randomUUID()) }
@@ -1635,6 +1632,61 @@ class BillImportServiceTest {
             verify(transactionRepository).save(txCaptor.capture())
             assertThat(txCaptor.firstValue.installmentNumber).isEqualTo(1)
             assertThat(txCaptor.firstValue.totalInstallments).isEqualTo(6)
+            assertThat(txCaptor.firstValue.date).isEqualTo(LocalDate.of(2026, 3, 15))
+            assertThat(txCaptor.firstValue.billPostDate).isEqualTo(LocalDate.of(2026, 2, 19))
+        }
+
+        @Test
+        fun `confirm sets installment date to bill due date and billPostDate to original purchase date`() {
+            val jobId = UUID.randomUUID()
+            val cardA = UUID.randomUUID()
+            val billA = UUID.randomUUID()
+            val job = awaitingReviewJobWithDueDate(jobId, lastFour = "1234", dueDate = LocalDate.of(2026, 5, 25))
+            val command =
+                ConfirmBillImportCommand(
+                    jobId = jobId,
+                    cards =
+                        listOf(
+                            ConfirmBillReviewCardCommand(
+                                reviewCardId = "card-1",
+                                financialAccountId = cardA,
+                                transactions =
+                                    listOf(
+                                        ConfirmBillReviewTransactionCommand(
+                                            date = LocalDate.of(2025, 7, 27),
+                                            description = "ARTVITALCIOT03",
+                                            amount = BigDecimal("999.00"),
+                                            creditDebitType = CreditDebitType.DEBIT,
+                                            include = true,
+                                            installment = InstallmentInfo(current = 10, total = 12),
+                                        ),
+                                    ),
+                            ),
+                        ),
+                )
+
+            whenever(repository.findById(jobId, accountId)).thenReturn(job)
+            whenever(
+                financialAccountRepository.findByAccountId(accountId),
+            ).thenReturn(listOf(cardAccount(cardA, "1234")))
+            whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
+            doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
+            doReturn(
+                creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 5, 25)),
+            ).whenever(creditCardBillService).requireBillForAccount(eq(billA), eq(accountId))
+            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(transactionRepository.save(any())).thenAnswer {
+                it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+
+            val result = service.confirmBillImport(accountId, userId, command)
+
+            assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
+            val txCaptor = argumentCaptor<Transaction>()
+            verify(transactionRepository).save(txCaptor.capture())
+            assertThat(txCaptor.firstValue.date).isEqualTo(LocalDate.of(2026, 5, 25))
+            assertThat(txCaptor.firstValue.billPostDate).isEqualTo(LocalDate.of(2025, 7, 27))
         }
 
         @Test
@@ -1686,7 +1738,8 @@ class BillImportServiceTest {
             assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
             val txCaptor = argumentCaptor<Transaction>()
             verify(transactionRepository).save(txCaptor.capture())
-            assertThat(txCaptor.firstValue.date).isEqualTo(LocalDate.of(2025, 9, 30))
+            assertThat(txCaptor.firstValue.date).isEqualTo(LocalDate.of(2026, 3, 15))
+            assertThat(txCaptor.firstValue.billPostDate).isEqualTo(LocalDate.of(2025, 9, 30))
         }
 
         @Test
@@ -1738,7 +1791,8 @@ class BillImportServiceTest {
             assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
             val txCaptor = argumentCaptor<Transaction>()
             verify(transactionRepository).save(txCaptor.capture())
-            assertThat(txCaptor.firstValue.date).isEqualTo(LocalDate.of(2025, 10, 1))
+            assertThat(txCaptor.firstValue.date).isEqualTo(LocalDate.of(2026, 3, 15))
+            assertThat(txCaptor.firstValue.billPostDate).isEqualTo(LocalDate.of(2025, 10, 1))
         }
 
         @Test

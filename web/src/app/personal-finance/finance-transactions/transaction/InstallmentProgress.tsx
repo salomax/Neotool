@@ -24,7 +24,7 @@ export const InstallmentProgress = memo(function InstallmentProgress({
   return (
     <Stack spacing={0.5} sx={{ maxWidth: 200 }}>
       <Typography variant="caption" color="text.secondary" sx={{ fontSize, lineHeight }}>
-        {installmentNumber} of {totalInstallments}
+        {installmentNumber} {t('financeTransactions.transactionTable.installments.of')} {totalInstallments}
       </Typography>
       <Box
         role="progressbar"

@@ -1976,6 +1976,7 @@
         "moreAriaLabel": "View {{count}} more tags"
       },
       "installments": {
+        "of": "of",
         "progressAriaLabel": "Installment {{current}} of {{total}}"
       },
       "rowActions": {

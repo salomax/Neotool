@@ -3,14 +3,14 @@
  *
  * Fluxo async:
  * 1. Recebe evento Slack → responde 200 imediatamente
- * 2. waitUntil: posta "⏳ Trabalhando..." → dispara bridge (fire-and-forget)
- * 3. Bridge processa Goose em background e chama Slack diretamente ao terminar
+ * 2. waitUntil: posta "⏳ Trabalhando..." → dispara neotool-dev-agent (fire-and-forget)
+ * 3. Agent processa em background e chama Slack diretamente ao terminar
  */
 
 export interface Env {
   SLACK_BOT_TOKEN: string;
   SLACK_SIGNING_SECRET: string;
-  GOOSE_SERVER_SECRET: string;
+  NEOTOOL_AGENT_SECRET: string;
   SESSIONS: KVNamespace;
   CHANNEL_DEVPOD_MAP: string;
 }
@@ -94,16 +94,16 @@ export default {
     const devpodUrl = channelMap.get(event.channel as string);
     if (!devpodUrl) return new Response('OK');
 
-    ctx.waitUntil(handleGooseRequest(event, devpodUrl, env));
+    ctx.waitUntil(handleAgentRequest(event, devpodUrl, env));
     return new Response('OK');
   },
 };
 
 // ── Processamento assíncrono ──────────────────────────────────────────────────
-// waitUntil só precisa: postar "⏳" + disparar bridge (fire-and-forget).
-// O bridge chama o Slack diretamente quando o Goose terminar.
+// waitUntil: posta "⏳" + dispara neotool-dev-agent (fire-and-forget).
+// O agent chama o Slack diretamente quando terminar.
 
-async function handleGooseRequest(
+async function handleAgentRequest(
   event: Record<string, unknown>,
   devpodUrl: string,
   env: Env
@@ -132,14 +132,13 @@ async function handleGooseRequest(
   }
   console.log('[handler] resume:', resume);
 
-  // 3. Dispara bridge — não aguarda resposta do Goose
-  //    O bridge responde 202 imediatamente e atualiza o Slack quando terminar.
+  // 3. Dispara neotool-dev-agent — responde 202 imediatamente e atualiza o Slack quando terminar.
   try {
     const res = await fetch(`${devpodUrl}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(env.GOOSE_SERVER_SECRET ? { Authorization: `Bearer ${env.GOOSE_SERVER_SECRET}` } : {}),
+        ...(env.NEOTOOL_AGENT_SECRET ? { Authorization: `Bearer ${env.NEOTOOL_AGENT_SECRET}` } : {}),
       },
       body: JSON.stringify({
         message:     text,

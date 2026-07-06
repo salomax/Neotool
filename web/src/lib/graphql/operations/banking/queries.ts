@@ -208,6 +208,7 @@ export const TRANSACTIONS = gql`
           tags
           currencyCode
           date
+          billPostDate
           status
           financialAccountId
           billId
@@ -1401,6 +1402,7 @@ export const TRANSACTIONS_BY_BILL = gql`
           tags
           currencyCode
           date
+          billPostDate
           status
           financialAccountId
           billId

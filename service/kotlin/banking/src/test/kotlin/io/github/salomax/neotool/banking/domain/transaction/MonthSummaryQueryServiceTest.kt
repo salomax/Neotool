@@ -872,4 +872,80 @@ class MonthSummaryQueryServiceTest {
             assertThat(result.isFutureMonth).isTrue()
         }
     }
+
+    @Nested
+    @DisplayName("installment month attribution")
+    inner class InstallmentMonthAttributionTests {
+        @Test
+        fun `month summary includes installment expense in due date month not purchase month`() {
+            val dueYear = 2026
+            val dueMonth = 5
+            val purchaseYear = 2025
+            val purchaseMonth = 7
+
+            val dueSnapshot =
+                snapshot(
+                    year = dueYear,
+                    month = dueMonth,
+                    totalExpenses = BigDecimal("999.00"),
+                )
+            val purchaseSnapshot =
+                snapshot(
+                    year = purchaseYear,
+                    month = purchaseMonth,
+                    totalExpenses = BigDecimal.ZERO,
+                )
+
+            whenever(snapshotRepository.findByYearMonth(financialAccountId, dueYear, dueMonth)).thenReturn(dueSnapshot)
+            whenever(snapshotRepository.findByYearMonth(financialAccountId, purchaseYear, purchaseMonth))
+                .thenReturn(purchaseSnapshot)
+            whenever(transactionRepository.getMonthTransferTotals(financialAccountId, dueYear, dueMonth))
+                .thenReturn(transferTotals())
+            whenever(transactionRepository.getMonthTransferTotals(financialAccountId, purchaseYear, purchaseMonth))
+                .thenReturn(transferTotals())
+            whenever(transactionRepository.getMonthTotals(financialAccountId, dueYear, dueMonth))
+                .thenReturn(
+                    MonthTransactionTotals(
+                        financialAccountId = financialAccountId,
+                        year = dueYear,
+                        month = dueMonth,
+                        totalCredit = BigDecimal.ZERO,
+                        totalDebit = BigDecimal("999.00"),
+                        totalIncome = BigDecimal.ZERO,
+                        totalExpenses = BigDecimal("999.00"),
+                        totalCreditExclTransfer = BigDecimal.ZERO,
+                        totalDebitExclTransfer = BigDecimal("999.00"),
+                        totalFutureCredit = BigDecimal.ZERO,
+                        totalFutureDebit = BigDecimal.ZERO,
+                        totalFutureIncome = BigDecimal.ZERO,
+                        totalFutureExpenses = BigDecimal.ZERO,
+                    ),
+                )
+            whenever(transactionRepository.getMonthTotals(financialAccountId, purchaseYear, purchaseMonth))
+                .thenReturn(
+                    MonthTransactionTotals(
+                        financialAccountId = financialAccountId,
+                        year = purchaseYear,
+                        month = purchaseMonth,
+                        totalCredit = BigDecimal.ZERO,
+                        totalDebit = BigDecimal.ZERO,
+                        totalIncome = BigDecimal.ZERO,
+                        totalExpenses = BigDecimal.ZERO,
+                        totalCreditExclTransfer = BigDecimal.ZERO,
+                        totalDebitExclTransfer = BigDecimal.ZERO,
+                        totalFutureCredit = BigDecimal.ZERO,
+                        totalFutureDebit = BigDecimal.ZERO,
+                        totalFutureIncome = BigDecimal.ZERO,
+                        totalFutureExpenses = BigDecimal.ZERO,
+                    ),
+                )
+
+            val dueSummary = service.getMonthSummary(financialAccountId, accountId, dueYear, dueMonth)
+            val purchaseSummary =
+                service.getMonthSummary(financialAccountId, accountId, purchaseYear, purchaseMonth)
+
+            assertThat(dueSummary.totalExpenses).isEqualByComparingTo("999.00")
+            assertThat(purchaseSummary.totalExpenses).isEqualByComparingTo(BigDecimal.ZERO)
+        }
+    }
 }
