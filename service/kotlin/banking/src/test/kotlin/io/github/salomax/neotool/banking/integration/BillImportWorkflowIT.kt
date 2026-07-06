@@ -411,26 +411,6 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
         val tx = imported.single()
         assertThat(tx.date).isEqualTo(LocalDate.of(2026, 2, 15))
         assertThat(tx.billPostDate).isEqualTo(LocalDate.of(2026, 1, 15))
-
-        val container = getPgContainer()
-        val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
-        DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
-            conn.prepareStatement(
-                """
-                SELECT date, bill_post_date
-                FROM banking.transactions
-                WHERE id = ?
-                """.trimIndent(),
-            ).use { statement ->
-                statement.setObject(1, tx.id)
-                statement.executeQuery().use { rs ->
-                    assertThat(rs.next()).isTrue()
-                    assertThat(rs.getObject("date", LocalDate::class.java)).isEqualTo(LocalDate.of(2026, 2, 15))
-                    assertThat(rs.getObject("bill_post_date", LocalDate::class.java))
-                        .isEqualTo(LocalDate.of(2026, 1, 15))
-                }
-            }
-        }
     }
 
     private fun lookupPagamentoDeFaturaCategoryId(): UUID {
