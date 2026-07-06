@@ -1,6 +1,6 @@
 import { useTranslation as useReactI18nTranslation } from 'react-i18next';
 import { useMemo } from 'react';
-import i18n from 'i18next';
+import i18n from '@/shared/config/i18n';
 import { DomainTranslations, TranslationFunction } from '../types';
 
 /**

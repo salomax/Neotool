@@ -14,6 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KOTLIN_ROOT="$(cd "$SCRIPT_DIR/../../service/kotlin" && pwd)"
 LOCK_FILE="/tmp/neotool-gradle.lock"
 GRADLE_LOCK_WAIT="${GRADLE_LOCK_WAIT:-300}"
+GRADLE_ARGS=(--no-configuration-cache --no-build-cache)
 
 if [[ $# -lt 1 ]]; then
     echo "Usage: gradlew-dev.sh <gradle-task> [gradle-args...]" >&2
@@ -31,6 +32,14 @@ if [[ -z "${JAVA_HOME:-}" ]]; then
     fi
 fi
 
+if [[ "${DEVPOD:-}" == "true" ]]; then
+    DEVPOD_GRADLE_BASE="${NEOTOOL_GRADLE_BASE:-${HOME}/.cache/neotool-gradle/${DEVPOD_WORKSPACE_UID:-default}}"
+    export NEOTOOL_GRADLE_BUILD_ROOT="${NEOTOOL_GRADLE_BUILD_ROOT:-${DEVPOD_GRADLE_BASE}/builds}"
+    PROJECT_CACHE_DIR="${NEOTOOL_GRADLE_PROJECT_CACHE_DIR:-${DEVPOD_GRADLE_BASE}/project-cache}"
+    mkdir -p "$NEOTOOL_GRADLE_BUILD_ROOT" "$PROJECT_CACHE_DIR"
+    GRADLE_ARGS+=(--project-cache-dir "$PROJECT_CACHE_DIR")
+fi
+
 cd "$KOTLIN_ROOT"
 
 module=""
@@ -40,11 +49,11 @@ fi
 
 if [[ -n "$module" ]]; then
     if ! flock -w "$GRADLE_LOCK_WAIT" "$LOCK_FILE" \
-        ./gradlew ":${module}:classes" --no-configuration-cache; then
+        ./gradlew ":${module}:classes" "${GRADLE_ARGS[@]}"; then
         echo "ERROR: timed out waiting for Gradle lock (${GRADLE_LOCK_WAIT}s)." >&2
         echo "  Try: neotool dev gradle-reset" >&2
         exit 1
     fi
 fi
 
-exec ./gradlew "$gradle_task" --no-configuration-cache "$@"
+exec ./gradlew "$gradle_task" "${GRADLE_ARGS[@]}" "$@"
