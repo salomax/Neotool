@@ -28,7 +28,7 @@ type SessionUserPayload = {
   displayName?: string | null;
   avatarUrl?: string | null;
   emailVerified: boolean;
-  roles: Array<{ id: string; name: string }>;
+  roles: { id: string; name: string }[];
 };
 
 export function AuthProvider({ children }: AuthProviderProps) {
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const restoredUser = await hydrateCurrentUser();
       setUser(restoredUser);
       return;
-    } catch (error) {
+    } catch {
       const refreshedSession = await refreshAccessToken();
 
       if (refreshedSession) {

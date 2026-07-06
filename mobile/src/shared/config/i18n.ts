@@ -12,23 +12,21 @@ const LANGUAGE_KEY = '@app_language';
 // Get device language
 const deviceLanguage = Localization.locale.split('-')[0];
 
-i18n
-  .use(initReactI18next)
-  .init({
-    resources: {
-      en: { translation: en },
-      pt: { translation: pt },
-    },
-    lng: deviceLanguage,
-    fallbackLng: 'en',
-    compatibilityJSON: 'v3',
-    interpolation: {
-      escapeValue: false, // React already escapes values
-    },
-    react: {
-      useSuspense: false, // Important for React Native
-    },
-  });
+i18n.use(initReactI18next).init({
+  resources: {
+    en: { translation: en },
+    pt: { translation: pt },
+  },
+  lng: deviceLanguage,
+  fallbackLng: 'en',
+  compatibilityJSON: 'v3',
+  interpolation: {
+    escapeValue: false, // React already escapes values
+  },
+  react: {
+    useSuspense: false, // Important for React Native
+  },
+});
 
 // Load saved language preference
 AsyncStorage.getItem(LANGUAGE_KEY)

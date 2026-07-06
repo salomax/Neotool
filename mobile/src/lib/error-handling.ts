@@ -2,11 +2,7 @@ import type { TFunction } from 'i18next';
 
 export type AppErrorCategory = 'network' | 'auth' | 'business-validation' | 'unknown';
 
-export type AppFieldError =
-  | 'name'
-  | 'email'
-  | 'password'
-  | 'confirmPassword';
+export type AppFieldError = 'name' | 'email' | 'password' | 'confirmPassword';
 
 type GraphQLErrorEntry = {
   message?: string;
@@ -47,15 +43,16 @@ const AUTH_ERROR_MESSAGE_PATTERNS = [
   'session expired',
 ];
 
-const BUSINESS_VALIDATION_FIELD_MAP: Partial<Record<string, Partial<Record<AppFieldError, string>>>> =
-  {
-    USER_EMAIL_ALREADY_EXISTS: { email: 'errors.codes.USER_EMAIL_ALREADY_EXISTS' },
-    USER_EMAIL_INVALID: { email: 'errors.codes.USER_EMAIL_INVALID' },
-    USER_EMAIL_REQUIRED: { email: 'errors.codes.USER_EMAIL_REQUIRED' },
-    USER_PASSWORD_REQUIRED: { password: 'errors.codes.USER_PASSWORD_REQUIRED' },
-    USER_PASSWORD_TOO_SHORT: { password: 'errors.codes.USER_PASSWORD_TOO_SHORT' },
-    USER_PASSWORD_TOO_WEAK: { password: 'errors.codes.USER_PASSWORD_TOO_WEAK' },
-  };
+const BUSINESS_VALIDATION_FIELD_MAP: Partial<
+  Record<string, Partial<Record<AppFieldError, string>>>
+> = {
+  USER_EMAIL_ALREADY_EXISTS: { email: 'errors.codes.USER_EMAIL_ALREADY_EXISTS' },
+  USER_EMAIL_INVALID: { email: 'errors.codes.USER_EMAIL_INVALID' },
+  USER_EMAIL_REQUIRED: { email: 'errors.codes.USER_EMAIL_REQUIRED' },
+  USER_PASSWORD_REQUIRED: { password: 'errors.codes.USER_PASSWORD_REQUIRED' },
+  USER_PASSWORD_TOO_SHORT: { password: 'errors.codes.USER_PASSWORD_TOO_SHORT' },
+  USER_PASSWORD_TOO_WEAK: { password: 'errors.codes.USER_PASSWORD_TOO_WEAK' },
+};
 
 function appendGraphQLErrors(target: GraphQLErrorEntry[], errors: unknown): void {
   if (!Array.isArray(errors)) {
@@ -189,7 +186,10 @@ export function classifyAppError(error: unknown): AppErrorDescriptor {
   };
 }
 
-export function translateAppError(error: unknown, t: TFunction): AppErrorDescriptor & { message: string } {
+export function translateAppError(
+  error: unknown,
+  t: TFunction
+): AppErrorDescriptor & { message: string } {
   const descriptor = classifyAppError(error);
 
   return {

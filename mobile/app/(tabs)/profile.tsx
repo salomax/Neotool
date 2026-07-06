@@ -11,7 +11,10 @@ export default function ProfileScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Avatar.Text size={80} label={user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'} />
+          <Avatar.Text
+            size={80}
+            label={user?.displayName?.charAt(0) || user?.email?.charAt(0) || 'U'}
+          />
           <Text variant="headlineSmall" style={styles.name}>
             {user?.displayName || user?.email}
           </Text>

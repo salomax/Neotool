@@ -8,7 +8,7 @@ import { DomainTranslations, TranslationFunction } from '../types';
  */
 function registerDomain(translations: DomainTranslations) {
   const domain = translations.domain;
-  
+
   // Register each language
   Object.entries(translations).forEach(([language, translationData]) => {
     if (language !== 'domain' && typeof translationData === 'object') {
@@ -24,7 +24,7 @@ function registerDomain(translations: DomainTranslations) {
  * Smart i18n hook with method overloading
  * Supports both single domain and multiple domains with automatic fallback to common
  */
-/* eslint-disable no-redeclare */
+
 export function useTranslation(domainTranslations: DomainTranslations): {
   t: TranslationFunction;
   tDomain: TranslationFunction;
@@ -38,7 +38,6 @@ export function useTranslation(domainTranslations: DomainTranslations[]): {
 };
 
 export function useTranslation(domainTranslations: DomainTranslations | DomainTranslations[]): any {
-/* eslint-enable no-redeclare */
   const isArray = Array.isArray(domainTranslations);
   if (isArray) {
     domainTranslations.forEach(registerDomain);
@@ -47,20 +46,20 @@ export function useTranslation(domainTranslations: DomainTranslations | DomainTr
   }
 
   const domains = isArray ? domainTranslations : [domainTranslations];
-  
+
   // Call hooks unconditionally
   const domain0 = domains[0]?.domain || 'common';
   const domain1 = domains[1]?.domain || domain0 || 'common';
   const domain2 = domains[2]?.domain || domain1 || 'common';
   const domain3 = domains[3]?.domain || domain2 || 'common';
   const domain4 = domains[4]?.domain || domain3 || 'common';
-  
+
   const hook0 = useReactI18nTranslation(domain0);
   const hook1 = useReactI18nTranslation(domain1);
   const hook2 = useReactI18nTranslation(domain2);
   const hook3 = useReactI18nTranslation(domain3);
   const hook4 = useReactI18nTranslation(domain4);
-  
+
   const domainHooks = domains.slice(0, 5).map((_, i) => [hook0, hook1, hook2, hook3, hook4][i]!);
   const { t: tCommon } = useReactI18nTranslation('common');
 
@@ -73,7 +72,7 @@ export function useTranslation(domainTranslations: DomainTranslations | DomainTr
         return domainResult === key ? tCommon(key, options) : domainResult;
       },
       tDomain,
-      tCommon
+      tCommon,
     };
   }, [isArray, domainHooks, tCommon]);
 
@@ -89,10 +88,10 @@ export function useTranslation(domainTranslations: DomainTranslations | DomainTr
         return tCommon(key, options);
       },
       getDomain: (domainName: string) => {
-        const index = domains.findIndex(d => d.domain === domainName);
+        const index = domains.findIndex((d) => d.domain === domainName);
         return index >= 0 ? { t: domainHooks[index]!.t } : null;
       },
-      common: tCommon
+      common: tCommon,
     };
   }, [isArray, domains, domainHooks, tCommon]);
 

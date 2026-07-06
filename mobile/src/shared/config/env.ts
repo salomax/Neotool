@@ -10,9 +10,7 @@ const IOS_LOCAL_GRAPHQL_ENDPOINT = 'http://localhost:4000/graphql';
 const ANDROID_EMULATOR_GRAPHQL_ENDPOINT = 'http://10.0.2.2:4000/graphql';
 
 function getDevelopmentGraphqlEndpoint() {
-  return Platform.OS === 'android'
-    ? ANDROID_EMULATOR_GRAPHQL_ENDPOINT
-    : IOS_LOCAL_GRAPHQL_ENDPOINT;
+  return Platform.OS === 'android' ? ANDROID_EMULATOR_GRAPHQL_ENDPOINT : IOS_LOCAL_GRAPHQL_ENDPOINT;
 }
 
 function normalizeAppEnv(raw: string | undefined): AppEnv {

@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { ApolloClient, NormalizedCacheObject } from '@apollo/client';
+import { ApolloClient } from '@apollo/client';
 import { ApolloProvider as BaseApolloProvider } from '@apollo/client/react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { initializeApolloClient } from '@/lib/apollo-client';

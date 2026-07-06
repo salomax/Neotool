@@ -1,6 +1,5 @@
 import {
   ApolloClient,
-  type ErrorLike,
   type FetchResult,
   InMemoryCache,
   Observable,
@@ -35,7 +34,7 @@ export type SessionRefreshUser = {
   displayName: string | null;
   avatarUrl: string | null;
   emailVerified: boolean;
-  roles: Array<{ id: string; name: string }>;
+  roles: { id: string; name: string }[];
 };
 
 export type SessionRefreshResult = {
@@ -69,10 +68,6 @@ export function subscribeToSessionExpired(listener: SessionExpiredListener) {
   return () => {
     sessionExpiredListeners.delete(listener);
   };
-}
-
-function isUnauthenticatedError(error: ErrorLike): boolean {
-  return classifyAppError(error).category === 'auth';
 }
 
 async function persistRefreshedSession(session: SessionRefreshResult) {
@@ -177,9 +172,7 @@ const authLink = setContext(async (_, { headers }) => {
 const errorLink = onError(({ error, operation, forward }) => {
   if (CombinedGraphQLErrors.is(error)) {
     error.errors.forEach(({ message, locations, path }) => {
-      console.error(
-        `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`
-      );
+      console.error(`[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`);
     });
   } else {
     console.error(`[Network error ${operation.operationName}]: ${error.message}`);
@@ -238,7 +231,11 @@ const retryLink = new RetryLink({
   attempts: {
     max: 5,
     retryIf: (error, _operation) => {
-      return !!error && isRetryableAppError(error) && extractErrorCode(error) !== 'GRAPHQL_VALIDATION_FAILED';
+      return (
+        !!error &&
+        isRetryableAppError(error) &&
+        extractErrorCode(error) !== 'GRAPHQL_VALIDATION_FAILED'
+      );
     },
   },
 });

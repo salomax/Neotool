@@ -36,36 +36,32 @@ export function LandingScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
           <View style={styles.header}>
-            <Wordmark 
-              variant={isDark ? 'white' : 'blue'} 
-              size="medium"
-              width={280} 
-            />
+            <Wordmark variant={isDark ? 'white' : 'blue'} size="medium" width={280} />
           </View>
 
           <View style={styles.heroSection}>
-            <Text 
-              variant="displayMedium" 
+            <Text
+              variant="displayMedium"
               style={[styles.heroTitle, { color: theme.colors.onBackground }]}
             >
-              {t("title.line1")}
+              {t('title.line1')}
               {'\n'}
-              {t("title.line2")}
+              {t('title.line2')}
             </Text>
 
-            <Text 
-              variant="titleMedium" 
+            <Text
+              variant="titleMedium"
               style={[styles.heroSubtitle, { color: theme.colors.onSurfaceVariant }]}
             >
-              {t("subtitle.line1")}
+              {t('subtitle.line1')}
               {'\n'}
-              {t("subtitle.line2")}
+              {t('subtitle.line2')}
             </Text>
           </View>
 
           <View style={styles.actionSection}>
-            <Button 
-              mode="contained" 
+            <Button
+              mode="contained"
               onPress={handleLoginPress}
               style={styles.button}
               contentStyle={styles.buttonContent}
@@ -77,10 +73,7 @@ export function LandingScreen() {
 
         <View style={[styles.footer, { borderTopColor: theme.colors.outlineVariant }]}>
           <View style={styles.footerLogo}>
-            <Logo 
-              variant={isDark ? 'white' : 'blue'} 
-              size="small" 
-            />
+            <Logo variant={isDark ? 'white' : 'blue'} size="small" />
           </View>
 
           <View style={styles.footerLinks}>
@@ -89,20 +82,25 @@ export function LandingScreen() {
                 contato@invistus.com.br
               </Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity onPress={handleLinkedInPress} style={styles.linkedinLink}>
-              <MaterialCommunityIcons 
-                name="linkedin" 
-                size={24} 
-                color={theme.colors.onSurfaceVariant} 
+              <MaterialCommunityIcons
+                name="linkedin"
+                size={24}
+                color={theme.colors.onSurfaceVariant}
               />
-              <Text style={[styles.linkText, styles.boldLink, { color: theme.colors.onSurfaceVariant }]}>
+              <Text
+                style={[styles.linkText, styles.boldLink, { color: theme.colors.onSurfaceVariant }]}
+              >
                 LinkedIn
               </Text>
             </TouchableOpacity>
           </View>
 
-          <Text variant="bodySmall" style={[styles.copyright, { color: theme.colors.onSurfaceVariant }]}>
+          <Text
+            variant="bodySmall"
+            style={[styles.copyright, { color: theme.colors.onSurfaceVariant }]}
+          >
             © 2026 Invistus — Todos os direitos reservados
           </Text>
         </View>

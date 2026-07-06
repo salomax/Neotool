@@ -288,14 +288,37 @@ See [Mobile Architecture](../docs/02-architecture/mobile-architecture.md) for de
 
 ## Building for Production
 
+EAS Build profiles inject `EXPO_PUBLIC_APP_ENV` per profile (`development`, `staging` via `preview`, `production`). GraphQL endpoints for non-development builds must be configured as **EAS Secrets** (never committed to the repo):
+
+| Secret | Used by profile |
+| --- | --- |
+| `EXPO_PUBLIC_GRAPHQL_ENDPOINT_DEVELOPMENT` | `development` (optional; local default applies when unset) |
+| `EXPO_PUBLIC_GRAPHQL_ENDPOINT_STAGING` | `preview` |
+| `EXPO_PUBLIC_GRAPHQL_ENDPOINT_PRODUCTION` | `production` |
+| `EXPO_PUBLIC_GRAPHQL_ENDPOINT` | Any profile (overrides env-specific endpoint) |
+| `EXPO_PUBLIC_PROJECT_ID` | All profiles (Expo project ID) |
+
+Create secrets with:
+
+```bash
+eas secret:create --scope project --name EXPO_PUBLIC_GRAPHQL_ENDPOINT_STAGING --value https://api.staging.example/graphql
+eas secret:create --scope project --name EXPO_PUBLIC_GRAPHQL_ENDPOINT_PRODUCTION --value https://api.example/graphql
+```
+
+### Development smoke build (Android)
+
+```bash
+eas build --platform android --profile development
+```
+
 ### iOS
 
 ```bash
 # Build for App Store
 eas build --platform ios --profile production
 
-# Submit to App Store
-eas submit --platform ios
+# Submit to App Store (configure credentials first — see below)
+eas submit --platform ios --profile production
 ```
 
 ### Android
@@ -305,7 +328,27 @@ eas submit --platform ios
 eas build --platform android --profile production
 
 # Submit to Play Store
-eas submit --platform android
+eas submit --platform android --profile production
+```
+
+### Submit credentials
+
+`eas.json` defines the `submit.production` shape. Replace placeholder values via EAS (never commit real credentials):
+
+**iOS** — set via `eas credentials` or EAS project secrets:
+
+- `APPLE_ID` — Apple ID email for App Store Connect
+- `ASC_APP_ID` — App Store Connect app ID (numeric)
+- `APPLE_TEAM_ID` — Apple Developer Team ID
+
+**Android** — upload a Google Play service account JSON via `eas credentials`; `serviceAccountKeyPath` in `eas.json` points to the local path used during submit (file stays out of git). Default track: `production`.
+
+```bash
+# Configure store credentials interactively
+eas credentials
+
+# Submit after a production build
+eas submit --platform all --profile production
 ```
 
 ## Documentation

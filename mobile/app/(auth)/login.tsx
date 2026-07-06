@@ -13,7 +13,9 @@ import { translateAppError } from '@/lib/error-handling';
 const createLoginSchema = (t: (key: string, defaultValue?: string) => string) =>
   z.object({
     email: z.string().email(t('auth.validation.invalidEmail', 'Invalid email address')),
-    password: z.string().min(8, t('auth.validation.passwordMinLength', 'Password must be at least 8 characters')),
+    password: z
+      .string()
+      .min(8, t('auth.validation.passwordMinLength', 'Password must be at least 8 characters')),
   });
 
 type LoginFormData = {

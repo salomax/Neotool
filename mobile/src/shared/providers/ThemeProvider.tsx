@@ -28,7 +28,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   }, []);
 
   const toggleTheme = () => {
-    const currentIsDark = themePreference ? themePreference === 'dark' : systemColorScheme === 'dark';
+    const currentIsDark = themePreference
+      ? themePreference === 'dark'
+      : systemColorScheme === 'dark';
     const nextPreference = currentIsDark ? 'light' : 'dark';
 
     setThemePreference(nextPreference);

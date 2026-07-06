@@ -5,11 +5,7 @@ import { renderHook, waitFor, act } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
 import { AuthProvider } from '../AuthProvider';
 import { useAuth } from '../../hooks/useAuth';
-import {
-  CurrentUserDocument,
-  SignInDocument,
-  SignUpDocument,
-} from '@invistus/shared-graphql';
+import { CurrentUserDocument, SignInDocument, SignUpDocument } from '@invistus/shared-graphql';
 import { refreshAccessToken, subscribeToSessionExpired } from '@/lib/apollo-client';
 
 jest.mock('@/lib/apollo-client', () => ({
@@ -119,7 +115,11 @@ describe('AuthProvider', () => {
 
     await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
     expect(secureStoreMock.setItemAsync).toHaveBeenNthCalledWith(1, 'accessToken', 'access-token');
-    expect(secureStoreMock.setItemAsync).toHaveBeenNthCalledWith(2, 'refreshToken', 'refresh-token');
+    expect(secureStoreMock.setItemAsync).toHaveBeenNthCalledWith(
+      2,
+      'refreshToken',
+      'refresh-token'
+    );
     expect(result.current.user).toEqual({
       id: 'user-1',
       email: 'test@example.com',
@@ -164,7 +164,11 @@ describe('AuthProvider', () => {
 
   it('refreshes the session when restore hits an expired token', async () => {
     secureStoreMock.getItemAsync.mockImplementation(async (key) =>
-      key === 'accessToken' ? 'expired-access-token' : key === 'refreshToken' ? 'refresh-token' : null
+      key === 'accessToken'
+        ? 'expired-access-token'
+        : key === 'refreshToken'
+          ? 'refresh-token'
+          : null
     );
 
     refreshAccessTokenMock.mockResolvedValue({
@@ -199,7 +203,11 @@ describe('AuthProvider', () => {
 
   it('clears the session when restore refresh fails', async () => {
     secureStoreMock.getItemAsync.mockImplementation(async (key) =>
-      key === 'accessToken' ? 'expired-access-token' : key === 'refreshToken' ? 'refresh-token' : null
+      key === 'accessToken'
+        ? 'expired-access-token'
+        : key === 'refreshToken'
+          ? 'refresh-token'
+          : null
     );
 
     const wrapper = createWrapper([
@@ -437,7 +445,11 @@ describe('AuthProvider', () => {
 
     expect(receivedMessage).toBe('Current user query failed');
     expect(secureStoreMock.setItemAsync).toHaveBeenNthCalledWith(1, 'accessToken', 'access-token');
-    expect(secureStoreMock.setItemAsync).toHaveBeenNthCalledWith(2, 'refreshToken', 'refresh-token');
+    expect(secureStoreMock.setItemAsync).toHaveBeenNthCalledWith(
+      2,
+      'refreshToken',
+      'refresh-token'
+    );
     expect(secureStoreMock.deleteItemAsync).toHaveBeenCalledWith('accessToken');
     expect(secureStoreMock.deleteItemAsync).toHaveBeenCalledWith('refreshToken');
     expect(result.current.user).toBeNull();

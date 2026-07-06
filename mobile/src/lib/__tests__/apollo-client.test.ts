@@ -1,7 +1,4 @@
-import {
-  CurrentUserDocument,
-  RequestPasswordResetDocument,
-} from '@invistus/shared-graphql';
+import { CurrentUserDocument, RequestPasswordResetDocument } from '@invistus/shared-graphql';
 
 jest.mock('../cache-persistence', () => ({
   restorePersistedCache: jest.fn().mockResolvedValue(undefined),

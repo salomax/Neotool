@@ -13,9 +13,7 @@ export function AppProviders({ children }: AppProvidersProps) {
     <I18nProvider>
       <ThemeProvider>
         <ApolloProvider>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          <AuthProvider>{children}</AuthProvider>
         </ApolloProvider>
       </ThemeProvider>
     </I18nProvider>
