@@ -169,14 +169,16 @@ pnpm install
 Copy the environment example file:
 
 ```bash
-cp .env.example .env
+cp .env.example .env.local
 ```
 
-Edit `.env` and configure your GraphQL endpoint:
+Edit `.env.local` and configure your GraphQL endpoint when needed:
 
 ```env
-EXPO_PUBLIC_GRAPHQL_ENDPOINT=http://localhost:4000/graphql
+EXPO_PUBLIC_GRAPHQL_ENDPOINT=http://10.0.2.2:4000/graphql
 ```
+
+By default, development uses `10.0.2.2:4000` on Android emulators and `localhost:4000` on iOS Simulator. Keep `.env.local` when you need to override that behavior for devpods, physical devices, or custom ports.
 
 ### 3. Start Development Server
 

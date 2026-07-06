@@ -8,7 +8,7 @@ import { useTheme } from '@/shared/hooks/useTheme';
 export default function SettingsScreen() {
   const { t, i18n } = useTranslation();
   const { logout } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme, colors } = useTheme();
 
   const handleLogout = async () => {
     await logout();
@@ -46,7 +46,11 @@ export default function SettingsScreen() {
       </List.Section>
 
       <View style={styles.logoutContainer}>
-        <Button mode="outlined" onPress={handleLogout} style={styles.logoutButton}>
+        <Button
+          mode="outlined"
+          onPress={handleLogout}
+          style={[styles.logoutButton, { borderColor: colors.error }]}
+        >
           {t('auth.logout')}
         </Button>
       </View>
@@ -63,6 +67,5 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   logoutButton: {
-    borderColor: 'red',
   },
 });

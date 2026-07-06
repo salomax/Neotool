@@ -289,11 +289,49 @@ start_web() {
 
 gradle_reset() {
     log "▶ Resetting Gradle locks and daemons..." "$BLUE"
+
+    # Running :module:run services keep class files open under build/ and break `./gradlew clean`.
+    for svc in security assets assistant financialdata comms banking; do
+        if window_exists "$svc"; then
+            log "  Stopping $svc (tmux)..." "$GRAY"
+            kill_window "$svc"
+        fi
+    done
+
     if [[ -x "$KOTLIN_ROOT/gradlew" ]]; then
         (cd "$KOTLIN_ROOT" && ./gradlew --stop) 2>/dev/null || true
     fi
     pkill -f "GradleDaemon" 2>/dev/null || true
+    pkill -f "org.gradle.launcher.daemon" 2>/dev/null || true
+    pkill -f "$KOTLIN_ROOT/gradlew" 2>/dev/null || true
+
     rm -f "$GRADLE_LOCK_FILE" "$KOTLIN_ROOT/.gradle/8.14/fileHashes/fileHashes.lock"
+    rm -rf "$KOTLIN_ROOT/.gradle/8.14/executionHistory" 2>/dev/null || true
+    rm -rf "$KOTLIN_ROOT/.gradle/buildOutputCleanup" 2>/dev/null || true
+
+    # Stale build-cache entries reference files under */build/; deleting build/ alone breaks kspKotlin FROM-CACHE.
+    local gradle_user_home="${GRADLE_USER_HOME:-$HOME/.gradle}"
+    rm -rf "$gradle_user_home/caches/build-cache-1" 2>/dev/null || true
+    rm -rf "$KOTLIN_ROOT/.gradle" 2>/dev/null || true
+
+    if [[ "${DEVPOD:-}" == "true" ]]; then
+        local devpod_gradle_base="${NEOTOOL_GRADLE_BASE:-${HOME}/.cache/neotool-gradle/${DEVPOD_WORKSPACE_UID:-default}}"
+        rm -rf "$devpod_gradle_base/project-cache" 2>/dev/null || true
+        rm -rf "$devpod_gradle_base/builds" 2>/dev/null || true
+    fi
+
+    if [[ -d "$KOTLIN_ROOT" ]]; then
+        log "  Removing Kotlin build directories..." "$GRAY"
+        for build_dir in "$KOTLIN_ROOT"/*/build "$KOTLIN_ROOT"/build; do
+            [[ -d "$build_dir" ]] || continue
+            if command -v fuser >/dev/null 2>&1; then
+                fuser -km "$build_dir" 2>/dev/null || true
+                sleep 1
+            fi
+            rm -rf "$build_dir" 2>/dev/null || true
+        done
+    fi
+
     log "✓ Gradle reset complete" "$GREEN"
     log "  You can now run: neotool dev start <service>" "$GRAY"
 }
@@ -674,8 +712,8 @@ Subcommands:
     Example: neotool dev tunnel start 1
 
   $(log "gradle-reset" "$GREEN")
-    Stop Gradle daemons and clear stale lock files (use if builds fail with
-    fileHashes lock or corrupt cache errors).
+    Stop Kotlin dev services, Gradle daemons, build/ dirs, and stale build cache
+    (use if kspKotlin fails with "Failed to load cache entry" or clean cannot delete build).
 
 Available services:
   web, security, assets, assistant, financialdata, comms, banking

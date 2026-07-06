@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useMemo, useState, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,14 +13,13 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const systemColorScheme = useColorScheme();
-  const [isDark, setIsDark] = useState(systemColorScheme === 'dark');
+  const [themePreference, setThemePreference] = useState<'light' | 'dark' | null>(null);
 
   useEffect(() => {
-    // Load saved theme preference
     AsyncStorage.getItem(THEME_KEY)
       .then((savedTheme) => {
-        if (savedTheme !== null) {
-          setIsDark(savedTheme === 'dark');
+        if (savedTheme === 'light' || savedTheme === 'dark') {
+          setThemePreference(savedTheme);
         }
       })
       .catch((error) => {
@@ -29,17 +28,24 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   }, []);
 
   const toggleTheme = () => {
-    const newTheme = !isDark;
-    setIsDark(newTheme);
-    AsyncStorage.setItem(THEME_KEY, newTheme ? 'dark' : 'light').catch((error) => {
+    const currentIsDark = themePreference ? themePreference === 'dark' : systemColorScheme === 'dark';
+    const nextPreference = currentIsDark ? 'light' : 'dark';
+
+    setThemePreference(nextPreference);
+    AsyncStorage.setItem(THEME_KEY, nextPreference).catch((error) => {
       console.error('Failed to save theme preference:', error);
     });
   };
 
+  const isDark = themePreference ? themePreference === 'dark' : systemColorScheme === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
+  const contextValue = useMemo(
+    () => ({ isDark, toggleTheme, theme, colors: theme.colors }),
+    [isDark, theme]
+  );
 
   return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme, theme, colors: theme.colors }}>
+    <ThemeContext.Provider value={contextValue}>
       <PaperProvider theme={theme}>{children}</PaperProvider>
     </ThemeContext.Provider>
   );

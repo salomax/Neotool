@@ -12,7 +12,25 @@ plugins {
     id("org.jetbrains.kotlinx.kover") version "0.9.3" apply false
 }
 
+val devpodBuildRoot: File? =
+    if (System.getenv("DEVPOD") == "true") {
+        val workspaceUid = System.getenv("DEVPOD_WORKSPACE_UID") ?: "default"
+        val configuredRoot = System.getenv("NEOTOOL_GRADLE_BUILD_ROOT")
+        file(configuredRoot ?: "${System.getProperty("user.home")}/.cache/neotool-gradle/${workspaceUid}/builds")
+    } else {
+        null
+    }
+
+fun Project.devpodBuildDir(baseDir: File): File {
+    val projectKey = if (path == ":") "root" else path.removePrefix(":").replace(':', '/')
+    return File(baseDir, projectKey)
+}
+
 allprojects {
+    devpodBuildRoot?.let { root ->
+        layout.buildDirectory.set(layout.dir(providers.provider { devpodBuildDir(root) }))
+    }
+
     // Exclude root project to avoid Nx "Unable to parse dependency" errors - root project
     // has no Nx project node, so root->subproject dependencies cannot be resolved
     if (project != rootProject && project.hasProperty("workspaceRoot")) {
