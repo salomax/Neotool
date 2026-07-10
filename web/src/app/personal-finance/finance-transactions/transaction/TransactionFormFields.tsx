@@ -13,6 +13,9 @@ interface TransactionFormFieldsProps {
   selectedAccountId: string | null;
   layout: 'inline' | 'drawer';
   drawerDateField?: ReactNode;
+  showTypeSelector?: boolean;
+  typeSelectorVariant?: 'select' | 'carousel';
+  drawerFieldVariant?: 'compact' | 'desktop';
 }
 
 export const TransactionFormFields = memo(function TransactionFormFields({
@@ -20,8 +23,12 @@ export const TransactionFormFields = memo(function TransactionFormFields({
   selectedAccountId,
   layout,
   drawerDateField,
+  showTypeSelector = true,
+  typeSelectorVariant = 'select',
+  drawerFieldVariant = 'compact',
 }: TransactionFormFieldsProps) {
   const { form, save, isBillPaymentEdit, t } = controller;
+  const isDesktopDrawer = layout === 'drawer' && drawerFieldVariant === 'desktop';
 
   const descriptionField = (
     <Box
@@ -32,7 +39,7 @@ export const TransactionFormFields = memo(function TransactionFormFields({
         value={form.description}
         onChange={(event) => form.setDescription(event.target.value)}
         placeholder={t('financeTransactions.description')}
-        variant="standard"
+        variant={isDesktopDrawer ? 'outlined' : 'standard'}
         fullWidth
         required={!form.isBalanceAdjustmentEdit}
         error={save.fieldErrors.description}
@@ -43,10 +50,15 @@ export const TransactionFormFields = memo(function TransactionFormFields({
         minRows={1}
         maxRows={layout === 'drawer' ? 6 : 4}
         InputProps={{
-          disableUnderline: true,
-          sx: inputBorderSx(form.inputBottomBorderSx, save.fieldErrors.description),
+          disableUnderline: !isDesktopDrawer,
+          sx: isDesktopDrawer
+            ? undefined
+            : inputBorderSx(form.inputBottomBorderSx, save.fieldErrors.description),
         }}
         sx={{
+          '& .MuiOutlinedInput-root': {
+            alignItems: 'flex-start',
+          },
           '& .MuiInputBase-input': { fontSize: '0.875rem' },
           '& .MuiInputBase-inputMultiline': { padding: 0 },
         }}
@@ -90,8 +102,8 @@ export const TransactionFormFields = memo(function TransactionFormFields({
         onChange={form.setTags}
         options={form.availableTags}
         placeholder={t('financeTransactions.tags')}
-        variant="standard"
-        InputProps={{ disableUnderline: true, sx: form.inputBottomBorderSx }}
+        variant={isDesktopDrawer ? 'outlined' : 'standard'}
+        InputProps={isDesktopDrawer ? undefined : { disableUnderline: true, sx: form.inputBottomBorderSx }}
       />
     </Box>
   );
@@ -130,7 +142,7 @@ export const TransactionFormFields = memo(function TransactionFormFields({
       <BaseMoneyInput
         value={form.amount}
         onChange={(value) => form.setAmount(value as number | undefined)}
-        variant="standard"
+        variant={isDesktopDrawer ? 'outlined' : 'standard'}
         required
         error={save.fieldErrors.amount}
         helperText={save.fieldErrors.amount ? t('financeTransactions.validation.required') : undefined}
@@ -143,7 +155,7 @@ export const TransactionFormFields = memo(function TransactionFormFields({
             fontWeight: 'medium',
             maxWidth: layout === 'inline' ? 180 : '100%',
             ml: layout === 'inline' ? 'auto' : 0,
-            ...inputBorderSx(form.inputBottomBorderSx, save.fieldErrors.amount),
+            ...(isDesktopDrawer ? {} : inputBorderSx(form.inputBottomBorderSx, save.fieldErrors.amount)),
             '& input': { textAlign: layout === 'inline' ? 'right' : 'left' },
           },
           onKeyDown: save.handleKeyDown,
@@ -155,15 +167,17 @@ export const TransactionFormFields = memo(function TransactionFormFields({
   if (layout === 'drawer') {
     return (
       <Stack spacing={2.5}>
-        <Box sx={{ width: '100%' }}>
-          <TypeSelector
-            value={form.creditDebitType}
-            isReadonly={form.isBalanceAdjustmentEdit}
-            onChange={save.handleTypeChange}
-            t={t}
-            variant="carousel"
-          />
-        </Box>
+        {showTypeSelector ? (
+          <Box sx={{ width: '100%' }}>
+            <TypeSelector
+              value={form.creditDebitType}
+              isReadonly={form.isBalanceAdjustmentEdit}
+              onChange={save.handleTypeChange}
+              t={t}
+              variant={typeSelectorVariant}
+            />
+          </Box>
+        ) : null}
         {descriptionField}
         {amountField}
         {accountField ? (
@@ -174,31 +188,20 @@ export const TransactionFormFields = memo(function TransactionFormFields({
             {accountField}
           </Box>
         ) : null}
-        {drawerDateField || categoryField ? (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-              gap: 1.5,
-              alignItems: 'start',
-            }}
-          >
-            {drawerDateField ? (
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
-                  {t('financeTransactions.date')}
-                </Typography>
-                {drawerDateField}
-              </Box>
-            ) : null}
-            {categoryField ? (
-              <Box>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
-                  {t('financeTransactions.category.label')}
-                </Typography>
-                {categoryField}
-              </Box>
-            ) : null}
+        {drawerDateField ? (
+          <Box>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+              {t('financeTransactions.date')}
+            </Typography>
+            {drawerDateField}
+          </Box>
+        ) : null}
+        {categoryField ? (
+          <Box>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+              {t('financeTransactions.category.label')}
+            </Typography>
+            {categoryField}
           </Box>
         ) : null}
         {tagsField}

@@ -1053,6 +1053,18 @@ export type CreateTransactionRuleInput = {
   typeOverride?: InputMaybe<CategoryApplicableTo>;
 };
 
+export type CreateWishlistItemInput = {
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  currencyCode?: InputMaybe<Scalars['String']['input']>;
+  estimatedPrice?: InputMaybe<Scalars['Float']['input']>;
+  name: Scalars['String']['input'];
+  notes?: InputMaybe<Scalars['String']['input']>;
+  priority: WishlistItemPriority;
+  productImageUrl?: InputMaybe<Scalars['String']['input']>;
+  productUrl?: InputMaybe<Scalars['String']['input']>;
+  targetDate?: InputMaybe<Scalars['Date']['input']>;
+};
+
 /**
  * A monthly credit card bill (fatura) for a CREDIT_CARD or CHARGE_CARD account.
  * totalAmount is the net spend across all non-deleted transactions in the billing cycle:
@@ -2447,6 +2459,7 @@ export type Mutation = {
   createTransactionCategory: TransactionCategory;
   /** Create a transaction rule for auto-categorization and/or merchant suggestion. Invalid REGEX pattern returns a validation error. */
   createTransactionRule: TransactionRule;
+  createWishlistItem: WishlistItem;
   /**
    * Delete an asset.
    *
@@ -2473,6 +2486,7 @@ export type Mutation = {
   deleteTransactionCategory: Scalars['Boolean']['output'];
   /** Soft-delete a user-owned transaction rule. System rules cannot be deleted. */
   deleteTransactionRule: Scalars['Boolean']['output'];
+  deleteWishlistItem: Scalars['Boolean']['output'];
   disableUser: User;
   /** Dismiss a pending action (e.g. mark informational item as seen). */
   dismissPendingAction: AccountPendingAction;
@@ -2482,6 +2496,7 @@ export type Mutation = {
   importTransactionsFile: ImportResult;
   linkTransactionToRecurring: Transaction;
   mapItemToVariant: ProductAlias;
+  markWishlistItemAsPurchased: WishlistItem;
   pauseRecurringPayment: RecurringPayment;
   /**
    * Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
@@ -2489,6 +2504,7 @@ export type Mutation = {
    */
   payBill: CreditCardBill;
   publishPromptVersion: PromptVersion;
+  purchaseWishlistItemWithTransaction: WishlistPurchaseWithTransactionPayload;
   /** Records an investment transaction and updates the holding's quantity and averageCost. */
   recordInvestmentTransaction: InvestmentTransaction;
   refreshAccessToken: SignInPayload;
@@ -2506,6 +2522,7 @@ export type Mutation = {
    * All IDs must belong to the authenticated account. Returns the full updated rule list.
    */
   reorderTransactionRules: Array<TransactionRule>;
+  reorderWishlistItems: Array<WishlistItem>;
   requestEmailSend: EmailSendResult;
   requestPasswordReset: RequestPasswordResetPayload;
   resendVerificationEmail: ResendVerificationEmailPayload;
@@ -2553,6 +2570,7 @@ export type Mutation = {
   updateUser: User;
   updateUserAvatar: User;
   updateUserPreferences: UserPreferences;
+  updateWishlistItem: WishlistItem;
   verifyEmailWithToken: VerifyEmailPayload;
 };
 
@@ -2727,6 +2745,11 @@ export type MutationCreateTransactionRuleArgs = {
 };
 
 
+export type MutationCreateWishlistItemArgs = {
+  input: CreateWishlistItemInput;
+};
+
+
 export type MutationDeleteAssetArgs = {
   assetId: Scalars['ID']['input'];
 };
@@ -2782,6 +2805,11 @@ export type MutationDeleteTransactionRuleArgs = {
 };
 
 
+export type MutationDeleteWishlistItemArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type MutationDisableUserArgs = {
   userId: Scalars['ID']['input'];
 };
@@ -2825,6 +2853,11 @@ export type MutationMapItemToVariantArgs = {
 };
 
 
+export type MutationMarkWishlistItemAsPurchasedArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type MutationPauseRecurringPaymentArgs = {
   id: Scalars['ID']['input'];
 };
@@ -2840,6 +2873,12 @@ export type MutationPayBillArgs = {
 export type MutationPublishPromptVersionArgs = {
   promptId: Scalars['ID']['input'];
   versionId: Scalars['ID']['input'];
+};
+
+
+export type MutationPurchaseWishlistItemWithTransactionArgs = {
+  id: Scalars['ID']['input'];
+  input: CreateTransactionInput;
 };
 
 
@@ -2888,6 +2927,11 @@ export type MutationRemoveTransactionAttachmentArgs = {
 
 export type MutationReorderTransactionRulesArgs = {
   ids: Array<Scalars['ID']['input']>;
+};
+
+
+export type MutationReorderWishlistItemsArgs = {
+  orderedIds: Array<Scalars['ID']['input']>;
 };
 
 
@@ -3069,6 +3113,12 @@ export type MutationUpdateUserAvatarArgs = {
 
 export type MutationUpdateUserPreferencesArgs = {
   input: UpdateUserPreferencesInput;
+};
+
+
+export type MutationUpdateWishlistItemArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateWishlistItemInput;
 };
 
 
@@ -3657,6 +3707,12 @@ export type Query = {
   /** Current user's preferences (defaults when no row exists). */
   userPreferences: UserPreferences;
   users: UserConnection;
+  /** Single wishlist item by id, scoped to the authenticated account. */
+  wishlistItem: Maybe<WishlistItem>;
+  /** Wishlist items for the authenticated account, optionally filtered by lifecycle status. */
+  wishlistItems: Array<WishlistItem>;
+  /** Best-effort product metadata preview from schema.org/Product or Open Graph. */
+  wishlistProductMetadataPreview: Maybe<WishlistProductMetadataPreview>;
 };
 
 
@@ -4253,6 +4309,21 @@ export type QueryUsersArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<Array<UserOrderByInput>>;
   query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryWishlistItemArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryWishlistItemsArgs = {
+  status?: InputMaybe<WishlistItemStatus>;
+};
+
+
+export type QueryWishlistProductMetadataPreviewArgs = {
+  url: Scalars['String']['input'];
 };
 
 export type RatingHistory = {
@@ -5105,6 +5176,17 @@ export type UpdateUserPreferencesInput = {
   theme?: InputMaybe<Theme>;
 };
 
+export type UpdateWishlistItemInput = {
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  estimatedPrice?: InputMaybe<Scalars['Float']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  priority?: InputMaybe<WishlistItemPriority>;
+  productImageUrl?: InputMaybe<Scalars['String']['input']>;
+  productUrl?: InputMaybe<Scalars['String']['input']>;
+  targetDate?: InputMaybe<Scalars['Date']['input']>;
+};
+
 export type UsageBudget = {
   __typename: 'UsageBudget';
   alertThreshold: Scalars['Float']['output'];
@@ -5219,6 +5301,57 @@ export type VerifyEmailPayload = {
   message: Maybe<Scalars['String']['output']>;
   success: Scalars['Boolean']['output'];
   user: Maybe<User>;
+};
+
+export type WishlistItem = {
+  __typename: 'WishlistItem';
+  category: Maybe<TransactionCategory>;
+  categoryId: Maybe<Scalars['ID']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  currencyCode: Scalars['String']['output'];
+  estimatedPrice: Maybe<Scalars['Float']['output']>;
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  notes: Maybe<Scalars['String']['output']>;
+  priority: WishlistItemPriority;
+  productImageUrl: Maybe<Scalars['String']['output']>;
+  productUrl: Maybe<Scalars['String']['output']>;
+  purchasedAt: Maybe<Scalars['Date']['output']>;
+  sortOrder: Scalars['Int']['output'];
+  status: WishlistItemStatus;
+  targetDate: Maybe<Scalars['Date']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export enum WishlistItemPriority {
+  High = 'HIGH',
+  Low = 'LOW',
+  Medium = 'MEDIUM'
+}
+
+export enum WishlistItemStatus {
+  Active = 'ACTIVE',
+  Purchased = 'PURCHASED'
+}
+
+export type WishlistProductMetadataPreview = {
+  __typename: 'WishlistProductMetadataPreview';
+  currencyCode: Maybe<Scalars['String']['output']>;
+  estimatedPrice: Maybe<Scalars['Float']['output']>;
+  imageUrl: Maybe<Scalars['String']['output']>;
+  name: Maybe<Scalars['String']['output']>;
+};
+
+export type WishlistPurchaseWithTransactionPayload = {
+  __typename: 'WishlistPurchaseWithTransactionPayload';
+  transaction: WishlistPurchasedTransactionSummary;
+  wishlistItem: WishlistItem;
+};
+
+export type WishlistPurchasedTransactionSummary = {
+  __typename: 'WishlistPurchasedTransactionSummary';
+  date: Scalars['Date']['output'];
+  id: Scalars['ID']['output'];
 };
 
 export type YearMonth = {

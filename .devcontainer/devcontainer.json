@@ -102,5 +102,11 @@
     "setup-env": ".devcontainer/setup-env.sh",
     "fix-volume-perms": "sudo chown -R dev:dev /home/dev/.gradle /home/dev/.npm /workspaces/invistus/web/node_modules /workspaces/invistus/web/.next /workspaces/invistus/service/kotlin/.gradle 2>/dev/null || true"
   },
-  "postStartCommand": ".devcontainer/start-infra.sh"
+  "postStartCommand": ".devcontainer/start-infra.sh",
+  "remoteEnv": {
+    "NEOTOOL_DEVPOD_N": "1",
+    "JAVA_TOOL_OPTIONS": "-Xms256m -Xmx1G",
+    "NODE_OPTIONS": "--max-old-space-size=1536",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  }
 }

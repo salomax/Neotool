@@ -220,6 +220,44 @@ Task: Generate the User entity following the entity pattern.
 **Input**: Completed feature
 
 **Process**:
+1. Update the feature spec with any approved scope or UX changes discovered during implementation
+2. Record implementation learnings that should become reusable rules, checklists, or patterns
+3. Promote repeated review feedback into the appropriate shared spec, workflow, or skill
+4. Document validation gaps or flakes that affected delivery and how they were addressed
+
+**Output**: Code and specification remain aligned, and the next feature benefits from what was learned
+
+### Phase 6: Learn (Process Improvement)
+
+**Input**: Completed implementation + review feedback
+
+**Process**:
+1. Extract lessons learned from implementation, review, and QA
+2. Classify each lesson:
+   - feature-specific note
+   - reusable UI/layout pattern
+   - security requirement
+   - testing/process improvement
+3. Update the highest-leverage source of truth:
+   - feature spec for local behavior
+   - shared patterns/skills for repeated behavior
+   - workflow docs for process changes
+4. Share the distilled learnings in the issue/PR so reviewers and future implementers can find them
+
+**Output**: The process itself improves after each feature instead of relying on memory
+
+## Lessons Learned Checklist
+
+Use this checklist before closing a non-trivial feature:
+
+- [ ] Reusable layout decisions were promoted to a shared spec or skill
+- [ ] Mobile and desktop behavior were reviewed explicitly rather than assumed equivalent
+- [ ] Any external-input flow (URL import, file import, third-party callback, HTML preview) received a security review
+- [ ] UX decisions discovered during implementation were reflected back into the spec
+- [ ] Test gaps found late were promoted into earlier validation guidance
+- [ ] E2E selectors and assertions were updated to prefer stable UI contracts over fragile text coupling
+
+**Process**:
 1. Update specification if needed
 2. Add new patterns discovered
 3. Create ADR for significant decisions

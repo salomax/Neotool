@@ -1,0 +1,113 @@
+query PurchaseWishlistActiveItems {
+  wishlistItems(status: ACTIVE) {
+    id
+    name
+    estimatedPrice
+    currencyCode
+    categoryId
+    category {
+      id
+      parentId
+      name
+      color
+      icon
+      applicableTo
+      isSystem
+      sortOrder
+    }
+    priority
+    notes
+    targetDate
+    productUrl
+    productImageUrl
+    status
+    sortOrder
+    purchasedAt
+    createdAt
+    updatedAt
+  }
+}
+
+query PurchaseWishlistPurchasedItems {
+  wishlistItems(status: PURCHASED) {
+    id
+    name
+    estimatedPrice
+    currencyCode
+    categoryId
+    category {
+      id
+      parentId
+      name
+      color
+      icon
+      applicableTo
+      isSystem
+      sortOrder
+    }
+    priority
+    notes
+    targetDate
+    productUrl
+    productImageUrl
+    status
+    sortOrder
+    purchasedAt
+    createdAt
+    updatedAt
+  }
+}
+
+query PurchaseWishlistProductPreview($url: String!) {
+  wishlistProductMetadataPreview(url: $url) {
+    name
+    estimatedPrice
+    currencyCode
+    imageUrl
+  }
+}
+
+mutation CreatePurchaseWishlistItem($input: CreateWishlistItemInput!) {
+  createWishlistItem(input: $input) {
+    id
+  }
+}
+
+mutation UpdatePurchaseWishlistItem($id: ID!, $input: UpdateWishlistItemInput!) {
+  updateWishlistItem(id: $id, input: $input) {
+    id
+  }
+}
+
+mutation ReorderPurchaseWishlistItems($orderedIds: [ID!]!) {
+  reorderWishlistItems(orderedIds: $orderedIds) {
+    id
+    sortOrder
+  }
+}
+
+mutation MarkPurchaseWishlistItemAsPurchased($id: ID!) {
+  markWishlistItemAsPurchased(id: $id) {
+    id
+    status
+    purchasedAt
+  }
+}
+
+mutation PurchaseWishlistItemWithTransaction($id: ID!, $input: CreateTransactionInput!) {
+  purchaseWishlistItemWithTransaction(id: $id, input: $input) {
+    wishlistItem {
+      id
+      status
+      purchasedAt
+    }
+    transaction {
+      id
+      date
+    }
+  }
+}
+
+mutation DeletePurchaseWishlistItem($id: ID!) {
+  deleteWishlistItem(id: $id)
+}

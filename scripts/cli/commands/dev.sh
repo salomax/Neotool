@@ -280,7 +280,13 @@ dev_seed() {
 }
 
 start_web() {
+    local clean="${1:-false}"
     log "▶ Starting web..." "$BLUE"
+    if [[ "$clean" == "true" ]]; then
+        log "  ↺ Clearing .next cache..." "$YELLOW"
+        rm -rf "$WEB_ROOT/.next/"* 2>/dev/null || true
+        log "  ✓ Cache cleared" "$GREEN"
+    fi
     local env_cmd
     env_cmd=$(load_env_cmd "$WEB_ROOT/.env.local")
     new_window "web" "bash -c '${env_cmd}cd $WEB_ROOT && pnpm install --silent && pnpm run dev'"
@@ -356,68 +362,182 @@ stop_service() {
 # Status
 # =============================================================================
 
-check_port() {
+port_listening() {
     local port="$1"
-    ss -tlnp 2>/dev/null | grep -qE ":${port}[[:space:]]" && echo "up" || echo "down"
+    if command -v ss >/dev/null 2>&1; then
+        ss -tln 2>/dev/null | grep -qE ":${port}([[:space:]]|$)" && return 0
+    fi
+    if (echo >/dev/tcp/127.0.0.1/"$port") 2>/dev/null; then
+        return 0
+    fi
+    if command -v nc >/dev/null 2>&1; then
+        nc -z 127.0.0.1 "$port" 2>/dev/null && return 0
+    fi
+    if command -v lsof >/dev/null 2>&1; then
+        lsof -iTCP:"$port" -sTCP:LISTEN -P -n >/dev/null 2>&1 && return 0
+    fi
+    return 1
 }
 
-show_status() {
-    log "\nDevelopment services status:" "$BRIGHT"
+service_health_url() {
+    local name="$1" port="$2"
+    case "$name" in
+        web) echo "http://127.0.0.1:${port}" ;;
+        *)   echo "http://127.0.0.1:${port}/health" ;;
+    esac
+}
+
+check_service_status() {
+    local name="$1" port="$2"
+    local url; url=$(service_health_url "$name" "$port")
+
+    if curl -sf --max-time 2 "$url" >/dev/null 2>&1; then
+        echo "up"
+    elif port_listening "$port"; then
+        echo "starting"
+    else
+        echo "down"
+    fi
+}
+
+infra_host_ports() {
+    local container="$1"
+    local ports
+    ports=$(docker port "$container" 2>/dev/null | awk -F: '{print $NF}' | sort -nu | paste -sd, -)
+    [[ -n "$ports" ]] && echo "$ports" || echo "—"
+}
+
+status_color() {
+    case "$1" in
+        up|✓*)       echo "$GREEN" ;;
+        starting|⚠*) echo "$YELLOW" ;;
+        *)           echo "$RED" ;;
+    esac
+}
+
+print_status_section() {
+    log "$1" "$BRIGHT"
     echo ""
-    printf "%-16s %-6s %-8s %s\n" "SERVICE" "PORT" "STATUS" "TMUX"
-    printf "%-16s %-6s %-8s %s\n" "-------" "----" "------" "----"
+}
+
+# Returns all descendant PIDs of a given PID (BFS, max depth 8)
+all_descendants() {
+    local result="" queue="$1"
+    local depth=0
+    while [[ -n "${queue// /}" && $depth -lt 8 ]]; do
+        local next=""
+        for pid in $queue; do
+            local children
+            children=$(ps --ppid "$pid" -o pid= --no-headers 2>/dev/null | tr '\n' ' ') || true
+            next="$next $children"
+            result="$result $children"
+        done
+        queue="$next"
+        depth=$((depth + 1))
+    done
+    echo "$result"
+}
+
+# Returns "CPU% MEM" for all processes in a tmux window (sums tree)
+window_stats() {
+    local window="$1"
+    local shell_pid
+    shell_pid=$(tmux list-panes -t "${TMUX_SESSION}:${window}" -F "#{pane_pid}" 2>/dev/null | head -1) || true
+    if [[ -z "$shell_pid" ]]; then echo "— —"; return 0; fi
+
+    local all_pids; all_pids=$(all_descendants "$shell_pid")
+    if [[ -z "${all_pids// /}" ]]; then echo "— —"; return 0; fi
+
+    local ps_args=""
+    for pid in $all_pids; do
+        [[ -n "$pid" ]] && ps_args="$ps_args -p $pid"
+    done
+    [[ -z "$ps_args" ]] && echo "— —" && return 0
+
+    # shellcheck disable=SC2086
+    ps $ps_args -o %cpu=,rss= --no-headers 2>/dev/null \
+        | awk '{cpu+=$1; rss+=$2}
+               END {if(NR==0) print "— —";
+                    else printf "%.0f%% %dMB", cpu, rss/1024}' || echo "— —"
+}
+
+show_infra_table() {
+    print_status_section "Infrastructure"
+    # Collect docker stats once for all containers
+    local docker_stats
+    docker_stats=$(docker stats --no-stream \
+        --format "{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}" 2>/dev/null)
+
+    printf "%-14s %-8s %-10s %-10s %s\n" "SERVICE" "CPU" "MEM" "PORTS" "STATUS"
+    printf "%-14s %-8s %-10s %-10s %s\n" "-------" "---" "---" "-----" "------"
+    for name in "${ALL_INFRA[@]}"; do
+        local container; container=$(infra_container "$name")
+        local ports status color cpu mem
+        if infra_running "$name"; then
+            ports=$(infra_host_ports "$container")
+            status="✓ up"; color="$GREEN"
+            local stat_line; stat_line=$(echo "$docker_stats" | grep "^${container}|")
+            cpu=$(echo "$stat_line" | cut -d'|' -f2)
+            mem=$(echo "$stat_line" | cut -d'|' -f3 | cut -d'/' -f1 | tr -d ' ')
+        else
+            ports="—"; cpu="—"; mem="—"
+            status="✗ down"; color="$RED"
+        fi
+        printf "%-14s %-8s %-10s %-10s " "$name" "${cpu:-—}" "${mem:-—}" "$ports"
+        echo -e "${color}${status}${RESET}"
+    done
+}
+
+show_services_table() {
+    echo ""
+    print_status_section "Development services"
+    printf "%-16s %-6s %-8s %-10s %-10s %s\n" "SERVICE" "PORT" "CPU" "MEM" "STATUS" "TMUX"
+    printf "%-16s %-6s %-8s %-10s %-10s %s\n" "-------" "----" "---" "---" "------" "----"
 
     for name in "${ALL_SERVICES[@]}"; do
         local port; port=$(service_port "$name")
-        local port_status
-        port_status=$(check_port "$port")
-        local window_status="—"
+        local svc_status; svc_status=$(check_service_status "$name" "$port")
+        local window_status="—" cpu="—" mem="—"
         if tmux_session_exists && window_exists "$name"; then
             window_status="✓ active"
+            local stats; stats=$(window_stats "$name")
+            cpu=$(echo "$stats" | awk '{print $1}')
+            mem=$(echo "$stats" | awk '{print $2}')
         fi
 
-        local port_color="$RED"
-        [[ "$port_status" == "up" ]] && port_color="$GREEN"
-
-        printf "%-16s %-6s " "$name" "$port"
-        echo -e "${port_color}${port_status}${RESET}     $window_status"
+        local svc_color; svc_color=$(status_color "$svc_status")
+        printf "%-16s %-6s %-8s %-10s " "$name" "$port" "$cpu" "$mem"
+        echo -e "${svc_color}${svc_status}${RESET}   $window_status"
     done
+}
 
+show_workers_table() {
     echo ""
-    printf "%-22s %-8s %s\n" "WORKER" "STATUS" "TMUX"
-    printf "%-22s %-8s %s\n" "------" "------" "----"
+    print_status_section "Workers"
+    printf "%-22s %-10s %s\n" "WORKER" "STATUS" "TMUX"
+    printf "%-22s %-10s %s\n" "------" "------" "----"
     for name in "${ALL_WORKERS[@]}"; do
-        local window_status="—"
+        local worker_status="down" worker_color="$RED" window_status="—"
         if tmux_session_exists && window_exists "$name"; then
+            worker_status="running"
+            worker_color="$GREEN"
             window_status="✓ active"
         fi
-        printf "%-22s %-8s %s\n" "$name" "—" "$window_status"
+        printf "%-22s " "$name"
+        echo -e "${worker_color}${worker_status}${RESET}   $window_status"
     done
-    echo ""
+}
 
-    echo ""
-    printf "%-16s %s\n" "INFRA" "STATUS"
-    printf "%-16s %s\n" "-----" "------"
-    for name in "${ALL_INFRA[@]}"; do
-        local container; container=$(infra_container "$name")
-        local status color
-        if docker ps --format "{{.Names}}" 2>/dev/null | grep -qx "$container"; then
-            status="✓ up"; color="$GREEN"
-        else
-            status="✗ down"; color="$RED"
-        fi
-        printf "%-16s " "$name"
-        echo -e "${color}${status}${RESET}"
-    done
-    echo ""
-
-    # Vault JWT keys check
+show_vault_jwt_status() {
     local vault_url="http://localhost:8200"
     local vault_token="${VAULT_TOKEN:-myroot}"
     echo ""
     if infra_running vault; then
         local key_count
-        key_count=$(curl -sf             -H "X-Vault-Token: $vault_token"             "${vault_url}/v1/secret/metadata/jwt/keys?list=true"             2>/dev/null | jq -r '.data.keys | length' 2>/dev/null || echo "0")
+        key_count=$(curl -sf \
+            -H "X-Vault-Token: $vault_token" \
+            "${vault_url}/v1/secret/metadata/jwt/keys?list=true" \
+            2>/dev/null | jq -r '.data.keys | length' 2>/dev/null || echo "0")
         if [[ "$key_count" -gt 0 ]] 2>/dev/null; then
             echo -e "${GREEN}✓ Vault JWT keys loaded (${key_count} key(s))${RESET}"
         else
@@ -428,6 +548,14 @@ show_status() {
     else
         echo -e "${YELLOW}⚠ Vault not running — cannot check JWT keys${RESET}"
     fi
+}
+
+show_status() {
+    log "\nDevelopment environment status:" "$BRIGHT"
+    show_infra_table
+    show_services_table
+    show_workers_table
+    show_vault_jwt_status
     echo ""
 
     if tmux_session_exists; then
@@ -452,19 +580,7 @@ dev_infra() {
     fi
 
     if [[ "$action" == "status" ]]; then
-        printf "%-16s %s\n" "INFRA" "STATUS"
-        printf "%-16s %s\n" "-----" "------"
-        for name in "${ALL_INFRA[@]}"; do
-            local container; container=$(infra_container "$name")
-            local status color
-            if docker ps --format "{{.Names}}" 2>/dev/null | grep -qx "$container"; then
-                status="✓ up"; color="$GREEN"
-            else
-                status="✗ down"; color="$RED"
-            fi
-            printf "%-16s " "$name"
-            echo -e "${color}${status}${RESET}"
-        done
+        show_infra_table
         return 0
     fi
 
@@ -513,7 +629,13 @@ AGENT_SCRIPT="/workspaces/invistus/.devcontainer/neotool-dev-agent.py"
 AGENT_LOG="/tmp/neotool-agent.log"
 AGENT_PID_FILE="/tmp/neotool-agent.pid"
 AGENT_API_KEYS="${HOME}/.vault-keys/api-keys.env"
+AGENT_DEVPOD_N="${NEOTOOL_DEVPOD_N:-1}"
+AGENT_DEVPOD_ENV="${HOME}/.vault-keys/devpod-${AGENT_DEVPOD_N}.env"
 AGENT_PORT="${NEOTOOL_AGENT_PORT:-3285}"
+
+WATCHDOG_SCRIPT="/workspaces/invistus/.devcontainer/neotool-watchdog"
+WATCHDOG_PID_FILE="${HOME}/.local/share/neotool/watchdog.pid"
+WATCHDOG_LOG="${HOME}/.local/share/neotool/watchdog.log"
 
 agent_running() {
     local pid
@@ -521,7 +643,37 @@ agent_running() {
     [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
 }
 
+watchdog_running() {
+    local pid
+    pid=$(cat "$WATCHDOG_PID_FILE" 2>/dev/null || true)
+    [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+}
+
+watchdog_start() {
+    if watchdog_running; then
+        return 0
+    fi
+    mkdir -p "$(dirname "$WATCHDOG_PID_FILE")"
+    nohup "$WATCHDOG_SCRIPT" > /dev/null 2>&1 &
+    # O watchdog escreve o próprio PID em WATCHDOG_PID_FILE
+    sleep 1
+    if watchdog_running; then
+        log "  ✓ watchdog iniciado (PID $(cat $WATCHDOG_PID_FILE))" "$GRAY"
+    else
+        log "  ⚠ watchdog não iniciou — verifique: $WATCHDOG_LOG" "$YELLOW"
+    fi
+}
+
+watchdog_stop() {
+    if watchdog_running; then
+        kill "$(cat "$WATCHDOG_PID_FILE")" 2>/dev/null || true
+        rm -f "$WATCHDOG_PID_FILE"
+        log "✓ watchdog parado" "$GREEN"
+    fi
+}
+
 agent_stop() {
+    watchdog_stop
     pkill -f "neotool-dev-agent.py" 2>/dev/null || true
     rm -f "$AGENT_PID_FILE"
     log "✓ neotool-dev-agent stopped" "$GREEN"
@@ -533,13 +685,20 @@ agent_start() {
         return 0
     fi
 
-    # Load API keys
+    # Load API keys and per-DevPod Slack tokens
     if [[ -f "$AGENT_API_KEYS" ]]; then
         # shellcheck disable=SC1090
         source "$AGENT_API_KEYS"
         log "  ✓ api-keys loaded" "$GRAY"
     else
         log "  ⚠ $AGENT_API_KEYS not found — skipping" "$YELLOW"
+    fi
+    if [[ -f "$AGENT_DEVPOD_ENV" ]]; then
+        # shellcheck disable=SC1090
+        source "$AGENT_DEVPOD_ENV"
+        log "  ✓ devpod-${AGENT_DEVPOD_N}.env loaded" "$GRAY"
+    else
+        log "  ⚠ $AGENT_DEVPOD_ENV not found — Slack tokens ausentes" "$YELLOW"
     fi
 
     # Start in background
@@ -553,12 +712,14 @@ agent_start() {
     while [[ $waited -lt 10 ]]; do
         if curl -sf "http://127.0.0.1:${AGENT_PORT}/health" >/dev/null 2>&1; then
             log "✓ neotool-dev-agent healthy on :${AGENT_PORT}" "$GREEN"
+            watchdog_start
             return 0
         fi
         sleep 1
         waited=$((waited + 1))
     done
     log "⚠ agent started but health check timed out — check: neotool dev agent logs" "$YELLOW"
+    watchdog_start
 }
 
 dev_agent() {
@@ -608,6 +769,10 @@ EOF
                 # shellcheck disable=SC1090
                 source "$AGENT_API_KEYS"
             fi
+            if [[ -f "$AGENT_DEVPOD_ENV" ]]; then
+                # shellcheck disable=SC1090
+                source "$AGENT_DEVPOD_ENV"
+            fi
             python3 "$AGENT_SCRIPT"
             ;;
         status)
@@ -622,6 +787,11 @@ EOF
             else
                 log "✗ neotool-dev-agent not running" "$RED"
                 log "  Start with: neotool dev agent start" "$GRAY"
+            fi
+            if watchdog_running; then
+                log "✓ watchdog running (PID $(cat $WATCHDOG_PID_FILE))" "$GREEN"
+            else
+                log "○ watchdog not running" "$YELLOW"
             fi
             ;;
         *)
@@ -639,7 +809,7 @@ show_help() {
     cat << EOF
 $(log "Dev Service Manager" "$BRIGHT")
 
-  $(log "init" "$GREEN") [--all]
+  $(log "up" "$GREEN") [--all]
     One-command setup: starts DevPod, waits for infra, activates port forwarding.
     --all also starts all dev services (web + kotlin).
     Run this once to get everything up from scratch.
@@ -731,7 +901,7 @@ dev_forward() {
     local container
     container=$(docker ps --filter "label=devpod.user" --format "{{.Names}}" 2>/dev/null | head -1)
     if [[ -z "$container" ]]; then
-        echo "ERROR: No DevPod container found. Run: neotool dev init"
+        echo "ERROR: No DevPod container found. Run: neotool dev up"
         return 1
     fi
     local container_ip
@@ -775,7 +945,14 @@ dev_forward() {
 # =============================================================================
 
 dev_init() {
-    local flag="${1:-}"
+    local recreate=false
+    local start_all=false
+    for arg in "$@"; do
+        case "$arg" in
+            --recreate) recreate=true ;;
+            --all)      start_all=true ;;
+        esac
+    done
 
     # 1. Check devpod is installed
     if ! command -v devpod >/dev/null 2>&1; then
@@ -785,7 +962,9 @@ dev_init() {
 
     # 2. Start / recreate the DevPod workspace
     echo "▶ [1/3] Starting DevPod workspace..."
-    devpod up "$PROJECT_ROOT" --provider docker --ide none
+    local devpod_flags="--provider docker --ide none"
+    [[ "$recreate" == "true" ]] && devpod_flags="$devpod_flags --recreate"
+    devpod up "$PROJECT_ROOT" $devpod_flags
     echo "✓ DevPod ready"
 
     # 3. Wait for infra (start-infra.sh runs via postStartCommand, give it time)
@@ -831,7 +1010,7 @@ dev_init() {
     dev_forward
 
     # 5. Optionally start all services
-    if [[ "$flag" == "--all" ]]; then
+    if [[ "$start_all" == "true" ]]; then
         echo ""
         echo "▶ Starting all dev services..."
         sleep 2  # give forward a moment to settle
@@ -851,6 +1030,175 @@ dev_init() {
 }
 
 # =============================================================================
+# Sync — update GraphQL contracts end-to-end
+# =============================================================================
+
+dev_sync() {
+    local NEOTOOL="$CLI_DIR/cli"
+
+    # Detect context: inside DevPod (tmux present) vs Mac
+    if command -v tmux >/dev/null 2>&1; then
+        # ── Inside DevPod ──────────────────────────────────────────────────────
+        # rover not installed in DevPod → use --docker (DinD); non-fatal if it fails
+        log "\n▶ [1/5] Regenerating GraphQL supergraph..." "$BLUE"
+        if "$NEOTOOL" graphql all --all --docker; then
+            log "✓ Supergraph updated" "$GREEN"
+        else
+            log "⚠ Supergraph generation failed (see above) — continuing with remaining steps" "$YELLOW"
+        fi
+
+        echo ""
+        log "▶ [2/5] Restarting Apollo Router..." "$BLUE"
+        dev_infra restart router
+        log "✓ Router restarted" "$GREEN"
+
+        echo ""
+        log "▶ [3/5] Stopping web service..." "$BLUE"
+        stop_service web
+
+        echo ""
+        log "▶ [4/5] Running GraphQL codegen..." "$BLUE"
+        (cd "$PROJECT_ROOT/web" && pnpm run codegen)
+        log "✓ Codegen complete" "$GREEN"
+
+        echo ""
+        log "▶ [5/5] Starting web service..." "$BLUE"
+        start_web
+        log "\n✓ Contracts updated and web service restarted." "$GREEN"
+    else
+        # ── On Mac ─────────────────────────────────────────────────────────────
+        # Steps 2-5 are exec'd into the DevPod
+        local container
+        container=$(docker ps --filter "label=devpod.user" --format "{{.Names}}" 2>/dev/null | head -1)
+        if [[ -z "$container" ]]; then
+            echo "ERROR: No DevPod container found. Run: neotool dev up"
+            return 1
+        fi
+
+        log "\n▶ [1/5] Regenerating GraphQL supergraph..." "$BLUE"
+        if "$NEOTOOL" graphql all --all; then
+            log "✓ Supergraph updated" "$GREEN"
+        else
+            log "⚠ Supergraph generation failed (see above) — continuing with remaining steps" "$YELLOW"
+        fi
+
+        echo ""
+        log "▶ [2/5] Restarting Apollo Router..." "$BLUE"
+        docker exec -i "$container" bash -c "cd /workspaces/invistus && ./scripts/cli/cli dev infra restart router"
+        log "✓ Router restarted" "$GREEN"
+
+        echo ""
+        log "▶ [3/5] Stopping web service..." "$BLUE"
+        docker exec -i "$container" bash -c "cd /workspaces/invistus && ./scripts/cli/cli dev stop web"
+
+        echo ""
+        log "▶ [4/5] Running GraphQL codegen..." "$BLUE"
+        docker exec -i "$container" bash -c "cd /workspaces/invistus/web && pnpm run codegen"
+        log "✓ Codegen complete" "$GREEN"
+
+        echo ""
+        log "▶ [5/5] Starting web service..." "$BLUE"
+        docker exec -i "$container" bash -c "cd /workspaces/invistus && ./scripts/cli/cli dev start web"
+        log "\n✓ Contracts updated and web service restarted." "$GREEN"
+    fi
+}
+
+# =============================================================================
+# Interactive service selector (gum)
+# =============================================================================
+
+dev_start_interactive() {
+    # Require gum — interactive selector depends on it
+    if ! command -v gum &>/dev/null; then
+        log "✗ 'gum' not found. Rebuild the DevPod container to install it:" "$RED"
+        log "  ./neotool dev up --recreate" "$YELLOW"
+        log "" ""
+        log "  Or start a specific service directly:" "$GRAY"
+        log "  ./neotool dev start <service>" "$GRAY"
+        return 1
+    fi
+
+    # ── Header ────────────────────────────────────────────────────────────────
+    echo ""
+    gum style \
+        --foreground="212" --border-foreground="99" --border="rounded" \
+        --align="center" --width=52 --padding="1 4" \
+        "Invistus Dev" "Choose what to start"
+    echo ""
+
+    # ── Services selector ─────────────────────────────────────────────────────
+    local selected_svcs
+    selected_svcs=$(
+        printf '%s\n' "${ALL_SERVICES[@]}" | gum choose \
+            --no-limit \
+            --height=10 \
+            --header="  Services  ·  space toggle  ·  enter confirm" \
+            --cursor="▸ " \
+            --selected-prefix="◉ " \
+            --unselected-prefix="○ " \
+            --cursor.foreground="212" \
+            --selected.foreground="212" \
+            --header.foreground="240"
+    ) || true
+
+    echo ""
+
+    # ── Workers selector ──────────────────────────────────────────────────────
+    local selected_wkrs
+    selected_wkrs=$(
+        printf '%s\n' "${ALL_WORKERS[@]}" | gum choose \
+            --no-limit \
+            --height=12 \
+            --header="  Workers   ·  space toggle  ·  enter confirm" \
+            --cursor="▸ " \
+            --selected-prefix="◉ " \
+            --unselected-prefix="○ " \
+            --cursor.foreground="99" \
+            --selected.foreground="99" \
+            --header.foreground="240"
+    ) || true
+
+    echo ""
+
+    if [[ -z "$selected_svcs" ]] && [[ -z "$selected_wkrs" ]]; then
+        log "Nothing selected." "$YELLOW"
+        return 0
+    fi
+
+    # ── Start security first if selected (other services need JWKS) ───────────
+    if echo "$selected_svcs" | grep -q "^security$"; then
+        start_service "security"
+        log "⏳ Waiting for security service (JWKS)..." "$YELLOW"
+        local waited=0
+        while [[ $waited -lt 120 ]]; do
+            if curl -sf http://localhost:8080/health >/dev/null 2>&1; then
+                log "✓ Security ready" "$GREEN"
+                break
+            fi
+            sleep 5
+            waited=$((waited + 5))
+        done
+        [[ $waited -ge 120 ]] && log "⚠ Security not ready after 120s — continuing anyway" "$YELLOW"
+    fi
+
+    # ── Start remaining services ──────────────────────────────────────────────
+    while IFS= read -r svc; do
+        [[ -z "$svc" || "$svc" == "security" ]] && continue
+        start_service "$svc"
+        sleep 1
+    done <<< "$selected_svcs"
+
+    # ── Start workers ─────────────────────────────────────────────────────────
+    while IFS= read -r wrk; do
+        [[ -z "$wrk" ]] && continue
+        start_worker "$wrk"
+        sleep 1
+    done <<< "$selected_wkrs"
+
+    log "\n✓ Done. Use 'neotool dev attach' to open tmux." "$GREEN"
+}
+
+# =============================================================================
 # Main
 # =============================================================================
 
@@ -860,13 +1208,17 @@ main() {
         exit 0
     fi
 
-    # init and forward always run locally (outside container — devpod CLI not inside)
-    if [[ "${1:-}" == "init" ]]; then
+    # up, forward, and sync always run locally (outside container — devpod CLI / rover not inside)
+    if [[ "${1:-}" == "up" ]]; then
         dev_init "${2:-}"
         exit $?
     fi
     if [[ "${1:-}" == "forward" ]]; then
         dev_forward "${2:-}"
+        exit $?
+    fi
+    if [[ "${1:-}" == "sync" ]]; then
+        dev_sync
         exit $?
     fi
 
@@ -888,8 +1240,8 @@ main() {
             exit 1
         fi
         echo "↪ Routing to DevPod container: $container"
-        # attach and start <service> need -it (end with tmux attach)
-        if [[ "${1:-}" == "attach" ]] || { [[ "${1:-}" == "start" ]] && [[ -n "${2:-}" ]]; }; then
+        # attach + start (with or without service) need -it (tmux attach / gum TUI)
+        if [[ "${1:-}" == "attach" ]] || [[ "${1:-}" == "start" ]]; then
             docker exec -it "$container" bash -c "cd /workspaces/invistus && ./scripts/cli/cli dev $(printf '%q ' "$@")"
         else
             docker exec -i "$container" bash -c "cd /workspaces/invistus && ./scripts/cli/cli dev $(printf '%q ' "$@")"
@@ -904,8 +1256,11 @@ main() {
 
     case "$subcommand" in
         start)
+            local clean_flag=false
+            [[ "${2:-}" == "--clean" || "${target}" == "--clean" ]] && clean_flag=true
+            [[ "${target}" == "--clean" ]] && target=""
             if [[ -n "$target" ]]; then
-                start_service "$target"
+                [[ "$target" == "web" ]] && start_web "$clean_flag" || start_service "$target"
                 # Auto-attach to the service window so logs are visible immediately
                 if tmux_session_exists && [[ -t 1 ]]; then
                     tmux select-window -t "${TMUX_SESSION}:${target}" 2>/dev/null || true
@@ -915,35 +1270,7 @@ main() {
                 fi
             else
                 ensure_session
-                # Start security first and wait — other services need JWKS to validate JWTs
-                start_service "security"
-                log "⏳ Waiting for security service (JWKS)..." "$YELLOW"
-                local waited=0
-                while [[ $waited -lt 120 ]]; do
-                    if curl -sf http://localhost:8080/health >/dev/null 2>&1; then
-                        log "✓ Security ready" "$GREEN"
-                        break
-                    fi
-                    sleep 5
-                    waited=$((waited + 5))
-                done
-                if [[ $waited -ge 120 ]]; then
-                    log "⚠ Security not ready after 120s — starting others anyway" "$YELLOW"
-                fi
-                # Now start the rest of the services
-                for svc in "${ALL_SERVICES[@]}"; do
-                    [[ "$svc" == "security" ]] && continue
-                    start_service "$svc"
-                    sleep 1
-                done
-                # Start workers
-                for w in "${ALL_WORKERS[@]}"; do
-                    start_worker "$w"
-                    sleep 1
-                done
-                log "\n✓ All services and workers started." "$GREEN"
-                log "  neotool dev attach    — to open tmux" "$GRAY"
-                log "  neotool dev status    — to see status" "$GRAY"
+                dev_start_interactive
             fi
             ;;
         stop)
@@ -988,8 +1315,11 @@ main() {
             fi
             tmux capture-pane -t "${TMUX_SESSION}:${target}" -p -S -100
             ;;
-        init)
+        up)
             dev_init "${target:-}"
+            ;;
+        sync)
+            dev_sync
             ;;
         seed)
             dev_seed "${@}"
@@ -998,10 +1328,12 @@ main() {
             dev_infra "${@}"
             ;;
         restart)
+            local clean_flag=false
+            [[ "${2:-}" == "--clean" ]] && clean_flag=true
             if [[ -n "$target" ]]; then
                 stop_service "$target"
                 sleep 1
-                start_service "$target"
+                [[ "$target" == "web" ]] && start_web "$clean_flag" || start_service "$target"
             else
                 for svc in "${ALL_SERVICES[@]}"; do
                     stop_service "$svc"
@@ -1016,6 +1348,31 @@ main() {
             ;;
         agent)
             dev_agent "${@}"
+            ;;
+        watchdog)
+            case "${1:-status}" in
+                start)
+                    log "▶ Iniciando watchdog..." "$BLUE"
+                    watchdog_start
+                    ;;
+                stop)
+                    log "▶ Parando watchdog..." "$BLUE"
+                    watchdog_stop
+                    ;;
+                status)
+                    if watchdog_running; then
+                        log "✓ watchdog running (PID $(cat $WATCHDOG_PID_FILE))" "$GREEN"
+                    else
+                        log "○ watchdog not running" "$YELLOW"
+                    fi
+                    ;;
+                logs)
+                    tail -f "$WATCHDOG_LOG"
+                    ;;
+                *)
+                    echo "Usage: neotool dev watchdog <start|stop|status|logs>"
+                    ;;
+            esac
             ;;
         tunnel)
             exec "/workspaces/invistus/.devcontainer/neotool-tunnel" "${@}"

@@ -113,7 +113,23 @@ RUN mkdir -p /root/.local/bin \
 
 
 # -----------------------------------------------------------------------------
-# 9. cloudflared — Cloudflare Tunnel client
+# 8. Python agent dependencies
+# -----------------------------------------------------------------------------
+RUN pip3 install --break-system-packages slack-bolt
+
+# -----------------------------------------------------------------------------
+# 9. Gum — Charm TUI toolkit (interactive menus in shell scripts)
+# -----------------------------------------------------------------------------
+RUN curl -fsSL https://repo.charm.sh/apt/gpg.key \
+        | gpg --dearmor -o /etc/apt/keyrings/charm.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" \
+        > /etc/apt/sources.list.d/charm.list \
+    && apt-get update \
+    && apt-get install -y gum \
+    && rm -rf /var/lib/apt/lists/*
+
+# -----------------------------------------------------------------------------
+# 10. cloudflared — Cloudflare Tunnel client
 # -----------------------------------------------------------------------------
 RUN ARCH=$(dpkg --print-architecture) \
     && case "$ARCH" in \
@@ -126,7 +142,18 @@ RUN ARCH=$(dpkg --print-architecture) \
     && chmod 755 /usr/local/bin/cloudflared
 
 # -----------------------------------------------------------------------------
-# 10. Non-root dev user
+# 11. Zsh — productive shell (autosuggestions, syntax highlight, fzf)
+# -----------------------------------------------------------------------------
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends zsh fzf \
+    && rm -rf /var/lib/apt/lists/* \
+    && git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions \
+        /usr/local/share/zsh-autosuggestions \
+    && git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting \
+        /usr/local/share/zsh-syntax-highlighting
+
+# -----------------------------------------------------------------------------
+# 12. Non-root dev user
 # -----------------------------------------------------------------------------
 ARG USERNAME=dev
 ARG USER_UID=1000
@@ -142,9 +169,9 @@ RUN EXISTING_GROUP="$(getent group ${USER_GID} | cut -d: -f1)" \
         groupadd --gid "${USER_GID}" "${USERNAME}"; \
     fi \
     && if [ -n "${EXISTING_USER}" ]; then \
-        usermod -l "${USERNAME}" -d "/home/${USERNAME}" -m -s /bin/bash "${EXISTING_USER}"; \
+        usermod -l "${USERNAME}" -d "/home/${USERNAME}" -m -s /bin/zsh "${EXISTING_USER}"; \
     else \
-        useradd --uid "${USER_UID}" --gid "${USER_GID}" -m "${USERNAME}" -s /bin/bash; \
+        useradd --uid "${USER_UID}" --gid "${USER_GID}" -m "${USERNAME}" -s /bin/zsh; \
     fi \
     && echo "${USERNAME} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/"${USERNAME}" \
     && chmod 0440 /etc/sudoers.d/"${USERNAME}"
@@ -156,9 +183,53 @@ RUN chmod -R 755 /ms-playwright 2>/dev/null || true
 ENV GRADLE_USER_HOME=/home/${USERNAME}/.gradle
 
 # -----------------------------------------------------------------------------
-# 11. Finalize
+# 13. Finalize
 # -----------------------------------------------------------------------------
 USER ${USERNAME}
+
+# .zshrc — history, autosuggestions, syntax highlighting, fzf
+RUN cat > ~/.zshrc << 'ZSHRC'
+# ── History ───────────────────────────────────────────────────────────────────
+HISTFILE=~/.zsh_history
+HISTSIZE=20000
+SAVEHIST=20000
+setopt HIST_IGNORE_DUPS HIST_FIND_NO_DUPS SHARE_HISTORY INC_APPEND_HISTORY
+
+# ── Plugins ───────────────────────────────────────────────────────────────────
+source /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+# Suggestion strategy: history first, then tab-completion fallback
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#666666'
+
+# ── Key bindings ──────────────────────────────────────────────────────────────
+bindkey '^[[C' autosuggest-accept      # → accepts suggestion
+bindkey '^ ' autosuggest-accept       # Ctrl+Space accepts suggestion
+bindkey '^[[A' history-search-backward # ↑ filters history by prefix
+bindkey '^[[B' history-search-forward  # ↓ filters history by prefix
+
+# ── fzf ───────────────────────────────────────────────────────────────────────
+[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ] \
+    && source /usr/share/doc/fzf/examples/key-bindings.zsh
+# Ctrl+R → fuzzy history search; Ctrl+T → fuzzy file picker
+
+# ── Completions ───────────────────────────────────────────────────────────────
+autoload -Uz compinit && compinit
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'  # case-insensitive
+
+# ── Navigation ────────────────────────────────────────────────────────────────
+setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS
+
+# ── Prompt ────────────────────────────────────────────────────────────────────
+autoload -Uz vcs_info
+precmd() { vcs_info }
+zstyle ':vcs_info:git:*' formats' (%b)'
+setopt PROMPT_SUBST
+PROMPT='%F{cyan}%~%f%F{yellow}${vcs_info_msg_0_}%f %(?.%F{green}.%F{red})❯%f '
+ZSHRC
+
 WORKDIR /workspaces
 
 # Smoke-test: ferramentas sem dependência de auth/rede

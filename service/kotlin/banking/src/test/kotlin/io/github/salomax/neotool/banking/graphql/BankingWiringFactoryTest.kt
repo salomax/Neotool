@@ -24,6 +24,7 @@ import io.github.salomax.neotool.banking.graphql.transaction.PageInfoDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionRuleConnectionDTO
+import io.github.salomax.neotool.banking.graphql.wishlist.WishlistResolver
 import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
 import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
@@ -60,6 +61,7 @@ class BankingWiringFactoryTest {
     private lateinit var investmentResolver: InvestmentResolver
     private lateinit var pendingActionResolver: PendingActionResolver
     private lateinit var recurringPaymentResolver: RecurringPaymentResolver
+    private lateinit var wishlistResolver: WishlistResolver
     private lateinit var investmentQueryService: InvestmentQueryService
     private lateinit var authorizationChecker: AuthorizationChecker
     private lateinit var requestPrincipalProvider: RequestPrincipalProvider
@@ -84,6 +86,7 @@ class BankingWiringFactoryTest {
         investmentResolver = mock()
         pendingActionResolver = mock()
         recurringPaymentResolver = mock()
+        wishlistResolver = mock()
         investmentQueryService = mock()
         authorizationChecker = mock()
         whenever(issuerResolver.listIssuers(anyOrNull())).thenReturn(emptyList())
@@ -118,6 +121,7 @@ class BankingWiringFactoryTest {
                 attachmentResolver,
                 productResolver,
                 recurringPaymentResolver,
+                wishlistResolver,
                 requestPrincipalProvider,
                 authorizationChecker,
             )
@@ -323,6 +327,30 @@ class BankingWiringFactoryTest {
             verify(merchantResolver).merchantLogoPreview(eq("netflix.com"), any())
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_VIEW))
         }
+
+        @Test
+        fun `wishlistItems requires banking_transaction_view permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Query"]!!["wishlistItems"]!!
+
+            val env = envWithToken()
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_VIEW))
+        }
+
+        @Test
+        fun `wishlistItem requires banking_transaction_view permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Query"]!!["wishlistItem"]!!
+
+            val env = envWithToken(arguments = mapOf("id" to UUID.randomUUID().toString()))
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_VIEW))
+        }
     }
 
     @Nested
@@ -459,6 +487,76 @@ class BankingWiringFactoryTest {
 
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_UPDATE))
             verify(investmentResolver).transferCustody(eq(input), any())
+        }
+
+        @Test
+        fun `createWishlistItem requires banking_transaction_create permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["createWishlistItem"]!!
+
+            val env = envWithToken(arguments = mapOf("input" to emptyMap<String, Any?>()))
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_CREATE))
+        }
+
+        @Test
+        fun `updateWishlistItem requires banking_transaction_update permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["updateWishlistItem"]!!
+
+            val env =
+                envWithToken(
+                    arguments =
+                        mapOf(
+                            "id" to UUID.randomUUID().toString(),
+                            "input" to emptyMap<String, Any?>(),
+                        ),
+                )
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_UPDATE))
+        }
+
+        @Test
+        fun `reorderWishlistItems requires banking_transaction_update permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["reorderWishlistItems"]!!
+
+            val env =
+                envWithToken(
+                    arguments = mapOf("orderedIds" to listOf(UUID.randomUUID().toString())),
+                )
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_UPDATE))
+        }
+
+        @Test
+        fun `markWishlistItemAsPurchased requires banking_transaction_update permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["markWishlistItemAsPurchased"]!!
+
+            val env = envWithToken(arguments = mapOf("id" to UUID.randomUUID().toString()))
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_UPDATE))
+        }
+
+        @Test
+        fun `deleteWishlistItem requires banking_transaction_delete permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["deleteWishlistItem"]!!
+
+            val env = envWithToken(arguments = mapOf("id" to UUID.randomUUID().toString()))
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_DELETE))
         }
     }
 }

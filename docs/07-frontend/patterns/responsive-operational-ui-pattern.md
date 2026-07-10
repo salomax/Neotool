@@ -69,6 +69,65 @@ Example hierarchy:
 
 ## Layout Rules for Dense Mobile Lists
 
+## Reference Composition for `SidebarLayout` Pages
+
+For new personal-finance operational screens that use `SidebarLayout`, the page composition must follow the established reference used by:
+
+- `web/src/app/personal-finance/finance-transactions/page.tsx`
+- `web/src/app/personal-finance/recurring-payments/RecurringPaymentsList.tsx`
+- `web/src/app/personal-finance/purchase-wishlist/PurchaseWishlistList.tsx`
+
+This pattern is not optional. New pages using this layout family must reuse the same wrapper structure unless the spec explicitly documents a different requirement.
+
+### Required wrapper contract
+
+Use this structure for the main content area:
+
+```tsx
+<SidebarLayout ...>
+  <Page>
+    <Container
+      maxWidth="xl"
+      disableGutters
+      sx={{
+        pt: { xs: 0, md: 4 },
+        pb: { xs: 0, md: 4 },
+        px: { xs: 0, md: 3 },
+        minWidth: 0,
+        overflowX: 'clip',
+      }}
+    >
+      {/* page content */}
+    </Container>
+  </Page>
+</SidebarLayout>
+```
+
+Rules:
+
+- Do not replace this with ad-hoc `Box` padding at the page root
+- Do not use `py: 4` as a shortcut when the reference uses split `pt` / `pb`
+- Do not omit `disableGutters` if the reference layout uses it
+- Do not swap `overflowX: 'clip'` for `hidden` without a documented reason
+
+### Toolbar alignment rule
+
+When the screen uses a right-aligned search/action header like `recurring-payments`, the toolbar must keep the same composition strategy:
+
+- left side reserved for filters or empty flexible space
+- right side groups search and primary CTA
+- search aligns to the same horizontal axis as the tabs/table below
+
+If a new screen intentionally diverges from this arrangement, the spec for that screen must say so explicitly.
+
+### Tabs and content divider rule
+
+If the page uses tabs above a dense list/table:
+
+- the tabs row must include the same bottom divider treatment as the reference
+- the content immediately below must visually connect to that divider
+- avoid isolated card stacks that break the operational-table rhythm unless the new spec explicitly chooses a card layout
+
 ### Row composition
 
 For dense operational rows, prefer:

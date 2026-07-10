@@ -51,6 +51,7 @@ export function SidebarRail() {
   const { hasAny } = useAuthorization();
   const personalFinanceEnabled = useFeatureFlagEnabled('personal-finance-dashboard-enabled');
   const pricingEnabled = useFeatureFlagEnabled('pricing-enabled');
+  const purchaseWishlistEnabled = useFeatureFlagEnabled('purchase-wishlist-enabled');
 
   // Check if user has any authorization management permissions
   const hasAuthorizationAccess = hasAny([
@@ -86,7 +87,11 @@ export function SidebarRail() {
       href: '/personal-finance/recurring-payments',
       label: 'Pagamentos recorrentes',
       icon: RepeatIcon,
-    }] : []),
+    }, ...(purchaseWishlistEnabled ? [{
+      href: '/personal-finance/purchase-wishlist',
+      label: t('routes.purchaseWishlist'),
+      icon: ShoppingCartOutlinedIcon,
+    }] : [])] : []),
     {
       href: '/financial-data',
       label: t('routes.financialData'),

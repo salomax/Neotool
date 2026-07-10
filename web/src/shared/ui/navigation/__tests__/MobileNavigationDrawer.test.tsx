@@ -26,6 +26,7 @@ vi.mock("react-i18next", () => ({
         "routes.financialData": "Financial Data",
         "routes.investments": "Investments",
         "routes.pricesConsumption": "Prices & Consumption",
+        "routes.purchaseWishlist": "Purchase Wishlist",
         "routes.settings": "Settings",
         "appHeader.theme.dark": "Dark Mode",
         "actions.enabled": "On",
@@ -102,6 +103,7 @@ describe.sequential("MobileNavigationDrawer", () => {
     mockUseFeatureFlagEnabled.mockImplementation((flagName: string) => {
       if (flagName === "personal-finance-dashboard-enabled") return true;
       if (flagName === "pricing-enabled") return true;
+      if (flagName === "purchase-wishlist-enabled") return true;
       return false;
     });
   });
@@ -132,6 +134,12 @@ describe.sequential("MobileNavigationDrawer", () => {
     renderMobileNavigationDrawer();
 
     expect(screen.queryByRole("button", { name: /prices & consumption/i })).not.toBeInTheDocument();
+  });
+
+  it("renders Purchase Wishlist when its feature flag is enabled", () => {
+    renderMobileNavigationDrawer();
+
+    expect(screen.getByRole("button", { name: /purchase wishlist/i })).toBeInTheDocument();
   });
 
   it("calls signOut and closes the drawer when sign out is tapped", async () => {

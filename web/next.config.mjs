@@ -57,9 +57,8 @@ const nextConfig = {
     // Optimize for development
     if (dev) {
       config.watchOptions = {
-        poll: 1000,
         aggregateTimeout: 300,
-        // Ignore test files to reduce memory usage
+        // Ignore node_modules and test files — use native inotify (no polling)
         ignored: [
           '**/node_modules/**',
           '**/__tests__/**',

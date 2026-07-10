@@ -9,7 +9,6 @@ import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
-import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
 import io.github.salomax.neotool.banking.graphql.portfolio.PortfolioMonthlyValueDTO
@@ -796,73 +795,9 @@ class TransactionResolver(
 
     private fun nanosToMillis(nanos: Long): Double = nanos / 1_000_000.0
 
-    private fun getDate(
-        map: Map<String, Any?>,
-        key: String,
-    ): LocalDate? {
-        val v = map[key] ?: return null
-        return when (v) {
-            is String -> LocalDate.parse(v)
-            is LocalDate -> v
-            else -> v.toString().let { s -> runCatching { LocalDate.parse(s) }.getOrNull() }
-        }
-    }
-
-    @Suppress("UNCHECKED_CAST")
     private fun Map<String, Any?>.toCreateCommand(): CreateTransactionCommand =
-        CreateTransactionCommand(
-            financialAccountId = UUID.fromString(this["financialAccountId"] as String),
-            creditDebitType = CreditDebitType.valueOf(this["creditDebitType"] as String),
-            type = TransactionType.valueOf(this["type"] as String),
-            amount = BigDecimal((this["amount"] as Number).toString()),
-            date = getDate(this, "date") ?: throw IllegalArgumentException("date is required"),
-            description = this["description"] as String,
-            status =
-                (this["status"] as? String)?.let { TransactionStatus.valueOf(it) }
-                    ?: TransactionStatus.POSTED,
-            currencyCode = (this["currencyCode"] as? String) ?: "BRL",
-            notes = this["notes"] as? String,
-            tags = (this["tags"] as? List<*>)?.map { it as String } ?: emptyList(),
-            categoryId = (this["categoryId"] as? String)?.let { UUID.fromString(it) },
-            merchantId = (this["merchantId"] as? String)?.let { UUID.fromString(it) },
-            belongsToUserId = (this["belongsToUserId"] as? String)?.let { UUID.fromString(it) },
-            belongsToName = this["belongsToName"] as? String,
-            counterpartyName = this["counterpartyName"] as? String,
-            counterpartyDocument = this["counterpartyDocument"] as? String,
-            counterpartyBankCode = this["counterpartyBankCode"] as? String,
-            counterpartyAccountNumber = this["counterpartyAccountNumber"] as? String,
-            paymentReason = this["paymentReason"] as? String,
-            installmentNumber = this["installmentNumber"] as? Int,
-            totalInstallments = this["totalInstallments"] as? Int,
-            cardIdentifier = this["cardIdentifier"] as? String,
-            payeeMcc = this["payeeMcc"] as? Int,
-        )
+        TransactionInputParsing.parseCreateInput(this)
 
-    @Suppress("UNCHECKED_CAST")
     private fun Map<String, Any?>.toUpdateCommand(): UpdateTransactionCommand =
-        UpdateTransactionCommand(
-            creditDebitType = (this["creditDebitType"] as? String)?.let { CreditDebitType.valueOf(it) },
-            type = (this["type"] as? String)?.let { TransactionType.valueOf(it) },
-            amount = (this["amount"] as? Number)?.let { BigDecimal(it.toString()) },
-            date = getDate(this, "date"),
-            description = this["description"] as? String,
-            status = (this["status"] as? String)?.let { TransactionStatus.valueOf(it) },
-            notes = this["notes"] as? String,
-            tags = (this["tags"] as? List<*>)?.map { it as String },
-            tagsProvided = this.containsKey("tags"),
-            categoryId = (this["categoryId"] as? String)?.let { UUID.fromString(it) },
-            categoryIdProvided = this.containsKey("categoryId"),
-            merchantId = (this["merchantId"] as? String)?.let { UUID.fromString(it) },
-            merchantIdProvided = this.containsKey("merchantId"),
-            belongsToUserId = (this["belongsToUserId"] as? String)?.let { UUID.fromString(it) },
-            belongsToName = this["belongsToName"] as? String,
-            belongsToProvided = this.containsKey("belongsToUserId") || this.containsKey("belongsToName"),
-            counterpartyName = this["counterpartyName"] as? String,
-            counterpartyDocument = this["counterpartyDocument"] as? String,
-            counterpartyBankCode = this["counterpartyBankCode"] as? String,
-            counterpartyAccountNumber = this["counterpartyAccountNumber"] as? String,
-            paymentReason = this["paymentReason"] as? String,
-            cardIdentifier = this["cardIdentifier"] as? String,
-            payeeMcc = this["payeeMcc"] as? Int,
-        )
+        TransactionInputParsing.parseUpdateInput(this)
 }

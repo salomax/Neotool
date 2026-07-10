@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 echo "Generating supergraph schemas..."
 
@@ -8,6 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../" && pwd)"
 CONTRACTS_DIR="$PROJECT_ROOT/contracts/graphql"
 SUPERGRAPH_DIR="$CONTRACTS_DIR/supergraph"
+ROVER_DOCKER_IMAGE="${ROVER_DOCKER_IMAGE:-ghcr.io/apollographql/rover:0.40.0}"
 
 # Flags
 PRODUCTION_ONLY=true
@@ -37,16 +38,31 @@ generate_with_docker() {
     local config_file="$1"
     local output_file="$2"
     local env_name="$3"
+    local error_log
+    error_log="$(mktemp)"
     
     echo "  Generating $env_name supergraph..."
-    docker run --rm \
-        -v "$SUPERGRAPH_DIR:/workspace" \
-        -w /workspace \
+    if ! docker run --rm \
+        -v "$CONTRACTS_DIR:/workspace" \
+        -w /workspace/supergraph \
         -e APOLLO_ELV2_LICENSE=accept \
-        apollographql/rover:latest \
+        "$ROVER_DOCKER_IMAGE" \
         supergraph compose \
+        --elv2-license accept \
         --config "./$config_file" \
-        --output "./$output_file"
+        --output "./$output_file" 2>"$error_log"; then
+        echo "❌ Docker-based rover failed while generating $env_name supergraph"
+        echo "   Image: $ROVER_DOCKER_IMAGE"
+        if grep -qi "pull access denied\|not found\|manifest unknown" "$error_log"; then
+            echo "   The configured Rover image is unavailable."
+            echo "   Override it with ROVER_DOCKER_IMAGE=<valid-image> or run locally without --docker."
+        fi
+        cat "$error_log"
+        rm -f "$error_log"
+        return 1
+    fi
+
+    rm -f "$error_log"
 }
 
 # Function to generate a supergraph with local rover
@@ -54,12 +70,29 @@ generate_with_local() {
     local config_file="$1"
     local output_file="$2"
     local env_name="$3"
+    local error_log
+    error_log="$(mktemp)"
     
     echo "  Generating $env_name supergraph..."
     cd "$SUPERGRAPH_DIR"
-    rover supergraph compose \
+    if ! APOLLO_ELV2_LICENSE=accept rover supergraph compose \
+        --elv2-license accept \
         --config "./$config_file" \
-        --output "./$output_file"
+        --output "./$output_file" 2>"$error_log"; then
+        echo "❌ Local rover failed while generating $env_name supergraph"
+        if grep -qi "ELV2 license must be accepted" "$error_log"; then
+            echo "   Rover requires the Apollo ELv2 license to be accepted for composition."
+        fi
+        if grep -qi "unable to find dependency\|error sending request\|dns error\|failed to lookup address information" "$error_log"; then
+            echo "   Rover could not download the composition dependency."
+            echo "   Retry with network access, or use --docker with a valid Rover image."
+        fi
+        cat "$error_log"
+        rm -f "$error_log"
+        return 1
+    fi
+
+    rm -f "$error_log"
 }
 
 # Function to run rover in Docker (recommended for CI/CD)

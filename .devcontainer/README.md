@@ -60,7 +60,7 @@ colima start \
 docker info             # deve mostrar daemon rodando
 ```
 
-> Para compilar serviços Kotlin + rodar testes E2E, prefira 6 CPUs / 12 GB.
+> Para compilar serviços Kotlin + rodar testes E2E com múltiplos serviços, use `./scripts/colima-start.sh` (6 CPUs / 14 GB + 4 GB swap; Mac com 18 GB).
 
 ### 2. DevPod
 
@@ -265,6 +265,8 @@ Pare os containers do host antes de subir o DevPod (ver passo 3 dos pré-requisi
 
 **Colima sem recursos suficientes**
 ```bash
+./scripts/colima-start.sh
+# ou manualmente:
 colima stop
-colima start --cpu 6 --memory 12 --disk 80 --vm-type vz --vz-rosetta
+colima start --cpu 6 --memory 14 --disk 100 --vm-type vz --vz-rosetta
 ```

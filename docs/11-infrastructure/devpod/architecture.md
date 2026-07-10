@@ -5,11 +5,15 @@
 O DevPod é o ambiente de desenvolvimento containerizado do Invistus. Além de rodar os serviços locais, ele hospeda o **neotool-dev-agent** — um orquestrador de agentes de IA que recebe mensagens do Slack e coordena Claude, Codex e Cursor para executar as etapas do pipeline de desenvolvimento.
 
 ```
-Slack → Cloudflare Worker → Cloudflare Tunnel → neotool-dev-agent → Router → Agentes
-                                                      :3285          (Gemini)   claude-dev
-                                                                               codex-dev
-                                                                               cursor-dev
+Slack ←──WebSocket──→ neotool-dev-agent → Router → Agentes
+         Socket Mode     (slack_bolt)     (Gemini)   claude-dev
+                                                      codex-dev
+                                                      cursor-dev
 ```
+
+O agente **abre uma conexão WebSocket outbound** para o Slack (Socket Mode). Não há inbound HTTP — sem Worker, sem Tunnel no caminho de mensagens.
+
+O Cloudflare Tunnel continua presente apenas para **acesso web externo** (ex: `devpod-N-web.invistus.com.br`).
 
 ---
 
@@ -17,9 +21,9 @@ Slack → Cloudflare Worker → Cloudflare Tunnel → neotool-dev-agent → Rout
 
 ### neotool-dev-agent (`/workspaces/invistus/.devcontainer/neotool-dev-agent.py`)
 
-Bridge HTTP que recebe requisições do Cloudflare Worker via `POST /chat`. Responde imediatamente com `202 Accepted` e processa em background thread. Quando o agente termina, posta o resultado no Slack via `chat.update`.
+Slack Socket Mode bridge baseado na SDK `slack_bolt`. Mantém conexão WebSocket com o Slack, recebe mensagens, posta "⏳ Trabalhando..." e despacha para o router em background thread.
 
-Porta: `3285` (configurável via `NEOTOOL_AGENT_PORT`)
+Também expõe um health server HTTP em `127.0.0.1:3285` para compatibilidade com watchdog e `neotool dev agent status`.
 
 ### router.py (`/workspaces/invistus/.devcontainer/router.py`)
 
@@ -55,100 +59,83 @@ O usuário aprova cada transição respondendo `sim` / `ok` / `aprovado` no Slac
 
 ---
 
-## Convenção de Hostnames
+## Convenção de Hostnames (apenas acesso web)
 
-Cada DevPod tem seu próprio Cloudflare Tunnel com hostnames no padrão:
-
-```
-devpod-{n}-{service}.invistus.com.br
-```
+O Cloudflare Tunnel serve apenas para acesso web externo ao DevPod. Não é usado para mensagens Slack.
 
 | Serviço | Hostname | Porta interna |
 |---|---|---|
-| neotool-dev-agent (Slack) | `devpod-1-agent.invistus.com.br` | `3285` |
 | Next.js (frontend) | `devpod-1-web.invistus.com.br` | `3000` |
 | (futuro) GraphQL API | `devpod-1-api.invistus.com.br` | `4000` |
-
-Isso permite rodar múltiplos DevPods em paralelo, cada um com seu canal Slack e suas URLs independentes.
 
 ---
 
 ## Setup de um Novo DevPod
 
-### 1. Cloudflare — criar tunnel
+### 1. Criar Slack App (uma vez por DevPod)
 
-```bash
-# No Mac (uma vez por DevPod)
-cloudflared tunnel create devpod-N
-# Cria ~/.cloudflare/devpod-N.json com as credenciais
+No [api.slack.com/apps](https://api.slack.com/apps), crie um novo app:
+
+1. **Nome**: `neotool-devpod-N`
+2. **Event Subscriptions** → Subscribe to Bot Events → `message.channels`
+3. **Socket Mode** → Enable Socket Mode → gerar **App-Level Token** (`xapp-...`) com scope `connections:write`
+4. **OAuth & Permissions** → Bot Token Scopes: `channels:history`, `chat:write`, `channels:read`
+5. Instale o app no workspace → copie o **Bot Token** (`xoxb-...`)
+6. Convide o app para o canal `#devpod-N`
+
+### 2. Criar `~/.vault-keys/devpod-N.env`
+
+```env
+SLACK_APP_TOKEN=xapp-1-...    # App-Level Token (Socket Mode)
+SLACK_BOT_TOKEN=xoxb-...      # Bot Token
 ```
 
-### 2. Cloudflare — configurar DNS
+> Cada DevPod tem um arquivo separado: `devpod-1.env`, `devpod-2.env`, etc.
 
-No dashboard Cloudflare, adicione CNAMEs para cada hostname apontando para `<tunnel-id>.cfargotunnel.com`:
-- `devpod-N-agent.invistus.com.br`
-- `devpod-N-web.invistus.com.br`
+### 3. Configurar `NEOTOOL_DEVPOD_N` no DevPod
 
-### 3. Criar config do tunnel
+No `devcontainer.json`, o `remoteEnv` define qual DevPod é este container:
 
-Crie `~/.cloudflare/devpod-N.yml` no Mac:
-
-```yaml
-tunnel: <tunnel-id>
-credentials-file: /home/dev/.cloudflare/devpod-N.json
-
-ingress:
-  - hostname: devpod-N-agent.invistus.com.br
-    service: http://localhost:3285
-  - hostname: devpod-N-web.invistus.com.br
-    service: http://localhost:3000
-  - service: http_status:404
+```json
+"remoteEnv": {
+  "NEOTOOL_DEVPOD_N": "1"
+}
 ```
 
-O `~/.cloudflare/` é montado como bind-mount read-only no container (ver `devcontainer.json`).
+Ao criar um DevPod 2, clone o devcontainer.json e mude para `"2"`.
 
-### 4. Cloudflare Worker — criar por DevPod
+### 4. api-keys.env (compartilhado)
 
-Cada DevPod tem seu próprio Worker no Cloudflare. O Worker recebe o webhook do Slack e encaminha para a URL do tunnel:
-
-```js
-const BRIDGE_URL = "https://devpod-N-agent.invistus.com.br"
-```
-
-Configure o Worker para responder ao canal Slack do DevPod (`#devpod-N`).
-
-### 5. Slack — canal por DevPod
-
-Crie um canal `#devpod-N` e configure o Slack App para enviar eventos ao Worker do DevPod correspondente.
-
-### 6. api-keys.env
-
-Em `~/.vault-keys/api-keys.env` (compartilhado entre DevPods):
+Em `~/.vault-keys/api-keys.env` (compartilhado entre todos os DevPods):
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-...
 GOOGLE_API_KEY=...
 GH_TOKEN=ghp_...
-CLOUDFLARE_TUNNEL_TOKEN=...    # não usado mais — tunnel é on-demand
-NEOTOOL_AGENT_SECRET=...       # opcional — autenticação do bridge
 ```
+
+### 5. Cloudflare Tunnel (opcional — apenas para acesso web externo)
+
+```bash
+# Criar tunnel (uma vez por DevPod)
+cloudflared tunnel create devpod-N
+# Salva credenciais em ~/.cloudflare/<tunnel-id>.json
+
+# Salvar token para acesso no container
+cloudflared tunnel token <tunnel-id> > ~/.cloudflare/devpod-N.token
+```
+
+No dashboard Cloudflare, configure CNAME para `devpod-N-web.invistus.com.br`.
 
 ---
 
 ## Operação
 
-### Iniciar o bridge (automático via start-infra.sh)
+### Gerenciar o agente (neotool-dev-agent)
 
 ```bash
-# Roda ao subir o DevPod — não precisa chamar manualmente
-.devcontainer/start-infra.sh
-```
-
-### Gerenciar o bridge (neotool-dev-agent)
-
-```bash
-neotool dev agent start     # inicia (carrega api-keys automaticamente)
+neotool dev agent start     # inicia (carrega api-keys + devpod-N.env automaticamente)
 neotool dev agent stop      # para
 neotool dev agent restart   # para e reinicia
 neotool dev agent logs      # tail -f do log (Ctrl-C para sair)
@@ -156,41 +143,22 @@ neotool dev agent attach    # roda em foreground (debug)
 neotool dev agent status    # mostra PID e health check
 ```
 
-### Expor via Cloudflare Tunnel (on-demand)
+### Expor via Cloudflare Tunnel (acesso web externo)
 
 ```bash
-# Iniciar
-neotool-tunnel start 1
-
-# Verificar status e hostnames ativos
-neotool-tunnel status
-
-# Parar
-neotool-tunnel stop
-
-# Ver logs
-neotool-tunnel logs
+neotool dev tunnel start 1   # inicia tunnel do devpod-1
+neotool dev tunnel status    # mostra URLs ativas
+neotool dev tunnel stop      # para
+neotool dev tunnel logs      # tail -f
 ```
 
-O tunnel é iniciado **on-demand** (não automático) para permitir múltiplos DevPods rodando em paralelo sem conflito.
-
-### Ver logs do agente
-
-```bash
-neotool dev agent logs
-```
+O tunnel é iniciado **on-demand** (não automático).
 
 ### Limpar estado de uma thread
 
 ```bash
 # Remove state file de uma thread específica (perde issue_number e current_stage)
 rm /tmp/bridge-sessions/<thread-id>.json
-
-# Ou edita preservando campos importantes
-python3 -c "
-import json; f='/tmp/bridge-sessions/<thread-id>.json'
-d=json.load(open(f)); d.pop('claude_session', None)
-json.dump(d, open(f,'w'), indent=2)"
 ```
 
 ---
@@ -200,10 +168,9 @@ json.dump(d, open(f,'w'), indent=2)"
 Cada DevPod é um container isolado com seu próprio `localhost`. Não há conflito de porta entre containers.
 
 O que precisa ser único por DevPod:
-- **Cloudflare Tunnel** — um tunnel ID por DevPod (credenciais em `~/.cloudflare/devpod-N.json`)
-- **Cloudflare Worker** — um Worker por DevPod, apontando para o hostname certo
-- **Canal Slack** — um `#devpod-N` por DevPod
+- **Slack App** — um app por DevPod (cada app só entra no canal `#devpod-N` correspondente)
+- **`devpod-N.env`** — tokens Slack específicos do app
 
 O que pode ser compartilhado:
 - `api-keys.env` (ANTHROPIC_API_KEY, GOOGLE_API_KEY, etc.)
-- Bind-mounts de `~/.claude`, `~/.codex`, `~/.vault-keys`
+- Bind-mounts de `~/.claude`, `~/.codex`, `~/.vault-keys`, `~/.cloudflare`

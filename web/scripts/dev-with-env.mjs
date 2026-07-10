@@ -47,10 +47,15 @@ if (existsSync(envPath)) {
   console.warn('  Create infra/.env.local or use web/.env.local for local development');
 }
 
-// Start Next.js dev server with the loaded environment variables
+// Start Next.js dev server with the loaded environment variables.
+// Respect NODE_OPTIONS from the environment (e.g. devcontainer remoteEnv sets 1536 for
+// the 11GB DevPod). Only apply a default heap cap when none is configured.
+if (!/\bmax-old-space-size=\d+/i.test(env.NODE_OPTIONS ?? '')) {
+  env.NODE_OPTIONS = `${env.NODE_OPTIONS ?? ''} --max-old-space-size=2048`.trim();
+}
 const nextDev = spawn('next', ['dev'], {
   stdio: 'inherit',
-  shell: true,
+  shell: false,
   env,
   cwd: join(__dirname, '..'),
 });

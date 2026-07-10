@@ -17,10 +17,13 @@ import {
 } from '@/lib/graphql/operations/banking/queries';
 import { getFinanceMinAllowedDate } from '../../constants/dateWindow';
 import type { CreditDebitTypeExtended } from '../TypeSelector';
+import type { TransactionCreateDraft } from '../transactionFormShared';
 
 interface UseTransactionFormStateProps {
   isOpen: boolean;
   initialValues?: Transaction;
+  initialDraft?: TransactionCreateDraft;
+  fixedCreditDebitType?: CreditDebitTypeExtended;
   selectedAccountId: string | null;
   selectedMonth?: number;
   selectedYear?: number;
@@ -62,6 +65,8 @@ export interface TransactionFormState {
 export function useTransactionFormState({
   isOpen,
   initialValues,
+  initialDraft,
+  fixedCreditDebitType,
   selectedAccountId,
   selectedMonth,
   selectedYear,
@@ -78,25 +83,32 @@ export function useTransactionFormState({
   }, [selectedMonth, selectedYear]);
 
   const [creditDebitType, setCreditDebitType] = useState<CreditDebitTypeExtended>(
-    initialValues?.type === TransactionType.Transfer
-      ? (initialValues.creditDebitType === CreditDebitType.Credit ? 'TRANSFER_IN' : 'TRANSFER_OUT')
-      : (initialValues?.creditDebitType || CreditDebitType.Debit),
+    fixedCreditDebitType ??
+      (initialValues?.type === TransactionType.Transfer
+        ? (initialValues.creditDebitType === CreditDebitType.Credit ? 'TRANSFER_IN' : 'TRANSFER_OUT')
+        : (initialValues?.creditDebitType || initialDraft?.creditDebitType || CreditDebitType.Debit)),
   );
   const [amount, setAmount] = useState<number | undefined>(
-    initialValues?.amount ? Math.abs(initialValues.amount) : undefined,
+    initialValues?.amount ? Math.abs(initialValues.amount) : initialDraft?.amount,
   );
-  const [description, setDescription] = useState(initialValues?.description || '');
+  const [description, setDescription] = useState(initialValues?.description || initialDraft?.description || '');
   const [date, setDate] = useState<dayjs.Dayjs | null>(
-    initialValues?.date ? dayjs(initialValues.date as string) : defaultCreateDate,
+    initialValues?.date
+      ? dayjs(initialValues.date as string)
+      : initialDraft?.date
+        ? dayjs(initialDraft.date)
+        : defaultCreateDate,
   );
   const [accountId, setAccountId] = useState<string>(
-    initialValues?.financialAccountId || selectedAccountId || '',
+    initialValues?.financialAccountId || initialDraft?.accountId || selectedAccountId || '',
   );
   const [categoryId, setCategoryId] = useState<string | null>(
-    initialValues?.type === TransactionType.BillPayment ? null : (initialValues?.category?.id ?? null),
+    initialValues?.type === TransactionType.BillPayment
+      ? null
+      : (initialValues?.category?.id ?? initialDraft?.categoryId ?? null),
   );
-  const [merchantId, setMerchantId] = useState<string | null>(initialValues?.merchant?.id ?? null);
-  const [tags, setTags] = useState<string[]>(initialValues?.tags || []);
+  const [merchantId, setMerchantId] = useState<string | null>(initialValues?.merchant?.id ?? initialDraft?.merchantId ?? null);
+  const [tags, setTags] = useState<string[]>(initialValues?.tags || initialDraft?.tags || []);
 
   const { data: accountsData } = useQuery<{ financialAccounts: FinancialAccount[] }>(FINANCIAL_ACCOUNTS);
   const { data: categoriesData } = useQuery<{ transactionCategories: TransactionCategory[] }>(TRANSACTION_CATEGORIES);
@@ -167,6 +179,7 @@ export function useTransactionFormState({
     if (!isOpen) return;
     if (initialValues) {
       setCreditDebitType(
+        fixedCreditDebitType ??
         initialValues.type === TransactionType.Transfer
           ? (initialValues.creditDebitType === CreditDebitType.Credit ? 'TRANSFER_IN' : 'TRANSFER_OUT')
           : initialValues.creditDebitType,
@@ -179,30 +192,37 @@ export function useTransactionFormState({
       setMerchantId(initialValues.merchant?.id ?? null);
       setTags(initialValues.tags || []);
     } else {
-      setAmount(undefined);
-      setDescription('');
-      setDate(defaultCreateDate);
-      setCategoryId(null);
-      setMerchantId(null);
-      setTags([]);
-      if (selectedAccountId) {
+      setCreditDebitType(fixedCreditDebitType ?? (initialDraft?.creditDebitType || CreditDebitType.Debit));
+      setAmount(initialDraft?.amount);
+      setDescription(initialDraft?.description || '');
+      setDate(initialDraft?.date ? dayjs(initialDraft.date) : defaultCreateDate);
+      setCategoryId(initialDraft?.categoryId ?? null);
+      setMerchantId(initialDraft?.merchantId ?? null);
+      setTags(initialDraft?.tags || []);
+      if (initialDraft?.accountId) {
+        setAccountId(initialDraft.accountId);
+      } else if (selectedAccountId) {
         setAccountId(selectedAccountId);
       } else if (accounts.length === 1) {
         setAccountId(accounts[0]?.id ?? '');
+      } else {
+        setAccountId('');
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, initialValues]);
+  }, [isOpen, initialValues, initialDraft, fixedCreditDebitType]);
 
   // Keep accountId in sync with selectedAccountId while form is open (new transactions only)
   useEffect(() => {
     if (!isOpen || initialValues) return;
-    if (selectedAccountId) {
+    if (initialDraft?.accountId) {
+      setAccountId(initialDraft.accountId);
+    } else if (selectedAccountId) {
       setAccountId(selectedAccountId);
     } else if (accounts.length === 1) {
       setAccountId(accounts[0]?.id ?? '');
     }
-  }, [isOpen, initialValues, selectedAccountId, accounts]);
+  }, [isOpen, initialValues, initialDraft?.accountId, selectedAccountId, accounts]);
 
   return {
     creditDebitType,

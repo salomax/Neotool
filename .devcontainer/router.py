@@ -3,7 +3,7 @@
 router.py — Classifier + Stage Machine + Dispatcher
 Substitui o Goose como router no pipeline Slack → Agentes.
 """
-import json, logging, os, re, subprocess, sys, time, urllib.request
+import json, logging, os, re, subprocess, sys, threading, time, urllib.request
 from pathlib import Path
 
 log = logging.getLogger("router")
@@ -30,7 +30,11 @@ def load_state(thread: str) -> dict:
 def save_state(thread: str, updates: dict):
     p = session_path(thread)
     state = load_state(thread)
-    state.update(updates)
+    for k, v in updates.items():
+        if v is None:
+            state.pop(k, None)   # None = remover chave
+        else:
+            state[k] = v
     p.write_text(json.dumps(state, indent=2))
 
 # ── Classifier ────────────────────────────────────────────────────────────────
@@ -55,11 +59,11 @@ Rules:
 - "advance"= user says sim/ok/aprovado/yes/continua/next/proceed
 - "check_usage" = user asks about token usage, agent status, check-usage
 - "fast_track" = user explicitly asks to do multiple stages at once, or "de uma vez", "tudo junto", "em uma etapa"
-- "stage_issue" = create or enrich a GitHub issue
+- "stage_issue" = create or enrich a GitHub issue. ALWAYS use when message says "abra uma issue", "crie uma issue", "open an issue", "nova issue", even if the message also describes implementation work
 - "stage_design" = solution design, technical analysis, viability, impact
 - "stage_backlog" = generate task backlog
 - "stage_impl" = write/implement new code, create files, apply backlog tasks (default agent: codex). NEVER use for review/analysis requests.
-- "stage_pr" = create pull request
+- "stage_pr" = create pull request, commit changes (git commit), merge PR/branch. Default agent: cursor, model: auto
 - "stage_validate" = run tests, lint, typecheck
 - "question" = any question, code review, analysis, "revise", "analise", "verifique", "confira", "olha", "o que acha", "está certo" (default agent: claude)
 - agent override: look for "@claude", "@codex", "@cursor", "use claude/codex/cursor", "pelo claude/codex/cursor"
@@ -144,12 +148,13 @@ def _classify_rules(message: str, state: dict) -> dict:
         result["fast_track"] = True
 
     for intent, pat in [
-        ("stage_pr",       r"\bpr\b|pull\s*request"),
+        ("stage_pr",       r"\bpr\b|pull\s*request|\bcommit\b|\bmerge\b|git\s+commit|faz\s+(um\s+)?commit|commita"),  # commit/merge → cursor auto
+        # "abra/crie/criar uma issue" tem prioridade sobre qualquer "implemente"
+        ("stage_issue",    r"abr[ae]\s+(uma\s+)?issue|cri[ae]\s+(uma\s+)?issue|open\s+(an?\s+)?issue|nova\s+issue|\bissue|demanda|enriquec|detalh"),
         ("stage_impl",     r"\bimplementa|implement"),
         ("stage_validate", r"\btesta|valida|lint"),
         ("stage_backlog",  r"\bbacklog|tasks?"),
         ("stage_design",   r"\bdesign|solução|análise|viabilidade|impacto"),
-        ("stage_issue",    r"\bissue|demanda|enriquec|detalh"),
     ]:
         if re.search(pat, msg, re.I):
             result["intent"] = intent
@@ -168,6 +173,12 @@ DEFAULT_AGENTS = {
     "stage_validate": "cursor",
     "stage_pr":       "cursor",
     "fast_track":     "claude",
+}
+
+# Modelo padrão por intent (override explícito do usuário tem prioridade)
+DEFAULT_MODELS = {
+    "stage_pr":       "auto",   # cursor auto para commits, PRs e merges
+    "stage_validate": "auto",   # cursor auto para testes/lint
 }
 
 SKILL_MAP = {
@@ -215,6 +226,48 @@ def build_prompt(classification: dict, original_message: str, state: dict) -> st
     # question / fallback
     return original_message
 
+# ── Detecção de ambiguidade ──────────────────────────────────────────────────
+
+_AMBIGUITY_PATTERNS = [
+    ("stage_pr",       r"\bpr\b|pull\s*request|\bcommit\b|\bmerge\b|git\s+commit|faz\s+(um\s+)?commit|commita"),
+    ("stage_issue",    r"abr[ae]\s+(uma\s+)?issue|cri[ae]\s+(uma\s+)?issue|nova\s+issue|\bissue|demanda"),
+    ("stage_impl",     r"\bimplementa|implement"),
+    ("stage_validate", r"\btesta|valida|lint"),
+    ("stage_backlog",  r"\bbacklog|tasks?"),
+    ("stage_design",   r"\bdesign|solução|análise|viabilidade|impacto"),
+]
+
+_INTENT_LABELS = {
+    "stage_issue":    "Abrir issue",
+    "stage_design":   "Design de solução",
+    "stage_backlog":  "Gerar backlog",
+    "stage_impl":     "Implementar código",
+    "stage_validate": "Validar / testar",
+    "stage_pr":       "Criar PR",
+    "question":       "Responder pergunta",
+    "fast_track":     "Executar tudo",
+}
+
+def detect_ambiguity(message: str) -> list:
+    """Retorna lista de stage intents que fazem match na mensagem."""
+    msg = message.lower()
+    return [intent for intent, pat in _AMBIGUITY_PATTERNS
+            if re.search(pat, msg, re.I)]
+
+
+def _confirmation_message(classification: dict, ambiguous_intents: list) -> str:
+    intent = classification["intent"]
+    agent  = classification.get("agent") or DEFAULT_AGENTS.get(intent, "claude")
+    others = [_INTENT_LABELS.get(i, i) for i in ambiguous_intents if i != intent]
+    main   = _INTENT_LABELS.get(intent, intent)
+    return (
+        f"🤔 *Ambiguidade detectada* — vou executar:\n"
+        f"• *{main}* via `{agent}`\n\n"
+        f"_(também detectei no texto: {', '.join(others)})_\n\n"
+        f"Responda `sim` para confirmar, ou descreva o que prefere fazer."
+    )
+
+
 # ── Dispatcher ────────────────────────────────────────────────────────────────
 
 WRAPPER = {
@@ -230,12 +283,13 @@ def dispatch(
     channel: str,
     ts: str,
     slack_token: str,
+    progress_log: "str | None" = None,
 ) -> str:
     intent = classification["intent"]
     agent  = classification.get("agent") or DEFAULT_AGENTS.get(intent, "claude")
-    model  = classification.get("model")
+    # Modelo: declaração explícita do usuário tem prioridade; senão usa default por intent
+    model  = classification.get("model") or DEFAULT_MODELS.get(intent)
 
-    # Timeout por agente: análise=10min, implementação/validação=30min
     TIMEOUT = {"claude": 1800, "codex": 1800, "cursor": 1800}.get(agent, 1800)
     log.info("dispatch intent=%s agent=%s model=%s timeout=%ds", intent, agent, model, TIMEOUT)
 
@@ -261,22 +315,65 @@ def dispatch(
 
     log.info("running: %s", " ".join(str(x) for x in cmd[:2]) + " " + prompt[:80])
     t0 = time.time()
+    timed_out = [False]
+
     try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True,
-            timeout=TIMEOUT, cwd=WORKSPACE, env=env,
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,   # stderr separado: não polui progress log nem output final
+            text=True, bufsize=1, cwd=WORKSPACE, env=env,
         )
+
+        stdout_lines = []
+        stderr_lines = []
+        log_fh = open(progress_log, "w", buffering=1) if progress_log else None
+
+        def _read_stdout():
+            try:
+                for line in iter(proc.stdout.readline, ""):
+                    stdout_lines.append(line)
+                    if log_fh:
+                        log_fh.write(line)
+                        log_fh.flush()
+            finally:
+                proc.stdout.close()
+
+        def _read_stderr():
+            try:
+                for line in iter(proc.stderr.readline, ""):
+                    stderr_lines.append(line)
+                    log.debug("[agent stderr] %s", line.rstrip())
+            finally:
+                proc.stderr.close()
+
+        t_out = threading.Thread(target=_read_stdout, daemon=True)
+        t_err = threading.Thread(target=_read_stderr, daemon=True)
+        t_out.start(); t_err.start()
+
+        try:
+            proc.wait(timeout=TIMEOUT)
+        except subprocess.TimeoutExpired:
+            timed_out[0] = True
+            proc.kill()
+            proc.wait()
+        finally:
+            t_out.join(timeout=5)
+            t_err.join(timeout=5)
+            if log_fh:
+                log_fh.close()
+
         elapsed = time.time() - t0
-        output = result.stdout.strip() or result.stderr.strip()
-        log.info("agent done in %.1fs exit=%d chars=%d", elapsed, result.returncode, len(output))
-        if result.returncode != 0:
-            log.error("agent stderr: %s", result.stderr[:300])
-            log.error("agent stdout: %s", result.stdout[:300])
-        return output or f"_(sem resposta do agente — exit {result.returncode})_"
-    except subprocess.TimeoutExpired:
-        log.error("timeout after %ds", TIMEOUT)
-        mins = TIMEOUT // 60
-        return f"❌ Timeout — agente excedeu {mins} minutos."
+        if timed_out[0]:
+            log.error("timeout after %ds", TIMEOUT)
+            return f"❌ Timeout — agente excedeu {TIMEOUT // 60} minutos."
+
+        output = "".join(stdout_lines).strip() or "".join(stderr_lines).strip()
+        log.info("agent done in %.1fs exit=%d chars=%d", elapsed, proc.returncode, len(output))
+        if proc.returncode != 0:
+            log.error("agent stderr (300): %s", "".join(stderr_lines)[:300])
+        return output or f"_(sem resposta do agente — exit {proc.returncode})_"
+
     except Exception as e:
         log.exception("dispatch error: %s", e)
         return f"❌ Erro interno: {e}"
@@ -306,34 +403,8 @@ def extract_issue_from_message(message: str) -> int | None:
     return None
 
 
-def route(
-    message: str,
-    thread: str,
-    channel: str,
-    ts: str,
-    slack_token: str,
-) -> str:
-    """Entry point: classifica, constrói prompt, despacha, atualiza estado."""
-    message_clean = clean_slack_message(message)
-    state = load_state(thread)
-    log.info("route thread=%s state=%s msg=%r", thread, state, message_clean[:100])
-
-    classification = classify(message_clean, state)
-    # Extrai issue de URL se o classifier não encontrou
-    if not classification.get("issue_number"):
-        classification["issue_number"] = extract_issue_from_message(message)
-    log.info("classification: %s", json.dumps(classification))
-
-    # check-usage: tratado separadamente
-    if classification["intent"] == "check_usage":
-        return None  # bridge já trata
-
-    prompt = build_prompt(classification, message_clean, state)
-    log.info("prompt built: %s", prompt[:120])
-
-    output = dispatch(classification, prompt, thread, channel, ts, slack_token)
-
-    # Atualiza estado da thread
+def _apply_stage_state(thread: str, classification: dict, state: dict) -> None:
+    """Persiste issue_number e current_stage após dispatch."""
     updates = {}
     if classification.get("issue_number"):
         updates["issue_number"] = classification["issue_number"]
@@ -343,10 +414,72 @@ def route(
     if intent in stage_map:
         updates["current_stage"] = stage_map[intent]
     elif intent == "advance":
-        # avança current_stage para que o próximo "sim" pegue o stage seguinte
         stage_idx = state.get("current_stage", 0)
         updates["current_stage"] = min(stage_idx + 1, len(STAGES))
     if updates:
         save_state(thread, updates)
 
+
+def route(
+    message: str,
+    thread: str,
+    channel: str,
+    ts: str,
+    slack_token: str,
+    progress_log: "str | None" = None,
+) -> str:
+    """Entry point: classifica, confirma se ambíguo, despacha, atualiza estado."""
+    message_clean = clean_slack_message(message)
+    state = load_state(thread)
+    log.info("route thread=%s state=%s msg=%r", thread, state, message_clean[:100])
+
+    # ── Confirmação pendente ───────────────────────────────────────────────────
+    pending = state.get("pending_confirmation")
+    if pending:
+        quick = classify(message_clean, {})
+        if quick["intent"] == "advance":
+            # Usuário confirmou → executa ação pendente
+            save_state(thread, {"pending_confirmation": None})
+            clf  = pending["classification"]
+            prom = pending["prompt"]
+            log.info("route: confirmação aceita → intent=%s agent=%s",
+                     clf["intent"], clf.get("agent"))
+            output = dispatch(clf, prom, thread, channel, ts, slack_token,
+                              progress_log=progress_log)
+            _apply_stage_state(thread, clf, state)
+            return output
+        else:
+            # Usuário quer outra coisa → descarta pendência e reclassifica
+            log.info("route: confirmação cancelada → reclassificando")
+            save_state(thread, {"pending_confirmation": None})
+            state.pop("pending_confirmation", None)
+            # cai no fluxo normal abaixo
+
+    # ── Fluxo normal ──────────────────────────────────────────────────────────
+    classification = classify(message_clean, state)
+    if not classification.get("issue_number"):
+        classification["issue_number"] = extract_issue_from_message(message)
+    log.info("classification: %s", json.dumps(classification))
+
+    if classification["intent"] == "check_usage":
+        return None
+
+    prompt = build_prompt(classification, message_clean, state)
+    log.info("prompt built: %s", prompt[:120])
+
+    # ── Detecção de ambiguidade ────────────────────────────────────────────────
+    # Só aplica a stage intents — question/advance/fast_track são unívocos
+    if classification["intent"] not in ("question", "advance", "check_usage", "fast_track"):
+        ambiguous = detect_ambiguity(message_clean)
+        if len(ambiguous) >= 2:
+            log.info("route: ambiguidade %s → pedindo confirmação", ambiguous)
+            save_state(thread, {"pending_confirmation": {
+                "classification": classification,
+                "prompt": prompt,
+            }})
+            return _confirmation_message(classification, ambiguous)
+
+    output = dispatch(classification, prompt, thread, channel, ts, slack_token,
+                      progress_log=progress_log)
+    _apply_stage_state(thread, classification, state)
     return output

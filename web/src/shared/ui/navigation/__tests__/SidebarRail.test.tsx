@@ -78,10 +78,6 @@ vi.mock('@/shared/providers/AuthProvider', () => ({
 }));
 
 // Mock feature flags so SidebarRail does not require FeatureFlagsProvider
-vi.mock('@/shared/hooks/useFeatureFlag', () => ({
-  useFeatureFlagEnabled: () => false,
-}));
-
 vi.mock("react-i18next", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-i18next")>();
   return {
@@ -93,8 +89,10 @@ vi.mock("react-i18next", async (importOriginal) => {
 });
 
 // Mock feature flags
+const mockUseFeatureFlagEnabled = vi.fn((_: string) => false);
+
 vi.mock('@/shared/hooks/useFeatureFlag', () => ({
-  useFeatureFlagEnabled: () => false,
+  useFeatureFlagEnabled: (flagName: string) => mockUseFeatureFlagEnabled(flagName),
 }));
 
 const renderSidebarRail = (mode: 'light' | 'dark' = 'light') => {
@@ -110,6 +108,7 @@ describe.sequential('SidebarRail', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPathname.mockReturnValue('/');
+    mockUseFeatureFlagEnabled.mockReturnValue(false);
   });
 
   describe('Rendering', () => {
@@ -162,6 +161,20 @@ describe.sequential('SidebarRail', () => {
       expect(investmentsButton).toHaveAttribute('href', '/investments');
       expect(settingsButton).toBeInTheDocument();
       expect(settingsButton).toHaveAttribute('href', '/settings');
+    });
+
+    it('renders purchase wishlist when the feature flag is enabled', () => {
+      mockUseFeatureFlagEnabled.mockImplementation((flagName: string) => {
+        if (flagName === 'personal-finance-dashboard-enabled') return true;
+        if (flagName === 'purchase-wishlist-enabled') return true;
+        return false;
+      });
+
+      renderSidebarRail();
+
+      const wishlistButton = screen.getByLabelText('routes.purchaseWishlist');
+      expect(wishlistButton).toBeInTheDocument();
+      expect(wishlistButton).toHaveAttribute('href', '/personal-finance/purchase-wishlist');
     });
   });
 

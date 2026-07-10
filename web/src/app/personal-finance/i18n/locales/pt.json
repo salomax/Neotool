@@ -2213,7 +2213,18 @@
       "byCategory": "Por categoria",
       "byFrequency": "Por frequência",
       "noDistributionData": "Sem dados para o gráfico (defina um valor estimado nas recorrências).",
-      "mobileAccordionTitle": "Indicadores"
+      "mobileAccordionTitle": "Indicadores",
+      "filteringByCategory": "Filtrando categoria: {{name}}",
+      "filteringByFrequency": "Filtrando frequência: {{name}}",
+      "filteringByDueBucket": "Filtrando vencimento: {{name}}",
+      "clearCategoryFilter": "Limpar filtro de categoria",
+      "clearFrequencyFilter": "Limpar filtro de frequência",
+      "clearDueBucketFilter": "Limpar filtro de vencimento",
+      "a11y": {
+        "filterByCategory": "Filtrar por categoria",
+        "filterByFrequency": "Filtrar por frequência",
+        "filterByDueBucket": "Filtrar por vencimento: {{name}}"
+      }
     },
     "mobileTrigger": {
       "summary_one": "{{amount}}/mês · {{count}} ativa",
@@ -2260,5 +2271,102 @@
     },
     "statusOverdue": "Atraso",
     "noFilterResults": "Nenhum resultado para os filtros selecionados."
+  },
+  "purchaseWishlist": {
+    "uncategorized": "Sem categoria",
+    "newButton": "Item",
+    "searchPlaceholder": "Buscar na lista…",
+    "emptyTitle": "Nenhuma compra planejada ainda",
+    "emptyDescription": "Acompanhe produtos, serviços e experiências que você pretende adquirir.",
+    "tabs": {
+      "active": "Ativos ({{count}})",
+      "history": "Histórico ({{count}})"
+    },
+    "priority": {
+      "HIGH": "Alta",
+      "MEDIUM": "Média",
+      "LOW": "Baixa"
+    },
+    "summary": {
+      "totalEstimated": "Total estimado",
+      "totalItems_one": "{{count}} item ativo",
+      "totalItems_other": "{{count}} itens ativos",
+      "byPriority": "Por prioridade",
+      "byCategory": "Por categoria"
+    },
+    "mobileTrigger": {
+      "summary_one": "{{amount}} · {{count}} item ativo",
+      "summary_other": "{{amount}} · {{count}} itens ativos"
+    },
+    "viewMode": {
+      "list": "Visualização em linhas",
+      "grid": "Visualização em grade"
+    },
+    "table": {
+      "dragHandle": "Arraste para reordenar",
+      "reorderDisabled": "Limpe a busca para reordenar os itens",
+      "targetDate": "Meta: {{date}}",
+      "purchasedAt": "Comprado em: {{date}}",
+      "openLink": "Abrir link",
+      "linkShort": "Link",
+      "noLink": "Sem link do produto"
+    },
+    "form": {
+      "drawerTitleNew": "Novo item da lista",
+      "drawerTitleEdit": "Editar item da lista",
+      "name": "Nome",
+      "estimatedPrice": "Preço estimado",
+      "category": "Categoria",
+      "priority": "Prioridade",
+      "targetDate": "Data-alvo",
+      "productUrl": "URL do produto",
+      "productUrlHelp": "Cole uma URL válida de produto ou serviço. Vamos tentar preencher nome e preço automaticamente.",
+      "productUrlLoading": "Buscando informações do produto...",
+      "productPreviewAlt": "Pré-visualização do produto",
+      "notes": "Notas",
+      "validation": {
+        "nameRequired": "O nome é obrigatório.",
+        "invalidUrl": "Informe uma URL válida começando com http:// ou https://.",
+        "targetDateMin": "A data-alvo deve ser maior que a data atual.",
+        "targetDateMax": "A data-alvo deve estar dentro dos próximos 10 anos."
+      }
+    },
+    "actions": {
+      "edit": "Editar",
+      "delete": "Excluir",
+      "clearSearchAriaLabel": "Limpar busca",
+      "markAsPurchased": "Marcar como comprado",
+      "moveUp": "Mover para cima",
+      "moveDown": "Mover para baixo"
+    },
+    "deleteDialog": {
+      "title": "Excluir item da lista?",
+      "message": "Excluir \"{{name}}\" da sua lista de desejos? Esta ação não pode ser desfeita."
+    },
+    "purchaseDialog": {
+      "title": "Marcar como comprado",
+      "message": "Mover \"{{name}}\" para o histórico de compras?",
+      "description": "Você pode apenas marcar este item como comprado ou já registrar a movimentação financeira agora.",
+      "confirm": "Marcar como comprado",
+      "confirmHelper": "Atualiza o item na lista sem criar movimentação financeira.",
+      "confirmWithTransaction": "Marcar como comprado e criar movimentação",
+      "confirmWithTransactionHelper": "Marca como comprado e abre a movimentação com os dados preenchidos.",
+      "transactionDrawerTitle": "Criar movimentação"
+    },
+    "history": {
+      "emptyTitle": "Nenhum item comprado ainda",
+      "emptyDescription": "Os itens já comprados aparecerão aqui."
+    },
+    "toast": {
+      "created": "Item da lista criado.",
+      "updated": "Item da lista atualizado.",
+      "deleted": "Item da lista excluído.",
+      "purchased": "Item movido para o histórico.",
+      "purchasedWithTransaction": "Movimentação criada e item movido para o histórico.",
+      "reordered": "Ordem da lista atualizada."
+    },
+    "errors": {
+      "mutationFailed": "Não foi possível atualizar a lista."
+    }
   }
 }

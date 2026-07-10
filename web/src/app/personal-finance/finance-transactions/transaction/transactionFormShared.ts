@@ -3,13 +3,37 @@ import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { useTransactionFormState, type TransactionFormState } from './hooks/useTransactionFormState';
 import { useTransactionSave, type TransactionSaveState } from './hooks/useTransactionSave';
-import type { Transaction } from '@/lib/graphql/types/__generated__/graphql';
+import type { CreditDebitType, Transaction } from '@/lib/graphql/types/__generated__/graphql';
 import { TransactionType } from '@/lib/graphql/types/__generated__/graphql';
+import type { CreditDebitTypeExtended } from './TypeSelector';
 
 export interface TransactionSuccessPayload {
   action: 'create' | 'update';
   transactionId: string;
   date: string;
+}
+
+export interface TransactionCreateDraft {
+  creditDebitType?: CreditDebitTypeExtended;
+  amount?: number;
+  description?: string;
+  date?: string;
+  accountId?: string | null;
+  categoryId?: string | null;
+  merchantId?: string | null;
+  tags?: string[];
+}
+
+export interface TransactionCreateSubmitInput {
+  financialAccountId: string;
+  creditDebitType: CreditDebitType;
+  type: TransactionType;
+  amount: number;
+  date: string;
+  description: string;
+  categoryId?: string;
+  merchantId?: string;
+  tags?: string[];
 }
 
 export interface TransactionFormProps {
@@ -21,6 +45,9 @@ export interface TransactionFormProps {
   selectedMonth?: number;
   selectedYear?: number;
   initialValues?: Transaction;
+  initialDraft?: TransactionCreateDraft;
+  fixedCreditDebitType?: CreditDebitTypeExtended;
+  onCreateSubmit?: (input: TransactionCreateSubmitInput) => Promise<TransactionSuccessPayload | void>;
   onBusyStart?: () => void;
   onBusyEnd?: () => void;
 }
@@ -41,6 +68,9 @@ export function useTransactionFormController({
   selectedMonth,
   selectedYear,
   initialValues,
+  initialDraft,
+  fixedCreditDebitType,
+  onCreateSubmit,
   onBusyStart,
   onBusyEnd,
 }: TransactionFormProps): TransactionFormController {
@@ -49,6 +79,8 @@ export function useTransactionFormController({
   const form = useTransactionFormState({
     isOpen,
     initialValues,
+    initialDraft,
+    fixedCreditDebitType,
     selectedAccountId,
     selectedMonth,
     selectedYear,
@@ -77,6 +109,8 @@ export function useTransactionFormController({
     categoryId: form.categoryId,
     merchantId: form.merchantId,
     tags: form.tags,
+    onCreateSubmit,
+    fixedCreditDebitType,
     setCreditDebitType: form.setCreditDebitType,
     setCategoryId: form.setCategoryId,
     resetFormFields,

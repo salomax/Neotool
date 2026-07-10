@@ -87,6 +87,8 @@ export default function FinancialDataLayout({ children }: { children: React.Reac
 **Why Layouts?**
 Layouts persist when navigating between child routes, ensuring the breadcrumb label remains active. If used in `page.tsx`, the label will be removed when navigating to a child page (as the parent page component unmounts), causing the breadcrumb to revert to the raw URL segment or disappear.
 
+For new route segments under `app/`, translated breadcrumb labels must be registered in the segment `layout.tsx` before the page is considered complete. Leaving the breadcrumb to fall back to the raw URL slug is not acceptable for production routes.
+
 ### Manual Items
 
 For custom navigation flows or when URL structure doesn't match the logical hierarchy, use manual items:

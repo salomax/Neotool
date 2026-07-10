@@ -42,6 +42,7 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
   const { hasAny } = useAuthorization();
   const personalFinanceEnabled = useFeatureFlagEnabled('personal-finance-dashboard-enabled');
   const pricingEnabled = useFeatureFlagEnabled('pricing-enabled');
+  const purchaseWishlistEnabled = useFeatureFlagEnabled('purchase-wishlist-enabled');
   const { signOut, user } = useAuth();
 
   // Check permissions (same as SidebarRail)
@@ -114,6 +115,15 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
                   <ShoppingCartOutlinedIcon />
                 </ListItemIcon>
                 <ListItemText primary={t('routes.pricesConsumption')} />
+              </ListItemButton>
+            )}
+
+            {personalFinanceEnabled && purchaseWishlistEnabled && (
+              <ListItemButton onClick={() => handleNavigation("/personal-finance/purchase-wishlist")}>
+                <ListItemIcon>
+                  <ShoppingCartOutlinedIcon />
+                </ListItemIcon>
+                <ListItemText primary={t('routes.purchaseWishlist')} />
               </ListItemButton>
             )}
 

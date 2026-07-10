@@ -171,29 +171,53 @@ else
 fi
 
 # =============================================================================
-# neotool-dev-agent — bridge HTTP para pipeline Slack → Agentes
+# neotool-dev-agent — Slack Socket Mode bridge para pipeline Slack → Agentes
 # =============================================================================
 # Controlado por NEOTOOL_AGENT_ENABLED em ~/.vault-keys/api-keys.env
-#   NEOTOOL_AGENT_ENABLED=true  → sobe o bridge (padrão)
+#   NEOTOOL_AGENT_ENABLED=true  → sobe o bridge Socket Mode (padrão)
 #   NEOTOOL_AGENT_ENABLED=false → skip (trabalho manual)
 #
+# Tokens Slack: ~/.vault-keys/devpod-N.env
+#   SLACK_APP_TOKEN=xapp-...   (App-Level Token — Socket Mode)
+#   SLACK_BOT_TOKEN=xoxb-...   (Bot Token)
+#
 # Cloudflare Tunnel: NÃO é iniciado automaticamente.
-# Use: neotool-tunnel start <devpod-n>
-# Isso permite rodar múltiplos DevPods em paralelo sem conflito.
+# Use: neotool dev tunnel start <n>  (apenas para acesso web externo)
 # =============================================================================
 
 NEOTOOL_LOG="${HOME}/.local/share/neotool"
 mkdir -p "$NEOTOOL_LOG"
 
-# Carrega api-keys.env antes de subir o bridge
+# Carrega api-keys.env e devpod-N.env antes de subir o bridge
 if [ -f "${HOME}/.vault-keys/api-keys.env" ]; then
     set -a; source "${HOME}/.vault-keys/api-keys.env"; set +a
+fi
+_DEVPOD_N="${NEOTOOL_DEVPOD_N:-1}"
+_DEVPOD_ENV="${HOME}/.vault-keys/devpod-${_DEVPOD_N}.env"
+if [ -f "$_DEVPOD_ENV" ]; then
+    set -a; source "$_DEVPOD_ENV"; set +a
+    # Adiciona ao ~/.bashrc para o shell interativo também
+    if grep -qF "# devpod-${_DEVPOD_N}.env" "${HOME}/.bashrc" 2>/dev/null; then
+        sed -i "/# devpod-${_DEVPOD_N}.env/,/# fim devpod-${_DEVPOD_N}/d" "${HOME}/.bashrc"
+    fi
+    {
+        echo "# devpod-${_DEVPOD_N}.env (gerado por start-infra.sh)"
+        grep -E '^[A-Z_]+=.+' "$_DEVPOD_ENV" | sed 's/^/export /'
+        echo "# fim devpod-${_DEVPOD_N}"
+    } >> "${HOME}/.bashrc"
+    echo "✓ [neotool] devpod-${_DEVPOD_N}.env carregado"
+else
+    echo "⚠ [neotool] devpod-${_DEVPOD_N}.env não encontrado."
+    echo "   No Mac: cat > ~/.vault-keys/devpod-${_DEVPOD_N}.env << EOF"
+    echo "   SLACK_APP_TOKEN=xapp-1-..."
+    echo "   SLACK_BOT_TOKEN=xoxb-..."
+    echo "   EOF"
+    echo "   Depois: neotool dev agent restart"
 fi
 
 if [ "${NEOTOOL_AGENT_ENABLED:-true}" = "true" ]; then
     echo "▶ [neotool-dev-agent] Iniciando bridge na porta 3285..."
     NEOTOOL_AGENT_PORT=3285 \
-    NEOTOOL_AGENT_SECRET="${NEOTOOL_AGENT_SECRET:-}" \
     nohup python3 /workspaces/invistus/.devcontainer/neotool-dev-agent.py \
         > "$NEOTOOL_LOG/agent.log" 2>&1 &
     sleep 2
@@ -202,7 +226,17 @@ if [ "${NEOTOOL_AGENT_ENABLED:-true}" = "true" ]; then
     else
         echo "⚠ [neotool-dev-agent] Não respondeu — verifique: tail $NEOTOOL_LOG/agent.log"
     fi
-    echo "   Tunnel: execute 'neotool-tunnel start <devpod-n>' para expor via Cloudflare"
+    echo "   Tunnel (web):  execute 'neotool dev tunnel start <n>' para acesso web externo"
+
+    # Inicia o watchdog — monitora agent e tunnel, reinicia automaticamente se morrerem
+    echo "▶ [watchdog] Iniciando monitoramento..."
+    nohup /workspaces/invistus/.devcontainer/neotool-watchdog > /dev/null 2>&1 &
+    sleep 1
+    if [ -f "$NEOTOOL_LOG/watchdog.pid" ] && kill -0 "$(cat $NEOTOOL_LOG/watchdog.pid)" 2>/dev/null; then
+        echo "✓ [watchdog] Ativo (PID $(cat $NEOTOOL_LOG/watchdog.pid)) — logs: $NEOTOOL_LOG/watchdog.log"
+    else
+        echo "⚠ [watchdog] Nao iniciou — verifique: $NEOTOOL_LOG/watchdog.log"
+    fi
 else
     echo "⚠ [neotool-dev-agent] Desabilitado (NEOTOOL_AGENT_ENABLED=false)"
 fi

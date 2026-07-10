@@ -12,6 +12,9 @@ import type { Transaction } from '@/lib/graphql/types/__generated__/graphql';
 interface MobileTransactionDrawerProps extends TransactionFormProps {
   initialValues?: Transaction;
   onExited?: () => void;
+  title?: string;
+  ariaLabel?: string;
+  submitText?: string;
 }
 
 export const MobileTransactionDrawer = memo(function MobileTransactionDrawer({
@@ -23,9 +26,14 @@ export const MobileTransactionDrawer = memo(function MobileTransactionDrawer({
   selectedMonth,
   selectedYear,
   initialValues,
+  initialDraft,
+  onCreateSubmit,
   onExited,
   onBusyStart,
   onBusyEnd,
+  title,
+  ariaLabel,
+  submitText,
 }: MobileTransactionDrawerProps) {
   const controller = useTransactionFormController({
     isOpen,
@@ -36,10 +44,18 @@ export const MobileTransactionDrawer = memo(function MobileTransactionDrawer({
     selectedMonth,
     selectedYear,
     initialValues,
+    initialDraft,
+    onCreateSubmit,
     onBusyStart,
     onBusyEnd,
   });
   const { form, save, t } = controller;
+  const resolvedTitle =
+    title ??
+    (initialValues
+      ? t('financeTransactions.transactionTable.rowActions.edit')
+      : t('financeTransactions.quickAdd'));
+  const resolvedAriaLabel = ariaLabel ?? resolvedTitle;
 
   return (
     <>
@@ -49,18 +65,10 @@ export const MobileTransactionDrawer = memo(function MobileTransactionDrawer({
         anchor="bottom"
         height="100%"
         slotProps={onExited ? { transition: { onExited } } : undefined}
-        ariaLabel={
-          initialValues
-            ? t('financeTransactions.transactionTable.rowActions.edit')
-            : t('financeTransactions.quickAdd')
-        }
+        ariaLabel={resolvedAriaLabel}
       >
         <Drawer.Header
-          title={
-            initialValues
-              ? t('financeTransactions.transactionTable.rowActions.edit')
-              : t('financeTransactions.quickAdd')
-          }
+          title={resolvedTitle}
           closeButtonAriaLabel={t('financeTransactions.actions.close')}
         />
         <Drawer.Body
@@ -69,7 +77,7 @@ export const MobileTransactionDrawer = memo(function MobileTransactionDrawer({
             py: 2.5,
           }}
         >
-          <Box data-testid="mobile-transaction-drawer">
+          <Box data-testid="transaction-drawer">
             <TransactionFormFields
               controller={controller}
               selectedAccountId={selectedAccountId}
@@ -123,7 +131,9 @@ export const MobileTransactionDrawer = memo(function MobileTransactionDrawer({
                 onDateChange={form.setDate}
                 onMerchantChange={form.setMerchantId}
                 onRefresh={onRefresh}
-                onSuccess={onSuccess}
+                onSuccess={() => {
+                  void onSuccess();
+                }}
                 t={t}
               />
             </Box>
@@ -132,7 +142,7 @@ export const MobileTransactionDrawer = memo(function MobileTransactionDrawer({
         <Drawer.Footer sx={{ p: 2, bgcolor: 'background.paper' }}>
           <Drawer.ActionButtons
             cancelText={t('actions.cancel')}
-            submitText={t('actions.save')}
+            submitText={submitText ?? t('actions.save')}
             onCancel={onClose}
             onSubmit={() => {
               void save.handleSave();
