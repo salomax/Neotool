@@ -1,3 +1,7 @@
+## 0.2.10 (2026-07-10)
+
+This was a version bump only for institution-enhancement-consumer to align it with other projects, there were no code changes.
+
 ## 0.2.9 (2026-06-24)
 
 This was a version bump only for institution-enhancement-consumer to align it with other projects, there were no code changes.
