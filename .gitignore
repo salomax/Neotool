@@ -130,3 +130,4 @@ docs/03-features/brainstorming
 .nx/workspace-data
 graph.json
 web/tsconfig.vitest.tsbuildinfo
+web/core 
