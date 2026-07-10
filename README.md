@@ -126,7 +126,10 @@ All services, infra, and tooling are reproducible from a single command.
 
 ```bash
 brew install colima docker docker-compose
-colima start --cpu 6 --memory 12 --disk 80 --vm-type vz --vz-rosetta
+
+# Starts Colima (14GB RAM + 4GB swap on 18GB Macs) to prevent OOM during
+# Next.js/Kotlin compilation and Playwright E2E with multiple services
+./scripts/colima-start.sh
 ```
 
 **2. DevPod CLI**
@@ -150,7 +153,7 @@ mkdir -p ~/.vault-keys
 neotool vault backup --output ~/.vault-keys/backup.json
 ```
 
-From that point on, every `neotool dev init` restores the keys automatically.
+From that point on, every `neotool dev up` restores the keys automatically.
 
 ---
 
@@ -161,7 +164,7 @@ From that point on, every `neotool dev init` restores the keys automatically.
 echo $GH_TOKEN | docker login ghcr.io -u <your-github-username> --password-stdin
 
 # 1. Start DevPod workspace (builds image, starts infra, restores Vault keys)
-./neotool dev init
+./neotool dev up
 
 # 2. Start the security service first (other services depend on it for JWT validation)
 ./neotool dev start security
@@ -179,7 +182,7 @@ echo $GH_TOKEN | docker login ghcr.io -u <your-github-username> --password-stdin
 ### Daily workflow
 
 ```bash
-./neotool dev init            # resume workspace + activate port forwarding (idempotent)
+./neotool dev up            # resume workspace + activate port forwarding (idempotent)
 ./neotool dev start           # start all services and workers
 ./neotool dev status          # check ports and tmux windows
 ./neotool dev attach          # open tmux session
@@ -212,6 +215,26 @@ echo $GH_TOKEN | docker login ghcr.io -u <your-github-username> --password-stdin
 | Kafka | 9094 |
 | MinIO console | 9001 |
 | Vault UI | 8200 |
+
+---
+
+### Web service — troubleshooting
+
+**Slow compilation or high CPU (`next-server` > 400% CPU)**
+
+The Next.js webpack cache (`.next/`) can grow large over time and cause the `next-server`
+process to consume excessive memory, which triggers continuous GC and saturates all CPU cores.
+
+Fix: clear the cache before restarting.
+
+```bash
+neotool dev restart web --clean
+```
+
+Use `--clean` whenever the web service feels slow, takes too long to compile a route, or
+`ps aux | grep next-server` shows CPU consistently above 100%.
+
+Normal restarts (`neotool dev restart web`) preserve the cache for faster startup.
 
 ---
 

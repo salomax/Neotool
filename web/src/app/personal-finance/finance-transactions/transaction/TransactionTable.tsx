@@ -36,7 +36,7 @@ import {
 } from '../../utils/financeTransactionTableStyles';
 import { formatFinanceDateGroupLabel, parseFinanceDateKey } from '../../utils/financeDateGroupLabel';
 import { InlineTransactionForm } from './InlineTransactionForm';
-import { MobileTransactionDrawer } from './MobileTransactionDrawer';
+import { MobileTransactionDrawer } from './TransactionDrawer';
 import { TransactionRow } from './TransactionRow';
 import type { TransactionRowCallbacks } from './TransactionRow';
 import { TransactionMobileRow } from './TransactionMobileRow';

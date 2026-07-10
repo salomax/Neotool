@@ -14,7 +14,7 @@ import { usePreferences, useToast } from '@/shared/providers';
 import { resolveSimilarEditBehavior } from '../similarEditPreference';
 import type { CreditDebitTypeExtended } from '../TypeSelector';
 import { resolveRegularTransactionType } from '../transactionTypeUtils';
-import type { TransactionSuccessPayload } from '../transactionFormShared';
+import type { TransactionCreateSubmitInput, TransactionSuccessPayload } from '../transactionFormShared';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -118,6 +118,8 @@ interface UseTransactionSaveProps {
   categoryId: string | null;
   merchantId: string | null;
   tags: string[];
+  onCreateSubmit?: (input: TransactionCreateSubmitInput) => Promise<TransactionSuccessPayload | void>;
+  fixedCreditDebitType?: CreditDebitTypeExtended;
   setCreditDebitType: (v: CreditDebitTypeExtended) => void;
   setCategoryId: (v: string | null) => void;
   resetFormFields: () => void;
@@ -186,6 +188,8 @@ export function useTransactionSave({
   categoryId,
   merchantId,
   tags,
+  onCreateSubmit,
+  fixedCreditDebitType,
   setCreditDebitType,
   setCategoryId,
   resetFormFields,
@@ -246,9 +250,12 @@ export function useTransactionSave({
   );
 
   const handleTypeChange = useCallback((value: CreditDebitTypeExtended) => {
+    if (fixedCreditDebitType) {
+      return;
+    }
     setCreditDebitType(value);
     setCategoryId(null);
-  }, [setCreditDebitType, setCategoryId]);
+  }, [fixedCreditDebitType, setCreditDebitType, setCategoryId]);
 
   const handleSave = useCallback(async () => {
     setSubmitAttempted(true);
@@ -339,30 +346,35 @@ export function useTransactionSave({
         const createType = isTransferShortcut
           ? TransactionType.Transfer
           : resolveRegularTransactionType(finalCreditDebitType);
+        const createInput: TransactionCreateSubmitInput = {
+          date: formattedDate,
+          amount: formattedAmount,
+          description,
+          financialAccountId: accountId,
+          categoryId: categoryId || undefined,
+          merchantId: merchantId || undefined,
+          creditDebitType: finalCreditDebitType,
+          type: createType,
+          tags: tags.length > 0 ? tags : undefined,
+        };
 
-        const createResult = await createTransaction({
-          variables: {
-            input: {
-              date: formattedDate,
-              amount: formattedAmount,
-              description,
-              financialAccountId: accountId,
-              categoryId: categoryId || undefined,
-              merchantId: merchantId || undefined,
-              creditDebitType: finalCreditDebitType,
-              type: createType,
-              tags: tags.length > 0 ? tags : undefined,
+        if (onCreateSubmit) {
+          successPayload = (await onCreateSubmit(createInput)) ?? undefined;
+        } else {
+          const createResult = await createTransaction({
+            variables: {
+              input: createInput,
             },
-          },
-        });
-        const createdTransaction = createResult.data?.createTransaction?.transaction;
-        successPayload = createdTransaction?.id
-          ? {
-              action: 'create',
-              transactionId: createdTransaction.id,
-              date: String(createdTransaction.date),
-            }
-          : undefined;
+          });
+          const createdTransaction = createResult.data?.createTransaction?.transaction;
+          successPayload = createdTransaction?.id
+            ? {
+                action: 'create',
+                transactionId: createdTransaction.id,
+                date: String(createdTransaction.date),
+              }
+            : undefined;
+        }
       }
 
       if (!initialValues) resetFormFields();
@@ -385,6 +397,7 @@ export function useTransactionSave({
     creditDebitType, initialValues, categoryId, merchantId, tags,
     loadSimilarEditPreview, updateTransaction, applyTransactionEditToSimilar, createTransaction,
     bankingUserPreferences.ruleCreationMode,
+    onCreateSubmit,
     resetFormFields, onBusyStart, onBusyEnd, onSuccess, onClose, onRefresh, toast,
   ]);
 

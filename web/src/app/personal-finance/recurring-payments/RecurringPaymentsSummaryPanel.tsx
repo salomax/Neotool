@@ -4,17 +4,24 @@ import { Box, Divider, Skeleton, Stack, Typography, useTheme } from '@mui/materi
 import { useMemo } from 'react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../i18n';
-import { CurrencyAmountParts } from '@/shared/components/ui/data-display';
+import { CurrencyAmountParts, TransactionDirectionBadge } from '@/shared/components/ui/data-display';
 import { QueryErrorState } from '@/shared/components/ui/feedback';
 import { Label } from '@/shared/components/ui/primitives';
 import { CategorySummarySection } from '../finance-transactions/summary/CategorySummarySection';
 import { FrequencySummarySection } from '../finance-transactions/summary/FrequencySummarySection';
-import type { RecurringPaymentRow } from './recurringPaymentRowModel';
+import { CreditDebitType, TransactionType } from '@/lib/graphql/types/__generated__/graphql';
+import { interactiveRowSx, makeKeyDownHandler } from '../finance-transactions/summary/interactiveRowUtils';
+import type {
+  RecurringCategoryFilterSelection,
+  RecurringDueBucket,
+  RecurringPaymentRow,
+} from './recurringPaymentRowModel';
 import {
   buildRecurringCategoryTotals,
   buildRecurringFrequencyTotals,
   computeRecurringSummaryMetrics,
 } from './recurringPaymentRowModel';
+import type { RecurringFrequency } from '@/lib/graphql/types/__generated__/graphql';
 
 const LOCALE = 'pt-BR';
 const CURRENCY = 'BRL';
@@ -29,23 +36,46 @@ function SummaryMetricRow({
   count,
   amount,
   countColor,
+  dimmed = false,
+  onActivate,
+  ariaLabel,
 }: {
   label: string;
   count: number;
   amount: number;
   countColor?: string;
+  dimmed?: boolean;
+  onActivate?: () => void;
+  ariaLabel?: string;
 }) {
+  const theme = useTheme();
+  const interactive = Boolean(onActivate) && !dimmed;
+
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 2 }}>
+    <Box
+      onClick={interactive ? onActivate : undefined}
+      onKeyDown={interactive ? makeKeyDownHandler(onActivate!) : undefined}
+      role={interactive ? 'button' : dimmed ? 'presentation' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-disabled={dimmed || undefined}
+      aria-label={interactive ? ariaLabel : undefined}
+      sx={interactiveRowSx(theme, interactive, dimmed)}
+    >
       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, minWidth: 0 }}>
-        <Typography variant="body2" color="text.secondary">
+        <TransactionDirectionBadge
+          creditDebitType={CreditDebitType.Debit}
+          transactionType={TransactionType.OtherExpense}
+          dimmed={dimmed}
+          sx={{ mr: 0.5, alignSelf: 'center' }}
+        />
+        <Typography variant="body2" color={dimmed ? 'text.disabled' : 'text.secondary'}>
           {label}
         </Typography>
-        <Typography variant="body2" sx={{ fontWeight: 600, color: countColor ?? 'text.primary' }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: dimmed ? 'text.disabled' : countColor ?? 'text.primary' }}>
           {count}
         </Typography>
       </Box>
-      <Typography variant="body1" sx={{ fontWeight: 600, flexShrink: 0 }}>
+      <Typography variant="body1" sx={{ fontWeight: 600, flexShrink: 0, color: dimmed ? 'text.disabled' : 'text.primary' }}>
         {formatCurrency(amount)}
       </Typography>
     </Box>
@@ -57,9 +87,26 @@ export interface RecurringPaymentsSummaryPanelProps {
   loading?: boolean;
   error?: unknown;
   onRetry?: () => void;
+  onCategoryClick?: (selection: RecurringCategoryFilterSelection) => void;
+  activeCategoryFilter?: RecurringCategoryFilterSelection | null;
+  onFrequencyClick?: (frequency: RecurringFrequency) => void;
+  activeFrequencyFilter?: RecurringFrequency | null;
+  onDueBucketClick?: (bucket: RecurringDueBucket) => void;
+  activeDueBucketFilter?: RecurringDueBucket | null;
 }
 
-export function RecurringPaymentsSummaryPanel({ rows, loading, error, onRetry }: RecurringPaymentsSummaryPanelProps) {
+export function RecurringPaymentsSummaryPanel({
+  rows,
+  loading,
+  error,
+  onRetry,
+  onCategoryClick,
+  activeCategoryFilter = null,
+  onFrequencyClick,
+  activeFrequencyFilter = null,
+  onDueBucketClick,
+  activeDueBucketFilter = null,
+}: RecurringPaymentsSummaryPanelProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
 
@@ -108,16 +155,31 @@ export function RecurringPaymentsSummaryPanel({ rows, loading, error, onRetry }:
               count={metrics.overdueCount}
               amount={metrics.overdueSum}
               countColor={metrics.overdueCount > 0 ? 'error.main' : undefined}
+              dimmed={Boolean(activeDueBucketFilter && activeDueBucketFilter !== 'overdue')}
+              onActivate={onDueBucketClick ? () => onDueBucketClick('overdue') : undefined}
+              ariaLabel={t('recurringPayments.summary.a11y.filterByDueBucket', {
+                name: t('recurringPayments.summary.overdue'),
+              })}
             />
             <SummaryMetricRow
               label={t('recurringPayments.summary.next7Days')}
               count={metrics.next7Count}
               amount={metrics.next7Sum}
+              dimmed={Boolean(activeDueBucketFilter && activeDueBucketFilter !== 'next7Days')}
+              onActivate={onDueBucketClick ? () => onDueBucketClick('next7Days') : undefined}
+              ariaLabel={t('recurringPayments.summary.a11y.filterByDueBucket', {
+                name: t('recurringPayments.summary.next7Days'),
+              })}
             />
             <SummaryMetricRow
               label={t('recurringPayments.table.groups.nextMonth')}
               count={metrics.nextMonthCount}
               amount={metrics.nextMonthSum}
+              dimmed={Boolean(activeDueBucketFilter && activeDueBucketFilter !== 'nextMonth')}
+              onActivate={onDueBucketClick ? () => onDueBucketClick('nextMonth') : undefined}
+              ariaLabel={t('recurringPayments.summary.a11y.filterByDueBucket', {
+                name: t('recurringPayments.table.groups.nextMonth'),
+              })}
             />
           </Stack>
 
@@ -130,7 +192,8 @@ export function RecurringPaymentsSummaryPanel({ rows, loading, error, onRetry }:
               items={categoryTotals}
               kind="expenses"
               onSeeAll={() => {}}
-              activeCategoryFilter={null}
+              onCategoryClick={onCategoryClick}
+              activeCategoryFilter={activeCategoryFilter}
               activeCreditDebitTypeFilter={null}
             />
             <Divider sx={{ my: DIVIDER_VERTICAL_SPACING }} />
@@ -138,6 +201,9 @@ export function RecurringPaymentsSummaryPanel({ rows, loading, error, onRetry }:
               title={t('recurringPayments.summary.byFrequency')}
               emptyText={t('recurringPayments.summary.noDistributionData')}
               items={frequencyTotals}
+              onFrequencyClick={onFrequencyClick}
+              activeFrequencyFilter={activeFrequencyFilter}
+              ariaLabelPrefix={t('recurringPayments.summary.a11y.filterByFrequency')}
             />
           </Stack>
         </Stack>

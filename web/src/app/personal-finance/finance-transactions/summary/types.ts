@@ -1,3 +1,5 @@
+import type { RecurringFrequency } from '@/lib/graphql/types/__generated__/graphql';
+
 export interface CategoryTotalItem {
   category: { id: string; name: string; icon: string | null; color: string | null } | null;
   uncategorized: boolean;
@@ -19,7 +21,7 @@ export interface TagTotalItem {
 }
 
 export interface FrequencyTotalItem {
-  frequency: string;
+  frequency: RecurringFrequency;
   totalAmount: number;
   transactionCount: number;
   percentage: number;

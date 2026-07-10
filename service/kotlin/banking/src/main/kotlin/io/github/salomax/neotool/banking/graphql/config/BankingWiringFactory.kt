@@ -28,6 +28,7 @@ import io.github.salomax.neotool.banking.graphql.recurring.RecurringPaymentResol
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
+import io.github.salomax.neotool.banking.graphql.wishlist.WishlistResolver
 import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
 import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
@@ -58,6 +59,7 @@ class BankingWiringFactory(
     private val attachmentResolver: AttachmentResolver,
     private val productResolver: ProductResolver,
     private val recurringPaymentResolver: RecurringPaymentResolver,
+    private val wishlistResolver: WishlistResolver,
     requestPrincipalProvider: RequestPrincipalProvider,
     authorizationChecker: AuthorizationChecker,
 ) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
@@ -177,6 +179,36 @@ class BankingWiringFactory(
                             env.getArgument<String>("transactionId")
                                 ?: throw IllegalArgumentException("transactionId is required")
                         recurringPaymentResolver.suggestRecurringForTransaction(transactionId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "wishlistItems",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        wishlistResolver.wishlistItems(env.getArgument("status"), principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "wishlistItem",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        wishlistResolver.wishlistItem(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "wishlistProductMetadataPreview",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val url =
+                            env.getArgument<String>("url")
+                                ?: throw IllegalArgumentException("url is required")
+                        wishlistResolver.wishlistProductMetadataPreview(url, principal)
                     }
                 },
             )
@@ -1100,6 +1132,78 @@ class BankingWiringFactory(
                             applyToExisting = applyToExisting,
                             principal = principal,
                         )
+                    }
+                },
+            )
+            .dataFetcher(
+                "createWishlistItem",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        wishlistResolver.createWishlistItem(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "updateWishlistItem",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        wishlistResolver.updateWishlistItem(id, input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "reorderWishlistItems",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val orderedIds =
+                            env.getArgument<List<String>>("orderedIds")
+                                ?: throw IllegalArgumentException("orderedIds is required")
+                        wishlistResolver.reorderWishlistItems(orderedIds, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "markWishlistItemAsPurchased",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        wishlistResolver.markWishlistItemAsPurchased(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "purchaseWishlistItemWithTransaction",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        wishlistResolver.purchaseWishlistItemWithTransaction(id, input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "deleteWishlistItem",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_DELETE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        wishlistResolver.deleteWishlistItem(id, principal)
                     }
                 },
             )

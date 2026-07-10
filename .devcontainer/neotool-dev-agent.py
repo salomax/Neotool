@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
 """
-neotool-dev-agent — HTTP bridge do pipeline Slack → Agentes de desenvolvimento.
+neotool-dev-agent — Slack Socket Mode bridge para pipeline Slack → Agentes.
 
-Recebe mensagens do Cloudflare Worker via POST /chat, classifica a intenção
-via router.py (Gemini) e despacha para o agente correto (claude-dev, codex-dev
-ou cursor-dev). Responde imediatamente (202) e posta o resultado no Slack
-quando o agente termina.
+Recebe mensagens via Socket Mode (WebSocket outbound, sem inbound), posta
+"⏳ Trabalhando...", classifica via router.py e despacha para o agente certo.
 
-POST /chat
-  Body:    { "message": "...", "session": "thread-id", "resume": bool,
-             "channel": "C...", "ts": "...", "slack_token": "xoxb-..." }
-  Returns: { "status": "processing", "session": "thread-id" }
+Health check HTTP em http://127.0.0.1:3285/health (compatível com watchdog e dev.sh).
 """
 
 import json
@@ -20,16 +15,18 @@ import re
 import subprocess
 import sys
 import threading
-import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-# Router próprio
+from slack_bolt import App
+from slack_bolt.adapter.socket_mode import SocketModeHandler
+
+# Router próprio (mesmo diretório)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import router as _router
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%H:%M:%S",
     stream=sys.stdout,
@@ -37,46 +34,94 @@ logging.basicConfig(
 )
 log = logging.getLogger("neotool-dev-agent")
 
-# Carrega api-keys.env mesmo quando reiniciado manualmente
-_API_KEYS_FILE = os.path.expanduser("~/.vault-keys/api-keys.env")
-if os.path.exists(_API_KEYS_FILE):
-    with open(_API_KEYS_FILE) as _f:
-        for _line in _f:
-            _line = _line.strip()
-            if _line and not _line.startswith('#') and '=' in _line:
-                _k, _, _v = _line.partition('=')
-                os.environ.setdefault(_k.strip(), _v.strip())
 
-PORT      = int(os.environ.get("NEOTOOL_AGENT_PORT", "3285"))
-SECRET    = os.environ.get("NEOTOOL_AGENT_SECRET", "")
-WORKSPACE = "/workspaces/invistus"
-MAX_CHARS = 3800
+# ── Env loading ───────────────────────────────────────────────────────────────
+
+def _load_env_file(path: str) -> None:
+    """Carrega key=value de um env file para os.environ (setdefault — não sobrescreve)."""
+    try:
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    k, _, v = line.partition('=')
+                    os.environ.setdefault(k.strip(), v.strip())
+    except FileNotFoundError:
+        pass
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+_load_env_file(os.path.expanduser("~/.vault-keys/api-keys.env"))
 
-def slack_update(token: str, channel: str, ts: str, text: str) -> None:
+_DEVPOD_N = os.environ.get("NEOTOOL_DEVPOD_N", "1")
+_DEVPOD_ENV = os.path.expanduser(f"~/.vault-keys/devpod-{_DEVPOD_N}.env")
+_load_env_file(_DEVPOD_ENV)
+
+
+# ── Config ────────────────────────────────────────────────────────────────────
+
+PORT            = int(os.environ.get("NEOTOOL_AGENT_PORT", "3285"))
+SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "")
+SLACK_APP_TOKEN = os.environ.get("SLACK_APP_TOKEN", "")
+WORKSPACE       = "/workspaces/invistus"
+MAX_CHARS       = 3800
+PROGRESS_INTERVAL = 30  # segundos entre updates de progresso
+
+# ── ANSI strip ────────────────────────────────────────────────────────────────
+
+_ANSI_RE = re.compile(r'\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+def _strip_ansi(text: str) -> str:
+    return _ANSI_RE.sub('', text)
+
+
+# ── Session persistence ───────────────────────────────────────────────────────
+
+_SESSIONS_FILE = f"/tmp/neotool-sessions-{_DEVPOD_N}.json"
+
+
+def _sessions_load() -> dict:
+    try:
+        with open(_SESSIONS_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _sessions_save(data: dict) -> None:
+    try:
+        with open(_SESSIONS_FILE, "w") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
+
+
+# ── Slack helpers ─────────────────────────────────────────────────────────────
+
+def slack_update(channel: str, ts: str, text: str) -> None:
     payload = json.dumps({"channel": channel, "ts": ts, "text": text}).encode()
     req = urllib.request.Request(
         "https://slack.com/api/chat.update",
         data=payload,
-        headers={"Content-Type": "application/json",
-                 "Authorization": f"Bearer {token}"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+        },
         method="POST",
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
             if not data.get("ok"):
-                log.error("slack.update error: %s | chars: %d",
-                          data.get("error"), len(text))
+                log.error("slack.update error: %s | chars: %d", data.get("error"), len(text))
             else:
                 log.info("slack.update OK | chars: %d", len(text))
     except Exception as e:
         log.error("slack.update exception: %s", e)
 
 
-def run_usage_check(channel: str, ts: str, slack_token: str) -> None:
+# ── check-usage ───────────────────────────────────────────────────────────────
+
+def run_usage_check(channel: str, ts: str) -> None:
     script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "check-usage.sh")
     log.info("check-usage — rodando %s", script)
     try:
@@ -91,101 +136,184 @@ def run_usage_check(channel: str, ts: str, slack_token: str) -> None:
         text = f"```\n{raw}\n```"
     except Exception as e:
         text = f"❌ Erro ao verificar uso: {e}"
-    slack_update(slack_token, channel, ts, text)
+    slack_update(channel, ts, text)
 
 
-# ── HTTP Handler ──────────────────────────────────────────────────────────────
+# ── Health HTTP server (porta 3285) ───────────────────────────────────────────
 
-class Handler(BaseHTTPRequestHandler):
+class _HealthHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
-        pass  # silencia logs HTTP padrão (usamos log próprio)
-
-    def send_json(self, code: int, data: dict):
-        body = json.dumps(data).encode()
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        pass  # silencia access log HTTP
 
     def do_GET(self):
         if self.path == "/health":
-            self.send_json(200, {"status": "ok", "agent": "neotool-dev-agent"})
+            body = json.dumps({
+                "status": "ok",
+                "agent":  "neotool-dev-agent",
+                "mode":   "socket",
+                "devpod": _DEVPOD_N,
+            }).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
         else:
-            self.send_json(404, {"error": "not found"})
+            self.send_response(404)
+            self.end_headers()
 
-    def do_POST(self):
-        if self.path != "/chat":
-            self.send_json(404, {"error": "not found"})
-            return
 
-        log.info("→ POST /chat from %s | headers: %s", self.client_address[0], dict(self.headers))
+def _start_health_server() -> None:
+    server = ThreadingHTTPServer(("127.0.0.1", PORT), _HealthHandler)
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    log.info("Health server em http://127.0.0.1:%d/health", PORT)
 
-        if SECRET:
-            auth = self.headers.get("Authorization", "")
-            if auth != f"Bearer {SECRET}":
-                log.warning("401 unauthorized")
-                self.send_json(401, {"error": "unauthorized"})
-                return
 
-        length = int(self.headers.get("Content-Length", 0))
+# ── Bolt App ──────────────────────────────────────────────────────────────────
+
+app = App(token=SLACK_BOT_TOKEN)
+
+
+@app.event("message")
+def handle_message(event, client, logger):
+    """Processa mensagens recebidas via Socket Mode."""
+    # Ignora mensagens de bots e eventos de subtipo (edit, delete, etc.)
+    if event.get("bot_id") or event.get("subtype"):
+        return
+
+    channel   = event.get("channel", "")
+    ts        = event.get("ts", "")
+    thread_ts = event.get("thread_ts")
+    text      = (event.get("text") or "").strip()
+
+    if not text or not channel or not ts:
+        return
+
+    is_new_task  = not thread_ts or thread_ts == ts
+    parent_ts    = ts if is_new_task else thread_ts
+    session_key  = f"{channel}:{parent_ts}"
+    session_name = f"slack-{channel}-{parent_ts}".replace(".", "-")
+
+    log.info("→ msg channel=%s session=%s new=%s text=%r",
+             channel, session_name, is_new_task, text[:80])
+
+    # Resolve resume (sessão já existe na thread)
+    sessions = _sessions_load()
+    resume = not is_new_task and session_key in sessions
+    if is_new_task:
+        sessions[session_key] = session_name
+        _sessions_save(sessions)
+
+    # Posta "⏳ Trabalhando..." e obtém o ts para atualizar depois
+    try:
+        resp = client.chat_postMessage(
+            channel=channel,
+            text="⏳ Trabalhando...",
+            thread_ts=parent_ts,
+        )
+        working_ts = resp["ts"]
+        log.info("  workingTs=%s resume=%s", working_ts, resume)
+    except Exception as e:
+        log.error("Falha ao postar ⏳: %s", e)
+        return
+
+    # check-usage — handler especial, não passa pelo router
+    if text.lower() in {"check-usage", "/check-usage"}:
+        threading.Thread(
+            target=run_usage_check,
+            args=(channel, working_ts),
+            daemon=True,
+        ).start()
+        return
+
+    # Despacha para router em background
+    def _run():
+        progress_log = f"/tmp/neotool-progress-{session_name}.log"
         try:
-            body = json.loads(self.rfile.read(length))
-        except json.JSONDecodeError:
-            self.send_json(400, {"error": "invalid JSON"})
-            return
+            open(progress_log, "w").close()
+        except Exception:
+            progress_log = None
 
-        message     = body.get("message", "").strip()
-        session     = body.get("session", "default")
-        channel     = body.get("channel", "")
-        ts          = body.get("ts", "")
-        slack_token = body.get("slack_token", "")
+        stop_progress = threading.Event()
 
-        if not message:
-            self.send_json(400, {"error": "message is required"})
-            return
-        if not channel or not ts or not slack_token:
-            self.send_json(400, {"error": "channel, ts e slack_token são obrigatórios"})
-            return
+        def _progress_updater():
+            last_tail = ""
+            while not stop_progress.wait(PROGRESS_INTERVAL):
+                if not progress_log:
+                    continue
+                try:
+                    with open(progress_log) as _f:
+                        lines = _f.readlines()
+                    clean = [_strip_ansi(l.rstrip()) for l in lines if l.strip()]
+                    tail = "\n".join(clean[-10:])
+                    if tail and tail != last_tail:
+                        last_tail = tail
+                        preview = tail if len(tail) <= 800 else "…" + tail[-800:]
+                        slack_update(channel, working_ts,
+                                     f"⏳ Trabalhando...\n```\n{preview}\n```")
+                        log.info("  progress update (%d linhas)", len(clean))
+                except Exception:
+                    pass
 
-        # check-usage — respondido direto, sem passar pelo router
-        if message.strip().lower() in {"check-usage", "/check-usage"}:
-            t = threading.Thread(
-                target=run_usage_check,
-                args=(channel, ts, slack_token),
-                daemon=True,
-            )
-            t.start()
-            self.send_json(202, {"status": "processing", "session": "usage-check"})
-            return
+        updater = threading.Thread(target=_progress_updater, daemon=True)
+        updater.start()
 
-        # Despacha para o router em background
-        def _run():
-            log.info("▶ thread=%s msg=%r", session, message[:120])
+        log.info("▶ session=%s msg=%r", session_name, text[:120])
+        try:
+            output = _router.route(text, session_name, channel, working_ts, SLACK_BOT_TOKEN,
+                                   progress_log=progress_log)
+            log.info("◀ router output: %r", (output or "")[:200])
+            if output is None:
+                return
+            result = output.strip() or "_(sem resposta)_"
+            if len(result) > MAX_CHARS:
+                result = result[:MAX_CHARS] + "\n_(truncado)_"
+            slack_update(channel, working_ts, result)
+            log.info("■ session=%s done (%d chars)", session_name, len(result))
+        except Exception as e:
+            log.exception("✗ router error: %s", e)
             try:
-                output = _router.route(message, session, channel, ts, slack_token)
-                log.info("◀ router output: %r", (output or "")[:200])
-                if output is None:
-                    log.info("  check_usage handled internally")
-                    return
-                text = output.strip() or "_(sem resposta)_"
-                log.info("  posting to slack: %d chars", len(text))
-                if len(text) > MAX_CHARS:
-                    text = text[:MAX_CHARS] + "\n_(truncado)_"
-                slack_update(slack_token, channel, ts, text)
-            except Exception as e:
-                log.exception("✗ router error: %s", e)
-                slack_update(slack_token, channel, ts, f"❌ Erro interno: {e}")
-            finally:
-                log.info("■ thread=%s done", session)
+                slack_update(channel, working_ts, f"❌ Erro interno: {e}")
+            except Exception:
+                pass
+        finally:
+            stop_progress.set()
+            if progress_log:
+                try:
+                    os.unlink(progress_log)
+                except Exception:
+                    pass
 
-        threading.Thread(target=_run, daemon=True).start()
-        self.send_json(202, {"status": "processing", "session": session})
+    threading.Thread(target=_run, daemon=True).start()
 
+
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    log.info("neotool-dev-agent iniciando em http://127.0.0.1:%d", PORT)
-    log.info("GOOGLE_API_KEY presente: %s", bool(os.environ.get("GOOGLE_API_KEY")))
-    log.info("SECRET configurado: %s", bool(SECRET))
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    server.serve_forever()
+    missing = []
+    if not SLACK_BOT_TOKEN:
+        missing.append(f"SLACK_BOT_TOKEN (em ~/.vault-keys/devpod-{_DEVPOD_N}.env)")
+    if not SLACK_APP_TOKEN:
+        missing.append(f"SLACK_APP_TOKEN (em ~/.vault-keys/devpod-{_DEVPOD_N}.env)")
+    if missing:
+        for m in missing:
+            log.error("Variável não configurada: %s", m)
+        sys.exit(1)
+
+    if not SLACK_APP_TOKEN.startswith("xapp-"):
+        log.error(
+            "SLACK_APP_TOKEN deve começar com 'xapp-' (App-Level Token). "
+            "Verifique ~/.vault-keys/devpod-%s.env", _DEVPOD_N
+        )
+        sys.exit(1)
+
+    log.info("neotool-dev-agent iniciando (DevPod %s, Socket Mode)", _DEVPOD_N)
+    log.info("  ANTHROPIC_API_KEY: %s", "✓" if os.environ.get("ANTHROPIC_API_KEY") else "✗ AUSENTE")
+    log.info("  GOOGLE_API_KEY:    %s", "✓" if os.environ.get("GOOGLE_API_KEY") else "✗ AUSENTE")
+    log.info("  devpod env:        %s", _DEVPOD_ENV)
+
+    _start_health_server()
+
+    handler = SocketModeHandler(app, SLACK_APP_TOKEN)
+    handler.start()  # blocking

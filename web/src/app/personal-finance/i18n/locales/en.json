@@ -2208,7 +2208,18 @@
       "byCategory": "By category",
       "byFrequency": "By frequency",
       "noDistributionData": "No chart data (set an estimated amount on recurring items).",
-      "mobileAccordionTitle": "Indicators"
+      "mobileAccordionTitle": "Indicators",
+      "filteringByCategory": "Filtering category: {{name}}",
+      "filteringByFrequency": "Filtering frequency: {{name}}",
+      "filteringByDueBucket": "Filtering due date: {{name}}",
+      "clearCategoryFilter": "Clear category filter",
+      "clearFrequencyFilter": "Clear frequency filter",
+      "clearDueBucketFilter": "Clear due date filter",
+      "a11y": {
+        "filterByCategory": "Filter by category",
+        "filterByFrequency": "Filter by frequency",
+        "filterByDueBucket": "Filter by due date: {{name}}"
+      }
     },
     "mobileTrigger": {
       "summary_one": "{{amount}}/mo · {{count}} active",
@@ -2255,5 +2266,102 @@
     },
     "statusOverdue": "Overdue",
     "noFilterResults": "No results for the selected filters."
+  },
+  "purchaseWishlist": {
+    "uncategorized": "Uncategorized",
+    "newButton": "Item",
+    "searchPlaceholder": "Search wishlist…",
+    "emptyTitle": "No planned purchases yet",
+    "emptyDescription": "Track products, services, and experiences you want to acquire next.",
+    "tabs": {
+      "active": "Active ({{count}})",
+      "history": "History ({{count}})"
+    },
+    "priority": {
+      "HIGH": "High",
+      "MEDIUM": "Medium",
+      "LOW": "Low"
+    },
+    "summary": {
+      "totalEstimated": "Estimated total",
+      "totalItems_one": "{{count}} active item",
+      "totalItems_other": "{{count}} active items",
+      "byPriority": "By priority",
+      "byCategory": "By category"
+    },
+    "mobileTrigger": {
+      "summary_one": "{{amount}} · {{count}} active item",
+      "summary_other": "{{amount}} · {{count}} active items"
+    },
+    "viewMode": {
+      "list": "List view",
+      "grid": "Grid view"
+    },
+    "table": {
+      "dragHandle": "Drag to reorder",
+      "reorderDisabled": "Clear the search to reorder items",
+      "targetDate": "Target: {{date}}",
+      "purchasedAt": "Purchased: {{date}}",
+      "openLink": "Open link",
+      "linkShort": "Link",
+      "noLink": "No product link"
+    },
+    "form": {
+      "drawerTitleNew": "New wishlist item",
+      "drawerTitleEdit": "Edit wishlist item",
+      "name": "Name",
+      "estimatedPrice": "Estimated price",
+      "category": "Category",
+      "priority": "Priority",
+      "targetDate": "Target date",
+      "productUrl": "Product URL",
+      "productUrlHelp": "Paste a valid product or service URL. We will try to fill in the name and price automatically.",
+      "productUrlLoading": "Fetching product information...",
+      "productPreviewAlt": "Product preview",
+      "notes": "Notes",
+      "validation": {
+        "nameRequired": "Name is required.",
+        "invalidUrl": "Enter a valid URL starting with http:// or https://.",
+        "targetDateMin": "Target date must be later than today.",
+        "targetDateMax": "Target date must be within the next 10 years."
+      }
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "clearSearchAriaLabel": "Clear search",
+      "markAsPurchased": "Mark as purchased",
+      "moveUp": "Move up",
+      "moveDown": "Move down"
+    },
+    "deleteDialog": {
+      "title": "Delete wishlist item?",
+      "message": "Delete \"{{name}}\" from your wishlist? This action cannot be undone."
+    },
+    "purchaseDialog": {
+      "title": "Mark as purchased",
+      "message": "Move \"{{name}}\" to your purchase history?",
+      "description": "You can either just mark this item as purchased or register the financial transaction now.",
+      "confirm": "Mark as purchased",
+      "confirmHelper": "Updates the item in the list without creating a financial transaction.",
+      "confirmWithTransaction": "Mark as purchased and create transaction",
+      "confirmWithTransactionHelper": "Marks it as purchased and opens the transaction with the item data prefilled.",
+      "transactionDrawerTitle": "Create transaction"
+    },
+    "history": {
+      "emptyTitle": "No purchased items yet",
+      "emptyDescription": "Purchased wishlist items will appear here."
+    },
+    "toast": {
+      "created": "Wishlist item created.",
+      "updated": "Wishlist item updated.",
+      "deleted": "Wishlist item deleted.",
+      "purchased": "Wishlist item moved to history.",
+      "purchasedWithTransaction": "Transaction created and wishlist item moved to history.",
+      "reordered": "Wishlist order updated."
+    },
+    "errors": {
+      "mutationFailed": "Failed to update wishlist."
+    }
   }
 }

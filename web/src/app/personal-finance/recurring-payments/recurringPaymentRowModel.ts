@@ -23,6 +23,11 @@ export interface RecurringPaymentRow {
   merchant?: { id: string; name: string; logoAsset?: { publicUrl: string | null } | null } | null;
 }
 
+export interface RecurringCategoryFilterSelection {
+  categoryId: string | null;
+  uncategorized: boolean;
+}
+
 const MS_PER_DAY = 86400000;
 
 export function startOfTodayUtc(): number {
@@ -83,6 +88,33 @@ export function groupRecurringPaymentsByDueBucket(
     bucket,
     rows: sortByDueThenName(buckets[bucket]),
   })).filter((g) => g.rows.length > 0);
+}
+
+export function matchesRecurringCategoryFilter(
+  row: RecurringPaymentRow,
+  selection: RecurringCategoryFilterSelection | null,
+): boolean {
+  if (!selection) return true;
+  if (selection.uncategorized) return !row.category;
+  return row.category?.id === selection.categoryId;
+}
+
+export function matchesRecurringFrequencyFilter(
+  row: RecurringPaymentRow,
+  frequency: RecurringFrequency | null,
+): boolean {
+  if (!frequency) return true;
+  return row.frequency === frequency;
+}
+
+export function matchesRecurringDueBucketFilter(
+  row: RecurringPaymentRow,
+  bucket: RecurringDueBucket | null,
+  today = startOfTodayUtc(),
+): boolean {
+  if (!bucket) return true;
+  if (row.status !== RPS.Active) return false;
+  return getRecurringDueBucket(row, today) === bucket;
 }
 
 /** Rough monthly factor for "committed monthly" KPI (subtitle: approximate). */
@@ -191,7 +223,7 @@ export function buildRecurringFrequencyTotals(rows: RecurringPaymentRow[]): Freq
   const total = activeWithAmount.reduce((s, r) => s + (r.expectedAmount as number), 0);
   if (total <= 0) return [];
 
-  const map = new Map<string, { amount: number; count: number }>();
+  const map = new Map<RecurringFrequency, { amount: number; count: number }>();
   for (const r of activeWithAmount) {
     const prev = map.get(r.frequency) ?? { amount: 0, count: 0 };
     prev.amount += r.expectedAmount as number;

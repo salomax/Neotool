@@ -2207,6 +2207,80 @@ input UpdateProductVariantInput {
 }
 
 # ============================================================================
+# Wishlist
+# ============================================================================
+
+enum WishlistItemPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum WishlistItemStatus {
+  ACTIVE
+  PURCHASED
+}
+
+type WishlistItem {
+  id: ID!
+  name: String!
+  estimatedPrice: Float
+  currencyCode: String!
+  categoryId: ID
+  category: TransactionCategory
+  priority: WishlistItemPriority!
+  notes: String
+  targetDate: Date
+  productUrl: String
+  productImageUrl: String
+  status: WishlistItemStatus!
+  sortOrder: Int!
+  purchasedAt: Date
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type WishlistProductMetadataPreview {
+  name: String
+  estimatedPrice: Float
+  currencyCode: String
+  imageUrl: String
+}
+
+type WishlistPurchasedTransactionSummary {
+  id: ID!
+  date: Date!
+}
+
+type WishlistPurchaseWithTransactionPayload {
+  wishlistItem: WishlistItem!
+  transaction: WishlistPurchasedTransactionSummary!
+}
+
+input CreateWishlistItemInput {
+  name: String!
+  estimatedPrice: Float
+  currencyCode: String
+  categoryId: ID
+  priority: WishlistItemPriority!
+  notes: String
+  targetDate: Date
+  productUrl: String
+  productImageUrl: String
+}
+
+input UpdateWishlistItemInput {
+  name: String
+  estimatedPrice: Float
+  categoryId: ID
+  priority: WishlistItemPriority
+  notes: String
+  targetDate: Date
+  productUrl: String
+  productImageUrl: String
+}
+
+# ============================================================================
 # Recurring Payments
 # ============================================================================
 
@@ -2482,6 +2556,12 @@ extend type Query {
   recurringPayments(financialAccountId: ID): [RecurringPayment!]!
   recurringPayment(id: ID!): RecurringPayment
   suggestRecurringForTransaction(transactionId: ID!): RecurringPayment
+  """Wishlist items for the authenticated account, optionally filtered by lifecycle status."""
+  wishlistItems(status: WishlistItemStatus): [WishlistItem!]!
+  """Single wishlist item by id, scoped to the authenticated account."""
+  wishlistItem(id: ID!): WishlistItem
+  """Best-effort product metadata preview from schema.org/Product or Open Graph."""
+  wishlistProductMetadataPreview(url: String!): WishlistProductMetadataPreview
   transactionImports(financialAccountId: ID): [TransactionImport!]!
   transactionImport(id: ID!): TransactionImport
   pendingReviewImports(financialAccountId: ID): [TransactionImport!]!
@@ -2634,6 +2714,12 @@ extend type Mutation {
     transactionId: ID!,
     input: CreateRecurringPaymentFromTransactionInput!
   ): RecurringPayment!
+  createWishlistItem(input: CreateWishlistItemInput!): WishlistItem!
+  updateWishlistItem(id: ID!, input: UpdateWishlistItemInput!): WishlistItem!
+  reorderWishlistItems(orderedIds: [ID!]!): [WishlistItem!]!
+  markWishlistItemAsPurchased(id: ID!): WishlistItem!
+  purchaseWishlistItemWithTransaction(id: ID!, input: CreateTransactionInput!): WishlistPurchaseWithTransactionPayload!
+  deleteWishlistItem(id: ID!): Boolean!
   importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult!
   importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult!
   resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport!

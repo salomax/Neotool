@@ -23,6 +23,7 @@ set -euo pipefail
 LOG_DIR="${HOME}/.local/share/neotool"
 LOG_FILE="$LOG_DIR/cloudflared.log"
 PID_FILE="$LOG_DIR/cloudflared.pid"
+DEVPOD_N_FILE="$LOG_DIR/devpod-n"
 CLOUDFLARE_DIR="${HOME}/.cloudflare"
 
 mkdir -p "$LOG_DIR"
@@ -61,12 +62,16 @@ case "$cmd" in
         nohup cloudflared tunnel --no-autoupdate run --token "$TOKEN" \
             > "$LOG_FILE" 2>&1 &
         echo $! > "$PID_FILE"
+        # Persiste N para o watchdog monitorar este tunnel
+        echo "$n" > "$DEVPOD_N_FILE"
     elif [ -f "$config" ]; then
         # Modo config file
         echo "▶ Iniciando tunnel devpod-${n} com $config..."
         nohup cloudflared tunnel --no-autoupdate --config "$config" run \
             > "$LOG_FILE" 2>&1 &
         echo $! > "$PID_FILE"
+        # Persiste N para o watchdog monitorar este tunnel
+        echo "$n" > "$DEVPOD_N_FILE"
     else
         echo "❌ Nenhuma config encontrada para devpod-${n}."
         echo ""
@@ -110,6 +115,8 @@ YAML
     if _running; then
         kill "$(_pid)" 2>/dev/null || true
         rm -f "$PID_FILE"
+        # Limpa devpod-n para o watchdog não tentar reiniciar
+        rm -f "$DEVPOD_N_FILE"
         echo "✓ Tunnel parado"
     else
         echo "Tunnel não está rodando"

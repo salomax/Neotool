@@ -23,13 +23,22 @@ import { RecurringFrequency, RecurringPaymentStatus } from '@/lib/graphql/types/
 import { formatDateOnly } from '@/shared/utils/date/dateOnly';
 import { SidebarLayout } from '@/shared/components/ui/layout/SidebarLayout';
 import { Page } from '@/shared/components/ui/layout';
+import { useScopedToggleFilter } from '../finance-transactions/hooks/useScopedToggleFilter';
 import { RecurringPaymentForm } from './RecurringPaymentForm';
 import type { RecurringPaymentRecord } from './RecurringPaymentForm';
+import { RecurringPaymentsActiveFilters } from './RecurringPaymentsActiveFilters';
 import { RecurringPaymentsToolbar } from './RecurringPaymentsToolbar';
 import { RecurringPaymentsSummaryPanel } from './RecurringPaymentsSummaryPanel';
 import { RecurringPaymentsTable } from './RecurringPaymentsTable';
 import { ConfirmPaymentDialog } from './ConfirmPaymentDialog';
-import { computeRecurringSummaryMetrics } from './recurringPaymentRowModel';
+import {
+  computeRecurringSummaryMetrics,
+  matchesRecurringCategoryFilter,
+  matchesRecurringDueBucketFilter,
+  matchesRecurringFrequencyFilter,
+  type RecurringCategoryFilterSelection,
+  type RecurringDueBucket,
+} from './recurringPaymentRowModel';
 
 type RecurringPaymentsData = { recurringPayments: RecurringPaymentRecord[] };
 
@@ -44,6 +53,12 @@ export function RecurringPaymentsList() {
   const debouncedSearch = useDebounce(searchQuery.trim(), 300);
   const [statusFilter, setStatusFilter] = useState<RecurringPaymentStatus[]>([RecurringPaymentStatus.Active]);
   const [frequencyFilter, setFrequencyFilter] = useState<RecurringFrequency[]>([]);
+  const summaryCategoryFilter = useScopedToggleFilter<RecurringCategoryFilterSelection>(
+    'recurring-payments',
+    (a, b) => a.categoryId === b.categoryId && a.uncategorized === b.uncategorized,
+  );
+  const summaryFrequencyFilter = useScopedToggleFilter<RecurringFrequency>('recurring-payments');
+  const summaryDueBucketFilter = useScopedToggleFilter<RecurringDueBucket>('recurring-payments');
 
   const {
     data,
@@ -63,7 +78,7 @@ export function RecurringPaymentsList() {
 
   const rows = useMemo(() => data?.recurringPayments ?? [], [data?.recurringPayments]);
 
-  const filteredRows = useMemo(() => {
+  const summaryRows = useMemo(() => {
     let list = rows;
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
@@ -73,6 +88,17 @@ export function RecurringPaymentsList() {
     if (frequencyFilter.length > 0) list = list.filter((r) => frequencyFilter.includes(r.frequency));
     return list;
   }, [rows, debouncedSearch, statusFilter, frequencyFilter]);
+
+  const filteredRows = useMemo(
+    () =>
+      summaryRows.filter(
+        (row) =>
+          matchesRecurringCategoryFilter(row, summaryCategoryFilter.value) &&
+          matchesRecurringFrequencyFilter(row, summaryFrequencyFilter.value) &&
+          matchesRecurringDueBucketFilter(row, summaryDueBucketFilter.value),
+      ),
+    [summaryRows, summaryCategoryFilter.value, summaryDueBucketFilter.value, summaryFrequencyFilter.value],
+  );
 
   const handleToggleStatus = async (row: RecurringPaymentRecord) => {
     if (row.status === RecurringPaymentStatus.Active) {
@@ -135,8 +161,30 @@ export function RecurringPaymentsList() {
     rows.length === 0
       ? t('recurringPayments.table.noRecurringActivity')
       : t('recurringPayments.noFilterResults');
-  const metrics = useMemo(() => computeRecurringSummaryMetrics(rows), [rows]);
-  const activeCount = rows.filter((row) => row.status === RecurringPaymentStatus.Active).length;
+  const metrics = useMemo(() => computeRecurringSummaryMetrics(summaryRows), [summaryRows]);
+  const activeCount = summaryRows.filter((row) => row.status === RecurringPaymentStatus.Active).length;
+  const summaryCategoryMeta = useMemo(() => {
+    const selection = summaryCategoryFilter.value;
+    if (!selection) return null;
+    if (selection.uncategorized) {
+      return {
+        name: t('recurringPayments.uncategorized'),
+        icon: null,
+        color: null,
+      };
+    }
+
+    const match = summaryRows.find((row) => row.category?.id === selection.categoryId)?.category;
+    if (!match) return null;
+    return {
+      name: match.name,
+      icon: match.icon,
+      color: match.color,
+    };
+  }, [summaryCategoryFilter.value, summaryRows, t]);
+  const summaryFiltersOpen = Boolean(
+    summaryCategoryFilter.value || summaryFrequencyFilter.value || summaryDueBucketFilter.value,
+  );
   const mobileTrigger = (
     <Box
       sx={{
@@ -175,10 +223,16 @@ export function RecurringPaymentsList() {
   const summaryPanel = (
     <Box sx={{ p: 3, pb: 2, height: '100%' }}>
       <RecurringPaymentsSummaryPanel
-        rows={filteredRows}
+        rows={summaryRows}
         loading={loading && rows.length === 0}
         error={error}
         onRetry={() => void refetch()}
+        onCategoryClick={summaryCategoryFilter.toggle}
+        activeCategoryFilter={summaryCategoryFilter.value}
+        onFrequencyClick={summaryFrequencyFilter.toggle}
+        activeFrequencyFilter={summaryFrequencyFilter.value}
+        onDueBucketClick={summaryDueBucketFilter.toggle}
+        activeDueBucketFilter={summaryDueBucketFilter.value}
       />
     </Box>
   );
@@ -209,6 +263,16 @@ export function RecurringPaymentsList() {
             filtersAriaFrequency={t('recurringPayments.filters.ariaFrequency')}
             filtersStatusLabel={t('recurringPayments.filters.status')}
             filtersFrequencyLabel={t('recurringPayments.filters.frequency')}
+          />
+          <RecurringPaymentsActiveFilters
+            open={summaryFiltersOpen}
+            categoryFilter={summaryCategoryFilter.value}
+            categoryMeta={summaryCategoryMeta}
+            onClearCategoryFilter={summaryCategoryFilter.clear}
+            frequencyFilter={summaryFrequencyFilter.value}
+            onClearFrequencyFilter={summaryFrequencyFilter.clear}
+            dueBucketFilter={summaryDueBucketFilter.value}
+            onClearDueBucketFilter={summaryDueBucketFilter.clear}
           />
           <RecurringPaymentsTable
             rows={filteredRows}

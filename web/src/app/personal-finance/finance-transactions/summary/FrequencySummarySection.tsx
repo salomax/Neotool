@@ -1,19 +1,26 @@
-import { Box, Divider, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 import { memo } from 'react';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import type { FrequencyTotalItem } from './types';
 import { FrequencyProgressRow } from './FrequencyProgressRow';
+import type { RecurringFrequency } from '@/lib/graphql/types/__generated__/graphql';
 
 interface FrequencySummarySectionProps {
   title: string;
   emptyText: string;
   items: FrequencyTotalItem[];
+  onFrequencyClick?: (frequency: RecurringFrequency) => void;
+  activeFrequencyFilter?: RecurringFrequency | null;
+  ariaLabelPrefix?: string;
 }
 
 export const FrequencySummarySection = memo(function FrequencySummarySection({
   title,
   emptyText,
   items,
+  onFrequencyClick,
+  activeFrequencyFilter,
+  ariaLabelPrefix,
 }: FrequencySummarySectionProps) {
   const topItems = items.slice(0, 5);
 
@@ -33,6 +40,9 @@ export const FrequencySummarySection = memo(function FrequencySummarySection({
               item={item}
               nameFontWeight={500}
               percentFontWeight={600}
+              dimmed={Boolean(activeFrequencyFilter && item.frequency !== activeFrequencyFilter)}
+              onFrequencyClick={onFrequencyClick}
+              ariaLabelPrefix={ariaLabelPrefix}
             />
           ))}
         </Stack>

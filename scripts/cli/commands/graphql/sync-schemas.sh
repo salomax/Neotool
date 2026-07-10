@@ -210,14 +210,14 @@ interactive_sync() {
         if detected_subgraph=$(auto_detect_subgraph_name "$source"); then
             echo "📋 Processing: $rel_path → subgraphs/$detected_subgraph/schema.graphqls"
             if sync_single_schema "$source"; then
-                ((sync_success++))
+                sync_success=$((sync_success + 1))
             else
-                ((sync_errors++))
+                sync_errors=$((sync_errors + 1))
             fi
             echo ""
         else
             echo "❌ Could not auto-detect subgraph for: $rel_path"
-            ((sync_errors++))
+            sync_errors=$((sync_errors + 1))
             echo ""
         fi
     done
@@ -272,17 +272,17 @@ validate_schemas() {
                     if echo "$contract_content" | grep -q "Base Schema - Common Types and Scalars"; then
                         echo "⚠️  Schema may be out of sync: $rel_path"
                         echo "   Service schema content not found in contract"
-                        ((validation_errors++))
+                        validation_errors=$((validation_errors + 1))
                     else
                         # Contract doesn't have base schema, might be old format
                         echo "⚠️  Contract schema missing base schema: $rel_path"
                         echo "   Run 'sync' to update with base schema"
-                        ((validation_errors++))
+                        validation_errors=$((validation_errors + 1))
                     fi
                 fi
             else
                 echo "⚠️  No contract found for: $rel_path"
-                ((validation_errors++))
+                validation_errors=$((validation_errors + 1))
             fi
         fi
     done

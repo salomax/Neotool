@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# neotool-watchdog
+#
+# Mantém neotool-dev-agent e cloudflared sempre rodando.
+# Checa a cada CHECK_INTERVAL segundos e reinicia se morrerem.
+#
+# Lógica do tunnel: só monitora se devpod-n estiver configurado E o PID file
+# existir (sem PID file = usuário parou intencionalmente → não reinicia).
+#
+# Não usa set -e: daemon nunca deve morrer por falha pontual.
+
+NEOTOOL_DIR="${HOME}/.local/share/neotool"
+LOG_FILE="$NEOTOOL_DIR/watchdog.log"
+WATCHDOG_PID_FILE="$NEOTOOL_DIR/watchdog.pid"
+DEVPOD_N_FILE="$NEOTOOL_DIR/devpod-n"
+AGENT_PID_FILE="/tmp/neotool-agent.pid"
+AGENT_SCRIPT="/workspaces/invistus/.devcontainer/neotool-dev-agent.py"
+AGENT_LOG="/tmp/neotool-agent.log"
+TUNNEL_PID_FILE="$NEOTOOL_DIR/cloudflared.pid"
+TUNNEL_LOG="$NEOTOOL_DIR/cloudflared.log"
+API_KEYS="${HOME}/.vault-keys/api-keys.env"
+DEVPOD_N_ENV="${HOME}/.vault-keys/devpod-$(cat "$DEVPOD_N_FILE" 2>/dev/null || echo "1").env"
+CLOUDFLARE_DIR="${HOME}/.cloudflare"
+AGENT_PORT="${NEOTOOL_AGENT_PORT:-3285}"
+CHECK_INTERVAL="${NEOTOOL_WATCHDOG_INTERVAL:-30}"
+
+mkdir -p "$NEOTOOL_DIR"
+echo $$ > "$WATCHDOG_PID_FILE"
+
+log() {
+    echo "[$(date '+%H:%M:%S')] [watchdog] $*" >> "$LOG_FILE"
+}
+
+# ── Agent ─────────────────────────────────────────────────────────────────────
+
+agent_healthy() {
+    curl -sf --max-time 2 "http://127.0.0.1:${AGENT_PORT}/health" >/dev/null 2>&1
+}
+
+restart_agent() {
+    log "neotool-dev-agent nao responde — reiniciando..."
+    pkill -f "neotool-dev-agent.py" 2>/dev/null || true
+    sleep 1
+    if [ -f "$API_KEYS" ]; then
+        set -a
+        # shellcheck disable=SC1090
+        source "$API_KEYS" 2>/dev/null || true
+        set +a
+    fi
+    # Recalcula o path do devpod env (N pode ter mudado desde o início)
+    local _devpod_env="${HOME}/.vault-keys/devpod-$(cat "$DEVPOD_N_FILE" 2>/dev/null || echo "1").env"
+    if [ -f "$_devpod_env" ]; then
+        set -a
+        # shellcheck disable=SC1090
+        source "$_devpod_env" 2>/dev/null || true
+        set +a
+    fi
+    NEOTOOL_AGENT_PORT="$AGENT_PORT" \
+    nohup python3 "$AGENT_SCRIPT" >> "$AGENT_LOG" 2>&1 &
+    local pid=$!
+    echo "$pid" > "$AGENT_PID_FILE"
+    sleep 2
+    if agent_healthy; then
+        log "neotool-dev-agent reiniciado (PID $pid)"
+    else
+        log "AVISO: agente (PID $pid) nao respondeu ao health check apos restart"
+    fi
+}
+
+check_agent() {
+    agent_healthy || restart_agent
+}
+
+# ── Tunnel ────────────────────────────────────────────────────────────────────
+
+tunnel_running() {
+    local pid
+    pid=$(cat "$TUNNEL_PID_FILE" 2>/dev/null || echo "")
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+
+restart_tunnel() {
+    local n=$1
+    local token_file="$CLOUDFLARE_DIR/devpod-${n}.token"
+    if [ ! -f "$token_file" ]; then
+        log "AVISO: $token_file nao encontrado — tunnel nao reiniciado"
+        return
+    fi
+    log "cloudflared morreu — reiniciando tunnel devpod-${n}..."
+    pkill -f "cloudflared" 2>/dev/null || true
+    sleep 1
+    local TOKEN
+    TOKEN=$(cat "$token_file")
+    nohup cloudflared tunnel --no-autoupdate run --token "$TOKEN" \
+        >> "$TUNNEL_LOG" 2>&1 &
+    local pid=$!
+    echo "$pid" > "$TUNNEL_PID_FILE"
+    log "cloudflared reiniciado (PID $pid)"
+}
+
+check_tunnel() {
+    local n
+    n=$(cat "$DEVPOD_N_FILE" 2>/dev/null || echo "")
+    [ -z "$n" ] && return
+    [ -f "$TUNNEL_PID_FILE" ] || return   # sem PID = parado intencionalmente
+    tunnel_running || restart_tunnel "$n"
+}
+
+# ── Main loop ─────────────────────────────────────────────────────────────────
+
+log "Iniciado (interval=${CHECK_INTERVAL}s, port=${AGENT_PORT})"
+
+while true; do
+    check_agent
+    check_tunnel
+    sleep "$CHECK_INTERVAL"
+done
