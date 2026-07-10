@@ -1,3 +1,13 @@
+## 0.8.4 (2026-07-10)
+
+### 🚀 Features
+
+- **wishlist:** publish purchase wishlist end-to-end ([#353](https://github.com/invistus/invistus/pull/353))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.8.3 (2026-07-06)
 
 ### 💅 Refactors
