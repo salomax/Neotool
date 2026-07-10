@@ -1,3 +1,7 @@
+## 0.2.2 (2026-07-10)
+
+This was a version bump only for pdf-extractor to align it with other projects, there were no code changes.
+
 ## 0.2.1 (2026-06-02)
 
 This was a version bump only for pdf-extractor to align it with other projects, there were no code changes.

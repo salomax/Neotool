@@ -1,3 +1,7 @@
+## 0.3.8 (2026-07-10)
+
+This was a version bump only for assets to align it with other projects, there were no code changes.
+
 ## 0.3.7 (2026-06-10)
 
 This was a version bump only for assets to align it with other projects, there were no code changes.
