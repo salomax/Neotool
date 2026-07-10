@@ -1,0 +1,4 @@
+Follow-up to bcfe4770 (PR #353) whose commit "1cad5d55 #345 implement whishlist"
+was not conventional, so nx release skipped neotool-web and banking bumps.
+This file exists solely to give the next nx release a conventional-commit path
+to associate with these projects. Safe to delete in a future cleanup.
