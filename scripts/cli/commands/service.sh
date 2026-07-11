@@ -22,6 +22,10 @@ DEFAULT_ADMIN_TOKEN="${ADMIN_TOKEN:-}"
 
 SECURITY_SERVICE_URL="${SECURITY_SERVICE_URL:-$DEFAULT_SECURITY_SERVICE_URL}"
 
+env_var_safe_service_id() {
+    echo "$1" | tr '[:lower:]-' '[:upper:]_'
+}
+
 # Show help text
 show_help() {
     cat << EOF
@@ -206,20 +210,23 @@ EOF
         if [[ -n "$permissions" ]]; then
             log "Permissions: ${permissions}" "$BRIGHT"
         fi
+
+        local env_service_id
+        env_service_id=$(env_var_safe_service_id "$service_id")
         
         if [[ "$output_env" == "true" ]] && [[ -n "$response_client_secret" ]]; then
             echo ""
             log "Add to your .env.local file:" "$BLUE"
             echo ""
             echo "# Service X credentials"
-            echo "SERVICE_${service_id^^}_SERVICE_ID=${service_id}"
-            echo "SERVICE_${service_id^^}_CLIENT_SECRET=${response_client_secret}"
+            echo "SERVICE_${env_service_id}_SERVICE_ID=${service_id}"
+            echo "SERVICE_${env_service_id}_CLIENT_SECRET=${response_client_secret}"
             echo "SECURITY_SERVICE_URL=${security_url}"
             echo ""
         elif [[ -n "$response_client_secret" ]]; then
             echo ""
             log "⚠️  Save this client secret! Add to your .env.local:" "$YELLOW"
-            log "  SERVICE_${service_id^^}_CLIENT_SECRET=${response_client_secret}" "$GRAY"
+            log "  SERVICE_${env_service_id}_CLIENT_SECRET=${response_client_secret}" "$GRAY"
             echo ""
         fi
         
@@ -335,4 +342,3 @@ main() {
 
 # Run main function
 main "$@"
-

@@ -28,8 +28,17 @@ class WishlistProductMetadataHttpClientTest {
                     }
                 },
             )
-        val redirectResponse = response(statusCode = 302, headers = mapOf("Location" to "https://cdn.example.com/product"))
-        val successResponse = response(statusCode = 200, body = "<html>ok</html>", headers = mapOf("Content-Type" to "text/html"))
+        val redirectResponse =
+            response(
+                statusCode = 302,
+                headers = mapOf("Location" to "https://cdn.example.com/product"),
+            )
+        val successResponse =
+            response(
+                statusCode = 200,
+                body = "<html>ok</html>",
+                headers = mapOf("Content-Type" to "text/html"),
+            )
         whenever(httpClient.send(any(), any<HttpResponse.BodyHandler<String>>()))
             .thenReturn(redirectResponse, successResponse)
 
@@ -52,7 +61,11 @@ class WishlistProductMetadataHttpClientTest {
                     }
                 },
             )
-        val redirectResponse = response(statusCode = 302, headers = mapOf("Location" to "https://internal.example.com/metadata"))
+        val redirectResponse =
+            response(
+                statusCode = 302,
+                headers = mapOf("Location" to "https://internal.example.com/metadata"),
+            )
         whenever(httpClient.send(any(), any<HttpResponse.BodyHandler<String>>()))
             .thenReturn(redirectResponse)
 
@@ -79,9 +92,12 @@ class WishlistProductMetadataHttpClientTest {
         return response
     }
 
-    private fun publicAddress(a: Int, b: Int, c: Int, d: Int): InetAddress =
-        InetAddress.getByAddress(byteArrayOf(a.toByte(), b.toByte(), c.toByte(), d.toByte()))
+    private fun publicAddress(
+        a: Int,
+        b: Int,
+        c: Int,
+        d: Int,
+    ): InetAddress = InetAddress.getByAddress(byteArrayOf(a.toByte(), b.toByte(), c.toByte(), d.toByte()))
 
-    private fun loopbackAddress(): InetAddress =
-        InetAddress.getByAddress(byteArrayOf(127.toByte(), 0, 0, 1))
+    private fun loopbackAddress(): InetAddress = InetAddress.getByAddress(byteArrayOf(127.toByte(), 0, 0, 1))
 }

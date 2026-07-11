@@ -1615,6 +1615,16 @@
       "searchPlaceholder": "Search accounts...",
       "noAccountsFound": "No accounts found"
     },
+    "accountOption": {
+      "subtypes": {
+        "CONTA_CORRENTE": "Checking",
+        "CONTA_POUPANCA": "Savings",
+        "CONTA_DIGITAL": "Digital Account",
+        "CONTA_SALARIO": "Salary Account",
+        "CONTA_CONJUNTA": "Joint Account",
+        "WALLET": "Wallet"
+      }
+    },
     "multipleCards": "Multiple cards",
     "emptyState": {
       "title": "Ready to get started?",
@@ -1887,6 +1897,7 @@
         "title": "Import error",
         "retry": "Try again",
         "passwordInvalid": "The PDF password is incorrect. Check it and try again.",
+        "unsupportedCsv": "This CSV is not supported. Try another format.",
         "generic": "There was an import error and we could not process it right now. Please try again later.",
         "processingUnavailable": "We could not process this statement right now. Please try again later."
       }

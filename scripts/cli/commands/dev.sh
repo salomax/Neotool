@@ -136,7 +136,9 @@ new_window() {
 load_env_cmd() {
     local env_file="$1"
     if [[ -f "$env_file" ]]; then
-        echo "export \$(grep -E '^[A-Z_][A-Z0-9_]*=' \"$env_file\" | xargs) 2>/dev/null || true && "
+        # Use source (not grep|xargs|export) — nested single quotes in the old
+        # pattern broke when tmux send-keys ran under zsh.
+        echo "set -a && source \"$env_file\" && set +a && "
     fi
 }
 
@@ -213,7 +215,10 @@ seed_register_one() {
     }
 
     local secret
-    secret=$(echo "$output" | grep -E "^[A-Z_]+=.+" | grep -i "secret\|CLIENT_SECRET" | head -1 | cut -d= -f2-)
+    secret=$(echo "$output" | sed -n 's/^Client Secret: //p' | head -1)
+    if [[ -z "$secret" ]]; then
+        secret=$(echo "$output" | grep -E "^[A-Z0-9_-]+=.+$" | grep -i "secret\|CLIENT_SECRET" | head -1 | cut -d= -f2-)
+    fi
 
     if [[ -z "$secret" ]]; then
         log "  ↩ registered (secret not returned — already existed)" "$YELLOW"
@@ -724,16 +729,17 @@ agent_start() {
     fi
 
     # Load API keys and per-DevPod Slack tokens
+    # set -a auto-exports todas as vars para que o processo filho (python3) herde
     if [[ -f "$AGENT_API_KEYS" ]]; then
         # shellcheck disable=SC1090
-        source "$AGENT_API_KEYS"
+        set -a; source "$AGENT_API_KEYS"; set +a
         log "  ✓ api-keys loaded" "$GRAY"
     else
         log "  ⚠ $AGENT_API_KEYS not found — skipping" "$YELLOW"
     fi
     if [[ -f "$AGENT_DEVPOD_ENV" ]]; then
         # shellcheck disable=SC1090
-        source "$AGENT_DEVPOD_ENV"
+        set -a; source "$AGENT_DEVPOD_ENV"; set +a
         log "  ✓ devpod-${AGENT_DEVPOD_N}.env loaded" "$GRAY"
     else
         log "  ⚠ $AGENT_DEVPOD_ENV not found — Slack tokens ausentes" "$YELLOW"
@@ -805,7 +811,7 @@ EOF
             rm -f "$AGENT_PID_FILE"
             if [[ -f "$AGENT_API_KEYS" ]]; then
                 # shellcheck disable=SC1090
-                source "$AGENT_API_KEYS"
+                set -a; source "$AGENT_API_KEYS"; set +a
             fi
             if [[ -f "$AGENT_DEVPOD_ENV" ]]; then
                 # shellcheck disable=SC1090

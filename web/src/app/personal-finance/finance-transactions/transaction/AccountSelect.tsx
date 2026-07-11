@@ -1,8 +1,12 @@
-import { Avatar, MenuItem, Stack, TextField, Typography, useTheme } from '@mui/material';
+import { Autocomplete, Box, TextField } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { memo } from 'react';
 import type { FinancialAccount } from '@/lib/graphql/types/__generated__/graphql';
+import { useTranslation } from '@/shared/i18n';
+import { personalFinanceTranslations } from '../../i18n';
+import { FinancialAccountOption } from './FinancialAccountOption';
 
-const AVATAR_BORDER_RADIUS = '.3rem';
+type AccountSelectVariant = 'standard' | 'field';
 
 interface AccountSelectProps {
   value: string;
@@ -11,8 +15,13 @@ interface AccountSelectProps {
   onChange: (id: string) => void;
   error?: boolean;
   helperText?: string;
-  inputBottomBorderSx: object;
-  variant?: 'standard' | 'field';
+  inputBottomBorderSx: SxProps<Theme>;
+  variant?: AccountSelectVariant;
+  label?: string;
+  placeholder?: string;
+  allowEmpty?: boolean;
+  searchable?: boolean;
+  dataTestId?: string;
 }
 
 export const AccountSelect = memo(function AccountSelect({
@@ -24,70 +33,91 @@ export const AccountSelect = memo(function AccountSelect({
   helperText,
   inputBottomBorderSx,
   variant = 'standard',
+  label,
+  placeholder,
+  allowEmpty = false,
+  searchable = true,
+  dataTestId,
 }: AccountSelectProps) {
-  const theme = useTheme();
+  const { t } = useTranslation(personalFinanceTranslations);
   const isFieldVariant = variant === 'field';
+  const selectedAccount = accounts.find((account) => account.id === value) ?? null;
+  const standardBorderSx = inputBottomBorderSx as Record<string, SxProps<Theme> | undefined>;
+  const standardInputSx = {
+    '& .MuiAutocomplete-inputRoot': {
+      alignItems: 'flex-end',
+      pt: '0 !important',
+      pb: '0 !important',
+    },
+    '& .MuiInputBase-root': {
+      alignItems: 'flex-end',
+    },
+    '& .MuiAutocomplete-input': {
+      fontSize: '0.875rem',
+      p: '0 24px 5px 0 !important',
+      minWidth: 0,
+    },
+    '& .MuiInputBase-input': {
+      fontSize: '0.875rem',
+    },
+    '& .MuiAutocomplete-endAdornment': {
+      right: 0,
+      top: 'calc(50% - 2px)',
+    },
+    '& .MuiInput-root:before': standardBorderSx['&:before'],
+    '& .MuiInput-root:hover:not(.Mui-disabled, .Mui-error):before':
+      standardBorderSx['&:hover:not(.Mui-disabled, .Mui-error):before'],
+    '& .MuiInput-root:after': standardBorderSx['&:after'],
+  } as SxProps<Theme>;
 
   return (
-    <TextField
-      select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      variant={isFieldVariant ? 'outlined' : 'standard'}
-      fullWidth
-      disabled={isReadonly}
-      error={error}
-      helperText={helperText}
-      InputProps={{
-        disableUnderline: !isFieldVariant,
-        readOnly: isReadonly,
-        sx: isFieldVariant
-          ? {
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: error ? 'error.main' : 'divider',
-                borderWidth: 1,
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: error ? 'error.main' : 'divider',
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: error ? 'error.main' : 'divider',
-                borderWidth: 1,
-              },
-            }
-          : inputBottomBorderSx,
-      }}
-      sx={{
-        minWidth: isFieldVariant ? 0 : 120,
-        '& .MuiInputBase-root': {
-          minHeight: isFieldVariant ? 40 : undefined,
-          borderRadius: isFieldVariant ? 1 : undefined,
-        },
-      }}
-    >
-      {accounts.map((account) => (
-        <MenuItem key={account.id} value={account.id}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Avatar
-              src={account.issuer?.logoAsset?.publicUrl || undefined}
-              sx={{
-                width: 24,
-                height: 24,
-                fontSize: '0.6rem',
-                borderRadius: AVATAR_BORDER_RADIUS,
-                bgcolor: account.issuer?.logoAsset?.publicUrl
-                  ? 'transparent'
-                  : account.themeColor || theme.palette.grey[300],
-              }}
-            >
-              {!account.issuer?.logoAsset?.publicUrl && account.name.charAt(0)}
-            </Avatar>
-            <Typography variant="body2" noWrap>
-              {account.name}
-            </Typography>
-          </Stack>
-        </MenuItem>
-      ))}
-    </TextField>
+    <Box data-testid={dataTestId} sx={{ width: '100%', minWidth: 0 }}>
+      <Autocomplete
+        fullWidth
+        options={accounts}
+        getOptionLabel={(option) => option.name}
+        value={selectedAccount}
+        onChange={(_, nextValue) => onChange(nextValue?.id ?? '')}
+        disableClearable={!allowEmpty}
+        clearOnEscape={allowEmpty}
+        isOptionEqualToValue={(a, b) => a.id === b.id}
+        disabled={isReadonly}
+        readOnly={isReadonly}
+        noOptionsText={t('financeTransactions.selector.noAccountsFound')}
+        openOnFocus={searchable}
+        sx={{ width: '100%', minWidth: 0 }}
+        slotProps={{
+          paper: {
+            sx: {
+              minWidth: isFieldVariant ? undefined : 280,
+            },
+          },
+        }}
+        renderOption={(props, option) => (
+          <Box component="li" {...props} key={option.id} data-testid={`account-select-option-${option.id}`}>
+            <FinancialAccountOption account={option} />
+          </Box>
+        )}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label={label}
+            placeholder={placeholder}
+            hiddenLabel={!isFieldVariant}
+            error={error}
+            helperText={helperText}
+            fullWidth
+            variant={isFieldVariant ? 'outlined' : 'standard'}
+            InputProps={{
+              ...params.InputProps,
+              readOnly: isReadonly,
+              ...(isFieldVariant ? {} : { disableUnderline: true }),
+              sx: isFieldVariant ? undefined : inputBottomBorderSx,
+            }}
+            sx={isFieldVariant ? undefined : standardInputSx}
+          />
+        )}
+      />
+    </Box>
   );
 });

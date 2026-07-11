@@ -2,25 +2,15 @@ import { Stack, Typography, useTheme } from '@mui/material';
 import { AccountBalance as BankIcon } from '@mui/icons-material';
 import { memo } from 'react';
 import type { FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
-import { FinancialAccountSubtype, FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';
+import { FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';
 import type { Transaction } from '@/lib/graphql/types/__generated__/graphql';
 import { CardNetworkIcon } from '@/shared/components/ui/icons/CardNetworkIcon';
 import { Logo } from '@/shared/components/ui/primitives';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
+import { getMaskedLastFour, isCardAccount } from '../utils/accountUtils';
 
 type FinancialAccountListItem = NonNullable<FinancialAccountsQuery['financialAccounts']>[number];
-
-function isCardAccount(account: FinancialAccountListItem): boolean {
-  if (account.type === FinancialAccountType.Bank) return false;
-  if (account.cardData) return true;
-  return (
-    account.subtype === FinancialAccountSubtype.CreditCard ||
-    account.subtype === FinancialAccountSubtype.ChargeCard ||
-    account.subtype === FinancialAccountSubtype.PrepaidCard ||
-    account.subtype === FinancialAccountSubtype.VoucherCard
-  );
-}
 
 interface CardDisplayState {
   last4: string | null;
@@ -28,10 +18,9 @@ interface CardDisplayState {
 }
 
 function getCardDisplayState(account: FinancialAccountListItem, transaction: Transaction): CardDisplayState {
-  const txRaw = transaction.cardIdentifier || '';
-  const txDigits = txRaw.replace(/\D/g, '').slice(-4);
-  if (txDigits.length === 4) {
-    return { last4: txDigits, showMultipleCardsLabel: false };
+  const transactionLast4 = getMaskedLastFour(transaction.cardIdentifier);
+  if (transactionLast4) {
+    return { last4: transactionLast4, showMultipleCardsLabel: false };
   }
 
   const isMultiCard = account.cardData?.isMultiCard ?? false;
@@ -39,10 +28,8 @@ function getCardDisplayState(account: FinancialAccountListItem, transaction: Tra
     return { last4: null, showMultipleCardsLabel: true };
   }
 
-  const accountRaw = account.cardData?.maskedNumber || '';
-  const accountDigits = accountRaw.replace(/\D/g, '').slice(-4);
   return {
-    last4: accountDigits.length === 4 ? accountDigits : null,
+    last4: getMaskedLastFour(account.cardData?.maskedNumber),
     showMultipleCardsLabel: false,
   };
 }

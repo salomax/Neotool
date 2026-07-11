@@ -116,6 +116,7 @@ export function PurchaseWishlistForm({
         : emptyFormState(),
     [item],
   );
+  const itemResetKey = item?.id ?? 'new';
   const [state, setState] = useState<FormState>(initialState);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
@@ -123,6 +124,20 @@ export function PurchaseWishlistForm({
   const [lastPreviewUrl, setLastPreviewUrl] = useState<string | null>(
     resolvedPreviewUrl(item?.productUrl, item?.productImageUrl),
   );
+  const [prevItemResetKey, setPrevItemResetKey] = useState(itemResetKey);
+
+  if (itemResetKey !== prevItemResetKey) {
+    setPrevItemResetKey(itemResetKey);
+    setState(initialState);
+    setAttemptedSubmit(false);
+    setPreviewImageUrl(item?.productImageUrl ?? null);
+    setHighlightedFields([]);
+    setLastPreviewUrl(resolvedPreviewUrl(item?.productUrl, item?.productImageUrl));
+  }
+
+  const normalizedProductUrl = state.productUrl.trim();
+  const productUrlIsValid = Boolean(normalizedProductUrl) && isValidUrl(normalizedProductUrl);
+  const displayedPreviewImageUrl = productUrlIsValid ? previewImageUrl : null;
   const [fetchPreview, { loading: previewLoading }] = useLazyQuery<
     PurchaseWishlistProductPreviewQuery,
     PurchaseWishlistProductPreviewQueryVariables
@@ -162,12 +177,6 @@ export function PurchaseWishlistForm({
 
     return null;
   }, [maxTargetDate, minTargetDate, state.targetDate, t]);
-
-  useEffect(() => {
-    setPreviewImageUrl(item?.productImageUrl ?? null);
-    setHighlightedFields([]);
-    setLastPreviewUrl(resolvedPreviewUrl(item?.productUrl, item?.productImageUrl));
-  }, [item]);
 
   useEffect(
     () => () => {
@@ -209,19 +218,11 @@ export function PurchaseWishlistForm({
     };
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const normalizedUrl = state.productUrl.trim();
-    if (!normalizedUrl || !isValidUrl(normalizedUrl)) {
-      setPreviewImageUrl(null);
-      setLastPreviewUrl(null);
-      setState((current) => ({ ...current, productImageUrl: null }));
+    if (!open || !productUrlIsValid) {
       return undefined;
     }
 
-    if (normalizedUrl === lastPreviewUrl) {
+    if (normalizedProductUrl === lastPreviewUrl) {
       return undefined;
     }
 
@@ -233,13 +234,13 @@ export function PurchaseWishlistForm({
       const requestId = previewRequestIdRef.current + 1;
       previewRequestIdRef.current = requestId;
 
-      void fetchPreview({ variables: { url: normalizedUrl } }).then(({ data }) => {
+      void fetchPreview({ variables: { url: normalizedProductUrl } }).then(({ data }) => {
         if (previewRequestIdRef.current !== requestId) {
           return;
         }
 
         const preview = data?.wishlistProductMetadataPreview;
-        setLastPreviewUrl(normalizedUrl);
+        setLastPreviewUrl(normalizedProductUrl);
         setPreviewImageUrl(preview?.imageUrl ?? null);
 
         if (!preview) {
@@ -271,7 +272,7 @@ export function PurchaseWishlistForm({
         previewDebounceTimeoutRef.current = null;
       }
     };
-  }, [fetchPreview, lastPreviewUrl, open, state.productUrl]);
+  }, [fetchPreview, lastPreviewUrl, normalizedProductUrl, open, productUrlIsValid]);
 
   const fieldHighlightSx = (field: AutoFilledField) =>
     highlightedFields.includes(field)
@@ -301,8 +302,8 @@ export function PurchaseWishlistForm({
       priority: state.priority,
       notes: state.notes.trim() || null,
       targetDate: state.targetDate?.format('YYYY-MM-DD') ?? null,
-      productUrl: state.productUrl.trim() || null,
-      productImageUrl: state.productImageUrl,
+      productUrl: normalizedProductUrl || null,
+      productImageUrl: productUrlIsValid ? state.productImageUrl : null,
     };
 
     await onSubmit(payload);
@@ -341,7 +342,7 @@ export function PurchaseWishlistForm({
               }}
             />
 
-            {previewImageUrl ? (
+            {displayedPreviewImageUrl ? (
               <Box
                 sx={{
                   mt: 1.25,
@@ -356,7 +357,7 @@ export function PurchaseWishlistForm({
               >
                 <Box
                   component="img"
-                  src={previewImageUrl}
+                  src={displayedPreviewImageUrl}
                   alt={state.name || t('purchaseWishlist.form.productPreviewAlt')}
                   sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                 />

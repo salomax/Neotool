@@ -1,6 +1,6 @@
 import { test, expect } from '../fixtures/personal-finance';
 import type { Page, Route } from '@playwright/test';
-import { CreditDebitType, getTransactions } from '../helpers/banking-graphql';
+import { CreditDebitType, createFinancialAccount, getTransactions } from '../helpers/banking-graphql';
 import { executeGraphQL } from '../helpers/graphql';
 import { signIntoPage } from '../helpers/navigation';
 
@@ -219,11 +219,27 @@ test.describe('Purchase wishlist', () => {
     await expect(wishlistRow(page, itemName)).toBeVisible();
   });
 
-  test('marks an item as purchased and creates a transaction from the drawer with prefilled values', async ({
+  test('marks an item as purchased and creates a transaction from the drawer with enriched account options', async ({
     page,
     pfUser,
     bankAccount,
   }) => {
+    const cardAccount = await createFinancialAccount(
+      {
+        name: uniqueName('Cartão Compra Wishlist'),
+        type: 'CREDIT',
+        subtype: 'CREDIT_CARD',
+        issuerName: 'Visa Wishlist E2E',
+        cardData: {
+          maskedNumber: '9876',
+          cardNetwork: 'VISA',
+          closingDay: 7,
+          dueDay: 15,
+        },
+      },
+      pfUser.token,
+    );
+
     const itemName = uniqueName('PlayStation 5');
     await createWishlistItem(pfUser.token, {
       name: itemName,
@@ -247,7 +263,22 @@ test.describe('Purchase wishlist', () => {
     await expect(transactionDrawer.getByTestId('tx-description-input')).toHaveValue(itemName);
     await expect(transactionDrawer.getByTestId('tx-amount-input')).toHaveValue(/3\.499,90|3499,90|3499.90/);
 
+    const accountCombobox = transactionDrawer.getByRole('combobox').first();
+
     const saveButton = page.getByTestId('tx-save-btn');
+
+    await accountCombobox.click();
+
+    const bankOption = page.getByTestId(`account-select-option-${bankAccount.id}`);
+    await expect(bankOption).toContainText(bankAccount.name);
+    await expect(bankOption).toContainText(/Conta Corrente|Checking/i);
+
+    const cardOption = page.getByTestId(`account-select-option-${cardAccount.id}`);
+    await expect(cardOption).toContainText(cardAccount.name);
+    await expect(cardOption).toContainText('•••• 9876');
+
+    await cardOption.click();
+    await expect(accountCombobox).toHaveValue(cardAccount.name);
     await expect(saveButton).toBeEnabled({ timeout: 15_000 });
 
     const purchaseResponsePromise = page.waitForResponse(
@@ -281,7 +312,7 @@ test.describe('Purchase wishlist', () => {
     await expect(page.getByRole('tab', { name: /Histórico \(\d+\)/ })).toBeVisible({ timeout: 30_000 });
     await expect(wishlistRow(page, itemName)).toBeVisible();
 
-    const transactions = await getTransactions(bankAccount.id, pfUser.token);
+    const transactions = await getTransactions(cardAccount.id, pfUser.token);
     expect(transactions.some((transaction) => transaction.description === itemName && transaction.creditDebitType === CreditDebitType.Debit)).toBe(true);
   });
 });

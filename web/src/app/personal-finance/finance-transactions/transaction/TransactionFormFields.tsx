@@ -70,12 +70,18 @@ export const TransactionFormFields = memo(function TransactionFormFields({
     <Box
       sx={{
         display: 'flex',
-        justifyContent: layout === 'inline' ? 'center' : 'flex-start',
+        justifyContent: 'flex-start',
         alignItems: 'flex-end',
         width: '100%',
         minWidth: 0,
         overflow: layout === 'inline' ? 'hidden' : 'visible',
-        '& .MuiChip-root': { maxWidth: '100%' },
+        '& .MuiChip-root': {
+          maxWidth: '100%',
+          width: layout === 'inline' ? '100%' : undefined,
+        },
+        '& .MuiChip-label': {
+          width: layout === 'inline' ? '100%' : undefined,
+        },
       }}
     >
       <CategorySelect

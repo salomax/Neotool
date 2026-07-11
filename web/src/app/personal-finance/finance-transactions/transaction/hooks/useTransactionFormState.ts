@@ -160,12 +160,12 @@ export function useTransactionFormState({
   const gridTemplateColumns = useMemo(() => {
     if (isBalanceAdjustmentEdit) {
       return selectedAccountId
-        ? '68px minmax(180px, 1.6fr) minmax(100px, 1fr) 52px'
-        : '68px minmax(180px, 1.6fr) minmax(140px, 0.8fr) minmax(100px, 1fr) 52px';
+        ? '68px minmax(180px, 1.6fr) minmax(100px, 1fr)'
+        : '68px minmax(180px, 1.6fr) minmax(140px, 0.8fr) minmax(100px, 1fr)';
     }
     return selectedAccountId
-      ? '68px minmax(180px, 1.6fr) minmax(0, .8fr) minmax(auto, .8fr) minmax(120px, 1fr) 52px'
-      : '68px minmax(180px, 1.6fr) minmax(0, .8fr) minmax(auto, .8fr) minmax(140px, 0.8fr) minmax(120px, 1fr) 52px';
+      ? '68px minmax(180px, 1.6fr) minmax(0, .8fr) minmax(auto, .8fr) minmax(120px, 1fr)'
+      : '68px minmax(180px, 1.6fr) minmax(0, .8fr) minmax(auto, .8fr) minmax(140px, 0.8fr) minmax(120px, 1fr)';
   }, [isBalanceAdjustmentEdit, selectedAccountId]);
 
   const amountGridColumn = isBalanceAdjustmentEdit

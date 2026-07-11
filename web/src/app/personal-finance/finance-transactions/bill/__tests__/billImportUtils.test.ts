@@ -83,21 +83,22 @@ describe('bill import due date validation', () => {
 });
 
 describe('resolveFriendlyImportErrorMessage', () => {
-  const t = (key: string) => key;
+  const t = (key: string) => {
+    const messages: Record<string, string> = {
+      'financeTransactions.billImport.errorStep.generic': 'generic',
+      'financeTransactions.billImport.errorStep.unsupportedCsv':
+        'Este CSV não é suportado. Tente outro formato.',
+    };
+    return messages[key] ?? key;
+  };
 
   it('returns format-not-supported message for IMPORT_FILE_FORMAT_NOT_SUPPORTED', () => {
     const message = resolveFriendlyImportErrorMessage(t, 'IMPORT_FILE_FORMAT_NOT_SUPPORTED');
 
-    expect(message).not.toBe('financeTransactions.billImport.errorStep.generic');
-    expect([
-      'Import file format is not supported.',
-      'O formato do arquivo de importação não é suportado.',
-    ]).toContain(message);
+    expect(message).toBe('Este CSV não é suportado. Tente outro formato.');
   });
 
   it('falls back to generic bill import message for unknown codes', () => {
-    expect(resolveFriendlyImportErrorMessage(t, 'UNKNOWN_ERROR')).toBe(
-      'financeTransactions.billImport.errorStep.generic',
-    );
+    expect(resolveFriendlyImportErrorMessage(t, 'UNKNOWN_ERROR')).toBe('generic');
   });
 });

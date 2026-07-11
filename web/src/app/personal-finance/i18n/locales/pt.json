@@ -1615,6 +1615,16 @@
       "searchPlaceholder": "Buscar contas...",
       "noAccountsFound": "Nenhuma conta encontrada"
     },
+    "accountOption": {
+      "subtypes": {
+        "CONTA_CORRENTE": "Conta-Corrente",
+        "CONTA_POUPANCA": "Conta Poupança",
+        "CONTA_DIGITAL": "Conta Digital",
+        "CONTA_SALARIO": "Conta Salário",
+        "CONTA_CONJUNTA": "Conta Conjunta",
+        "WALLET": "Carteira"
+      }
+    },
     "multipleCards": "Múltiplos cartões",
     "emptyState": {
       "title": "Tudo pronto para começar?",
@@ -1891,6 +1901,7 @@
         "title": "Erro na importação",
         "retry": "Tentar novamente",
         "passwordInvalid": "A senha do PDF está incorreta. Verifique e tente novamente.",
+        "unsupportedCsv": "Este CSV não é suportado. Tente outro formato.",
         "generic": "Houve um erro na importação que impossibilitou o processamento no momento. Tente novamente mais tarde.",
         "processingUnavailable": "No momento não foi possível processar esta fatura. Tente novamente mais tarde."
       }
