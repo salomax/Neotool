@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# codex-dev — wrapper Codex com session management, status updates e output verbatim
+# codex-dev — wrapper Codex com session management, status updates e output limpo
 set -euo pipefail
 
 LOG=/tmp/neotool-agent.log
@@ -36,5 +36,72 @@ NEW_SESSION=$(echo "$OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-
 _log "✓ DONE elapsed=${ELAPSED}ms session=${NEW_SESSION:-?}"
 bash "$STATUS" "🔷 _Codex_ respondeu em $((ELAPSED/1000))s" 2>/dev/null || true
 
-# Output VERBATIM
-echo "$OUTPUT"
+# Extrai apenas o último bloco de texto do codex (descarta banner, tool calls e exec outputs)
+RESULT=$(echo "$OUTPUT" | python3 - << 'PYEOF'
+import sys, re
+
+raw = sys.stdin.read()
+
+# Divide nas seções de role: "user", "codex", linhas "exec ..."
+# Coleta apenas os blocos de texto do papel "codex", descarta exec outputs
+codex_blocks = []
+current_lines = []
+in_codex = False
+header_done = False
+
+for line in raw.split('\n'):
+    stripped = line.strip()
+
+    if not header_done:
+        # Aguarda primeira ocorrência de "user" ou "codex" para sair do header
+        if stripped in ('user', 'codex'):
+            header_done = True
+        else:
+            continue
+
+    if stripped == 'codex':
+        # Salva bloco anterior se estava em codex
+        if in_codex and current_lines:
+            codex_blocks.append('\n'.join(current_lines).strip())
+        in_codex = True
+        current_lines = []
+    elif stripped == 'user':
+        if in_codex and current_lines:
+            codex_blocks.append('\n'.join(current_lines).strip())
+        in_codex = False
+        current_lines = []
+    elif stripped.startswith('exec '):
+        # Tool call — salva bloco codex até aqui e pausa coleta
+        if in_codex and current_lines:
+            codex_blocks.append('\n'.join(current_lines).strip())
+            current_lines = []
+        in_codex = False  # não coleta exec output
+    elif re.match(r'\s*(succeeded|failed) in \d+', line):
+        # Resultado inline de exec — ignora; não reseta in_codex
+        pass
+    elif in_codex:
+        current_lines.append(line)
+
+# Último bloco
+if in_codex and current_lines:
+    codex_blocks.append('\n'.join(current_lines).strip())
+
+# Filtra blocos vazios e pega o último
+blocks = [b for b in codex_blocks if b]
+if blocks:
+    print(blocks[-1])
+else:
+    # Fallback: remove header e retorna tudo
+    m = re.search(r'-{4,}\n', raw)
+    print((raw[m.end():] if m else raw).strip()[:3000])
+PYEOF
+)
+
+_log "  result_preview: ${RESULT:0:300}"
+
+if [ -n "$RESULT" ]; then
+    echo "$RESULT"
+else
+    _log "  WARN: parse vazio, usando raw output"
+    echo "$OUTPUT"
+fi

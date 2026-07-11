@@ -4,8 +4,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   alpha,
-  Autocomplete,
-  Avatar,
   Box,
   Chip,
   Stack,
@@ -38,6 +36,7 @@ import {
 } from '@/shared/components/ui/forms/form';
 import { CategoryPicker } from '@/app/personal-finance/finance-transactions/category/CategoryPicker';
 import { CategoryIcon } from '@/app/personal-finance/finance-transactions/category/CategoryIcon';
+import { AccountSelect } from '@/app/personal-finance/finance-transactions/transaction/AccountSelect';
 import { MerchantSelect } from '@/app/personal-finance/finance-transactions/transaction/MerchantSelect';
 import { formatDateOnly, isValidDate, parseDateOnly, toStartOfDayLocal } from '@/shared/utils/date/dateOnly';
 import type { RecurringPaymentRow } from './recurringPaymentRowModel';
@@ -61,8 +60,6 @@ type FormValues = {
   remindDaysBefore: number | '';
   notes: string;
 };
-
-const AVATAR_RADIUS = '.3rem';
 
 function emptyForm(): FormValues {
   return {
@@ -351,49 +348,18 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
                 name="financialAccountId"
                 control={control}
                 render={({ field }) => (
-                  <Autocomplete
-                    options={accounts}
-                    getOptionLabel={(option) => option.name}
-                    value={accounts.find((a) => a.id === field.value) ?? null}
-                    onChange={(_, value) => field.onChange(value?.id ?? '')}
-                    disableClearable={false}
-                    clearOnEscape
-                    isOptionEqualToValue={(a, b) => a.id === b.id}
-                    renderOption={(props, option) => (
-                      <li {...props}>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Avatar
-                            src={option.issuer?.logoAsset?.publicUrl || undefined}
-                            sx={{
-                              width: 24,
-                              height: 24,
-                              fontSize: '0.6rem',
-                              borderRadius: AVATAR_RADIUS,
-                              bgcolor: option.issuer?.logoAsset?.publicUrl
-                                ? 'transparent'
-                                : option.themeColor || theme.palette.grey[300],
-                            }}
-                          >
-                            {!option.issuer?.logoAsset?.publicUrl && option.name.charAt(0)}
-                          </Avatar>
-                          <Typography variant="body2" noWrap>
-                            {option.name}
-                          </Typography>
-                        </Stack>
-                      </li>
-                    )}
-                    renderInput={(params) => {
-                      const { size, ...restParams } = params;
-                      return (
-                        <TextField
-                          {...restParams}
-                          label={t('recurringPayments.form.accountOptional')}
-                          placeholder={t('recurringPayments.form.accountSearchPlaceholder')}
-                          fullWidth
-                          size={size === 'small' ? 'small' : 'medium'}
-                        />
-                      );
-                    }}
+                  <AccountSelect
+                    value={field.value}
+                    accounts={accounts}
+                    isReadonly={false}
+                    onChange={field.onChange}
+                    inputBottomBorderSx={{}}
+                    variant="field"
+                    label={t('recurringPayments.form.accountOptional')}
+                    placeholder={t('recurringPayments.form.accountSearchPlaceholder')}
+                    allowEmpty
+                    searchable
+                    dataTestId="recurring-payment-account-select"
                   />
                 )}
               />

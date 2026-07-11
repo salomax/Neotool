@@ -174,10 +174,7 @@ export function resolveFriendlyImportErrorMessage(
     normalizedCode === 'import_file_format_not_supported' ||
     normalizedMessage.includes('import_file_format_not_supported')
   ) {
-    const lng = (i18n.language || i18n.resolvedLanguage || 'en').toLowerCase().startsWith('en') ? 'en' : 'pt';
-    return i18n.getFixedT(lng, 'common')('errors.IMPORT_FILE_FORMAT_NOT_SUPPORTED', {
-      defaultValue: 'Import file format is not supported.',
-    });
+    return t('financeTransactions.billImport.errorStep.unsupportedCsv');
   }
   return t('financeTransactions.billImport.errorStep.generic');
 }

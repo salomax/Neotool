@@ -62,8 +62,8 @@ describe.sequential('PurchaseDecisionDialog', () => {
     const onConfirmPurchaseWithTransaction = vi.fn();
     renderDialog({ onClose, onConfirmPurchase, onConfirmPurchaseWithTransaction });
 
-    await user.click(screen.getByText('purchaseWishlist.purchaseDialog.confirm').closest('button')!);
-    await user.click(screen.getByText('purchaseWishlist.purchaseDialog.confirmWithTransaction').closest('button')!);
+    await user.click(screen.getByRole('button', { name: /purchaseWishlist\.purchaseDialog\.confirm(?!WithTransaction)/ }));
+    await user.click(screen.getByRole('button', { name: /purchaseWishlist\.purchaseDialog\.confirmWithTransaction/ }));
     await user.click(screen.getByRole('button', { name: 'actions.cancel' }));
 
     expect(onConfirmPurchase).toHaveBeenCalledTimes(1);

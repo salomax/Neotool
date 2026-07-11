@@ -117,7 +117,7 @@ fi
 # API Keys: carregar de ~/.vault-keys/api-keys.env (mesmo bind-mount do Vault)
 # =============================================================================
 # Formato do arquivo no Mac (~/.vault-keys/api-keys.env):
-#   ANTHROPIC_API_KEY=sk-ant-...
+#   OPENAI_API_KEY=sk-...
 #   OPENAI_API_KEY=sk-...          # opcional
 #
 # Cloud / CI: export API_KEYS_B64=$(base64 -i ~/.vault-keys/api-keys.env)
@@ -142,14 +142,17 @@ load_api_keys() {
 
 if [ -f "$API_KEYS_FILE" ]; then
     load_api_keys "$API_KEYS_FILE"
+    # Também exporta no shell atual (bashrc só vale em sessões interativas)
+    set -a; source "$API_KEYS_FILE"; set +a
 elif [ -n "${API_KEYS_B64:-}" ]; then
     API_KEYS_TMP="$(mktemp /tmp/api-keys-XXXXXX.env)"
     echo "$API_KEYS_B64" | base64 -d > "$API_KEYS_TMP"
     load_api_keys "$API_KEYS_TMP"
+    set -a; source "$API_KEYS_TMP"; set +a
     rm -f "$API_KEYS_TMP"
 else
     echo "⚠ [api-keys] Nenhum api-keys.env encontrado."
-    echo "   Mac:   crie ~/.vault-keys/api-keys.env com ANTHROPIC_API_KEY=..."
+    echo "   Mac:   crie ~/.vault-keys/api-keys.env com OPENAI_API_KEY, GOOGLE_API_KEY e GH_TOKEN"
     echo "   Cloud: export API_KEYS_B64=\$(base64 -i ~/.vault-keys/api-keys.env)"
 fi
 

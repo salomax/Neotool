@@ -626,7 +626,7 @@ describe.sequential('TransactionTable', () => {
       />,
     );
 
-    expect(screen.getByTestId('mobile-transaction-drawer')).toBeInTheDocument();
+    expect(screen.getByTestId('transaction-drawer')).toBeInTheDocument();
     expect(screen.queryByTestId('inline-transaction-form')).not.toBeInTheDocument();
     expect(screen.getByTestId('tx-credit-debit-type-carousel')).toBeInTheDocument();
     expect(screen.getByText(/Receita|Credit/i)).toBeInTheDocument();
@@ -717,7 +717,7 @@ describe.sequential('TransactionTable', () => {
     );
 
     expect(screen.getByTestId('inline-transaction-form')).toBeInTheDocument();
-    expect(screen.queryByTestId('mobile-transaction-drawer')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('transaction-drawer')).not.toBeInTheDocument();
   });
 
   it('opens the fullscreen drawer when editing a transaction on mobile', async () => {
@@ -755,7 +755,7 @@ describe.sequential('TransactionTable', () => {
     await user.click(screen.getByTestId('transaction-mobile-row-tx-mobile-edit'));
     await user.click(screen.getByTestId('transaction-action-edit'));
 
-    expect(screen.getByTestId('mobile-transaction-drawer')).toBeInTheDocument();
+    expect(screen.getByTestId('transaction-drawer')).toBeInTheDocument();
     expect(screen.queryByTestId('inline-transaction-form')).not.toBeInTheDocument();
   });
 });

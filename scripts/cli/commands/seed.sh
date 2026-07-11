@@ -139,10 +139,13 @@ register_one() {
         return 1
     }
 
-    # Extract the generated secret from --output-env output
-    # Format: SERVICE_<ID>_CLIENT_SECRET=<value>   or   <ENV_VAR>=<value>
+    # Extract the generated secret from service register output.
+    # Prefer the explicit "Client Secret:" line; fall back to env-style output.
     local secret
-    secret=$(echo "$output" | grep -E "^[A-Z_]+=.+" | grep -i "secret\|CLIENT_SECRET" | head -1 | cut -d= -f2-)
+    secret=$(echo "$output" | sed -n 's/^Client Secret: //p' | head -1)
+    if [[ -z "$secret" ]]; then
+        secret=$(echo "$output" | grep -E "^[A-Z0-9_-]+=.+$" | grep -i "secret\|CLIENT_SECRET" | head -1 | cut -d= -f2-)
+    fi
 
     if [[ -z "$secret" ]]; then
         log "  ↩ registered (secret already existed — not returned)" "$YELLOW"

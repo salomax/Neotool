@@ -47,6 +47,7 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
     onBusyEnd,
   });
   const { form, save, t } = controller;
+  const contentColSpan = Math.max(1, form.colSpan - 1);
 
   const [shouldRender, setShouldRender] = useState(isOpen);
   useEffect(() => {
@@ -61,7 +62,7 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
   return (
     <>
       <TableRow sx={{ position: 'relative', zIndex: 3 }}>
-        <TableCell colSpan={form.colSpan} sx={{ p: 0, borderBottom: 'none', bgcolor: 'transparent' }}>
+        <TableCell colSpan={contentColSpan} sx={{ p: 0, borderBottom: 'none', bgcolor: 'transparent' }}>
           <Collapse
             in={isOpen}
             timeout={250}
@@ -126,6 +127,7 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
             </Box>
           </Collapse>
         </TableCell>
+        <TableCell sx={{ p: 0, borderBottom: 'none', bgcolor: 'transparent' }} />
       </TableRow>
 
       <SimilarEditDialog

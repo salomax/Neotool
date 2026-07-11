@@ -14,7 +14,7 @@ WORKSPACE   = "/workspaces/invistus"
 
 # ── Stage machine ─────────────────────────────────────────────────────────────
 
-STAGES = ["issue", "design", "backlog", "impl", "validate"]
+STAGES = ["issue", "design", "backlog", "impl", "review", "validate"]
 
 def session_path(thread: str) -> Path:
     Path(SESSION_DIR).mkdir(parents=True, exist_ok=True)
@@ -47,28 +47,52 @@ Thread state: {state}
 
 Return JSON with these fields:
 {{
-  "intent": one of [check_usage, question, stage_issue, stage_design, stage_backlog, stage_impl, stage_pr, fast_track, advance],
+  "intent": one of [check_usage, question, stage_issue, stage_design, stage_backlog, stage_impl, stage_review, stage_pr, fast_track, advance],
   "agent": one of [claude, codex, cursor, null],
   "model": model name string or null,
   "issue_number": integer or null,
   "fast_track": boolean,
-  "stages": list of stage names if fast_track else []
+  "stages": list of stage names if fast_track else [],
+  "needs_confirmation": boolean,
+  "ambiguity_reason": short string explaining the ambiguity, or null
 }}
 
-Rules:
-- "advance"= user says sim/ok/aprovado/yes/continua/next/proceed
+Intent rules:
+- "advance" = user says sim/ok/aprovado/yes/continua/next/proceed
 - "check_usage" = user asks about token usage, agent status, check-usage
-- "fast_track" = user explicitly asks to do multiple stages at once, or "de uma vez", "tudo junto", "em uma etapa"
-- "stage_issue" = create or enrich a GitHub issue. ALWAYS use when message says "abra uma issue", "crie uma issue", "open an issue", "nova issue", even if the message also describes implementation work
+- "fast_track" = user explicitly asks to do multiple stages at once ("de uma vez", "tudo junto", "em uma etapa")
+- "stage_issue" = create or enrich a GitHub issue ("abra/crie uma issue", "open an issue", "nova issue")
 - "stage_design" = solution design, technical analysis, viability, impact
 - "stage_backlog" = generate task backlog
-- "stage_impl" = write/implement new code, create files, apply backlog tasks (default agent: codex). NEVER use for review/analysis requests.
-- "stage_pr" = create pull request, commit changes (git commit), merge PR/branch. Default agent: cursor, model: auto
-- "stage_validate" = run tests, lint, typecheck
-- "question" = any question, code review, analysis, "revise", "analise", "verifique", "confira", "olha", "o que acha", "está certo" (default agent: claude)
-- agent override: look for "@claude", "@codex", "@cursor", "use claude/codex/cursor", "pelo claude/codex/cursor"
+- "stage_impl" = ONLY when user explicitly asks to write/implement NEW code or apply backlog tasks. The word "implementação" as a noun referring to past work does NOT trigger this.
+- "stage_pr" = create pull request, commit, merge branch (default agent: cursor, model: auto)
+- "stage_validate" = run tests, lint, typecheck (default agent: cursor, model: auto)
+- "stage_review" = code review of implemented changes: "revise o código", "faz um review", "analise o que foi implementado", "review" (default agent: claude)
+- "question" = everything else: questions, instructions to an agent that are not a pipeline stage, "poste um comentário", "crie um comentário", "revise", "analise", "verifique", "o que acha", "sumarize", "explique" (default agent: claude)
+- IMPORTANT: "codex/claude/cursor, <do something>" where <something> is not a pipeline stage → "question" with that agent
+
+Agent override rules:
+- If message starts with or mentions "@claude", "@codex", "@cursor", "use claude/codex/cursor", "pelo claude/codex/cursor", or "codex/claude/cursor <verb>" — set agent accordingly
 - model override: look for "model X", "gpt-X", "sonnet-X", "-m X"
-- if fast_track, list ALL stages mentioned in "stages" array
+
+needs_confirmation rules (set true ONLY when genuinely ambiguous):
+- true: message could reasonably mean two different pipeline stages AND no explicit agent/intent signal was given
+- false: user specified an agent explicitly (codex/claude/cursor prefix or @mention) — NEVER confirm in this case
+- false: user used a clear action verb that maps to exactly one stage
+- false: intent is question/advance/check_usage/fast_track
+- false: when in doubt, prefer false and dispatch
+
+Examples of needs_confirmation=false:
+  "codex crie um comentario na issue sumarizando a implementacao" -> question, agent=codex, false (explicit agent + not a pipeline stage)
+  "codex, o que esta na issue 42?" -> question, agent=codex, false
+  "abra uma issue e depois implemente" -> stage_issue, false (stage_issue takes priority)
+  "faz o commit" -> stage_pr, false (clear action)
+  "implemente o backlog" -> stage_impl, false (clear stage verb)
+  "o que voce acha desta abordagem?" -> question, false (clear question)
+
+Examples of needs_confirmation=true:
+  "pode criar isso?" -> true (create what? issue or implementation?)
+  "continua com a issue 42" -> true (which stage? design? impl?)
 """
 
 def classify(message: str, state: dict) -> dict:
@@ -78,12 +102,14 @@ def classify(message: str, state: dict) -> dict:
     # Shortcut: check-usage
     if re.search(r"check-usage|/check-usage", msg):
         return {"intent": "check_usage", "agent": None, "model": None,
-                "issue_number": None, "fast_track": False, "stages": []}
+                "issue_number": None, "fast_track": False, "stages": [],
+                "needs_confirmation": False, "ambiguity_reason": None}
 
     # Shortcut: advance
     if re.match(r"^(sim|ok|aprovado|continua|continuar|próximo|proximo|avança|avanca|yes|proceed|next)[\s!.]*$", msg):
         return {"intent": "advance", "agent": None, "model": None,
-                "issue_number": None, "fast_track": False, "stages": []}
+                "issue_number": None, "fast_track": False, "stages": [],
+                "needs_confirmation": False, "ambiguity_reason": None}
 
     # Use Gemini Flash for everything else
     try:
@@ -105,7 +131,7 @@ def _classify_gemini(message: str, state: dict) -> dict:
     )
     payload = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 256},
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 384},
     }).encode()
 
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
@@ -127,7 +153,8 @@ def _classify_rules(message: str, state: dict) -> dict:
     """Pure regex fallback."""
     msg = message.lower()
     result = {"intent": "question", "agent": None, "model": None,
-              "issue_number": None, "fast_track": False, "stages": []}
+              "issue_number": None, "fast_track": False, "stages": [],
+              "needs_confirmation": False, "ambiguity_reason": None}
 
     for agent, pat in [("claude", r"@claude|use\s+o?\s*claude|pelo\s+claude"),
                         ("codex",  r"@codex|use\s+o?\s*codex|pelo\s+codex"),
@@ -171,6 +198,7 @@ DEFAULT_AGENTS = {
     "stage_backlog":  "claude",
     "stage_impl":     "codex",
     "stage_validate": "cursor",
+    "stage_review":   "claude",
     "stage_pr":       "cursor",
     "fast_track":     "claude",
 }
@@ -189,53 +217,124 @@ SKILL_MAP = {
 
 # ── Prompt builder ────────────────────────────────────────────────────────────
 
+def fetch_issue_context(issue_number: int) -> str:
+    """Busca título, body, labels e últimos comentários da issue via gh CLI."""
+    try:
+        r = subprocess.run(
+            ["gh", "issue", "view", str(issue_number),
+             "--json", "number,title,body,labels,comments"],
+            capture_output=True, text=True, timeout=15, cwd=WORKSPACE,
+        )
+        if r.returncode != 0:
+            log.warning("fetch_issue_context failed: %s", r.stderr[:200])
+            return ""
+        data = json.loads(r.stdout)
+    except Exception as e:
+        log.warning("fetch_issue_context error: %s", e)
+        return ""
+
+    out = [f"=== Issue #{data['number']}: {data['title']} ==="]
+    labels = [lb["name"] for lb in data.get("labels", [])]
+    if labels:
+        out.append(f"Labels: {', '.join(labels)}")
+    body = (data.get("body") or "").strip()
+    if body:
+        out += ["", body]
+    comments = data.get("comments", [])
+    if comments:
+        out += ["", "--- Comentários ---"]
+        for c in comments[-5:]:
+            author = c.get("author", {}).get("login", "?")
+            date   = (c.get("createdAt") or "")[:10]
+            cbody  = (c.get("body") or "").strip()
+            out.append(f"[{date}] @{author}: {cbody}")
+    return "\n".join(out)
+
+
+def fetch_branch_diff() -> str:
+    """Retorna git diff --stat + diff completo da branch atual vs main."""
+    try:
+        branch_r = subprocess.run(
+            ["git", "branch", "--show-current"],
+            capture_output=True, text=True, timeout=10, cwd=WORKSPACE,
+        )
+        branch = branch_r.stdout.strip()
+        if not branch or branch == "main":
+            return ""
+        stat = subprocess.run(
+            ["git", "diff", f"main...{branch}", "--stat"],
+            capture_output=True, text=True, timeout=15, cwd=WORKSPACE,
+        ).stdout.strip()
+        diff = subprocess.run(
+            ["git", "diff", f"main...{branch}"],
+            capture_output=True, text=True, timeout=15, cwd=WORKSPACE,
+        ).stdout.strip()
+        if len(diff) > 8000:
+            diff = diff[:8000] + "\n...(truncado)"
+        return f"--- Diff: {branch} vs main ---\n{stat}\n\n{diff}"
+    except Exception as e:
+        log.warning("fetch_branch_diff error: %s", e)
+        return ""
+
+
 def build_prompt(classification: dict, original_message: str, state: dict) -> str:
     intent       = classification["intent"]
     issue_number = classification.get("issue_number") or state.get("issue_number")
 
+    # Contexto completo da issue — injetado em todos os intents
+    issue_ctx = fetch_issue_context(issue_number) if issue_number else ""
+
+    def _with_issue(base: str) -> str:
+        return f"{base}\n\n{issue_ctx}" if issue_ctx else base
+
     if intent == "fast_track":
-        # Passa a mensagem original limpa — o agente decide o que fazer
-        return original_message
+        return _with_issue(original_message)
 
     if intent in SKILL_MAP:
         skill = SKILL_MAP[intent]
         base  = f"{skill}\n\n{original_message}"
         if issue_number:
             base += f"\n\nIssue: #{issue_number}"
-        return base
+        return _with_issue(base)
 
     if intent == "stage_impl":
         ref = f"issue #{issue_number}" if issue_number else "a tarefa descrita"
-        return f"Implementar o backlog da {ref}.\n{original_message}"
+        gh_comment = (
+            f"\n\nQuando terminar, execute: "
+            f"gh issue comment {issue_number} -b "
+            '"\'**✅ Implementação concluída**\\n\\n<resumo do que foi implementado>"'
+        ) if issue_number else ""
+        return _with_issue(f"Implementar o backlog da {ref}.\n{original_message}{gh_comment}")
 
     if intent == "stage_pr":
         ref = f"issue #{issue_number}" if issue_number else "o trabalho atual"
-        return f"Criar pull request para {ref}.\n{original_message}"
+        return _with_issue(f"Criar pull request para {ref}.\n{original_message}")
+
+    if intent == "stage_review":
+        diff_ctx = fetch_branch_diff()
+        gh_comment = (
+            f"\n\nAo terminar, execute: "
+            f"gh issue comment {issue_number} -b "
+            '"**🔍 Code Review**\\n\\n<achados: problemas encontrados, sugestões e veredicto final>"'
+        ) if issue_number else ""
+        base = f"Revisar o código implementado.\n{original_message}{gh_comment}"
+        if diff_ctx:
+            base += f"\n\n{diff_ctx}"
+        return _with_issue(base)
 
     if intent == "stage_validate":
-        return f"Validar implementação: rodar testes, lint e typecheck.\n{original_message}"
+        return _with_issue(f"Validar implementação: rodar testes, lint e typecheck.\n{original_message}")
 
     if intent == "advance":
         stage_idx = state.get("current_stage", 0)
         next_stage = STAGES[stage_idx] if stage_idx < len(STAGES) else "impl"
         skill = SKILL_MAP.get(f"stage_{next_stage}", "")
         if skill and issue_number:
-            return f"{skill}\n\nIssue: #{issue_number}"
-        return original_message
+            return _with_issue(f"{skill}\n\nIssue: #{issue_number}")
+        return _with_issue(original_message)
 
-    # question / fallback
-    return original_message
-
-# ── Detecção de ambiguidade ──────────────────────────────────────────────────
-
-_AMBIGUITY_PATTERNS = [
-    ("stage_pr",       r"\bpr\b|pull\s*request|\bcommit\b|\bmerge\b|git\s+commit|faz\s+(um\s+)?commit|commita"),
-    ("stage_issue",    r"abr[ae]\s+(uma\s+)?issue|cri[ae]\s+(uma\s+)?issue|nova\s+issue|\bissue|demanda"),
-    ("stage_impl",     r"\bimplementa|implement"),
-    ("stage_validate", r"\btesta|valida|lint"),
-    ("stage_backlog",  r"\bbacklog|tasks?"),
-    ("stage_design",   r"\bdesign|solução|análise|viabilidade|impacto"),
-]
+    # question / fallback — passa mensagem + contexto completo da issue
+    return _with_issue(original_message)
 
 _INTENT_LABELS = {
     "stage_issue":    "Abrir issue",
@@ -243,27 +342,20 @@ _INTENT_LABELS = {
     "stage_backlog":  "Gerar backlog",
     "stage_impl":     "Implementar código",
     "stage_validate": "Validar / testar",
+    "stage_review":   "Revisar código",
     "stage_pr":       "Criar PR",
     "question":       "Responder pergunta",
     "fast_track":     "Executar tudo",
 }
 
-def detect_ambiguity(message: str) -> list:
-    """Retorna lista de stage intents que fazem match na mensagem."""
-    msg = message.lower()
-    return [intent for intent, pat in _AMBIGUITY_PATTERNS
-            if re.search(pat, msg, re.I)]
-
-
-def _confirmation_message(classification: dict, ambiguous_intents: list) -> str:
+def _confirmation_message(classification: dict) -> str:
     intent = classification["intent"]
     agent  = classification.get("agent") or DEFAULT_AGENTS.get(intent, "claude")
-    others = [_INTENT_LABELS.get(i, i) for i in ambiguous_intents if i != intent]
     main   = _INTENT_LABELS.get(intent, intent)
+    reason = classification.get("ambiguity_reason") or "Intenção ambígua"
     return (
-        f"🤔 *Ambiguidade detectada* — vou executar:\n"
+        f"🤔 *{reason}* — vou executar:\n"
         f"• *{main}* via `{agent}`\n\n"
-        f"_(também detectei no texto: {', '.join(others)})_\n\n"
         f"Responda `sim` para confirmar, ou descreva o que prefere fazer."
     )
 
@@ -276,6 +368,43 @@ WRAPPER = {
     "cursor": f"{AGENTS_BIN}/cursor-dev",
 }
 
+
+def _setup_impl_branch(issue_number: int | None) -> str | None:
+    """Cria/faz checkout de feat/GH-{N}-{slug} antes do dispatch de impl.
+    Retorna o nome da branch criada, ou None se falhar."""
+    if not issue_number:
+        return None
+    try:
+        # Pega título da issue para montar o slug
+        r = subprocess.run(
+            ["gh", "issue", "view", str(issue_number), "--json", "title", "-q", ".title"],
+            capture_output=True, text=True, timeout=15, cwd=WORKSPACE,
+        )
+        title = r.stdout.strip() if r.returncode == 0 else ""
+        slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:50] if title else ""
+        branch = f"feat/GH-{issue_number}-{slug}" if slug else f"feat/GH-{issue_number}"
+        log.info("impl branch: %s", branch)
+
+        # Garante que estamos no main atualizado antes de criar a branch
+        subprocess.run(["git", "checkout", "main"], capture_output=True, cwd=WORKSPACE)
+        subprocess.run(["git", "pull", "--ff-only"], capture_output=True, cwd=WORKSPACE)
+
+        # Cria ou faz checkout da branch
+        result = subprocess.run(
+            ["git", "checkout", "-b", branch],
+            capture_output=True, text=True, cwd=WORKSPACE,
+        )
+        if result.returncode != 0 and "already exists" in result.stderr:
+            subprocess.run(["git", "checkout", branch], capture_output=True, cwd=WORKSPACE)
+            log.info("impl branch já existe, checkout: %s", branch)
+        else:
+            log.info("impl branch criada: %s", branch)
+        return branch
+    except Exception as e:
+        log.warning("_setup_impl_branch failed: %s", e)
+        return None
+
+
 def dispatch(
     classification: dict,
     prompt: str,
@@ -284,6 +413,7 @@ def dispatch(
     ts: str,
     slack_token: str,
     progress_log: "str | None" = None,
+    meta_callback: "callable | None" = None,
 ) -> str:
     intent = classification["intent"]
     agent  = classification.get("agent") or DEFAULT_AGENTS.get(intent, "claude")
@@ -292,6 +422,22 @@ def dispatch(
 
     TIMEOUT = {"claude": 1800, "codex": 1800, "cursor": 1800}.get(agent, 1800)
     log.info("dispatch intent=%s agent=%s model=%s timeout=%ds", intent, agent, model, TIMEOUT)
+
+    # Para stage_impl: cria/faz checkout da branch antes de chamar o agente
+    branch = None
+    if intent == "stage_impl":
+        branch = _setup_impl_branch(classification.get("issue_number"))
+
+    # Notifica o agente sobre o dispatch (para status estruturado no Slack)
+    if meta_callback:
+        meta_callback({
+            "intent":       intent,
+            "agent":        agent,
+            "model":        model or "",
+            "issue_number": classification.get("issue_number"),
+            "label":        _INTENT_LABELS.get(intent, "Trabalhando"),
+            "branch":       branch,
+        })
 
     wrapper = WRAPPER.get(agent, WRAPPER["claude"])
     cmd = [wrapper]
@@ -410,7 +556,7 @@ def _apply_stage_state(thread: str, classification: dict, state: dict) -> None:
         updates["issue_number"] = classification["issue_number"]
     intent = classification["intent"]
     stage_map = {"stage_issue": 1, "stage_design": 2, "stage_backlog": 3,
-                 "stage_impl": 4, "stage_validate": 5}
+                 "stage_impl": 4, "stage_review": 5, "stage_validate": 6}
     if intent in stage_map:
         updates["current_stage"] = stage_map[intent]
     elif intent == "advance":
@@ -427,6 +573,7 @@ def route(
     ts: str,
     slack_token: str,
     progress_log: "str | None" = None,
+    meta_callback: "callable | None" = None,
 ) -> str:
     """Entry point: classifica, confirma se ambíguo, despacha, atualiza estado."""
     message_clean = clean_slack_message(message)
@@ -445,7 +592,7 @@ def route(
             log.info("route: confirmação aceita → intent=%s agent=%s",
                      clf["intent"], clf.get("agent"))
             output = dispatch(clf, prom, thread, channel, ts, slack_token,
-                              progress_log=progress_log)
+                              progress_log=progress_log, meta_callback=meta_callback)
             _apply_stage_state(thread, clf, state)
             return output
         else:
@@ -467,19 +614,16 @@ def route(
     prompt = build_prompt(classification, message_clean, state)
     log.info("prompt built: %s", prompt[:120])
 
-    # ── Detecção de ambiguidade ────────────────────────────────────────────────
-    # Só aplica a stage intents — question/advance/fast_track são unívocos
-    if classification["intent"] not in ("question", "advance", "check_usage", "fast_track"):
-        ambiguous = detect_ambiguity(message_clean)
-        if len(ambiguous) >= 2:
-            log.info("route: ambiguidade %s → pedindo confirmação", ambiguous)
-            save_state(thread, {"pending_confirmation": {
-                "classification": classification,
-                "prompt": prompt,
-            }})
-            return _confirmation_message(classification, ambiguous)
+    # ── Confirmação: decisão do Gemini, não de regex ────────────────────────────
+    if classification.get("needs_confirmation"):
+        log.info("route: Gemini pediu confirmação — %s", classification.get("ambiguity_reason"))
+        save_state(thread, {"pending_confirmation": {
+            "classification": classification,
+            "prompt": prompt,
+        }})
+        return _confirmation_message(classification)
 
     output = dispatch(classification, prompt, thread, channel, ts, slack_token,
-                      progress_log=progress_log)
+                      progress_log=progress_log, meta_callback=meta_callback)
     _apply_stage_state(thread, classification, state)
     return output

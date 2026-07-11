@@ -74,6 +74,29 @@ def _strip_ansi(text: str) -> str:
     return _ANSI_RE.sub('', text)
 
 
+# ── Status estruturado ────────────────────────────────────────────────────────
+
+_STAGE_EMOJI = {
+    "stage_issue":    "📋",
+    "stage_design":   "🔍",
+    "stage_backlog":  "📝",
+    "stage_impl":     "⚙️",
+    "stage_review":   "🧐",
+    "stage_validate": "🧪",
+    "stage_pr":       "🚀",
+    "question":       "💬",
+}
+
+_NEXT_STAGE = {
+    "stage_issue":    "design",
+    "stage_design":   "backlog",
+    "stage_backlog":  "impl",
+    "stage_impl":     "review",
+    "stage_review":   "validate",
+    "stage_validate": "pr",
+}
+
+
 # ── Session persistence ───────────────────────────────────────────────────────
 
 _SESSIONS_FILE = f"/tmp/neotool-sessions-{_DEVPOD_N}.json"
@@ -229,32 +252,45 @@ def handle_message(event, client, logger):
 
     # Despacha para router em background
     def _run():
-        progress_log = f"/tmp/neotool-progress-{session_name}.log"
-        try:
-            open(progress_log, "w").close()
-        except Exception:
-            progress_log = None
+        # Metadata preenchido quando o router inicia o dispatch (após classificação)
+        meta = {}
+        dispatch_started = threading.Event()
+
+        def _meta_callback(data: dict) -> None:
+            meta.update(data)
+            dispatch_started.set()
+            log.info("  dispatch: intent=%s agent=%s model=%s",
+                     data.get("intent"), data.get("agent"), data.get("model"))
 
         stop_progress = threading.Event()
 
         def _progress_updater():
-            last_tail = ""
+            # Espera o dispatch iniciar (classificador pode levar alguns segundos)
+            if not dispatch_started.wait(timeout=120):
+                return
+            t_start = __import__("time").time()
             while not stop_progress.wait(PROGRESS_INTERVAL):
-                if not progress_log:
-                    continue
-                try:
-                    with open(progress_log) as _f:
-                        lines = _f.readlines()
-                    clean = [_strip_ansi(l.rstrip()) for l in lines if l.strip()]
-                    tail = "\n".join(clean[-10:])
-                    if tail and tail != last_tail:
-                        last_tail = tail
-                        preview = tail if len(tail) <= 800 else "…" + tail[-800:]
-                        slack_update(channel, working_ts,
-                                     f"⏳ Trabalhando...\n```\n{preview}\n```")
-                        log.info("  progress update (%d linhas)", len(clean))
-                except Exception:
-                    pass
+                elapsed = int(__import__("time").time() - t_start)
+                mins, secs = elapsed // 60, elapsed % 60
+
+                intent = meta.get("intent", "")
+                agent  = meta.get("agent", "")
+                model  = meta.get("model", "")
+                label  = meta.get("label", "Trabalhando")
+                emoji  = _STAGE_EMOJI.get(intent, "⏳")
+
+                agent_str = f"`{agent}`" if agent else ""
+                if model:
+                    agent_str += f" / `{model}`"
+
+                parts = [f"{emoji} {label}"]
+                if agent_str:
+                    parts.append(agent_str)
+                parts.append(f"{mins:02d}:{secs:02d}")
+
+                status = "  ·  ".join(parts)
+                slack_update(channel, working_ts, status)
+                log.info("  progress: %s", status)
 
         updater = threading.Thread(target=_progress_updater, daemon=True)
         updater.start()
@@ -262,15 +298,52 @@ def handle_message(event, client, logger):
         log.info("▶ session=%s msg=%r", session_name, text[:120])
         try:
             output = _router.route(text, session_name, channel, working_ts, SLACK_BOT_TOKEN,
-                                   progress_log=progress_log)
+                                   meta_callback=_meta_callback)
             log.info("◀ router output: %r", (output or "")[:200])
             if output is None:
                 return
+
             result = output.strip() or "_(sem resposta)_"
             if len(result) > MAX_CHARS:
                 result = result[:MAX_CHARS] + "\n_(truncado)_"
-            slack_update(channel, working_ts, result)
-            log.info("■ session=%s done (%d chars)", session_name, len(result))
+
+            # ── Mensagem final: header + resultado + próximo stage ─────────────
+            intent  = meta.get("intent", "")
+            agent   = meta.get("agent", "")
+            model   = meta.get("model", "")
+            issue   = meta.get("issue_number")
+            label   = meta.get("label", "")
+            branch  = meta.get("branch")
+
+            header_parts = []
+            if intent.startswith("stage_"):
+                stage_short = intent.replace("stage_", "")
+                emoji = _STAGE_EMOJI.get(intent, "✅")
+                header_parts.append(f"{emoji} *{stage_short} concluído*")
+            if issue:
+                header_parts.append(f"issue #{issue}")
+            if branch:
+                header_parts.append(f"`{branch}`")
+            elif agent:
+                a = f"`{agent}`"
+                if model:
+                    a += f" / `{model}`"
+                header_parts.append(a)
+            if branch and agent:
+                a = f"`{agent}`"
+                if model:
+                    a += f" / `{model}`"
+                header_parts.append(a)
+
+            header = "  ·  ".join(header_parts)
+
+            next_s = _NEXT_STAGE.get(intent)
+            footer = f"\n\n→ próximo: `{next_s}`  —  `sim` para continuar" if next_s else ""
+
+            final = f"{header}\n\n{result}{footer}" if header else result
+            slack_update(channel, working_ts, final)
+            log.info("■ session=%s done (%d chars)", session_name, len(final))
+
         except Exception as e:
             log.exception("✗ router error: %s", e)
             try:
@@ -279,11 +352,6 @@ def handle_message(event, client, logger):
                 pass
         finally:
             stop_progress.set()
-            if progress_log:
-                try:
-                    os.unlink(progress_log)
-                except Exception:
-                    pass
 
     threading.Thread(target=_run, daemon=True).start()
 
@@ -309,8 +377,9 @@ if __name__ == "__main__":
         sys.exit(1)
 
     log.info("neotool-dev-agent iniciando (DevPod %s, Socket Mode)", _DEVPOD_N)
-    log.info("  ANTHROPIC_API_KEY: %s", "✓" if os.environ.get("ANTHROPIC_API_KEY") else "✗ AUSENTE")
+    log.info("  OPENAI_API_KEY:    %s", "✓" if os.environ.get("OPENAI_API_KEY") else "✗ AUSENTE")
     log.info("  GOOGLE_API_KEY:    %s", "✓" if os.environ.get("GOOGLE_API_KEY") else "✗ AUSENTE")
+    log.info("  GH_TOKEN:          %s", "✓" if os.environ.get("GH_TOKEN") else "✗ AUSENTE")
     log.info("  devpod env:        %s", _DEVPOD_ENV)
 
     _start_health_server()

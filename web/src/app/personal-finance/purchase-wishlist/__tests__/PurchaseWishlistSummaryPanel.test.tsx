@@ -80,12 +80,14 @@ describe.sequential('PurchaseWishlistSummaryPanel', () => {
   it('renders the uncategorized bucket when all items have no category', () => {
     renderWithTheme(
       <PurchaseWishlistSummaryPanel
-        rows={[
-          {
-            ...rows[1],
-            id: 'row-3',
-          },
-        ]}
+        rows={
+          [
+            {
+              ...rows[1],
+              id: 'row-3',
+            },
+          ] as WishlistItemRow[]
+        }
       />,
     );
 

@@ -98,7 +98,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe('InlineTransactionForm — BALANCE_ADJUSTMENT edit', () => {
+describe.sequential('InlineTransactionForm — BALANCE_ADJUSTMENT edit', () => {
   const updateTransaction = vi.fn().mockResolvedValue({});
 
   beforeEach(() => {
@@ -155,9 +155,11 @@ describe('InlineTransactionForm — BALANCE_ADJUSTMENT edit', () => {
     const desc = screen.getByTestId('tx-description-input');
     expect(desc).toHaveAttribute('readonly');
 
-    await user.clear(screen.getByTestId('tx-amount-input'));
-    await user.type(screen.getByTestId('tx-amount-input'), '1500');
-    await user.click(screen.getByTestId('tx-save-btn'));
+    const amountInput = screen.getByTestId('tx-amount-input');
+    const saveButton = screen.getByTestId('tx-save-btn');
+    await user.clear(amountInput);
+    await user.type(amountInput, '1500');
+    await user.click(saveButton);
 
     expect(updateTransaction).toHaveBeenCalledWith({
       variables: {
@@ -166,9 +168,41 @@ describe('InlineTransactionForm — BALANCE_ADJUSTMENT edit', () => {
       },
     });
   });
+
+  it('does not span into the trailing actions column', () => {
+    const initialValues = {
+      id: 'tx-1',
+      financialAccountId: 'acc-1',
+      description: 'Saldo inicial',
+      date: '2026-03-15',
+      creditDebitType: CreditDebitType.Credit,
+      type: TransactionType.BalanceAdjustment,
+      amount: 1000,
+      currencyCode: 'BRL',
+      category: null,
+      tags: [],
+    } as unknown as Transaction;
+
+    renderInTable(
+      <InlineTransactionForm
+        isOpen
+        onClose={vi.fn()}
+        onSuccess={vi.fn()}
+        selectedAccountId="acc-1"
+        initialValues={initialValues}
+      />,
+    );
+
+    expect(screen.getByTestId('inline-transaction-form')).toBeInTheDocument();
+
+    const cells = screen.getAllByRole('cell');
+    expect(cells).toHaveLength(2);
+    expect(cells[0]).toHaveAttribute('colspan', '6');
+    expect(cells[1]).toBeEmptyDOMElement();
+  });
 });
 
-describe('InlineTransactionForm — create validation', () => {
+describe.sequential('InlineTransactionForm — create validation', () => {
   const createTransaction = vi.fn().mockResolvedValue({});
 
   beforeEach(() => {
@@ -211,7 +245,7 @@ describe('InlineTransactionForm — create validation', () => {
   });
 });
 
-describe('InlineTransactionForm — BILL_PAYMENT edit', () => {
+describe.sequential('InlineTransactionForm — BILL_PAYMENT edit', () => {
   const updateTransaction = vi.fn().mockResolvedValue({});
 
   beforeEach(() => {

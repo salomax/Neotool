@@ -25,11 +25,27 @@ vi.mock('@/shared/i18n', () => ({
 }));
 
 vi.mock('@/shared/components/ui/layout/Drawer', () => {
-  const Drawer = ({ open, children }: { open: boolean; children: React.ReactNode }) => (open ? <div>{children}</div> : null);
-  Drawer.Header = ({ title }: { title: React.ReactNode }) => <h2>{title}</h2>;
-  Drawer.Body = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
-  Drawer.Footer = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
-  Drawer.ActionButtons = ({
+  function Drawer({ open, children }: { open: boolean; children: React.ReactNode }) {
+    return open ? <div>{children}</div> : null;
+  }
+  Drawer.displayName = 'DrawerMock';
+
+  function DrawerHeader({ title }: { title: React.ReactNode }) {
+    return <h2>{title}</h2>;
+  }
+  DrawerHeader.displayName = 'DrawerHeaderMock';
+
+  function DrawerBody({ children }: { children: React.ReactNode }) {
+    return <div>{children}</div>;
+  }
+  DrawerBody.displayName = 'DrawerBodyMock';
+
+  function DrawerFooter({ children }: { children: React.ReactNode }) {
+    return <div>{children}</div>;
+  }
+  DrawerFooter.displayName = 'DrawerFooterMock';
+
+  function DrawerActionButtons({
     cancelText,
     submitText,
     onCancel,
@@ -39,16 +55,24 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => {
     submitText: string;
     onCancel: () => void;
     onSubmit: () => void;
-  }) => (
-    <div>
-      <button type="button" onClick={onCancel}>
-        {cancelText}
-      </button>
-      <button type="button" onClick={onSubmit}>
-        {submitText}
-      </button>
-    </div>
-  );
+  }) {
+    return (
+      <div>
+        <button type="button" onClick={onCancel}>
+          {cancelText}
+        </button>
+        <button type="button" onClick={onSubmit}>
+          {submitText}
+        </button>
+      </div>
+    );
+  }
+  DrawerActionButtons.displayName = 'DrawerActionButtonsMock';
+
+  Drawer.Header = DrawerHeader;
+  Drawer.Body = DrawerBody;
+  Drawer.Footer = DrawerFooter;
+  Drawer.ActionButtons = DrawerActionButtons;
 
   return { Drawer };
 });

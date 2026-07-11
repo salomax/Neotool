@@ -40,6 +40,10 @@ import {
   type PurchaseWishlistPurchasedItemsQuery,
 } from './purchaseWishlistOperations.generated';
 import type { CreateTransactionInput, CreateWishlistItemInput, UpdateWishlistItemInput } from '@/lib/graphql/types/__generated__/graphql';
+import type {
+  TransactionCreateSubmitInput,
+  TransactionSuccessPayload,
+} from '../finance-transactions/transaction/transactionFormShared';
 import { WishlistItemStatus } from '@/lib/graphql/types/__generated__/graphql';
 import { PurchaseWishlistForm } from './PurchaseWishlistForm';
 import { PurchaseDecisionDialog } from './PurchaseDecisionDialog';
