@@ -1,3 +1,13 @@
+## 0.8.5 (2026-07-11)
+
+### 🚀 Features
+
+- **neotool:** enhance status tracking and error handling ([c4df56b5](https://github.com/invistus/invistus/commit/c4df56b5))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.8.4 (2026-07-10)
 
 ### 🚀 Features

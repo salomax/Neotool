@@ -1,3 +1,14 @@
+## 0.7.37 (2026-07-11)
+
+### 🚀 Features
+
+- **purchase-wishlist:** enhance transaction creation with enriched account options ([a60d1d96](https://github.com/invistus/invistus/commit/a60d1d96))
+- **neotool:** enhance status tracking and error handling ([c4df56b5](https://github.com/invistus/invistus/commit/c4df56b5))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.36 (2026-07-10)
 
 ### 🚀 Features
