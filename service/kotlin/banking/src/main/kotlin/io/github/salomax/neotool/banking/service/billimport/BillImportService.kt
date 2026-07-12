@@ -298,8 +298,12 @@ open class BillImportService(
             )
 
         return try {
-            val affectedBills = mutableSetOf<UUID>()
             val snapshotRecomputeByAccount = mutableMapOf<UUID, Pair<Int, Int>>()
+            val priorImportRows = transactionRepository.findActiveByImportJobId(command.jobId, accountId)
+            priorImportRows.forEach { trackSnapshotRecompute(snapshotRecomputeByAccount, it) }
+            val previouslyAffectedBillIds =
+                transactionRepository.softDeleteImportOwnedByJobId(command.jobId, accountId)
+            val affectedBills = previouslyAffectedBillIds.toMutableSet()
             val billPaymentCategoryId = resolveBillPaymentCategoryId()
 
             preparedCommit.cards.forEach { card ->
@@ -307,6 +311,7 @@ open class BillImportService(
                 val financialAccountId = requireNotNull(account.id) { "FinancialAccount id is required" }
                 val reviewCard = card.reviewCard
                 val cycleAnchor = card.closingDate
+                val referenceMonth = creditCardBillService.computeReferenceMonth(card.dueDate)
                 var cardBillIdResolved = false
                 var cardBillId: UUID? = null
 
@@ -421,9 +426,10 @@ open class BillImportService(
                                 if (billId != null) {
                                     importFingerprintService.computeForBill(
                                         financialAccountId = financialAccountId,
-                                        billId = billId,
+                                        referenceMonth = referenceMonth,
                                         amountCents = amountCents,
                                         normalizedDescription = tx.description,
+                                        creditDebitType = tx.creditDebitType,
                                     )
                                 } else {
                                     importFingerprintService.compute(
@@ -436,7 +442,7 @@ open class BillImportService(
                                 }
                             val duplicate =
                                 if (billId != null) {
-                                    importFingerprintService.isDuplicateForBill(financialAccountId, billId, fingerprint)
+                                    importFingerprintService.isDuplicateForBill(financialAccountId, fingerprint)
                                 } else {
                                     importFingerprintService.isDuplicate(financialAccountId, fingerprint)
                                 }
@@ -545,6 +551,9 @@ open class BillImportService(
 
             affectedBills.forEach { billId ->
                 creditCardBillService.recomputeBill(billId, accountId)
+            }
+            previouslyAffectedBillIds.forEach { billId ->
+                creditCardBillService.softDeleteIfOrphan(billId, accountId)
             }
             snapshotRecomputeByAccount.forEach { (financialAccountId, yearMonth) ->
                 snapshotComputationService.recomputeChain(

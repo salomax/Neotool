@@ -111,6 +111,8 @@ class BillImportServiceTest {
         categorizationService = mock()
         userRuleCreationModeService = mock()
         whenever(userRuleCreationModeService.get(userId)).thenReturn(RuleCreationMode.ALWAYS_PROMPT)
+        whenever(transactionRepository.findActiveByImportJobId(any(), any())).thenReturn(emptyList())
+        whenever(transactionRepository.softDeleteImportOwnedByJobId(any(), any())).thenReturn(emptySet())
         creditCardBillService = spy(CreditCardBillService(creditCardBillRepository, mock()))
         billImportCommitPreparer = BillImportCommitPreparer(creditCardBillService)
         billAssetStorage = mock()
@@ -1032,12 +1034,14 @@ class BillImportServiceTest {
                 listOf(cardAccount(cardA, "1234"), cardAccount(cardB, "5678")),
             )
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenAnswer {
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenAnswer {
                 val account = it.getArgument<UUID>(0)
-                val billId = it.getArgument<UUID>(1)
-                "$account-$billId"
+                val referenceMonth = it.getArgument<LocalDate>(1)
+                "$account-$referenceMonth"
             }
-            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
             doAnswer {
                 val account = it.getArgument<FinancialAccount>(0)
                 if (account.id == cardA) billA else billB
@@ -1061,6 +1065,84 @@ class BillImportServiceTest {
             verify(creditCardBillService).recomputeBill(billB, accountId)
             verify(snapshotComputationService).recomputeChain(eq(cardA), eq(accountId), eq(2026), eq(1))
             verify(snapshotComputationService).recomputeChain(eq(cardB), eq(accountId), eq(2026), eq(1))
+        }
+
+        @Test
+        fun `confirm reconciles prior import-owned rows before writing corrected bill result`() {
+            val jobId = UUID.randomUUID()
+            val cardA = UUID.randomUUID()
+            val oldBillId = UUID.randomUUID()
+            val newBillId = UUID.randomUUID()
+            val priorTxId = UUID.randomUUID()
+            val job = awaitingReviewJob(jobId)
+            val command =
+                ConfirmBillImportCommand(
+                    jobId = jobId,
+                    cards =
+                        listOf(
+                            ConfirmBillReviewCardCommand(
+                                reviewCardId = "card-1",
+                                financialAccountId = cardA,
+                                transactions =
+                                    listOf(
+                                        ConfirmBillReviewTransactionCommand(
+                                            date = LocalDate.of(2026, 1, 15),
+                                            description = "MERCADO",
+                                            amount = BigDecimal("45.90"),
+                                            creditDebitType = CreditDebitType.DEBIT,
+                                            include = true,
+                                        ),
+                                    ),
+                            ),
+                        ),
+                )
+            val priorRow =
+                Transaction(
+                    id = priorTxId,
+                    financialAccountId = cardA,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    belongsToUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.CARD,
+                    amount = BigDecimal("45.90"),
+                    date = LocalDate.of(2026, 1, 15),
+                    description = "MERCADO",
+                    billId = oldBillId,
+                    importJobId = jobId,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+
+            whenever(repository.findById(jobId, accountId)).thenReturn(job)
+            whenever(
+                financialAccountRepository.findByAccountId(accountId),
+            ).thenReturn(listOf(cardAccount(cardA, "1234")))
+            whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(transactionRepository.findActiveByImportJobId(jobId, accountId)).thenReturn(listOf(priorRow))
+            whenever(transactionRepository.softDeleteImportOwnedByJobId(jobId, accountId)).thenReturn(setOf(oldBillId))
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenAnswer {
+                val referenceMonth = it.getArgument<LocalDate>(1)
+                "fp-$referenceMonth"
+            }
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
+            doReturn(newBillId).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
+            doReturn(
+                creditCardBill(newBillId, cardA, dueDate = LocalDate.of(2026, 2, 15)),
+            ).whenever(creditCardBillService).requireBillForAccount(eq(newBillId), eq(accountId))
+            whenever(transactionRepository.save(any())).thenAnswer {
+                it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+
+            service.confirmBillImport(accountId, userId, command)
+
+            verify(transactionRepository).softDeleteImportOwnedByJobId(jobId, accountId)
+            verify(creditCardBillService).softDeleteIfOrphan(oldBillId, accountId)
+            verify(creditCardBillService).recomputeBill(oldBillId, accountId)
+            verify(creditCardBillService).recomputeBill(newBillId, accountId)
+            verify(transactionRepository, times(1)).save(any())
         }
 
         @Test
@@ -1125,8 +1207,10 @@ class BillImportServiceTest {
                     merchantId = null,
                 ),
             )
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
-            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
             doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
             doReturn(
                 creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 2, 15)),
@@ -1192,8 +1276,10 @@ class BillImportServiceTest {
             )
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
             whenever(categorizationService.preloadRules(accountId)).thenThrow(RuntimeException("rules unavailable"))
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
-            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
             doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
             doReturn(
                 creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 2, 15)),
@@ -1256,8 +1342,10 @@ class BillImportServiceTest {
                 financialAccountRepository.findByAccountId(accountId),
             ).thenReturn(listOf(cardAccount(cardA, "1234")))
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
-            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
             doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
             doReturn(
                 creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 2, 15)),
@@ -1340,8 +1428,10 @@ class BillImportServiceTest {
                 ),
             )
 
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
-            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
 
             doReturn(
                 billA,
@@ -1442,8 +1532,10 @@ class BillImportServiceTest {
                     merchantId = merchantId,
                 ),
             )
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
-            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
             doReturn(
                 billA,
             ).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), eq(TransactionType.CARD))
@@ -1507,9 +1599,11 @@ class BillImportServiceTest {
                 financialAccountRepository.findByAccountId(accountId),
             ).thenReturn(listOf(cardAccount(cardA, "1234")))
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1", "fp-2")
-            whenever(importFingerprintService.isDuplicateForBill(cardA, billA, "fp-1")).thenReturn(true)
-            whenever(importFingerprintService.isDuplicateForBill(cardA, billA, "fp-2")).thenReturn(false)
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenReturn("fp-1", "fp-2")
+            whenever(importFingerprintService.isDuplicateForBill(eq(cardA), eq("fp-1"))).thenReturn(true)
+            whenever(importFingerprintService.isDuplicateForBill(eq(cardA), eq("fp-2"))).thenReturn(false)
             doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
             doReturn(
                 creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 2, 15)),
@@ -1568,11 +1662,13 @@ class BillImportServiceTest {
             doReturn(
                 creditCardBill(billJan, cardA, dueDate = LocalDate.of(2026, 2, 15)),
             ).whenever(creditCardBillService).requireBillForAccount(eq(billJan), eq(accountId))
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenAnswer {
-                val billId = it.getArgument<UUID>(1)
-                "fp-$billId"
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenAnswer {
+                val referenceMonth = it.getArgument<LocalDate>(1)
+                "fp-$referenceMonth"
             }
-            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
             whenever(transactionRepository.save(any())).thenAnswer {
                 it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
             }
@@ -1581,7 +1677,7 @@ class BillImportServiceTest {
 
             assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
             verify(transactionRepository, times(2)).save(any())
-            verify(importFingerprintService, times(2)).isDuplicateForBill(eq(cardA), eq(billJan), eq("fp-$billJan"))
+            verify(importFingerprintService, times(2)).isDuplicateForBill(eq(cardA), eq("fp-2026-02-01"))
         }
 
         @Test
@@ -1618,8 +1714,10 @@ class BillImportServiceTest {
                 financialAccountRepository.findByAccountId(accountId),
             ).thenReturn(listOf(cardAccount(cardA, "1234")))
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
-            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
             doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
             whenever(
                 transactionRepository.save(any()),
@@ -1674,8 +1772,10 @@ class BillImportServiceTest {
             doReturn(
                 creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 5, 25)),
             ).whenever(creditCardBillService).requireBillForAccount(eq(billA), eq(accountId))
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
-            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
             whenever(transactionRepository.save(any())).thenAnswer {
                 it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
             }
@@ -1727,8 +1827,10 @@ class BillImportServiceTest {
             doReturn(
                 creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 3, 15)),
             ).whenever(creditCardBillService).requireBillForAccount(eq(billA), eq(accountId))
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
-            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
             whenever(transactionRepository.save(any())).thenAnswer {
                 it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
             }
@@ -1780,8 +1882,10 @@ class BillImportServiceTest {
             doReturn(
                 creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 3, 15)),
             ).whenever(creditCardBillService).requireBillForAccount(eq(billA), eq(accountId))
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
-            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
             whenever(transactionRepository.save(any())).thenAnswer {
                 it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
             }
@@ -1837,8 +1941,10 @@ class BillImportServiceTest {
             doReturn(
                 creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 2, 15)),
             ).whenever(creditCardBillService).requireBillForAccount(eq(billA), eq(accountId))
-            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
-            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+            whenever(
+                importFingerprintService.computeForBill(any(), any(), any(), any(), any()),
+            ).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any())).thenReturn(false)
             whenever(transactionRepository.save(any())).thenAnswer {
                 it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
             }
@@ -2580,6 +2686,7 @@ class BillImportServiceTest {
             accountId = accountId,
             closingDate = dueDate.minusDays(8),
             dueDate = dueDate,
+            referenceMonth = dueDate.withDayOfMonth(1),
             totalAmount = BigDecimal.ZERO,
             status = BillStatus.OPEN,
             createdAt = now,

@@ -7,6 +7,7 @@ export interface CreditCardBill {
   financialAccountId: string;
   closingDate: string;
   dueDate: string;
+  referenceMonth: string;
   totalAmount: number;
   minimumPayment?: number | null;
   status: BillStatus;

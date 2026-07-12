@@ -37,6 +37,7 @@ describe.sequential('BillCarousel', () => {
       id: 'bill-1', // Newest (April)
       closingDate: '2024-04-10',
       dueDate: '2024-04-20',
+      referenceMonth: '2024-04-01',
       totalAmount: 100,
       status: 'OPEN',
     },
@@ -44,6 +45,7 @@ describe.sequential('BillCarousel', () => {
       id: 'bill-2', // Middle (March)
       closingDate: '2024-03-10',
       dueDate: '2024-03-20',
+      referenceMonth: '2024-03-01',
       totalAmount: 200,
       status: 'CLOSED',
     },
@@ -51,6 +53,7 @@ describe.sequential('BillCarousel', () => {
       id: 'bill-3', // Oldest (February)
       closingDate: '2024-02-10',
       dueDate: '2024-02-20',
+      referenceMonth: '2024-02-01',
       totalAmount: 300,
       status: 'PAID',
     },

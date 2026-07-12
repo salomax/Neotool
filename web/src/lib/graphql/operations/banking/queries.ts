@@ -634,7 +634,7 @@ export const MONTH_SUMMARY = gql`
   }
 `;
 
-/** All credit card bills (faturas) for a given card account, ordered by closing date desc. */
+/** All credit card bills (faturas) for a given card account, ordered by reference month desc. */
 export const CREDIT_CARD_BILLS = gql`
   query GetCreditCardBills($financialAccountId: ID!) {
     creditCardBills(financialAccountId: $financialAccountId) {
@@ -642,6 +642,7 @@ export const CREDIT_CARD_BILLS = gql`
       financialAccountId
       closingDate
       dueDate
+      referenceMonth
       totalAmount
       minimumPayment
       status
@@ -651,14 +652,15 @@ export const CREDIT_CARD_BILLS = gql`
   }
 `;
 
-/** A specific credit card bill by financial account and optional closing date. */
+/** A specific credit card bill by financial account and optional reference month. */
 export const CREDIT_CARD_BILL = gql`
-  query GetCreditCardBill($financialAccountId: ID!, $closingDate: Date) {
-    creditCardBill(financialAccountId: $financialAccountId, closingDate: $closingDate) {
+  query GetCreditCardBill($financialAccountId: ID!, $referenceMonth: Date) {
+    creditCardBill(financialAccountId: $financialAccountId, referenceMonth: $referenceMonth) {
       id
       financialAccountId
       closingDate
       dueDate
+      referenceMonth
       totalAmount
       minimumPayment
       status

@@ -722,6 +722,48 @@ open class DefaultTransactionRepository(
     override fun existsByImportJobId(importJobId: UUID): Boolean =
         entityRepository.existsByImportJobIdAndDeletedAtIsNull(importJobId)
 
+    @Transactional(readOnly = true)
+    override fun findActiveByImportJobId(
+        importJobId: UUID,
+        accountId: UUID,
+    ): List<Transaction> =
+        entityRepository.findByImportJobIdAndAccountIdAndDeletedAtIsNull(importJobId, accountId)
+            .map(TransactionMapper::toDomain)
+
+    @Transactional
+    override fun softDeleteImportOwnedByJobId(
+        importJobId: UUID,
+        accountId: UUID,
+    ): Set<UUID> {
+        val importOwned =
+            entityRepository.findByImportJobIdAndAccountIdAndDeletedAtIsNull(importJobId, accountId)
+        if (importOwned.isEmpty()) {
+            return emptySet()
+        }
+
+        val peerIds =
+            importOwned.mapNotNull { it.transferPeerTransactionId }
+                .filter { peerId -> importOwned.none { it.id == peerId } }
+        val peers =
+            if (peerIds.isEmpty()) {
+                emptyList()
+            } else {
+                entityRepository.findByIdInAndAccountIdAndDeletedAtIsNull(peerIds, accountId)
+            }
+
+        val affectedBillIds =
+            (importOwned + peers)
+                .mapNotNull { it.billId }
+                .toSet()
+
+        val now = Instant.now()
+        (importOwned + peers).forEach { entity ->
+            entityRepository.softDelete(entity.id!!, accountId, now)
+        }
+        entityManager.clear()
+        return affectedBillIds
+    }
+
     @Transactional
     override fun clearProviderTransactionIdForDeleted(
         financialAccountId: UUID,

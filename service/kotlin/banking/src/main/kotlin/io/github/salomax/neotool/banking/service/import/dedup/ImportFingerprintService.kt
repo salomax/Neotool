@@ -47,29 +47,24 @@ open class ImportFingerprintService(
         )
 
     /**
-     * Bill-scoped dedup for credit card bill imports.
-     * Fingerprint = SHA-256(account|bill|amountCents|normalizedDescription).
+     * Bill-import charge dedup keyed by business reference month instead of bill id.
+     * Fingerprint = SHA-256(account|referenceMonth|amountCents|normalizedDescription|creditDebitType).
      */
     fun computeForBill(
         financialAccountId: UUID,
-        billId: UUID,
+        referenceMonth: LocalDate,
         amountCents: Long,
         normalizedDescription: String,
+        creditDebitType: CreditDebitType,
     ): String {
         val normalized = normalizedDescription.trim().lowercase()
-        val payload = "$financialAccountId|$billId|$amountCents|$normalized"
+        val payload = "$financialAccountId|$referenceMonth|$amountCents|$normalized|${creditDebitType.name}"
         val digest = MessageDigest.getInstance("SHA-256").digest(payload.toByteArray(Charsets.UTF_8))
         return digest.joinToString("") { "%02x".format(it) }
     }
 
     fun isDuplicateForBill(
         financialAccountId: UUID,
-        billId: UUID,
         fingerprint: String,
-    ): Boolean =
-        transactionEntityRepository.existsByFinancialAccountIdAndBillIdAndImportFingerprintAndDeletedAtIsNull(
-            financialAccountId = financialAccountId,
-            billId = billId,
-            importFingerprint = fingerprint,
-        )
+    ): Boolean = isDuplicate(financialAccountId, fingerprint)
 }

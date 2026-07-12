@@ -860,8 +860,8 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
                 )
                 conn.createStatement().executeUpdate(
                     """
-                    INSERT INTO banking.credit_card_bills (id, financial_account_id, account_id, closing_date, due_date, status, created_at, updated_at)
-                    VALUES ('$billId', '$cardFinancialAccountId', '$accountId', '2026-01-31', '2026-02-10', 'OPEN', NOW(), NOW())
+                    INSERT INTO banking.credit_card_bills (id, financial_account_id, account_id, closing_date, due_date, reference_month, status, created_at, updated_at)
+                    VALUES ('$billId', '$cardFinancialAccountId', '$accountId', '2026-01-31', '2026-02-10', '2026-02-01', 'OPEN', NOW(), NOW())
                     """.trimIndent(),
                 )
             }
@@ -1016,8 +1016,8 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
                 )
                 conn.createStatement().executeUpdate(
                     """
-                    INSERT INTO banking.credit_card_bills (id, financial_account_id, account_id, closing_date, due_date, status, created_at, updated_at)
-                    VALUES ('$billId', '$cardFinancialAccountId', '$accountId', '2026-05-17', '2026-05-25', 'OPEN', NOW(), NOW())
+                    INSERT INTO banking.credit_card_bills (id, financial_account_id, account_id, closing_date, due_date, reference_month, status, created_at, updated_at)
+                    VALUES ('$billId', '$cardFinancialAccountId', '$accountId', '2026-05-17', '2026-05-25', '2026-05-01', 'OPEN', NOW(), NOW())
                     """.trimIndent(),
                 )
             }

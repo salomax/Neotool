@@ -27,16 +27,16 @@ open class DefaultCreditCardBillRepository(
         entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(id, accountId)
             ?.let(CreditCardBillMapper::toDomain)
 
-    override fun findByClosingDate(
+    override fun findByReferenceMonth(
         financialAccountId: UUID,
         accountId: UUID,
-        closingDate: LocalDate,
+        referenceMonth: LocalDate,
     ): CreditCardBill? =
         entityRepository
-            .findByFinancialAccountIdAndAccountIdAndClosingDateAndDeletedAtIsNull(
+            .findByFinancialAccountIdAndAccountIdAndReferenceMonthAndDeletedAtIsNull(
                 financialAccountId,
                 accountId,
-                closingDate,
+                referenceMonth,
             )
             ?.let(CreditCardBillMapper::toDomain)
 
@@ -45,7 +45,10 @@ open class DefaultCreditCardBillRepository(
         accountId: UUID,
     ): List<CreditCardBill> =
         entityRepository
-            .findByFinancialAccountIdAndAccountIdAndDeletedAtIsNullOrderByClosingDateDesc(financialAccountId, accountId)
+            .findByFinancialAccountIdAndAccountIdAndDeletedAtIsNullOrderByReferenceMonthDesc(
+                financialAccountId,
+                accountId,
+            )
             .map(CreditCardBillMapper::toDomain)
 
     @Transactional
@@ -54,17 +57,62 @@ open class DefaultCreditCardBillRepository(
         accountId: UUID,
         closingDate: LocalDate,
         dueDate: LocalDate,
+        referenceMonth: LocalDate,
     ): CreditCardBill {
-        // Safe concurrent creation: ON CONFLICT DO NOTHING on unique(financial_account_id, closing_date).
-        entityRepository.insertIfAbsent(financialAccountId, accountId, closingDate, dueDate)
-        // Re-read to get the DB-generated id (whether newly created or pre-existing).
-        return entityRepository
-            .findByFinancialAccountIdAndAccountIdAndClosingDateAndDeletedAtIsNull(
+        val existing =
+            entityRepository.findByFinancialAccountIdAndAccountIdAndReferenceMonthAndDeletedAtIsNull(
                 financialAccountId,
                 accountId,
-                closingDate,
-            )!!
-            .let(CreditCardBillMapper::toDomain)
+                referenceMonth,
+            )
+        if (existing != null) {
+            if (existing.closingDate != closingDate || existing.dueDate != dueDate) {
+                entityRepository.updateCycleMetadata(
+                    billId = existing.id!!,
+                    accountId = accountId,
+                    closingDate = closingDate,
+                    dueDate = dueDate,
+                    referenceMonth = referenceMonth,
+                    updatedAt = Instant.now(),
+                )
+                entityManager.clear()
+            }
+            return entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(existing.id!!, accountId)!!
+                .let(CreditCardBillMapper::toDomain)
+        }
+
+        entityRepository.insertIfAbsent(
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            closingDate = closingDate,
+            dueDate = dueDate,
+            referenceMonth = referenceMonth,
+        )
+        entityManager.clear()
+
+        val created =
+            entityRepository.findByFinancialAccountIdAndAccountIdAndReferenceMonthAndDeletedAtIsNull(
+                financialAccountId,
+                accountId,
+                referenceMonth,
+            ) ?: throw IllegalStateException(
+                "CreditCardBill for account $financialAccountId and referenceMonth $referenceMonth " +
+                    "was not found after insertIfAbsent",
+            )
+        if (created.closingDate != closingDate || created.dueDate != dueDate) {
+            entityRepository.updateCycleMetadata(
+                billId = created.id!!,
+                accountId = accountId,
+                closingDate = closingDate,
+                dueDate = dueDate,
+                referenceMonth = referenceMonth,
+                updatedAt = Instant.now(),
+            )
+            entityManager.clear()
+            return entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(created.id!!, accountId)!!
+                .let(CreditCardBillMapper::toDomain)
+        }
+        return CreditCardBillMapper.toDomain(created)
     }
 
     @Transactional
@@ -75,8 +123,6 @@ open class DefaultCreditCardBillRepository(
         val entity =
             entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(billId, accountId)
                 ?: throw NoSuchElementException("CreditCardBill $billId not found")
-        // Compute the new total before updating so computeStatus can use it to decide whether
-        // a previously-PAID bill should revert (e.g. when a payment transaction is deleted).
         val newTotal = entityRepository.computeCurrentTotal(billId)
         val newStatus = computeStatus(entity.closingDate, entity.dueDate, entity.status, newTotal)
         entityRepository.updateTotalAndStatus(
@@ -84,7 +130,6 @@ open class DefaultCreditCardBillRepository(
             status = newStatus.name,
             updatedAt = Instant.now(),
         )
-        // Native UPDATE bypasses the persistence context; clear to avoid stale total/status reads.
         entityManager.clear()
         return entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(billId, accountId)!!
             .let(CreditCardBillMapper::toDomain)
@@ -96,8 +141,19 @@ open class DefaultCreditCardBillRepository(
         accountId: UUID,
     ) {
         entityRepository.updateStatus(billId, accountId, status.name, Instant.now())
-        // Keep subsequent reads in the same transaction consistent with DB state.
         entityManager.clear()
+    }
+
+    @Transactional
+    override fun softDeleteIfOrphan(
+        billId: UUID,
+        accountId: UUID,
+    ): Boolean {
+        val deleted = entityRepository.softDeleteIfOrphan(billId, accountId, Instant.now())
+        if (deleted > 0) {
+            entityManager.clear()
+        }
+        return deleted > 0
     }
 
     private fun computeStatus(
@@ -106,8 +162,6 @@ open class DefaultCreditCardBillRepository(
         current: BillStatus,
         newTotal: BigDecimal,
     ): BillStatus {
-        // Preserve PAID only when the bill remains fully covered (credits >= debits, i.e. net <= 0).
-        // If the total is positive, a payment was removed and the bill must revert to date-based status.
         if (current == BillStatus.PAID && newTotal <= BigDecimal.ZERO) return BillStatus.PAID
         val today = LocalDate.now()
         return when {

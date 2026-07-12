@@ -19,16 +19,22 @@ interface CreditCardBillEntityRepository : GenericRepository<CreditCardBillEntit
         accountId: UUID,
     ): CreditCardBillEntity?
 
+    fun findByFinancialAccountIdAndAccountIdAndReferenceMonthAndDeletedAtIsNull(
+        financialAccountId: UUID,
+        accountId: UUID,
+        referenceMonth: LocalDate,
+    ): CreditCardBillEntity?
+
+    fun findByFinancialAccountIdAndAccountIdAndDeletedAtIsNullOrderByReferenceMonthDesc(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<CreditCardBillEntity>
+
     fun findByFinancialAccountIdAndAccountIdAndClosingDateAndDeletedAtIsNull(
         financialAccountId: UUID,
         accountId: UUID,
         closingDate: LocalDate,
     ): CreditCardBillEntity?
-
-    fun findByFinancialAccountIdAndAccountIdAndDeletedAtIsNullOrderByClosingDateDesc(
-        financialAccountId: UUID,
-        accountId: UUID,
-    ): List<CreditCardBillEntity>
 
     @Query(
         """
@@ -57,19 +63,41 @@ interface CreditCardBillEntityRepository : GenericRepository<CreditCardBillEntit
         now: Instant,
     ): Int
 
+    @Query(
+        """
+        UPDATE banking.credit_card_bills
+           SET deleted_at = :now,
+               updated_at = :now
+         WHERE id = :billId
+           AND account_id = :accountId
+           AND deleted_at IS NULL
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM banking.transactions t
+                WHERE t.bill_id = :billId
+                  AND t.deleted_at IS NULL
+           )
+        """,
+        nativeQuery = true,
+    )
+    fun softDeleteIfOrphan(
+        billId: UUID,
+        accountId: UUID,
+        now: Instant,
+    ): Int
+
     /**
-     * Creates the bill if it does not already exist.
-     * ON CONFLICT DO NOTHING is safe against the unique constraint
-     * uq_credit_card_bills_account_closing (financial_account_id, closing_date).
+     * Creates the bill if it does not already exist for the reference month.
+     * ON CONFLICT DO NOTHING is safe against uq_credit_card_bills_account_reference_month_active.
      * Caller must re-read the row after this call.
      */
     @Query(
         """
         INSERT INTO banking.credit_card_bills
-            (financial_account_id, account_id, closing_date, due_date, status, created_at, updated_at)
+            (financial_account_id, account_id, closing_date, due_date, reference_month, status, created_at, updated_at)
         VALUES
-            (:financialAccountId, :accountId, :closingDate, :dueDate, 'OPEN', NOW(), NOW())
-        ON CONFLICT (financial_account_id, closing_date) DO NOTHING
+            (:financialAccountId, :accountId, :closingDate, :dueDate, :referenceMonth, 'OPEN', NOW(), NOW())
+        ON CONFLICT (financial_account_id, reference_month) WHERE deleted_at IS NULL DO NOTHING
         """,
         nativeQuery = true,
     )
@@ -78,12 +106,31 @@ interface CreditCardBillEntityRepository : GenericRepository<CreditCardBillEntit
         accountId: UUID,
         closingDate: LocalDate,
         dueDate: LocalDate,
+        referenceMonth: LocalDate,
     )
 
-    /**
-     * Recomputes total_amount as net spend (SUM DEBIT - SUM CREDIT) from non-deleted transactions
-     * linked to this bill, then updates status and updated_at in a single statement.
-     */
+    @Query(
+        """
+        UPDATE banking.credit_card_bills
+           SET closing_date = :closingDate,
+               due_date = :dueDate,
+               reference_month = :referenceMonth,
+               updated_at = :updatedAt
+         WHERE id = :billId
+           AND account_id = :accountId
+           AND deleted_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun updateCycleMetadata(
+        billId: UUID,
+        accountId: UUID,
+        closingDate: LocalDate,
+        dueDate: LocalDate,
+        referenceMonth: LocalDate,
+        updatedAt: Instant,
+    )
+
     @Query(
         """
         UPDATE banking.credit_card_bills b
@@ -106,10 +153,6 @@ interface CreditCardBillEntityRepository : GenericRepository<CreditCardBillEntit
         updatedAt: Instant,
     )
 
-    /**
-     * Returns the current net spend for a bill: SUM(DEBIT) - SUM(CREDIT) from non-deleted transactions.
-     * Used to determine whether a PAID bill should revert status when a payment is deleted.
-     */
     @Query(
         """
         SELECT COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'), 0) -
@@ -122,9 +165,6 @@ interface CreditCardBillEntityRepository : GenericRepository<CreditCardBillEntit
     )
     fun computeCurrentTotal(billId: UUID): BigDecimal
 
-    /**
-     * Updates only status and updated_at (used when marking bill as PAID after full payment).
-     */
     @Query(
         """
         UPDATE banking.credit_card_bills

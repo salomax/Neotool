@@ -5,8 +5,9 @@
  * Security coverage is in security.e2e.spec.ts (SEC-CB-01..03).
  *
  * ──────────────────────────────────────────────────────────────────────────────
- * **Skipped (postponed):** all `describe` blocks use `test.describe.skip`. Remove `.skip`
- * when credit card bills E2E are back in scope.
+ * **Skipped (postponed):** legacy `describe` blocks use `test.describe.skip` while bill-mode
+ * UI is deferred. Specs already use `getCreditCardBillById` / `referenceMonth` helpers so they
+ * can be re-enabled without stale API signatures.
  *
  * MVP note:
  *   The bill-mode UI (BillCarousel, BillSummaryHeader, PayBillDialog) is deferred.
@@ -36,6 +37,7 @@ import {
   deleteTransaction,
   getCreditCardBills,
   getCreditCardBill,
+  getCreditCardBillById,
   getTransactions,
   today,
   TransactionStatus,
@@ -98,6 +100,97 @@ function expectedClosingDate(txDate: string, closingDay: number): string {
 const CLOSING_DAY = 7;
 
 // =============================================================================
+// REFERENCE MONTH (issue #367 — active)
+// =============================================================================
+
+test.describe('Credit Card Bills — reference month', () => {
+  test('CB-R-01: transaction in July cycle with August due date maps to August referenceMonth', async ({
+    pfUser,
+  }) => {
+    const { createFinancialAccount } = await import('../helpers/banking-graphql');
+    const card = await createFinancialAccount(
+      {
+        name: `Cartão CB-R01 ${Date.now()}`,
+        type: 'CREDIT',
+        subtype: 'CREDIT_CARD',
+        closingDay: 29,
+        dueDay: 1,
+      },
+      pfUser.token
+    );
+
+    const tx = await createTransaction(
+      {
+        financialAccountId: card.id,
+        description: uniqueDesc('Compra CB-R01'),
+        amount: 180,
+        creditDebitType: CreditDebitType.Debit,
+        status: TransactionStatus.Posted,
+        date: '2025-07-10',
+      },
+      pfUser.token
+    );
+
+    expect(tx.billId).not.toBeNull();
+
+    const bill = await getCreditCardBill(card.id, '2025-08-01', pfUser.token);
+    expect(bill).not.toBeNull();
+    expect(bill!.id).toBe(tx.billId);
+    expect(bill!.referenceMonth).toBe('2025-08-01');
+    expect(bill!.closingDate).toBe('2025-07-29');
+    expect(bill!.dueDate).toBe('2025-08-01');
+
+    await deleteTransaction(tx.id, pfUser.token);
+  });
+
+  test('CB-R-02: getCreditCardBills returns bills ordered by referenceMonth descending', async ({
+    pfUser,
+    creditCardAccount,
+  }) => {
+    const txDateEarly = '2025-06-04';
+    const txDateLate = '2025-07-10';
+    const [tx1, tx2] = await Promise.all([
+      createTransaction(
+        {
+          financialAccountId: creditCardAccount.id,
+          description: uniqueDesc('CB-R02 early'),
+          amount: 50,
+          creditDebitType: CreditDebitType.Debit,
+          status: TransactionStatus.Posted,
+          date: txDateEarly,
+        },
+        pfUser.token
+      ),
+      createTransaction(
+        {
+          financialAccountId: creditCardAccount.id,
+          description: uniqueDesc('CB-R02 late'),
+          amount: 70,
+          creditDebitType: CreditDebitType.Debit,
+          status: TransactionStatus.Posted,
+          date: txDateLate,
+        },
+        pfUser.token
+      ),
+    ]);
+
+    const bills = await getCreditCardBills(creditCardAccount.id, pfUser.token);
+    const billIds = bills.map((b) => b.id);
+    expect(billIds).toContain(tx1.billId);
+    expect(billIds).toContain(tx2.billId);
+
+    for (let i = 1; i < bills.length; i++) {
+      expect(bills[i - 1].referenceMonth >= bills[i].referenceMonth).toBe(true);
+    }
+
+    await Promise.all([
+      deleteTransaction(tx1.id, pfUser.token),
+      deleteTransaction(tx2.id, pfUser.token),
+    ]);
+  });
+});
+
+// =============================================================================
 // HAPPY PATH
 // =============================================================================
 
@@ -136,7 +229,7 @@ test.describe.skip('Credit Card Bills — happy path', () => {
 
     expect(tx.billId).not.toBeNull();
 
-    const bill = await getCreditCardBill(creditCardAccount.id, tx.billId!, pfUser.token);
+    const bill = await getCreditCardBillById(creditCardAccount.id, tx.billId!, pfUser.token);
     expect(bill).not.toBeNull();
 
     const expected = expectedClosingDate(txDate, CLOSING_DAY);
@@ -159,7 +252,7 @@ test.describe.skip('Credit Card Bills — happy path', () => {
     expect(tx1.billId).not.toBeNull();
     expect(tx1.billId).toBe(tx2.billId);
 
-    const bill = await getCreditCardBill(creditCardAccount.id, tx1.billId!, pfUser.token);
+    const bill = await getCreditCardBillById(creditCardAccount.id, tx1.billId!, pfUser.token);
     expect(bill!.totalAmount).toBeCloseTo(180, 2); // 100 + 80
 
     await Promise.all([
@@ -181,7 +274,7 @@ test.describe.skip('Credit Card Bills — happy path', () => {
     // Both must be on the same bill
     expect(txDebit.billId).toBe(txCredit.billId);
 
-    const bill = await getCreditCardBill(creditCardAccount.id, txDebit.billId!, pfUser.token);
+    const bill = await getCreditCardBillById(creditCardAccount.id, txDebit.billId!, pfUser.token);
     // totalAmount = DEBIT(300) - CREDIT(100) = 200
     expect(bill!.totalAmount).toBeCloseTo(200, 2);
 
@@ -225,7 +318,7 @@ test.describe.skip('Credit Card Bills — happy path', () => {
       pfUser.token
     );
 
-    const billBefore = await getCreditCardBill(creditCardAccount.id, tx.billId!, pfUser.token);
+    const billBefore = await getCreditCardBillById(creditCardAccount.id, tx.billId!, pfUser.token);
     expect(billBefore!.totalAmount).toBeCloseTo(200, 2);
 
     const { executeGraphQL } = await import('../helpers/graphql');
@@ -235,7 +328,7 @@ test.describe.skip('Credit Card Bills — happy path', () => {
       }
     `, { id: tx.id, input: { amount: 350 } }, pfUser.token);
 
-    const billAfter = await getCreditCardBill(creditCardAccount.id, tx.billId!, pfUser.token);
+    const billAfter = await getCreditCardBillById(creditCardAccount.id, tx.billId!, pfUser.token);
     expect(billAfter!.totalAmount).toBeCloseTo(350, 2);
 
     await deleteTransaction(tx.id, pfUser.token);
@@ -252,12 +345,12 @@ test.describe.skip('Credit Card Bills — happy path', () => {
     ]);
 
     expect(tx1.billId).toBe(tx2.billId);
-    const billBefore = await getCreditCardBill(creditCardAccount.id, tx1.billId!, pfUser.token);
+    const billBefore = await getCreditCardBillById(creditCardAccount.id, tx1.billId!, pfUser.token);
     expect(billBefore!.totalAmount).toBeCloseTo(150, 2);
 
     await deleteTransaction(tx2.id, pfUser.token);
 
-    const billAfter = await getCreditCardBill(creditCardAccount.id, tx1.billId!, pfUser.token);
+    const billAfter = await getCreditCardBillById(creditCardAccount.id, tx1.billId!, pfUser.token);
     expect(billAfter!.totalAmount).toBeCloseTo(100, 2);
 
     await deleteTransaction(tx1.id, pfUser.token);
@@ -274,7 +367,7 @@ test.describe.skip('Credit Card Bills — happy path', () => {
       pfUser.token
     );
 
-    const bill = await getCreditCardBill(creditCardAccount.id, tx.billId!, pfUser.token);
+    const bill = await getCreditCardBillById(creditCardAccount.id, tx.billId!, pfUser.token);
     // The bill whose closingDate is in the future must be OPEN
     expect(bill!.status).toBe('OPEN');
 
@@ -299,7 +392,7 @@ test.describe.skip('Credit Card Bills — alternative paths', () => {
 
     // day <= closingDay → current cycle
     const expected = expectedClosingDate(txDate, CLOSING_DAY);
-    const bill = await getCreditCardBill(creditCardAccount.id, tx.billId!, pfUser.token);
+    const bill = await getCreditCardBillById(creditCardAccount.id, tx.billId!, pfUser.token);
     expect(bill!.closingDate).toBe(expected);
 
     await deleteTransaction(tx.id, pfUser.token);
@@ -328,7 +421,7 @@ test.describe.skip('Credit Card Bills — alternative paths', () => {
     );
 
     expect(tx.billId).not.toBeNull();
-    const bill = await getCreditCardBill(card.id, tx.billId!, pfUser.token);
+    const bill = await getCreditCardBillById(card.id, tx.billId!, pfUser.token);
     expect(bill).not.toBeNull();
     expect(bill!.closingDate).toBe(`${febYear}-02-28`);
 
@@ -362,7 +455,7 @@ test.describe.skip('Credit Card Bills — alternative paths', () => {
     const billId = tx.billId!;
     await deleteTransaction(tx.id, pfUser.token);
 
-    const bill = await getCreditCardBill(creditCardAccount.id, billId, pfUser.token);
+    const bill = await getCreditCardBillById(creditCardAccount.id, billId, pfUser.token);
     // Bill may still exist with totalAmount=0, or may return null
     if (bill) {
       expect(bill.totalAmount).toBeCloseTo(0, 2);
@@ -444,7 +537,7 @@ test.describe.skip('Credit Card Bills — alternative paths', () => {
       pfUser.token
     );
 
-    const bill = await getCreditCardBill(creditCardAccount.id, tx.billId!, pfUser.token);
+    const bill = await getCreditCardBillById(creditCardAccount.id, tx.billId!, pfUser.token);
     const closingDate = new Date(bill!.closingDate);
     const dueDate = new Date(bill!.dueDate);
 
@@ -456,7 +549,7 @@ test.describe.skip('Credit Card Bills — alternative paths', () => {
     await deleteTransaction(tx.id, pfUser.token);
   });
 
-  test('CB-A-08: getCreditCardBills returns bills ordered by closingDate descending', async ({
+  test('CB-A-08: getCreditCardBills returns bills ordered by referenceMonth descending', async ({
     pfUser,
     creditCardAccount,
   }) => {
@@ -469,9 +562,8 @@ test.describe.skip('Credit Card Bills — alternative paths', () => {
     const bills = await getCreditCardBills(creditCardAccount.id, pfUser.token);
     expect(bills.length).toBeGreaterThanOrEqual(2);
 
-    // Verify descending order
     for (let i = 1; i < bills.length; i++) {
-      expect(bills[i - 1].closingDate >= bills[i].closingDate).toBe(true);
+      expect(bills[i - 1].referenceMonth >= bills[i].referenceMonth).toBe(true);
     }
 
     await Promise.all([
@@ -518,18 +610,18 @@ test.describe.skip('Credit Card Bills — negative paths', () => {
     expect(result.length).toBe(0);
   });
 
-  test('CB-N-02: getCreditCardBill with invalid closingDate format — returns GraphQL error', async ({
+  test('CB-N-02: getCreditCardBill with invalid referenceMonth format — returns GraphQL error', async ({
     pfUser,
     creditCardAccount,
   }) => {
     const { executeGraphQL } = await import('../helpers/graphql');
     const result = await executeGraphQL(`
-      query GetCreditCardBill($financialAccountId: ID!, $closingDate: Date) {
-        creditCardBill(financialAccountId: $financialAccountId, closingDate: $closingDate) {
+      query GetCreditCardBill($financialAccountId: ID!, $referenceMonth: Date) {
+        creditCardBill(financialAccountId: $financialAccountId, referenceMonth: $referenceMonth) {
           id totalAmount status
         }
       }
-    `, { financialAccountId: creditCardAccount.id, closingDate: 'not-a-date' }, pfUser.token);
+    `, { financialAccountId: creditCardAccount.id, referenceMonth: 'not-a-date' }, pfUser.token);
 
     expect(result.errors).toBeDefined();
   });
@@ -607,7 +699,7 @@ test.describe.skip('Credit Card Bills — negative paths', () => {
 
       // EXPECTED (correct): status reverts to CLOSED or OVERDUE
       // ACTUAL (bug B1): status stays PAID
-      const billAfter = await getCreditCardBill(creditCardAccount.id, tx.billId!, pfUser.token);
+      const billAfter = await getCreditCardBillById(creditCardAccount.id, tx.billId!, pfUser.token);
       // This assertion documents the BUG — it will currently FAIL
       // Remove test.fail() and keep only the expect() once bug B1 is resolved
       test.fail(true, 'Bug B1: PAID status does not revert when payment transaction is deleted');

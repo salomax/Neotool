@@ -74,8 +74,76 @@ export interface CreditCardBill {
   financialAccountId: string;
   closingDate: string;
   dueDate: string;
+  /** First day of the due month — bill identity and list ordering key. */
+  referenceMonth: string;
   totalAmount: number;
   status: 'OPEN' | 'CLOSED' | 'PAID' | 'OVERDUE';
+}
+
+export type BillImportJobStatus =
+  | 'PENDING'
+  | 'EXTRACTING'
+  | 'EXTRACTED'
+  | 'LLM_PROCESSING'
+  | 'AWAITING_REVIEW'
+  | 'IMPORTING'
+  | 'DONE'
+  | 'FAILED';
+
+export interface BillImportReviewTransaction {
+  date: string | null;
+  description: string;
+  amount: number;
+  creditDebitType: CreditDebitType;
+  isBillPayment: boolean;
+  installment?: { current: number; total: number } | null;
+  categoryId?: string | null;
+  categorySource?: string | null;
+}
+
+export interface BillImportReviewCard {
+  reviewCardId: string;
+  lastFourDigits?: string | null;
+  closingDate?: string | null;
+  dueDate?: string | null;
+  transactions: BillImportReviewTransaction[];
+}
+
+export interface BillImportReview {
+  cards: BillImportReviewCard[];
+}
+
+export interface BillImportJob {
+  id: string;
+  status: BillImportJobStatus;
+  fileName?: string | null;
+  createdAt: string;
+  reviewPayload?: BillImportReview | null;
+}
+
+export interface ConfirmBillReviewTransactionInput {
+  date: string;
+  description: string;
+  amount: number;
+  creditDebitType: CreditDebitType;
+  include: boolean;
+  isBillPayment?: boolean;
+  installment?: { current: number; total: number };
+  categoryId?: string;
+  categorySource?: string;
+}
+
+export interface ConfirmBillReviewCardInput {
+  reviewCardId: string;
+  financialAccountId: string;
+  transactions: ConfirmBillReviewTransactionInput[];
+}
+
+export interface ConfirmBillImportInput {
+  jobId: string;
+  closingDate?: string;
+  dueDate?: string;
+  cards: ConfirmBillReviewCardInput[];
 }
 
 export interface CreateFinancialAccountInput {
@@ -156,6 +224,17 @@ export function firstDayOfMonth(): string {
 export function lastDayOfMonth(): string {
   const now = new Date();
   return formatLocalIsoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+}
+
+/** Returns the first day of the due month (referenceMonth) for a YYYY-MM-DD due date. */
+export function referenceMonthFromDueDate(dueDate: string): string {
+  const [year, month] = dueDate.split('-');
+  return `${year}-${month}-01`;
+}
+
+/** Encodes UTF-8 text as base64 for GraphQL file upload fields. */
+export function toBase64Utf8(content: string): string {
+  return Buffer.from(content, 'utf-8').toString('base64');
 }
 
 /** Returns a date in a given month offset from today (e.g. -1 = last month), local calendar. */
@@ -475,6 +554,36 @@ export async function getTransactions(
   return result.data?.transactions.edges.map((e) => e.node) ?? [];
 }
 
+/** Lists transactions linked to a specific credit card bill (bill-mode filter). */
+export async function getTransactionsByBillId(
+  billId: string,
+  financialAccountId: string,
+  token: string,
+  options?: { first?: number }
+): Promise<Transaction[]> {
+  const query = `
+    query TransactionsByBill($billId: ID!, $financialAccountId: ID, $first: Int) {
+      transactions(billId: $billId, financialAccountId: $financialAccountId, first: $first) {
+        edges {
+          node {
+            ${TRANSACTION_FIELDS}
+          }
+        }
+      }
+    }
+  `;
+
+  const result = await executeGraphQL<{
+    transactions: { edges: Array<{ node: Transaction }> };
+  }>(query, { billId, financialAccountId, first: options?.first ?? 50 }, token);
+
+  if (result.errors) {
+    throw new Error(`getTransactionsByBillId failed: ${result.errors[0].message}`);
+  }
+
+  return result.data?.transactions.edges.map((e) => e.node) ?? [];
+}
+
 // ── Month Summary ─────────────────────────────────────────────────────────────
 
 /**
@@ -532,6 +641,7 @@ export async function getCreditCardBills(
         financialAccountId
         closingDate
         dueDate
+        referenceMonth
         totalAmount
         status
       }
@@ -553,16 +663,17 @@ export async function getCreditCardBills(
 
 export async function getCreditCardBill(
   financialAccountId: string,
-  closingDate: string,
+  referenceMonth: string,
   token: string
 ): Promise<CreditCardBill | null> {
   const query = `
-    query GetCreditCardBill($financialAccountId: ID!, $closingDate: Date) {
-      creditCardBill(financialAccountId: $financialAccountId, closingDate: $closingDate) {
+    query GetCreditCardBill($financialAccountId: ID!, $referenceMonth: Date) {
+      creditCardBill(financialAccountId: $financialAccountId, referenceMonth: $referenceMonth) {
         id
         financialAccountId
         closingDate
         dueDate
+        referenceMonth
         totalAmount
         status
       }
@@ -571,7 +682,7 @@ export async function getCreditCardBill(
 
   const result = await executeGraphQL<{ creditCardBill: CreditCardBill | null }>(
     query,
-    { financialAccountId, closingDate },
+    { financialAccountId, referenceMonth },
     token
   );
 
@@ -580,4 +691,188 @@ export async function getCreditCardBill(
   }
 
   return result.data?.creditCardBill ?? null;
+}
+
+/** Resolves a bill by id from the account bill list (when the spec already has billId from a transaction). */
+export async function getCreditCardBillById(
+  financialAccountId: string,
+  billId: string,
+  token: string
+): Promise<CreditCardBill | null> {
+  const bills = await getCreditCardBills(financialAccountId, token);
+  return bills.find((b) => b.id === billId) ?? null;
+}
+
+// ── Bill Import ─────────────────────────────────────────────────────────────────
+
+export async function submitBillImport(
+  input: {
+    fileName: string;
+    fileBase64: string;
+    financialAccountId?: string;
+    password?: string;
+  },
+  token: string
+): Promise<BillImportJob> {
+  const mutation = `
+    mutation SubmitBillImport($input: SubmitBillImportInput!) {
+      submitBillImport(input: $input) {
+        id
+        status
+        fileName
+        createdAt
+        reviewPayload {
+          cards {
+            reviewCardId
+            lastFourDigits
+            closingDate
+            dueDate
+            transactions {
+              date
+              description
+              amount
+              creditDebitType
+              isBillPayment
+              installment { current total }
+              categoryId
+              categorySource
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const result = await executeGraphQL<{ submitBillImport: BillImportJob }>(
+    mutation,
+    {
+      input: {
+        importType: 'CREDIT_CARD_BILL',
+        ...input,
+      },
+    },
+    token
+  );
+
+  if (result.errors || !result.data?.submitBillImport) {
+    throw new Error(
+      `submitBillImport failed: ${result.errors?.[0]?.message ?? 'Unknown error'}`
+    );
+  }
+
+  return result.data.submitBillImport;
+}
+
+export async function getBillImportJob(jobId: string, token: string): Promise<BillImportJob> {
+  const query = `
+    query BillImportJob($jobId: ID!) {
+      billImportJob(jobId: $jobId) {
+        id
+        status
+        fileName
+        createdAt
+        reviewPayload {
+          cards {
+            reviewCardId
+            lastFourDigits
+            closingDate
+            dueDate
+            transactions {
+              date
+              description
+              amount
+              creditDebitType
+              isBillPayment
+              installment { current total }
+              categoryId
+              categorySource
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const result = await executeGraphQL<{ billImportJob: BillImportJob | null }>(
+    query,
+    { jobId },
+    token
+  );
+
+  if (result.errors || !result.data?.billImportJob) {
+    throw new Error(
+      `getBillImportJob failed: ${result.errors?.[0]?.message ?? 'Job not found'}`
+    );
+  }
+
+  return result.data.billImportJob;
+}
+
+export function buildConfirmBillImportInput(
+  job: BillImportJob,
+  financialAccountId: string,
+  options: { closingDate?: string; dueDate?: string }
+): ConfirmBillImportInput {
+  const review = job.reviewPayload;
+  if (!review?.cards?.length) {
+    throw new Error('Bill import job has no review payload cards');
+  }
+
+  return {
+    jobId: job.id,
+    closingDate: options.closingDate,
+    dueDate: options.dueDate,
+    cards: review.cards.map((card) => ({
+      reviewCardId: card.reviewCardId,
+      financialAccountId,
+      transactions: card.transactions
+        .filter((tx) => !tx.isBillPayment)
+        .map((tx) => {
+          if (!tx.date) {
+            throw new Error(`Review transaction "${tx.description}" is missing a date`);
+          }
+          return {
+            date: tx.date,
+            description: tx.description,
+            amount: tx.amount,
+            creditDebitType: tx.creditDebitType,
+            include: true,
+            ...(tx.installment ? { installment: tx.installment } : {}),
+            ...(tx.categoryId
+              ? { categoryId: tx.categoryId, categorySource: tx.categorySource ?? undefined }
+              : {}),
+          };
+        }),
+    })),
+  };
+}
+
+export async function confirmBillImport(
+  input: ConfirmBillImportInput,
+  token: string
+): Promise<BillImportJob> {
+  const mutation = `
+    mutation ConfirmBillImport($input: ConfirmBillImportInput!) {
+      confirmBillImport(input: $input) {
+        id
+        status
+        fileName
+        createdAt
+      }
+    }
+  `;
+
+  const result = await executeGraphQL<{ confirmBillImport: BillImportJob }>(
+    mutation,
+    { input },
+    token
+  );
+
+  if (result.errors || !result.data?.confirmBillImport) {
+    throw new Error(
+      `confirmBillImport failed: ${result.errors?.[0]?.message ?? 'Unknown error'}`
+    );
+  }
+
+  return result.data.confirmBillImport;
 }

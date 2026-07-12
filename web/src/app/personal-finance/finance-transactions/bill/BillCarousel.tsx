@@ -11,7 +11,7 @@ import { personalFinanceTranslations } from '../../i18n';
 import { BillStatus, CreditCardBill, getBillStatusColor, getBillStatusLabel } from './billUtils';
 
 export type { BillStatus };
-export type CreditCardBillItem = Pick<CreditCardBill, 'id' | 'closingDate' | 'dueDate' | 'totalAmount' | 'status'>;
+export type CreditCardBillItem = Pick<CreditCardBill, 'id' | 'closingDate' | 'dueDate' | 'referenceMonth' | 'totalAmount' | 'status'>;
 
 interface BillCarouselProps {
   bills: CreditCardBillItem[];
@@ -37,7 +37,7 @@ export function BillCarousel({ bills, selectedBillId, onSelectBill }: BillCarous
 
   if (!currentBill) return null;
 
-  const isFirst = safeIndex === bills.length - 1; // bills are expected in closingDate DESC
+  const isFirst = safeIndex === bills.length - 1; // bills are expected in referenceMonth DESC
   const isLast = safeIndex === 0;
 
   const handlePrev = () => {
@@ -57,9 +57,9 @@ export function BillCarousel({ bills, selectedBillId, onSelectBill }: BillCarous
   };
 
   const locale = i18n.language?.toLowerCase().startsWith('pt') ? 'pt-br' : 'en';
-  const closingDate = dayjs(currentBill.closingDate).locale(locale);
-  const monthLabel = closingDate.format('MMM/YYYY');
-  const closingDayLabel = closingDate.format('D MMM');
+  const referenceMonth = dayjs(currentBill.referenceMonth ?? currentBill.dueDate).locale(locale);
+  const monthLabel = referenceMonth.format('MMM/YYYY');
+  const closingDayLabel = dayjs(currentBill.closingDate).locale(locale).format('D MMM');
 
   const statusDotColor = (status: BillStatus) => getBillStatusColor(status, theme).main;
 
