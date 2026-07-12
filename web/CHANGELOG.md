@@ -1,3 +1,14 @@
+## 0.7.39 (2026-07-12)
+
+### 🩹 Fixes
+
+- **finance:** enrich bill import card selection (GH-339) ([028cf188](https://github.com/invistus/invistus/commit/028cf188))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Marcos Salomao @salomax
+
 ## 0.7.38 (2026-07-12)
 
 ### 🩹 Fixes
