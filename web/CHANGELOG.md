@@ -1,3 +1,13 @@
+## 0.7.38 (2026-07-12)
+
+### 🩹 Fixes
+
+- **banking:** reconcile credit card bill re-import by referenceMonth (GH-367) ([44697ab1](https://github.com/invistus/invistus/commit/44697ab1))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.7.37 (2026-07-11)
 
 ### 🚀 Features
