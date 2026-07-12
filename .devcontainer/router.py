@@ -14,6 +14,7 @@ from agents.routing import (
     format_routing_summary,
     get_orchestrator_config,
     get_routing_table,
+    normalize_agent_override,
     resolve_agent_default_model,
     resolve_route,
 )
@@ -29,7 +30,11 @@ from circuit_breaker import (
     should_pause_for_plan,
 )
 from planner import Plan, format_plan_message, generate_plan, stage_to_intent
-from thread_log import LoggingBackend, log_stage_for_intent
+from thread_log import (
+    LoggingBackend,
+    log_stage_for_intent,
+    write_thread_summary,
+)
 from verifier import (
     IMPL_RETRY_LIMIT,
     VerifierResult,
@@ -43,7 +48,7 @@ WORKSPACE   = "/workspaces/invistus"
 
 # ── Stage machine ─────────────────────────────────────────────────────────────
 
-STAGES = ["issue", "design", "backlog", "impl", "review", "validate"]
+STAGES = ["issue", "design", "backlog", "impl", "review", "validate", "pr"]
 
 INTENT_TO_STAGE = {
     "stage_issue": "issue",
@@ -52,6 +57,7 @@ INTENT_TO_STAGE = {
     "stage_impl": "impl",
     "stage_review": "review",
     "stage_validate": "validate",
+    "stage_pr": "pr",
 }
 
 STAGE_TO_INTENT = {v: k for k, v in INTENT_TO_STAGE.items()}
@@ -142,9 +148,9 @@ def classify(message: str, state: dict) -> dict:
 
     # Shortcut: check-usage
     if re.search(r"check-usage|/check-usage", msg):
-        return {"intent": "check_usage", "agent": None, "model": None,
+        return _sanitize_classification({"intent": "check_usage", "agent": None, "model": None,
                 "issue_number": None, "fast_track": False, "stages": [],
-                "needs_confirmation": False, "ambiguity_reason": None}
+                "needs_confirmation": False, "ambiguity_reason": None})
 
     # Shortcut: check-config / show routing
     if re.search(
@@ -155,22 +161,22 @@ def classify(message: str, state: dict) -> dict:
         r"qual\s+(agent|modelo|model)\s+(por\s+stage|do\s+orchestrator)",
         msg,
     ):
-        return {"intent": "check_config", "agent": None, "model": None,
+        return _sanitize_classification({"intent": "check_config", "agent": None, "model": None,
                 "issue_number": None, "fast_track": False, "stages": [],
-                "needs_confirmation": False, "ambiguity_reason": None}
+                "needs_confirmation": False, "ambiguity_reason": None})
 
     # Shortcut: advance
     if re.match(r"^(sim|ok|aprovado|continua|continuar|próximo|proximo|avança|avanca|yes|proceed|next)[\s!.]*$", msg):
-        return {"intent": "advance", "agent": None, "model": None,
+        return _sanitize_classification({"intent": "advance", "agent": None, "model": None,
                 "issue_number": None, "fast_track": False, "stages": [],
-                "needs_confirmation": False, "ambiguity_reason": None}
+                "needs_confirmation": False, "ambiguity_reason": None})
 
     # Use Gemini Flash for everything else
     try:
-        return _classify_gemini(message, state)
+        return _sanitize_classification(_classify_gemini(message, state))
     except Exception as e:
         log.warning("Gemini classify failed: %s — fallback to rules", e)
-        return _classify_rules(message, state)
+        return _sanitize_classification(_classify_rules(message, state))
 
 
 def _classify_gemini(message: str, state: dict) -> dict:
@@ -255,11 +261,68 @@ def _classify_rules(message: str, state: dict) -> dict:
 _ROUTING_TABLE = get_routing_table()
 
 
+def _sanitize_classification(classification: dict) -> dict:
+    updated = dict(classification)
+    updated["agent"] = normalize_agent_override(updated.get("agent"))
+    model = updated.get("model")
+    if isinstance(model, str) and model.strip().lower() in ("", "null", "none"):
+        updated["model"] = None
+    return updated
+
+
+def _next_pipeline_stage(state: dict) -> str | None:
+    stage_idx = int(state.get("current_stage", 0))
+    if stage_idx < 0 or stage_idx >= len(STAGES):
+        return None
+    return STAGES[stage_idx]
+
+
+def _remap_advance(classification: dict, state: dict) -> dict:
+    """Turn bare advance (sim/ok) into the next pipeline stage intent."""
+    next_stage = _next_pipeline_stage(state)
+    if not next_stage:
+        log.info("advance: pipeline complete → summarize")
+        updated = dict(classification)
+        updated["intent"] = "summarize"
+        updated["agent"] = None
+        updated["model"] = None
+        return updated
+    next_intent = STAGE_TO_INTENT.get(next_stage)
+    if not next_intent:
+        return classification
+    updated = dict(classification)
+    updated["intent"] = next_intent
+    updated["agent"] = None
+    updated["model"] = None
+    log.info("advance remapped → %s (next stage=%s)", next_intent, next_stage)
+    return updated
+
+
+def _post_issue_comment(issue_number: int, body: str) -> None:
+    try:
+        subprocess.run(
+            ["gh", "issue", "comment", str(issue_number), "-b", body],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=WORKSPACE,
+        )
+    except Exception as exc:
+        log.warning("failed to post issue comment: %s", exc)
+
+
+def _append_thread_summary(thread: str, issue_number: int | None, output: str) -> str:
+    summary = write_thread_summary(thread)
+    if issue_number:
+        _post_issue_comment(issue_number, summary)
+    return f"{output}\n\n---\n{summary}"
+
+
 def _resolve_dispatch_targets(classification: dict) -> tuple[str, str | None, str]:
     """Agent, model, backend from routing table with user-override priority."""
     intent = classification["intent"]
     route_cfg = resolve_route(intent, _ROUTING_TABLE)
-    user_agent = classification.get("agent")
+    user_agent = normalize_agent_override(classification.get("agent"))
     agent = user_agent or route_cfg.agent
     model = classification.get("model")
     if model is None:
@@ -621,7 +684,13 @@ def _dispatch_stage_with_finalize(
         intent=intent,
         result=result,
     )
-    return _format_pause_output(result.output, pause)
+    output = _format_pause_output(result.output, pause)
+    if (
+        intent == "stage_pr"
+        and _checkpoint_status_from_result(result) == "completed"
+    ):
+        output = _append_thread_summary(thread, issue_number, output)
+    return output
 
 
 def _dispatch_review_with_verifier(
@@ -933,7 +1002,8 @@ def _apply_stage_state(thread: str, classification: dict, state: dict) -> None:
         updates["issue_number"] = classification["issue_number"]
     intent = classification["intent"]
     stage_map = {"stage_issue": 1, "stage_design": 2, "stage_backlog": 3,
-                 "stage_impl": 4, "stage_review": 5, "stage_validate": 6}
+                 "stage_impl": 4, "stage_review": 5, "stage_validate": 6,
+                 "stage_pr": 7}
     if intent in stage_map:
         updates["current_stage"] = stage_map[intent]
     elif intent == "advance":
@@ -1052,6 +1122,8 @@ def route(
     last_cp_dict = state.get("last_checkpoint")
     last_checkpoint = Checkpoint.from_dict(last_cp_dict) if last_cp_dict else None
     classification = _maybe_bump_completed_stage_intent(classification, last_checkpoint)
+    if classification["intent"] == "advance":
+        classification = _remap_advance(classification, state)
     log.info("classification: %s", json.dumps(classification))
 
     if classification["intent"] == "check_usage":
@@ -1059,6 +1131,12 @@ def route(
 
     if classification["intent"] == "check_config":
         return format_routing_summary(_ROUTING_TABLE)
+
+    if classification["intent"] == "summarize":
+        summary = write_thread_summary(thread)
+        if issue_number:
+            _post_issue_comment(issue_number, summary)
+        return summary
 
     if classification["intent"] == "fast_track":
         return _handle_fast_track(

@@ -205,6 +205,18 @@ def resolve_agent_default_model(agent: str, table: RoutingTable | None = None) -
     return routing.agent_defaults.get(agent)
 
 
+def normalize_agent_override(agent: str | None) -> str | None:
+    """Treat null-like classifier values as no user override."""
+    if agent is None:
+        return None
+    if not isinstance(agent, str):
+        return None
+    cleaned = agent.strip().lower()
+    if not cleaned or cleaned in {"null", "none", "undefined", "nil"}:
+        return None
+    return agent.strip()
+
+
 def get_orchestrator_config(table: RoutingTable | None = None) -> OrchestratorConfig:
     routing = table if table is not None else load_routing_table()
     return routing.orchestrator

@@ -104,21 +104,31 @@ def read_entries(task_id: str, root: Path | None = None) -> list[dict[str, Any]]
 
 
 def aggregate_cost(task_id: str, root: Path | None = None) -> dict[str, Any]:
-    """Sum tokens_in/tokens_out per stage and total for a task."""
+    """Sum tokens_in/tokens_out per stage, per agent, and total for a task.
+
+    Only ``direction=out`` records contribute (agent responses), avoiding double
+    counting of prompt lines logged as ``direction=in``.
+    """
     base = task_dir(task_id, root)
     stages: dict[str, dict[str, int]] = {}
+    agents: dict[str, dict[str, int]] = {}
     total_in = 0
     total_out = 0
+    had_out_without_tokens = False
 
     if not base.is_dir():
         return {
             "task_id": task_id,
             "stages": stages,
+            "agents": agents,
             "total": {"tokens_in": 0, "tokens_out": 0},
+            "note": None,
         }
 
     for path in sorted(base.glob("*.jsonl")):
         stage = path.stem
+        if stage == "stage_summarize":
+            continue
         stage_in = 0
         stage_out = 0
         with path.open(encoding="utf-8") as fh:
@@ -130,17 +140,108 @@ def aggregate_cost(task_id: str, root: Path | None = None) -> dict[str, Any]:
                     record = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                stage_in += record.get("tokens_in") or 0
-                stage_out += record.get("tokens_out") or 0
-        stages[stage] = {"tokens_in": stage_in, "tokens_out": stage_out}
+                if record.get("direction") != "out":
+                    continue
+                ti = record.get("tokens_in")
+                to = record.get("tokens_out")
+                if ti is None and to is None:
+                    agent_name = record.get("agent") or "unknown"
+                    if agent_name not in ("system", "unknown"):
+                        had_out_without_tokens = True
+                    ti = 0
+                    to = 0
+                stage_in += ti or 0
+                stage_out += to or 0
+                agent_name = record.get("agent") or "unknown"
+                bucket = agents.setdefault(
+                    agent_name,
+                    {"tokens_in": 0, "tokens_out": 0, "calls": 0},
+                )
+                bucket["tokens_in"] += ti or 0
+                bucket["tokens_out"] += to or 0
+                bucket["calls"] += 1
+        if stage_in or stage_out:
+            stages[stage] = {"tokens_in": stage_in, "tokens_out": stage_out}
         total_in += stage_in
         total_out += stage_out
+
+    note = None
+    if had_out_without_tokens and total_in == 0 and total_out == 0:
+        note = (
+            "Token counts unavailable for some agent runs (Codex/Cursor may not "
+            "report usage in exec mode). Claude runs should populate after wrapper update."
+        )
+    elif had_out_without_tokens:
+        note = "Partial token data — some agents did not report usage."
+    elif any(
+        agent == "codex"
+        for agent in agents
+        if (agents[agent]["tokens_in"] or agents[agent]["tokens_out"])
+    ):
+        note = (
+            "Codex token counts are read from ~/.codex/sessions rollout JSONL when available."
+        )
 
     return {
         "task_id": task_id,
         "stages": stages,
+        "agents": agents,
         "total": {"tokens_in": total_in, "tokens_out": total_out},
+        "note": note,
     }
+
+
+def format_thread_cost_summary(task_id: str, root: Path | None = None) -> str:
+    """Human-readable Slack/Markdown summary of thread token usage."""
+    data = aggregate_cost(task_id, root)
+    lines = [
+        "📊 *Thread token summary*",
+        f"Task: `{data['task_id']}`",
+        "",
+        "*By stage*",
+    ]
+    if data["stages"]:
+        for stage, counts in sorted(data["stages"].items()):
+            lines.append(
+                f"• `{stage}`: in={counts['tokens_in']:,} out={counts['tokens_out']:,}"
+            )
+    else:
+        lines.append("• _(no outbound agent calls logged)_")
+
+    if data.get("agents"):
+        lines += ["", "*By agent*"]
+        for agent, counts in sorted(data["agents"].items()):
+            if agent == "system":
+                continue
+            lines.append(
+                f"• `{agent}`: in={counts['tokens_in']:,} "
+                f"out={counts['tokens_out']:,} ({counts['calls']} call(s))"
+            )
+
+    total = data["total"]
+    lines += [
+        "",
+        f"*Total:* in={total['tokens_in']:,} out={total['tokens_out']:,}",
+    ]
+    if data.get("note"):
+        lines.append(f"_{data['note']}_")
+    return "\n".join(lines)
+
+
+def write_thread_summary(task_id: str, root: Path | None = None) -> str:
+    """Append a deterministic summarize record to the thread log."""
+    summary = format_thread_cost_summary(task_id, root)
+    append_entry(
+        task_id,
+        "stage_summarize",
+        direction="out",
+        agent="system",
+        model="",
+        latency_ms=0,
+        content=summary,
+        root=root,
+    )
+    return summary
 
 
 def list_tasks(root: Path | None = None) -> list[dict[str, Any]]:

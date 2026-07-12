@@ -80,10 +80,24 @@ def _cmd_cost(task_id: str) -> int:
             f"  {stage}: tokens_in={counts['tokens_in']} "
             f"tokens_out={counts['tokens_out']}"
         )
+    agents = summary.get("agents") or {}
+    if agents:
+        print("Agent breakdown:")
+        for agent, counts in sorted(agents.items()):
+            if agent == "system":
+                continue
+            print(
+                f"  {agent}: tokens_in={counts['tokens_in']} "
+                f"tokens_out={counts['tokens_out']} "
+                f"calls={counts['calls']}"
+            )
     total = summary["total"]
     print(
         f"Total: tokens_in={total['tokens_in']} tokens_out={total['tokens_out']}"
     )
+    note = summary.get("note")
+    if note:
+        print(f"Note: {note}")
     return 0
 
 

@@ -5,6 +5,9 @@ set -euo pipefail
 LOG=/tmp/neotool-agent.log
 MGR="python3 /workspaces/invistus/.devcontainer/agents/session-mgr.py"
 STATUS="/workspaces/invistus/.devcontainer/agents/slack-status.sh"
+META="/workspaces/invistus/.devcontainer/agents/wrapper_meta.sh"
+# shellcheck source=/dev/null
+source "$META"
 SESSION=$($MGR load claude 2>/dev/null || true)
 # Rejeita SESSION que não seja UUID válido (evita usar nome de thread como session ID)
 if [[ ! "$SESSION" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
@@ -108,10 +111,13 @@ bash "$STATUS" "🤖 _Claude_ respondeu em $((ELAPSED/1000))s (in:${IN_TOK} out:
 # Output: prefere resultado parseado, fallback para raw se vazio
 if [ -n "$RESULT" ]; then
     echo "$RESULT"
+    emit_wrapper_meta "$IN_TOK" "$OUT_TOK" 0
 elif [ -n "$RAW" ]; then
     _log "  WARN: JSON parse vazio, usando raw output"
     echo "$RAW"
+    emit_wrapper_meta "$IN_TOK" "$OUT_TOK" 0
 else
     _log "  ERROR: sem output do Claude (exit=$EXIT_CODE)"
     echo "(sem resposta do Claude — exit code $EXIT_CODE)"
+    emit_wrapper_meta "$IN_TOK" "$OUT_TOK" "${EXIT_CODE:-1}"
 fi

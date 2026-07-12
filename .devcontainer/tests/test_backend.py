@@ -60,7 +60,11 @@ def backend(tmp_path) -> CLIBackend:
 
 
 def test_invoke_success(backend: CLIBackend) -> None:
-    fake = _FakeProcess(stdout_lines=["hello\n", "world\n"], returncode=0)
+    fake = _FakeProcess(
+        stdout_lines=["hello\n", "world\n"],
+        stderr_lines=['@@NEOTOOL@@{"tokens_in":12,"tokens_out":34,"exit_code":0}\n'],
+        returncode=0,
+    )
 
     with patch("agents.backend.subprocess.Popen", return_value=fake):
         result = backend.invoke(
@@ -74,8 +78,29 @@ def test_invoke_success(backend: CLIBackend) -> None:
     assert result.output == "hello\nworld"
     assert result.exit_code == 0
     assert result.elapsed_ms >= 0
-    assert result.tokens_in is None
-    assert result.tokens_out is None
+    assert result.tokens_in == 12
+    assert result.tokens_out == 34
+
+
+def test_invoke_sigpipe_with_stdout_treated_as_success(backend: CLIBackend) -> None:
+    fake = _FakeProcess(
+        stdout_lines=["partial result\n"],
+        stderr_lines=['@@NEOTOOL@@{"tokens_in":1,"tokens_out":2,"exit_code":0}\n'],
+        returncode=141,
+    )
+
+    with patch("agents.backend.subprocess.Popen", return_value=fake):
+        result = backend.invoke(
+            "codex task",
+            agent="codex",
+            model=None,
+            thread="thread-sigpipe",
+        )
+
+    assert result.output == "partial result"
+    assert result.exit_code == 0
+    assert result.tokens_in == 1
+    assert result.tokens_out == 2
 
 
 def test_invoke_nonzero_exit_uses_stderr(backend: CLIBackend) -> None:

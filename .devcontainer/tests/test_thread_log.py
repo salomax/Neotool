@@ -91,6 +91,12 @@ def test_append_entry_is_append_only(log_root: Path) -> None:
 def test_aggregate_cost_sums_by_stage(log_root: Path) -> None:
     append_entry(
         "task-cost", "question",
+        direction="in", agent="claude", model="sonnet",
+        tokens_in=999, tokens_out=999, latency_ms=1, content="prompt",
+        root=log_root,
+    )
+    append_entry(
+        "task-cost", "question",
         direction="out", agent="claude", model="sonnet",
         tokens_in=10, tokens_out=20, latency_ms=1, content="a",
         root=log_root,
@@ -111,7 +117,25 @@ def test_aggregate_cost_sums_by_stage(log_root: Path) -> None:
     summary = aggregate_cost("task-cost", log_root)
     assert summary["stages"]["question"] == {"tokens_in": 15, "tokens_out": 35}
     assert summary["stages"]["stage_impl"] == {"tokens_in": 100, "tokens_out": 200}
+    assert summary["agents"]["claude"]["calls"] == 2
+    assert summary["agents"]["codex"]["calls"] == 1
     assert summary["total"] == {"tokens_in": 115, "tokens_out": 235}
+
+
+def test_format_thread_cost_summary(log_root: Path) -> None:
+    append_entry(
+        "task-sum", "stage_design",
+        direction="out", agent="claude", model="sonnet",
+        tokens_in=50, tokens_out=100, latency_ms=1, content="done",
+        root=log_root,
+    )
+    from thread_log import format_thread_cost_summary
+
+    text = format_thread_cost_summary("task-sum", log_root)
+    assert "Thread token summary" in text
+    assert "stage_design" in text
+    assert "claude" in text
+    assert "in=50" in text
 
 
 def test_list_tasks_returns_newest_first(log_root: Path) -> None:

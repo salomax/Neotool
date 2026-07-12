@@ -5,6 +5,10 @@ set -euo pipefail
 LOG=/tmp/neotool-agent.log
 MGR="python3 /workspaces/invistus/.devcontainer/agents/session-mgr.py"
 STATUS="/workspaces/invistus/.devcontainer/agents/slack-status.sh"
+META="/workspaces/invistus/.devcontainer/agents/wrapper_meta.sh"
+USAGE="/workspaces/invistus/.devcontainer/agents/codex_session_usage.py"
+# shellcheck source=/dev/null
+source "$META"
 SESSION=$($MGR load codex 2>/dev/null || true)
 # Rejeita SESSION que não seja UUID válido
 if [[ ! "$SESSION" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
@@ -19,14 +23,24 @@ _log() { echo "$(date '+%Y-%m-%d %H:%M:%S') [codex-dev] $*" >> "$LOG"; }
 _log "▶ START thread=$THREAD session=${SESSION:-new} prompt=${*:0:120}"
 bash "$STATUS" "🔷 _Codex (${MODEL})_ — iniciando..." 2>/dev/null || true
 
+BASELINE_JSON=""
+if [ -n "$SESSION" ]; then
+    BASELINE_JSON=$(python3 "$USAGE" --session "$SESSION" --baseline 2>/dev/null || true)
+    _log "  baseline tokens: ${BASELINE_JSON:0:160}"
+fi
+
+T0_SEC=$(date +%s)
+CODEX_EC=0
 if [ -n "$SESSION" ]; then
     OUTPUT=$(codex exec resume "$SESSION" -m "$MODEL" \
-        --dangerously-bypass-approvals-and-sandbox "$*" 2>&1) || \
-    OUTPUT=$(codex exec -m "$MODEL" \
-        --dangerously-bypass-approvals-and-sandbox "$*" 2>&1)
+        --dangerously-bypass-approvals-and-sandbox "$*" 2>&1) || CODEX_EC=$?
+    if [ "$CODEX_EC" -ne 0 ]; then
+        OUTPUT=$(codex exec -m "$MODEL" \
+            --dangerously-bypass-approvals-and-sandbox "$*" 2>&1) || CODEX_EC=$?
+    fi
 else
     OUTPUT=$(codex exec -m "$MODEL" \
-        --dangerously-bypass-approvals-and-sandbox "$*" 2>&1)
+        --dangerously-bypass-approvals-and-sandbox "$*" 2>&1) || CODEX_EC=$?
 fi
 
 ELAPSED=$(( ($(date +%s%N) - T0) / 1000000 ))
@@ -34,75 +48,110 @@ ELAPSED=$(( ($(date +%s%N) - T0) / 1000000 ))
 NEW_SESSION=$(echo "$OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 || true)
 [ -n "$NEW_SESSION" ] && $MGR save codex "$NEW_SESSION" 2>/dev/null || true
 
-_log "✓ DONE elapsed=${ELAPSED}ms session=${NEW_SESSION:-?}"
+_log "✓ DONE elapsed=${ELAPSED}ms session=${NEW_SESSION:-?} codex_ec=${CODEX_EC}"
 bash "$STATUS" "🔷 _Codex_ respondeu em $((ELAPSED/1000))s" 2>/dev/null || true
 
-# Extrai apenas o último bloco de texto do codex (descarta banner, tool calls e exec outputs)
-RESULT=$(echo "$OUTPUT" | python3 - << 'PYEOF'
-import sys, re
+# Parse via temp file (avoids SIGPIPE from pipefail + echo|python pipelines)
+TMP=$(mktemp)
+printf '%s' "$OUTPUT" > "$TMP"
+PARSE_JSON=$(python3 - "$TMP" << 'PYEOF' || echo '{"result":"","tokens_in":0,"tokens_out":0}'
+import json
+import re
+import sys
+from pathlib import Path
 
-raw = sys.stdin.read()
+raw = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
 
-# Divide nas seções de role: "user", "codex", linhas "exec ..."
-# Coleta apenas os blocos de texto do papel "codex", descarta exec outputs
 codex_blocks = []
 current_lines = []
 in_codex = False
 header_done = False
 
-for line in raw.split('\n'):
+for line in raw.split("\n"):
     stripped = line.strip()
 
     if not header_done:
-        # Aguarda primeira ocorrência de "user" ou "codex" para sair do header
-        if stripped in ('user', 'codex'):
+        if stripped in ("user", "codex"):
             header_done = True
         else:
             continue
 
-    if stripped == 'codex':
-        # Salva bloco anterior se estava em codex
+    if stripped == "codex":
         if in_codex and current_lines:
-            codex_blocks.append('\n'.join(current_lines).strip())
+            codex_blocks.append("\n".join(current_lines).strip())
         in_codex = True
         current_lines = []
-    elif stripped == 'user':
+    elif stripped == "user":
         if in_codex and current_lines:
-            codex_blocks.append('\n'.join(current_lines).strip())
+            codex_blocks.append("\n".join(current_lines).strip())
         in_codex = False
         current_lines = []
-    elif stripped.startswith('exec '):
-        # Tool call — salva bloco codex até aqui e pausa coleta
+    elif stripped.startswith("exec "):
         if in_codex and current_lines:
-            codex_blocks.append('\n'.join(current_lines).strip())
+            codex_blocks.append("\n".join(current_lines).strip())
             current_lines = []
-        in_codex = False  # não coleta exec output
-    elif re.match(r'\s*(succeeded|failed) in \d+', line):
-        # Resultado inline de exec — ignora; não reseta in_codex
+        in_codex = False
+    elif re.match(r"\s*(succeeded|failed) in \d+", line):
         pass
     elif in_codex:
         current_lines.append(line)
 
-# Último bloco
 if in_codex and current_lines:
-    codex_blocks.append('\n'.join(current_lines).strip())
+    codex_blocks.append("\n".join(current_lines).strip())
 
-# Filtra blocos vazios e pega o último
 blocks = [b for b in codex_blocks if b]
 if blocks:
-    print(blocks[-1])
+    result = blocks[-1]
 else:
-    # Fallback: remove header e retorna tudo
-    m = re.search(r'-{4,}\n', raw)
-    print((raw[m.end():] if m else raw).strip()[:3000])
+    m = re.search(r"-{4,}\n", raw)
+    result = (raw[m.end():] if m else raw).strip()[:3000]
+
+in_matches = re.findall(r"(?:input[_ ]tokens?|prompt[_ ]tokens?)[:\s]+(\d+)", raw, re.I)
+out_matches = re.findall(r"(?:output[_ ]tokens?|completion[_ ]tokens?)[:\s]+(\d+)", raw, re.I)
+in_tok = sum(int(x) for x in in_matches) if in_matches else 0
+out_tok = sum(int(x) for x in out_matches) if out_matches else 0
+
+print(json.dumps({"result": result, "tokens_in": in_tok, "tokens_out": out_tok}))
 PYEOF
 )
+rm -f "$TMP"
 
-_log "  result_preview: ${RESULT:0:300}"
+RESULT=$(echo "$PARSE_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('result',''))")
+IN_TOK=$(echo "$PARSE_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('tokens_in',0))")
+OUT_TOK=$(echo "$PARSE_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('tokens_out',0))")
 
+SESSION_FOR_USAGE="${NEW_SESSION:-$SESSION}"
+if [ -n "$SESSION_FOR_USAGE" ]; then
+    USAGE_ARGS=(--session "$SESSION_FOR_USAGE")
+    if [ -n "$SESSION" ] && [ "$SESSION_FOR_USAGE" = "$SESSION" ] && [ -n "$BASELINE_JSON" ]; then
+        USAGE_ARGS+=(--baseline-json "$BASELINE_JSON")
+    fi
+else
+    USAGE_ARGS=(--latest-after "$T0_SEC")
+fi
+SESSION_USAGE=$(python3 "$USAGE" "${USAGE_ARGS[@]}" 2>/dev/null || echo '{}')
+SESSION_IN=$(echo "$SESSION_USAGE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('input_tokens',0))")
+SESSION_OUT=$(echo "$SESSION_USAGE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('output_tokens',0))")
+SESSION_SOURCE=$(echo "$SESSION_USAGE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('source',''))")
+if [ "$SESSION_IN" -gt 0 ] || [ "$SESSION_OUT" -gt 0 ]; then
+    IN_TOK=$SESSION_IN
+    OUT_TOK=$SESSION_OUT
+    _log "  session rollout tokens (${SESSION_SOURCE}): in=${IN_TOK} out=${OUT_TOK}"
+fi
+
+_log "  result_preview: ${RESULT:0:300} tokens=${IN_TOK}/${OUT_TOK}"
+
+FINAL_EC=0
 if [ -n "$RESULT" ]; then
     echo "$RESULT"
-else
+elif [ -n "$OUTPUT" ]; then
     _log "  WARN: parse vazio, usando raw output"
     echo "$OUTPUT"
+else
+    _log "  ERROR: sem output do Codex (ec=$CODEX_EC)"
+    echo "_(sem resposta do Codex — exit ${CODEX_EC})_"
+    FINAL_EC=$CODEX_EC
 fi
+
+emit_wrapper_meta "$IN_TOK" "$OUT_TOK" "$FINAL_EC"
+exit "$FINAL_EC"

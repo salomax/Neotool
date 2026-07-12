@@ -7,8 +7,10 @@ so router.dispatch() delegates to a swappable backend (APIBackend in phase 8).
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
+import re
 import subprocess
 import threading
 import time
@@ -20,6 +22,24 @@ log = logging.getLogger("backend")
 
 WORKSPACE = "/workspaces/invistus"
 DEFAULT_TIMEOUT = 1800
+_WRAPPER_META_RE = re.compile(r"^@@NEOTOOL@@(\{.*\})\s*$")
+
+
+def _parse_wrapper_meta(stderr_lines: list[str]) -> tuple[dict | None, list[str]]:
+    """Extract @@NEOTOOL@@ JSON from stderr; return remaining diagnostic lines."""
+    meta: dict | None = None
+    cleaned: list[str] = []
+    for line in stderr_lines:
+        stripped = line.rstrip("\n")
+        match = _WRAPPER_META_RE.match(stripped)
+        if match:
+            try:
+                meta = json.loads(match.group(1))
+            except json.JSONDecodeError:
+                log.warning("invalid wrapper meta JSON: %s", match.group(1)[:120])
+            continue
+        cleaned.append(line)
+    return meta, cleaned
 
 
 @dataclass(frozen=True)
@@ -169,16 +189,41 @@ class CLIBackend:
                     elapsed_ms=elapsed_ms,
                 )
 
-            output = "".join(stdout_lines).strip() or "".join(stderr_lines).strip()
+            meta, stderr_clean = _parse_wrapper_meta(stderr_lines)
+            stdout_text = "".join(stdout_lines).strip()
+            stderr_text = "".join(stderr_clean).strip()
+            output = stdout_text or stderr_text
             exit_code = proc.returncode if proc.returncode is not None else 1
+
+            tokens_in: int | None = None
+            tokens_out: int | None = None
+            if meta:
+                raw_in = meta.get("tokens_in")
+                raw_out = meta.get("tokens_out")
+                if raw_in is not None:
+                    tokens_in = int(raw_in)
+                if raw_out is not None:
+                    tokens_out = int(raw_out)
+                meta_exit = meta.get("exit_code")
+                if meta_exit is not None:
+                    exit_code = int(meta_exit)
+
+            # SIGPIPE (141) with captured stdout usually means a broken downstream pipe,
+            # not a failed agent run — keep output when present.
+            if exit_code == 141 and stdout_text:
+                log.warning("agent exit 141 (SIGPIPE) but stdout present (%d chars)", len(stdout_text))
+                exit_code = 0
+
             log.info(
-                "agent done in %.1fs exit=%d chars=%d",
+                "agent done in %.1fs exit=%d chars=%d tokens=%s/%s",
                 elapsed_ms / 1000,
                 exit_code,
                 len(output),
+                tokens_in,
+                tokens_out,
             )
             if exit_code != 0:
-                log.error("agent stderr (300): %s", "".join(stderr_lines)[:300])
+                log.error("agent stderr (300): %s", stderr_text[:300])
             if not output:
                 output = f"_(sem resposta do agente — exit {exit_code})_"
 
@@ -186,6 +231,8 @@ class CLIBackend:
                 output=output,
                 exit_code=exit_code,
                 elapsed_ms=elapsed_ms,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
             )
 
         except Exception as e:
