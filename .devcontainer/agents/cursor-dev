@@ -11,12 +11,14 @@ if [[ ! "$SESSION" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
     SESSION=""
 fi
 THREAD="${NEOTOOL_THREAD:-default}"
+MODEL="${NEOTOOL_MODEL:-auto}"  # safety net; preferred source is routing.yaml via NEOTOOL_MODEL
+# Note: Cursor CLI currently logs MODEL but may ignore it unless a future flag is wired.
 T0=$(date +%s%N)
 
 _log() { echo "$(date '+%Y-%m-%d %H:%M:%S') [cursor-dev] $*" >> "$LOG"; }
 
-PROMPT="${1:-}"
-_log "▶ START thread=$THREAD session=${SESSION:-new} prompt=${PROMPT:0:120}"
+PROMPT="$*"
+_log "▶ START thread=$THREAD session=${SESSION:-new} model=$MODEL prompt=${PROMPT:0:120}"
 bash "$STATUS" "🖱️ _Cursor Agent_ — iniciando..." 2>/dev/null || true
 
 CLI=$(command -v agent 2>/dev/null || command -v cursor 2>/dev/null || true)

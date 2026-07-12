@@ -98,6 +98,7 @@
   ],
   "postCreateCommand": {
     "neotool-symlink": "sudo ln -sf /workspaces/invistus/scripts/cli/cli /usr/local/bin/neotool && sudo chmod +x /usr/local/bin/neotool",
+    "python-yaml": "sudo apt-get update && sudo apt-get install -y --no-install-recommends python3-yaml",
     "versions": "echo '=== DevPod environment ready ===' && java -version 2>&1 | head -1 && node --version && npm --version && git --version && gh --version | head -1 && echo '================================'",
     "setup-env": ".devcontainer/setup-env.sh",
     "fix-volume-perms": "sudo chown -R dev:dev /home/dev/.gradle /home/dev/.npm /workspaces/invistus/web/node_modules /workspaces/invistus/web/.next /workspaces/invistus/service/kotlin/.gradle 2>/dev/null || true"

@@ -460,7 +460,15 @@ class Handler(BaseHTTPRequestHandler):
         # Dispara router em background e responde imediatamente
         def _run_router():
             try:
-                output = _router.route(message, session, channel, ts, slack_token)
+                output = _router.route(
+                    message,
+                    session,
+                    adapter_env={
+                        "SLACK_CHANNEL": channel,
+                        "SLACK_TS": ts,
+                        "SLACK_TOKEN": slack_token,
+                    },
+                )
                 log.info("router output: %r", (output or "")[:200])
                 if output is None:
                     return  # check_usage já tratado antes

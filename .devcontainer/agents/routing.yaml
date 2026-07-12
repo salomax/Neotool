@@ -1,0 +1,65 @@
+# Stage → agent/model/backend routing for dev-agent v2.
+# User overrides (explicit agent/model in message) still take priority at dispatch time.
+#
+# Resolution order for model:
+#   1. User override in message
+#   2. stages.<intent>.model
+#   3. agents.<agent>.default_model
+#   4. defaults.model (unknown intents / last resort)
+#
+# Orchestrator (classifier + planner) is configured under `orchestrator:`.
+# Env overrides: NEOTOOL_CLASSIFIER_MODEL, NEOTOOL_PLANNER_MODEL, NEOTOOL_ORCHESTRATOR_PROVIDER
+
+defaults:
+  agent: claude
+  backend: cli
+
+agents:
+  claude:
+    default_model: claude-sonnet-4-6
+  codex:
+    default_model: gpt-5.4
+  cursor:
+    default_model: auto
+
+orchestrator:
+  provider: gemini
+  classifier:
+    model: gemini-2.5-flash-lite
+  planner:
+    model: gemini-2.5-flash-lite
+
+stages:
+  question:
+    agent: claude
+
+  stage_issue:
+    agent: claude
+    model: claude-haiku-4-5
+
+  stage_design:
+    agent: claude
+    model: claude-sonnet-4-6
+
+  stage_backlog:
+    agent: claude
+    model: claude-haiku-4-5
+
+  stage_impl:
+    agent: codex
+
+  stage_validate:
+    agent: cursor
+    model: auto
+
+  stage_review:
+    agent: claude
+    model: claude-sonnet-4-6
+
+  stage_pr:
+    agent: cursor
+    model: auto
+
+  fast_track:
+    agent: claude
+    model: claude-sonnet-4-6
