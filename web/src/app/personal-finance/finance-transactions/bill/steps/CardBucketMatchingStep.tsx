@@ -2,13 +2,9 @@ import {
   Alert,
   Avatar,
   Box,
-  Button,
   Chip,
-  FormControl,
-  InputLabel,
-  MenuItem as SelectMenuItem,
+  Link,
   Paper,
-  Select,
   Stack,
   Typography,
 } from '@mui/material';
@@ -19,15 +15,18 @@ import {
   HelpOutline as UnmatchedIcon,
 } from '@mui/icons-material';
 import { memo } from 'react';
+import type { FinancialAccount } from '@/lib/graphql/types/__generated__/graphql';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../../i18n';
-import { getReviewCardLabel } from '../billImportUtils';
+import { AccountSelect } from '../../transaction/AccountSelect';
+import { cardAccountOptionToFinancialAccount, getReviewCardLabel } from '../billImportUtils';
 import type { CardAccountOption, CardResolution, ReviewCard } from '../billImportTypes';
 
 interface CardBucketMatchingStepProps {
   reviewCards: ReviewCard[];
   cardResolutions: CardResolution[];
   cardAccountOptionsById: Map<string, CardAccountOption>;
+  financialAccountsById: Map<string, FinancialAccount>;
   selectedIssuerKey: string | null;
   getAvailableOptionsForCard: (card: ReviewCard) => CardAccountOption[];
   onResolveCard: (ci: number, accountId: string | null) => void;
@@ -38,24 +37,42 @@ export const CardBucketMatchingStep = memo(function CardBucketMatchingStep({
   reviewCards,
   cardResolutions,
   cardAccountOptionsById,
+  financialAccountsById,
   selectedIssuerKey,
   getAvailableOptionsForCard,
   onResolveCard,
   onCreateCardForIndex,
 }: CardBucketMatchingStepProps) {
   const { t } = useTranslation(personalFinanceTranslations);
+  const identifiedCardsCount = reviewCards.length;
 
   return (
     <Box sx={{ p: 1 }}>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-        {t('financeTransactions.billImport.cardMatchingStep.description')}
-      </Typography>
+      {identifiedCardsCount > 1 ? (
+        <Stack spacing={0.5} sx={{ mb: 2 }}>
+          <Typography variant="body1" color="text.secondary">
+            {t('financeTransactions.billImport.cardMatchingStep.descriptionMultipleTitle', {
+              count: identifiedCardsCount,
+            })}
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            {t('financeTransactions.billImport.cardMatchingStep.descriptionMultipleBody')}
+          </Typography>
+        </Stack>
+      ) : (
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+          {t('financeTransactions.billImport.cardMatchingStep.descriptionSingle')}
+        </Typography>
+      )}
 
       {reviewCards.map((card, ci) => {
         const resolution = cardResolutions[ci];
         const isResolved = !!resolution?.financialAccountId;
         const needsUserInput = !isResolved;
         const availableOptions = getAvailableOptionsForCard(card);
+        const availableAccounts = availableOptions.map((option) =>
+          cardAccountOptionToFinancialAccount(option, financialAccountsById),
+        );
 
         return (
           <Paper variant="outlined" key={card.reviewCardId} sx={{ mb: 2, p: 2 }}>
@@ -92,38 +109,45 @@ export const CardBucketMatchingStep = memo(function CardBucketMatchingStep({
               </Alert>
             )}
 
-            <FormControl fullWidth size="medium">
-              <InputLabel>{t('financeTransactions.billImport.cardMatchingStep.cardAccountLabel')}</InputLabel>
-              <Select
-                label={t('financeTransactions.billImport.cardMatchingStep.cardAccountLabel')}
-                value={resolution?.financialAccountId ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value as string;
-                  if (val && selectedIssuerKey) {
-                    const selectedAccount = cardAccountOptionsById.get(val);
-                    if (selectedAccount?.issuerKey !== selectedIssuerKey) return;
-                  }
-                  onResolveCard(ci, val || null);
-                }}
-              >
-                <SelectMenuItem value="" disabled>
-                  <em>{t('financeTransactions.billImport.cardMatchingStep.cardAccountPlaceholder')}</em>
-                </SelectMenuItem>
-                {availableOptions.map((opt) => (
-                  <SelectMenuItem key={opt.id} value={opt.id}>{opt.name}</SelectMenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <AccountSelect
+              value={resolution?.financialAccountId ?? ''}
+              accounts={availableAccounts}
+              isReadonly={false}
+              allowEmpty
+              searchable
+              variant="field"
+              label={t('financeTransactions.billImport.cardMatchingStep.cardAccountLabel')}
+              placeholder={t('financeTransactions.billImport.cardMatchingStep.cardAccountPlaceholder')}
+              inputBottomBorderSx={{}}
+              dataTestId={`card-bucket-account-select-${ci}`}
+              onChange={(accountId) => {
+                if (accountId && selectedIssuerKey) {
+                  const selectedAccount = cardAccountOptionsById.get(accountId);
+                  if (selectedAccount?.issuerKey !== selectedIssuerKey) return;
+                }
+                onResolveCard(ci, accountId || null);
+              }}
+            />
 
             {needsUserInput && !card.matchAmbiguous && (
-              <Button
-                size="medium"
-                startIcon={<AddIcon />}
-                sx={{ mt: 1 }}
+              <Link
+                component="button"
+                type="button"
+                variant="body1"
+                underline="none"
                 onClick={() => onCreateCardForIndex(ci)}
+                data-testid={`card-bucket-create-card-link-${ci}`}
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  fontWeight: 'medium',
+                  mt: 1,
+                }}
               >
+                <AddIcon fontSize="small" />
                 {t('financeTransactions.billImport.cardMatchingStep.createNewCard')}
-              </Button>
+              </Link>
             )}
 
             <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>

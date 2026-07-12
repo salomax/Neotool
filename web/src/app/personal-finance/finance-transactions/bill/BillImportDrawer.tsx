@@ -142,6 +142,11 @@ export function BillImportDrawer({ open, onClose, onImportCompleted, defaultFina
     [cardAccountOptions],
   );
 
+  const financialAccountsById = useMemo(
+    () => new Map((accountsData?.financialAccounts ?? []).map((account) => [account.id, account])),
+    [accountsData?.financialAccounts],
+  );
+
   // ── Issuer options ─────────────────────────────────────────────────────────
 
   const issuerOptions = useMemo(
@@ -553,6 +558,7 @@ export function BillImportDrawer({ open, onClose, onImportCompleted, defaultFina
             reviewCards={reviewCards}
             cardResolutions={cardMatching.cardResolutions}
             cardAccountOptionsById={cardAccountOptionsById}
+            financialAccountsById={financialAccountsById}
             selectedIssuerKey={selectedIssuerKey}
             getAvailableOptionsForCard={cardMatching.getAvailableOptionsForCard}
             onResolveCard={(ci, accountId) => {

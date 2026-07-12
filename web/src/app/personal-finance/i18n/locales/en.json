@@ -1809,6 +1809,9 @@
       },
       "cardMatchingStep": {
         "description": "Associate each card found in the statement with an existing account.",
+        "descriptionSingle": "Associate each card found in the statement with an existing account.",
+        "descriptionMultipleTitle": "We identified {{count}} different cards in the statement.",
+        "descriptionMultipleBody": "Associate each identified card with a registered card or create new cards.",
         "flatAssignmentBanner": "We imported the bill transactions, but the file did not include the card reference. Define the cards in this bill and assign the transactions before continuing.",
         "flatSteps": {
           "issuerTitle": "Define card",

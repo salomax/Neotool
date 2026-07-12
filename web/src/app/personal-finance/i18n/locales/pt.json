@@ -1813,6 +1813,9 @@
       },
       "cardMatchingStep": {
         "description": "Associe cada cartão identificado na fatura a uma conta cadastrada.",
+        "descriptionSingle": "Associe cada cartão identificado na fatura a uma conta cadastrada.",
+        "descriptionMultipleTitle": "Identificamos {{count}} cartões diferentes na fatura.",
+        "descriptionMultipleBody": "Associe cada cartão identificado a um cartão cadastrado ou crie novos cartões.",
         "flatAssignmentBanner": "Importamos as transações da fatura, mas o arquivo não trouxe a referência do cartão. Defina os cartões desta fatura e associe as transações antes de continuar.",
         "flatSteps": {
           "issuerTitle": "Definir cartão",

@@ -1,4 +1,9 @@
 import {
+  FinancialAccountSubtype,
+  FinancialAccountType,
+  type FinancialAccount,
+} from '@/lib/graphql/types/__generated__/graphql';
+import {
   ACCEPTED_EXTENSIONS,
   MAX_FILE_BYTES,
   type BillDateValidation,
@@ -212,6 +217,37 @@ export function buildDraftCardName(
 
 export function getMoneyLocale(language?: string): string {
   return language?.startsWith('en') ? 'en-US' : 'pt-BR';
+}
+
+export function cardAccountOptionToFinancialAccount(
+  option: CardAccountOption,
+  financialAccountsById?: Map<string, FinancialAccount>,
+): FinancialAccount {
+  const existing = financialAccountsById?.get(option.id);
+  if (existing) return existing;
+
+  return {
+    id: option.id,
+    name: option.name,
+    type: FinancialAccountType.Credit,
+    subtype: FinancialAccountSubtype.CreditCard,
+    issuer: option.issuerId
+      ? {
+          id: option.issuerId,
+          name: option.issuerName ?? '',
+          logoAsset: null,
+        }
+      : null,
+    issuerName: option.issuerName,
+    cardData: {
+      maskedNumber: option.maskedNumber,
+      isMultiCard: option.isMultiCard,
+      dueDay: option.dueDay,
+    },
+    currencyCode: 'BRL',
+    includeInDashboard: true,
+    includeInNetWorth: true,
+  } as FinancialAccount;
 }
 
 export function buildCardAccountOption(account: {
