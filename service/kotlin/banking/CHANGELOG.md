@@ -1,3 +1,14 @@
+## 0.8.7 (2026-07-12)
+
+### 🚀 Features
+
+- **categories:** add Beleza e Cuidados Pessoais system category (GH-357) ([feca6d5b](https://github.com/invistus/invistus/commit/feca6d5b))
+
+### ❤️ Thank You
+
+- Claude Sonnet 4.6
+- Marcos Salomão @salomax
+
 ## 0.8.6 (2026-07-12)
 
 ### 🩹 Fixes
