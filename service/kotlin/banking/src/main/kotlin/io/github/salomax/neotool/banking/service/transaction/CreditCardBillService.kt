@@ -9,6 +9,7 @@ import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillReposito
 import io.github.salomax.neotool.banking.service.account.FinancialAccountGuard
 import jakarta.inject.Singleton
 import java.time.LocalDate
+import java.time.YearMonth
 import java.util.UUID
 
 /**
@@ -93,6 +94,11 @@ open class CreditCardBillService(
         }
     }
 
+    /**
+     * Returns the business reference month for a bill: the first day of the due month.
+     */
+    fun computeReferenceMonth(dueDate: LocalDate): LocalDate = YearMonth.from(dueDate).atDay(1)
+
     // ── Bill resolution ───────────────────────────────────────────────────────
 
     /**
@@ -118,12 +124,14 @@ open class CreditCardBillService(
 
         val closingDate = computeClosingDate(transactionDate, closingDay)
         val dueDate = computeDueDate(closingDate, dueDay)
+        val referenceMonth = computeReferenceMonth(dueDate)
 
         return billRepository.findOrCreate(
             financialAccountId = account.id!!,
             accountId = account.accountId,
             closingDate = closingDate,
             dueDate = dueDate,
+            referenceMonth = referenceMonth,
         ).id!!
     }
 
@@ -141,11 +149,13 @@ open class CreditCardBillService(
     ): UUID? {
         if (account.subtype !in CARD_SUBTYPES) return null
         if (type == TransactionType.BALANCE_ADJUSTMENT || type == TransactionType.BILL_PAYMENT) return null
+        val referenceMonth = computeReferenceMonth(dueDate)
         return billRepository.findOrCreate(
             financialAccountId = account.id!!,
             accountId = account.accountId,
             closingDate = closingDate,
             dueDate = dueDate,
+            referenceMonth = referenceMonth,
         ).id!!
     }
 
@@ -197,21 +207,28 @@ open class CreditCardBillService(
     }
 
     /**
-     * Finds a specific bill by [closingDate], or the current open/most-recent bill when
-     * [closingDate] is null.
+     * Finds a specific bill by [referenceMonth], or the current open/most-recent bill when
+     * [referenceMonth] is null.
      */
     fun findBill(
         financialAccountId: UUID,
         accountId: UUID,
-        closingDate: LocalDate?,
+        referenceMonth: LocalDate?,
     ): CreditCardBill? {
         financialAccountGuard.requireOwnership(financialAccountId, accountId)
-        if (closingDate != null) {
-            return billRepository.findByClosingDate(financialAccountId, accountId, closingDate)
+        if (referenceMonth != null) {
+            return billRepository.findByReferenceMonth(financialAccountId, accountId, referenceMonth)
         }
         val all = billRepository.listByAccount(financialAccountId, accountId)
         val today = LocalDate.now()
-        // Prefer the open bill (closes in the future), else fall back to most recent.
         return all.firstOrNull { it.closingDate >= today } ?: all.firstOrNull()
     }
+
+    /**
+     * Soft-deletes [billId] when it has no active transactions.
+     */
+    fun softDeleteIfOrphan(
+        billId: UUID,
+        accountId: UUID,
+    ): Boolean = billRepository.softDeleteIfOrphan(billId, accountId)
 }

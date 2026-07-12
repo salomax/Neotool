@@ -1082,6 +1082,8 @@ export type CreditCardBill = {
   id: Scalars['ID']['output'];
   /** Minimum payment amount. Null until computed (Phase 5: Open Finance). */
   minimumPayment: Maybe<Scalars['Float']['output']>;
+  /** Business bill month (first day of the due month). Used for identity and ordering. */
+  referenceMonth: Scalars['Date']['output'];
   status: BillStatus;
   /** Net spend in the billing cycle (DEBIT - CREDIT). Zero until first transaction. */
   totalAmount: Scalars['Float']['output'];
@@ -3514,13 +3516,13 @@ export type Query = {
   checkPermission: AuthorizationResult;
   conversation: Maybe<Conversation>;
   /**
-   * A specific credit card bill by closing date.
-   * When closingDate is omitted, returns the current open bill (or most recent if no open bill exists).
+   * A specific credit card bill by business reference month.
+   * When referenceMonth is omitted, returns the current open bill (or most recent if no open bill exists).
    */
   creditCardBill: Maybe<CreditCardBill>;
   /**
    * All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
-   * ordered by closing date descending.
+   * ordered by reference month descending.
    */
   creditCardBills: Array<CreditCardBill>;
   currentUser: Maybe<User>;
@@ -3795,8 +3797,8 @@ export type QueryConversationArgs = {
 
 
 export type QueryCreditCardBillArgs = {
-  closingDate?: InputMaybe<Scalars['Date']['input']>;
   financialAccountId: Scalars['ID']['input'];
+  referenceMonth?: InputMaybe<Scalars['Date']['input']>;
 };
 
 

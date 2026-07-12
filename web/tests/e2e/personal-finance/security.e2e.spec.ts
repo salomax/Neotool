@@ -464,16 +464,16 @@ test.describe('Security — Credit Card Bills', () => {
 
     const bills = await getCreditCardBills(cardA.id, userA.token);
     const bill = bills[0];
-    const closingDate =
-      bill?.closingDate != null ? String(bill.closingDate).slice(0, 10) : undefined;
+    const referenceMonth =
+      bill?.referenceMonth != null ? String(bill.referenceMonth).slice(0, 10) : undefined;
 
     const result = await executeGraphQL(`
-      query GetCreditCardBill($financialAccountId: ID!, $closingDate: Date) {
-        creditCardBill(financialAccountId: $financialAccountId, closingDate: $closingDate) {
+      query GetCreditCardBill($financialAccountId: ID!, $referenceMonth: Date) {
+        creditCardBill(financialAccountId: $financialAccountId, referenceMonth: $referenceMonth) {
           id totalAmount
         }
       }
-    `, { financialAccountId: cardA.id, closingDate }, userB.token);
+    `, { financialAccountId: cardA.id, referenceMonth }, userB.token);
 
     // Must never return another tenant's bill; gateway may mask subgraph faults as "Internal server error".
     expect(result.data?.creditCardBill ?? null).toBeNull();

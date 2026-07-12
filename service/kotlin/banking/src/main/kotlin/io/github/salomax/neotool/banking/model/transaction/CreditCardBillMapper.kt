@@ -11,6 +11,7 @@ object CreditCardBillMapper {
             accountId = entity.accountId,
             closingDate = entity.closingDate,
             dueDate = entity.dueDate,
+            referenceMonth = entity.referenceMonth,
             totalAmount = entity.totalAmount ?: BigDecimal.ZERO,
             minimumPayment = entity.minimumPayment,
             status = entity.status,

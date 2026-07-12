@@ -523,6 +523,7 @@ export const PAY_BILL = gql`
       financialAccountId
       closingDate
       dueDate
+      referenceMonth
       totalAmount
       minimumPayment
       status

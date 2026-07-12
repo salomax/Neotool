@@ -15,14 +15,14 @@ interface CreditCardBillRepository {
         accountId: UUID,
     ): CreditCardBill?
 
-    fun findByClosingDate(
+    fun findByReferenceMonth(
         financialAccountId: UUID,
         accountId: UUID,
-        closingDate: LocalDate,
+        referenceMonth: LocalDate,
     ): CreditCardBill?
 
     /**
-     * All non-deleted bills for the account ordered by [CreditCardBill.closingDate] descending.
+     * All non-deleted bills for the account ordered by [CreditCardBill.referenceMonth] descending.
      */
     fun listByAccount(
         financialAccountId: UUID,
@@ -30,15 +30,15 @@ interface CreditCardBillRepository {
     ): List<CreditCardBill>
 
     /**
-     * Returns the bill for the given [closingDate], creating a new OPEN bill if none exists.
-     * Uses INSERT ON CONFLICT DO NOTHING against the unique constraint
-     * (financial_account_id, closing_date), so concurrent calls are safe.
+     * Returns the bill for the given business [referenceMonth], creating a new OPEN bill if none exists.
+     * When multiple active bills share the same reference month, one is selected deterministically.
      */
     fun findOrCreate(
         financialAccountId: UUID,
         accountId: UUID,
         closingDate: LocalDate,
         dueDate: LocalDate,
+        referenceMonth: LocalDate,
     ): CreditCardBill
 
     /**
@@ -59,4 +59,13 @@ interface CreditCardBillRepository {
         status: BillStatus,
         accountId: UUID,
     )
+
+    /**
+     * Soft-deletes the bill when it has no active transactions.
+     * Returns true when the bill was deleted.
+     */
+    fun softDeleteIfOrphan(
+        billId: UUID,
+        accountId: UUID,
+    ): Boolean
 }

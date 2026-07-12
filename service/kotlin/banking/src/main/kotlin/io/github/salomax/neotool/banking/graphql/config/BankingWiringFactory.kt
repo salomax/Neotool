@@ -567,8 +567,9 @@ class BankingWiringFactory(
                         val financialAccountId =
                             env.getArgument<String>("financialAccountId")
                                 ?: throw IllegalArgumentException("financialAccountId is required")
-                        val closingDate = env.getArgument<String?>("closingDate")
-                        transactionResolver.creditCardBill(financialAccountId, closingDate, principal)
+                        // GraphQL Date scalar is coerced to LocalDate (ExtendedScalars.Date).
+                        val referenceMonth = env.getArgument<LocalDate?>("referenceMonth")
+                        transactionResolver.creditCardBill(financialAccountId, referenceMonth, principal)
                     }
                 },
             )

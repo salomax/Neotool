@@ -34,6 +34,8 @@ open class CreditCardBillEntity(
     open var closingDate: LocalDate,
     @Column(name = "due_date", nullable = false)
     open var dueDate: LocalDate,
+    @Column(name = "reference_month", nullable = false)
+    open var referenceMonth: LocalDate,
     @Column(name = "total_amount", precision = 18, scale = 4)
     open var totalAmount: BigDecimal? = null,
     @Column(name = "minimum_payment", precision = 18, scale = 4)

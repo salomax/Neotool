@@ -204,7 +204,7 @@ class CreditCardBillServiceTest {
         val bill = mock<CreditCardBill>()
         whenever(bill.id).thenReturn(expectedBillId)
 
-        whenever(repository.findOrCreate(any(), any(), any(), any())).thenReturn(bill)
+        whenever(repository.findOrCreate(any(), any(), any(), any(), any())).thenReturn(bill)
 
         val result =
             service.resolveBillForTransaction(
@@ -220,7 +220,38 @@ class CreditCardBillServiceTest {
             accountId = accountId,
             closingDate = LocalDate.of(2024, 3, 10),
             dueDate = LocalDate.of(2024, 3, 20),
+            referenceMonth = LocalDate.of(2024, 3, 1),
         )
+    }
+
+    @Test
+    fun `computeReferenceMonth - uses first day of due month`() {
+        assertThat(service.computeReferenceMonth(LocalDate.of(2025, 8, 1)))
+            .isEqualTo(LocalDate.of(2025, 8, 1))
+        assertThat(service.computeReferenceMonth(LocalDate.of(2025, 8, 15)))
+            .isEqualTo(LocalDate.of(2025, 8, 1))
+    }
+
+    @Test
+    fun `findBill - resolves by reference month`() {
+        val referenceMonth = LocalDate.of(2025, 8, 1)
+        val bill =
+            CreditCardBill(
+                id = UUID.randomUUID(),
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                closingDate = LocalDate.of(2025, 7, 29),
+                dueDate = LocalDate.of(2025, 8, 1),
+                referenceMonth = referenceMonth,
+                status = BillStatus.OPEN,
+                createdAt = now,
+                updatedAt = now,
+            )
+        whenever(repository.findByReferenceMonth(financialAccountId, accountId, referenceMonth)).thenReturn(bill)
+
+        val result = service.findBill(financialAccountId, accountId, referenceMonth)
+
+        assertThat(result).isEqualTo(bill)
     }
 
     // -------------------------------------------------------------------------

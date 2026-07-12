@@ -86,6 +86,11 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
 
     fun existsByImportJobIdAndDeletedAtIsNull(importJobId: UUID): Boolean
 
+    fun findByImportJobIdAndAccountIdAndDeletedAtIsNull(
+        importJobId: UUID,
+        accountId: UUID,
+    ): List<TransactionEntity>
+
     @Query(
         """
         UPDATE banking.transactions

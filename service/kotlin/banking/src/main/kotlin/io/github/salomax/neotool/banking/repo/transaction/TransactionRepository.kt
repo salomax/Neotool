@@ -273,6 +273,23 @@ interface TransactionRepository {
     fun existsByImportJobId(importJobId: UUID): Boolean
 
     /**
+     * Active transactions created by a bill import job for the tenant account.
+     */
+    fun findActiveByImportJobId(
+        importJobId: UUID,
+        accountId: UUID,
+    ): List<Transaction>
+
+    /**
+     * Soft-deletes import-owned rows for a bill import job, including linked transfer peers.
+     * Returns affected bill ids from rows that were removed.
+     */
+    fun softDeleteImportOwnedByJobId(
+        importJobId: UUID,
+        accountId: UUID,
+    ): Set<UUID>
+
+    /**
      * Clears provider_transaction_id on soft-deleted rows for this financial account/provider id pair.
      * Returns number of updated rows.
      */

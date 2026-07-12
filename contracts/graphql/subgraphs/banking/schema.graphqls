@@ -717,6 +717,8 @@ type CreditCardBill {
   closingDate: Date!
   """Payment due date (derived from CardData.dueDay relative to closingDate)."""
   dueDate: Date!
+  """Business bill month (first day of the due month). Used for identity and ordering."""
+  referenceMonth: Date!
   """Net spend in the billing cycle (DEBIT - CREDIT). Zero until first transaction."""
   totalAmount: Float!
   """Minimum payment amount. Null until computed (Phase 5: Open Finance)."""
@@ -2585,14 +2587,14 @@ extend type Query {
   investmentImportJob(id: ID!): InvestmentImportJob
   """
   All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
-  ordered by closing date descending.
+  ordered by reference month descending.
   """
   creditCardBills(financialAccountId: ID!): [CreditCardBill!]!
   """
-  A specific credit card bill by closing date.
-  When closingDate is omitted, returns the current open bill (or most recent if no open bill exists).
+  A specific credit card bill by business reference month.
+  When referenceMonth is omitted, returns the current open bill (or most recent if no open bill exists).
   """
-  creditCardBill(financialAccountId: ID!, closingDate: Date): CreditCardBill
+  creditCardBill(financialAccountId: ID!, referenceMonth: Date): CreditCardBill
   """
   Open holdings for investment/brokerage accounts.
   When financialAccountId is provided, returns holdings for that account only.

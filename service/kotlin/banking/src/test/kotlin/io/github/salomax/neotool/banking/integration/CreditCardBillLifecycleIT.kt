@@ -308,7 +308,7 @@ class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
     @DisplayName("list and find helpers")
     inner class ListAndFindTests {
         @Test
-        fun `creditCardBills returns bills ordered by closingDate DESC`() {
+        fun `creditCardBills returns bills ordered by referenceMonth DESC`() {
             // Three cycles: Jan, Feb, Mar
             val janTx = createCardTransaction(BigDecimal("50.00"), LocalDate.of(2026, 1, 5))
             val febTx = createCardTransaction(BigDecimal("60.00"), LocalDate.of(2026, 2, 5))
@@ -320,11 +320,24 @@ class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
 
             val bills = creditCardBillService.listBills(cardAccountId, accountId)
             assertThat(bills).hasSize(3)
-            assertThat(bills.map { it.closingDate }).isSortedAccordingTo(Comparator.reverseOrder())
+            assertThat(bills.map { it.referenceMonth }).isSortedAccordingTo(Comparator.reverseOrder())
         }
 
         @Test
-        fun `creditCardBill with null closingDate returns open or most recent bill`() {
+        fun `findBill with referenceMonth returns null when bill does not exist`() {
+            createCardTransaction(BigDecimal("80.00"), LocalDate.of(2026, 3, 5))
+
+            val missing =
+                creditCardBillService.findBill(
+                    cardAccountId,
+                    accountId,
+                    LocalDate.of(2099, 12, 1),
+                )
+            assertThat(missing).isNull()
+        }
+
+        @Test
+        fun `creditCardBill with null referenceMonth returns open or most recent bill`() {
             // Create a bill in the current cycle so that closingDate >= today
             val currentCycleTx =
                 createCardTransaction(BigDecimal("80.00"), today)

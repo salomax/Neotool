@@ -10,6 +10,7 @@ data class CreditCardBillDTO(
     val financialAccountId: UUID,
     val closingDate: LocalDate,
     val dueDate: LocalDate,
+    val referenceMonth: LocalDate,
     val totalAmount: Double,
     val minimumPayment: Double?,
     val status: BillStatus,
