@@ -57,6 +57,12 @@ class TransactionCategoryRepositoryIT : BankingPostgresIntegrationTest() {
             assertThat(celebracoes).isNotNull
             assertThat(celebracoes!!.icon).isEqualTo("celebration")
             assertThat(celebracoes.color).isEqualTo("#FF5722")
+            val beleza = roots.find { it.name == "Beleza e Cuidados Pessoais" }
+            assertThat(beleza).isNotNull
+            assertThat(beleza!!.icon).isEqualTo("face_retouching_natural")
+            assertThat(beleza.color).isEqualTo("#EC407A")
+            assertThat(beleza.applicableTo.name).isEqualTo("EXPENSE")
+            assertThat(beleza.isSystem).isTrue()
             val outros = roots.find { it.name == "Outros" }
             assertThat(outros).isNotNull
             assertThat(outros!!.icon).isEqualTo("help_outline")
@@ -73,6 +79,20 @@ class TransactionCategoryRepositoryIT : BankingPostgresIntegrationTest() {
             assertThat(seguroDesemprego).isNotNull
             assertThat(seguroDesemprego!!.icon).isEqualTo("shield")
             assertThat(seguroDesemprego.color).isEqualTo("#00695C")
+            val belezaChildren = all.filter { it.parentId == beleza.id }
+            assertThat(belezaChildren).hasSize(8)
+            assertThat(belezaChildren)
+                .allMatch { it.isSystem }
+                .allMatch { it.applicableTo.name == "EXPENSE" }
+                .allMatch { it.color == "#EC407A" }
+            assertThat(belezaChildren.find { it.name == "Perfumaria" }?.icon).isEqualTo("local_florist")
+            assertThat(belezaChildren.find { it.name == "Cabeleireiro" }?.icon).isEqualTo("content_cut")
+            assertThat(belezaChildren.find { it.name == "Depilação" }?.icon).isEqualTo("spa")
+            assertThat(belezaChildren.find { it.name == "Maquiagem" }?.icon).isEqualTo("brush")
+            assertThat(belezaChildren.find { it.name == "Barbearia" }?.icon).isEqualTo("content_cut")
+            assertThat(belezaChildren.find { it.name == "Manicure e Pedicure" }?.icon).isEqualTo("color_lens")
+            assertThat(belezaChildren.find { it.name == "Estética Facial" }?.icon).isEqualTo("face_retouching_natural")
+            assertThat(belezaChildren.find { it.name == "Massagem" }?.icon).isEqualTo("self_improvement")
             val withParent = all.filter { it.parentId != null }
             assertThat(withParent).allMatch { cat -> all.any { it.id == cat.parentId } }
         }
