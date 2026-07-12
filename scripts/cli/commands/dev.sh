@@ -769,9 +769,14 @@ agent_start() {
 dev_agent() {
     local action="${1:-}"
 
+    if [[ "$action" == "-m" ]] || [[ "$action" == "--message" ]]; then
+        dev_agent_run "${@:2}"
+        return
+    fi
+
     if [[ -z "$action" ]] || [[ "$action" == "--help" ]]; then
         cat << EOF
-Usage: neotool dev agent <start|stop|restart|logs|attach|status>
+Usage: neotool dev agent <start|stop|restart|logs|attach|status|thread|-m>
 
   start    Start neotool-dev-agent in background (loads api-keys automatically)
   stop     Stop neotool-dev-agent
@@ -779,6 +784,8 @@ Usage: neotool dev agent <start|stop|restart|logs|attach|status>
   logs     Tail agent log (Ctrl-C to exit)
   attach   Run agent in foreground (logs to stdout)
   status   Show running status and health
+  thread   Inspect per-task JSONL audit trail (logs|tail|cost|list)
+  -m       Run a task from the CLI: -m "<message>" [--issue N] [--agent claude|codex|cursor] [--auto]
 EOF
         return 0
     fi
@@ -838,8 +845,88 @@ EOF
                 log "○ watchdog not running" "$YELLOW"
             fi
             ;;
+        thread)
+            dev_agent_thread "${@:2}"
+            ;;
         *)
-            log_error "Unknown action: $action. Use start|stop|restart|logs|attach|status"
+            log_error "Unknown action: $action. Use start|stop|restart|logs|attach|status|thread"
+            exit 1
+            ;;
+    esac
+}
+
+dev_agent_run() {
+    if [[ $# -lt 1 ]]; then
+        log_error 'Usage: neotool dev agent -m "<message>" [--issue N] [--agent claude|codex|cursor] [--auto]'
+        exit 1
+    fi
+
+    local CLI_ADAPTER="$PROJECT_ROOT/.devcontainer/agents/cli_adapter.py"
+    if [[ ! -f "$CLI_ADAPTER" ]]; then
+        log_error "CLI adapter not found: $CLI_ADAPTER"
+        exit 1
+    fi
+
+    if [[ -f "$AGENT_API_KEYS" ]]; then
+        # shellcheck disable=SC1090
+        set -a; source "$AGENT_API_KEYS"; set +a
+    fi
+
+    PYTHONPATH="$PROJECT_ROOT/.devcontainer" python3 "$CLI_ADAPTER" -m "$@"
+}
+
+dev_agent_thread() {
+    local subcmd="${1:-}"
+    local THREAD_LOG_CLI="$PROJECT_ROOT/.devcontainer/thread_log_cli.py"
+
+    if [[ -z "$subcmd" ]] || [[ "$subcmd" == "--help" ]]; then
+        cat << EOF
+Usage: neotool dev agent thread <logs|tail|cost|list> [task_id]
+
+  logs <task_id>       Show all JSONL entries for a task
+  tail <task_id>       Print new log lines (-f to follow)
+  cost <task_id>       Token usage breakdown by stage
+  list                 List known task IDs (newest first)
+EOF
+        return 0
+    fi
+
+    if [[ ! -f "$THREAD_LOG_CLI" ]]; then
+        log_error "Thread log CLI not found: $THREAD_LOG_CLI"
+        exit 1
+    fi
+
+    case "$subcmd" in
+        logs)
+            local task_id="${2:-}"
+            if [[ -z "$task_id" ]]; then
+                log_error "Usage: neotool dev agent thread logs <task_id>"
+                exit 1
+            fi
+            PYTHONPATH="$PROJECT_ROOT/.devcontainer" python3 "$THREAD_LOG_CLI" logs "$task_id"
+            ;;
+        tail)
+            local task_id="${2:-}"
+            if [[ -z "$task_id" ]]; then
+                log_error "Usage: neotool dev agent thread tail <task_id> [-f]"
+                exit 1
+            fi
+            shift 2
+            PYTHONPATH="$PROJECT_ROOT/.devcontainer" python3 "$THREAD_LOG_CLI" tail "$task_id" "$@"
+            ;;
+        cost)
+            local task_id="${2:-}"
+            if [[ -z "$task_id" ]]; then
+                log_error "Usage: neotool dev agent thread cost <task_id>"
+                exit 1
+            fi
+            PYTHONPATH="$PROJECT_ROOT/.devcontainer" python3 "$THREAD_LOG_CLI" cost "$task_id"
+            ;;
+        list)
+            PYTHONPATH="$PROJECT_ROOT/.devcontainer" python3 "$THREAD_LOG_CLI" list
+            ;;
+        *)
+            log_error "Unknown thread subcommand: $subcmd. Use logs|tail|cost|list"
             exit 1
             ;;
     esac
@@ -879,9 +966,11 @@ Subcommands:
   $(log "logs" "$GREEN") <service>
     Show the last lines of output for a service (without attaching).
 
-  $(log "agent" "$GREEN") <start|stop|restart|logs|attach|status>
+  $(log "agent" "$GREEN") <start|stop|restart|logs|attach|status|thread|-m>
     Manage the neotool-dev-agent (Slack → AI pipeline bridge).
     start: loads api-keys and starts the bridge; stop/restart/logs/attach/status as expected.
+    thread: inspect per-task JSONL audit trail (logs|tail|cost|list).
+    -m: run a task from the CLI (prints task_id for thread log commands).
 
   $(log "tunnel" "$GREEN") <start <n>|stop|status|logs>
     Manage the Cloudflare Tunnel for DevPod N.

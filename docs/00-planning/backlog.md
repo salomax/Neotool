@@ -222,6 +222,18 @@
 - **Agent:** Claude
 - **Nota:** Script ou hook para gerar `daily/YYYY-MM-DD.md` automaticamente
 
+#### [IN-3] neotool-dev-agent v2 — multi-input, backend abstraction, thread log, autonomous loop
+- **Status:** `todo`
+- **Prioridade:** P1
+- **Agent:** Claude
+- **Esforço:** XL (múltiplos dias, 7 fases)
+- **Issue:** `#369`
+- **Branch:** `refactor/GH-369-dev-agent-v2`
+- **Draft:** `.github/ISSUE_DRAFTS/dev-agent-v2.md`
+- **Contexto:** Refatoração do dev-agent (v1 → v2) para suportar múltiplos canais de entrada (Slack + CLI), abstração de backend (`AgentBackend`/`CLIBackend`/`APIBackend`), thread log local em JSONL, checkpoint estruturado na issue, autonomia opt-in via `--auto` com circuit-breakers, model routing por stage e verificador determinístico antes do LLM review.
+- **Fases:** 1) Backend abstraction → 2) Thread log + CLI commands → 3) Input adapters (Slack+CLI) → 4) Model routing → 5) Checkpoints estruturados → 6) Planner + `--auto` → 7) Verifier + auto-retry → (8, futura, issue separada) `APIBackend` + prompt caching
+- **Dependências:** nenhuma — v1 permanece funcional até a fase 4
+
 ---
 
 ## Concluído recentemente

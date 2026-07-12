@@ -2,27 +2,25 @@
 """
 neotool-dev-agent — Slack Socket Mode bridge para pipeline Slack → Agentes.
 
-Recebe mensagens via Socket Mode (WebSocket outbound, sem inbound), posta
-"⏳ Trabalhando...", classifica via router.py e despacha para o agente certo.
-
+Thin Slack adapter: builds a Task from Bolt events and delegates to core.handle_task().
 Health check HTTP em http://127.0.0.1:3285/health (compatível com watchdog e dev.sh).
 """
 
 import json
 import logging
 import os
-import re
 import subprocess
 import sys
 import threading
+import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
-# Router próprio (mesmo diretório)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from core import Task, handle_task
 import router as _router
 
 logging.basicConfig(
@@ -35,10 +33,7 @@ logging.basicConfig(
 log = logging.getLogger("neotool-dev-agent")
 
 
-# ── Env loading ───────────────────────────────────────────────────────────────
-
 def _load_env_file(path: str) -> None:
-    """Carrega key=value de um env file para os.environ (setdefault — não sobrescreve)."""
     try:
         with open(path) as f:
             for line in f:
@@ -56,25 +51,12 @@ _DEVPOD_N = os.environ.get("NEOTOOL_DEVPOD_N", "1")
 _DEVPOD_ENV = os.path.expanduser(f"~/.vault-keys/devpod-{_DEVPOD_N}.env")
 _load_env_file(_DEVPOD_ENV)
 
-
-# ── Config ────────────────────────────────────────────────────────────────────
-
 PORT            = int(os.environ.get("NEOTOOL_AGENT_PORT", "3285"))
 SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN", "")
 SLACK_APP_TOKEN = os.environ.get("SLACK_APP_TOKEN", "")
 WORKSPACE       = "/workspaces/invistus"
 MAX_CHARS       = 3800
-PROGRESS_INTERVAL = 30  # segundos entre updates de progresso
-
-# ── ANSI strip ────────────────────────────────────────────────────────────────
-
-_ANSI_RE = re.compile(r'\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-
-def _strip_ansi(text: str) -> str:
-    return _ANSI_RE.sub('', text)
-
-
-# ── Status estruturado ────────────────────────────────────────────────────────
+PROGRESS_INTERVAL = 30
 
 _STAGE_EMOJI = {
     "stage_issue":    "📋",
@@ -96,9 +78,6 @@ _NEXT_STAGE = {
     "stage_validate": "pr",
 }
 
-
-# ── Session persistence ───────────────────────────────────────────────────────
-
 _SESSIONS_FILE = f"/tmp/neotool-sessions-{_DEVPOD_N}.json"
 
 
@@ -117,8 +96,6 @@ def _sessions_save(data: dict) -> None:
     except Exception:
         pass
 
-
-# ── Slack helpers ─────────────────────────────────────────────────────────────
 
 def slack_update(channel: str, ts: str, text: str) -> None:
     payload = json.dumps({"channel": channel, "ts": ts, "text": text}).encode()
@@ -142,7 +119,64 @@ def slack_update(channel: str, ts: str, text: str) -> None:
         log.error("slack.update exception: %s", e)
 
 
-# ── check-usage ───────────────────────────────────────────────────────────────
+def format_slack_result(output: str | None, meta: dict) -> str:
+    if output is None:
+        return ""
+
+    result = output.strip() or "_(sem resposta)_"
+    if len(result) > MAX_CHARS:
+        result = result[:MAX_CHARS] + "\n_(truncado)_"
+
+    intent = meta.get("intent", "")
+    agent = meta.get("agent", "")
+    model = meta.get("model", "")
+    issue = meta.get("issue_number")
+    branch = meta.get("branch")
+
+    header_parts = []
+    if intent.startswith("stage_"):
+        stage_short = intent.replace("stage_", "")
+        emoji = _STAGE_EMOJI.get(intent, "✅")
+        header_parts.append(f"{emoji} *{stage_short} concluído*")
+    if issue:
+        header_parts.append(f"issue #{issue}")
+    if branch:
+        header_parts.append(f"`{branch}`")
+    elif agent:
+        a = f"`{agent}`"
+        if model:
+            a += f" / `{model}`"
+        header_parts.append(a)
+    if branch and agent:
+        a = f"`{agent}`"
+        if model:
+            a += f" / `{model}`"
+        header_parts.append(a)
+
+    header = "  ·  ".join(header_parts)
+    next_s = _NEXT_STAGE.get(intent)
+    footer = f"\n\n→ próximo: `{next_s}`  —  `sim` para continuar" if next_s else ""
+    return f"{header}\n\n{result}{footer}" if header else result
+
+
+def format_slack_progress(meta: dict, elapsed_secs: int) -> str:
+    intent = meta.get("intent", "")
+    agent = meta.get("agent", "")
+    model = meta.get("model", "")
+    label = meta.get("label", "Trabalhando")
+    emoji = _STAGE_EMOJI.get(intent, "⏳")
+    mins, secs = divmod(elapsed_secs, 60)
+
+    agent_str = f"`{agent}`" if agent else ""
+    if model:
+        agent_str += f" / `{model}`"
+
+    parts = [f"{emoji} {label}"]
+    if agent_str:
+        parts.append(agent_str)
+    parts.append(f"{mins:02d}:{secs:02d}")
+    return "  ·  ".join(parts)
+
 
 def run_usage_check(channel: str, ts: str) -> None:
     script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "check-usage.sh")
@@ -162,11 +196,9 @@ def run_usage_check(channel: str, ts: str) -> None:
     slack_update(channel, ts, text)
 
 
-# ── Health HTTP server (porta 3285) ───────────────────────────────────────────
-
 class _HealthHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
-        pass  # silencia access log HTTP
+        pass
 
     def do_GET(self):
         if self.path == "/health":
@@ -193,15 +225,11 @@ def _start_health_server() -> None:
     log.info("Health server em http://127.0.0.1:%d/health", PORT)
 
 
-# ── Bolt App ──────────────────────────────────────────────────────────────────
-
 app = App(token=SLACK_BOT_TOKEN)
 
 
 @app.event("message")
 def handle_message(event, client, logger):
-    """Processa mensagens recebidas via Socket Mode."""
-    # Ignora mensagens de bots e eventos de subtipo (edit, delete, etc.)
     if event.get("bot_id") or event.get("subtype"):
         return
 
@@ -221,14 +249,12 @@ def handle_message(event, client, logger):
     log.info("→ msg channel=%s session=%s new=%s text=%r",
              channel, session_name, is_new_task, text[:80])
 
-    # Resolve resume (sessão já existe na thread)
     sessions = _sessions_load()
     resume = not is_new_task and session_key in sessions
     if is_new_task:
         sessions[session_key] = session_name
         _sessions_save(sessions)
 
-    # Posta "⏳ Trabalhando..." e obtém o ts para atualizar depois
     try:
         resp = client.chat_postMessage(
             channel=channel,
@@ -241,7 +267,6 @@ def handle_message(event, client, logger):
         log.error("Falha ao postar ⏳: %s", e)
         return
 
-    # check-usage — handler especial, não passa pelo router
     if text.lower() in {"check-usage", "/check-usage"}:
         threading.Thread(
             target=run_usage_check,
@@ -250,113 +275,59 @@ def handle_message(event, client, logger):
         ).start()
         return
 
-    # Despacha para router em background
+    task = Task(
+        message=text,
+        task_id=session_name,
+        requester=f"slack:{channel}",
+        adapter_env={
+            "SLACK_CHANNEL": channel,
+            "SLACK_TS": working_ts,
+            "SLACK_TOKEN": SLACK_BOT_TOKEN,
+        },
+    )
+
     def _run():
-        # Metadata preenchido quando o router inicia o dispatch (após classificação)
-        meta = {}
-        dispatch_started = threading.Event()
+        meta_snapshot: dict = {}
+        progress_started = threading.Event()
+        t_progress_start = [0.0]
 
-        def _meta_callback(data: dict) -> None:
-            meta.update(data)
-            dispatch_started.set()
-            log.info("  dispatch: intent=%s agent=%s model=%s",
-                     data.get("intent"), data.get("agent"), data.get("model"))
+        def _on_meta(data: dict) -> None:
+            meta_snapshot.update(data)
+            progress_started.set()
+            t_progress_start[0] = time.time()
 
-        stop_progress = threading.Event()
-
-        def _progress_updater():
-            # Espera o dispatch iniciar (classificador pode levar alguns segundos)
-            if not dispatch_started.wait(timeout=120):
+        def _on_progress(_status: str) -> None:
+            if not progress_started.is_set():
                 return
-            t_start = __import__("time").time()
-            while not stop_progress.wait(PROGRESS_INTERVAL):
-                elapsed = int(__import__("time").time() - t_start)
-                mins, secs = elapsed // 60, elapsed % 60
+            elapsed = int(time.time() - t_progress_start[0])
+            slack_update(channel, working_ts, format_slack_progress(meta_snapshot, elapsed))
 
-                intent = meta.get("intent", "")
-                agent  = meta.get("agent", "")
-                model  = meta.get("model", "")
-                label  = meta.get("label", "Trabalhando")
-                emoji  = _STAGE_EMOJI.get(intent, "⏳")
-
-                agent_str = f"`{agent}`" if agent else ""
-                if model:
-                    agent_str += f" / `{model}`"
-
-                parts = [f"{emoji} {label}"]
-                if agent_str:
-                    parts.append(agent_str)
-                parts.append(f"{mins:02d}:{secs:02d}")
-
-                status = "  ·  ".join(parts)
-                slack_update(channel, working_ts, status)
-                log.info("  progress: %s", status)
-
-        updater = threading.Thread(target=_progress_updater, daemon=True)
-        updater.start()
-
-        log.info("▶ session=%s msg=%r", session_name, text[:120])
-        try:
-            output = _router.route(text, session_name, channel, working_ts, SLACK_BOT_TOKEN,
-                                   meta_callback=_meta_callback)
-            log.info("◀ router output: %r", (output or "")[:200])
+        def _on_result(output: str | None, meta: dict) -> None:
             if output is None:
                 return
-
-            result = output.strip() or "_(sem resposta)_"
-            if len(result) > MAX_CHARS:
-                result = result[:MAX_CHARS] + "\n_(truncado)_"
-
-            # ── Mensagem final: header + resultado + próximo stage ─────────────
-            intent  = meta.get("intent", "")
-            agent   = meta.get("agent", "")
-            model   = meta.get("model", "")
-            issue   = meta.get("issue_number")
-            label   = meta.get("label", "")
-            branch  = meta.get("branch")
-
-            header_parts = []
-            if intent.startswith("stage_"):
-                stage_short = intent.replace("stage_", "")
-                emoji = _STAGE_EMOJI.get(intent, "✅")
-                header_parts.append(f"{emoji} *{stage_short} concluído*")
-            if issue:
-                header_parts.append(f"issue #{issue}")
-            if branch:
-                header_parts.append(f"`{branch}`")
-            elif agent:
-                a = f"`{agent}`"
-                if model:
-                    a += f" / `{model}`"
-                header_parts.append(a)
-            if branch and agent:
-                a = f"`{agent}`"
-                if model:
-                    a += f" / `{model}`"
-                header_parts.append(a)
-
-            header = "  ·  ".join(header_parts)
-
-            next_s = _NEXT_STAGE.get(intent)
-            footer = f"\n\n→ próximo: `{next_s}`  —  `sim` para continuar" if next_s else ""
-
-            final = f"{header}\n\n{result}{footer}" if header else result
+            final = format_slack_result(output, meta)
             slack_update(channel, working_ts, final)
             log.info("■ session=%s done (%d chars)", session_name, len(final))
 
+        try:
+            handle_task(
+                task,
+                on_progress=_on_progress,
+                on_result=_on_result,
+                meta_callback=_on_meta,
+                route_fn=_router.route,
+                progress_interval=PROGRESS_INTERVAL,
+                clean_message=True,
+            )
         except Exception as e:
-            log.exception("✗ router error: %s", e)
+            log.exception("✗ handle_task error: %s", e)
             try:
                 slack_update(channel, working_ts, f"❌ Erro interno: {e}")
             except Exception:
                 pass
-        finally:
-            stop_progress.set()
 
     threading.Thread(target=_run, daemon=True).start()
 
-
-# ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     missing = []
@@ -385,4 +356,4 @@ if __name__ == "__main__":
     _start_health_server()
 
     handler = SocketModeHandler(app, SLACK_APP_TOKEN)
-    handler.start()  # blocking
+    handler.start()

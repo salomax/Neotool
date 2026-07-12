@@ -3,18 +3,58 @@
 router.py — Classifier + Stage Machine + Dispatcher
 Substitui o Goose como router no pipeline Slack → Agentes.
 """
-import json, logging, os, re, subprocess, sys, threading, time, urllib.request
+from __future__ import annotations
+
+import json, logging, os, re, subprocess, urllib.request
 from pathlib import Path
+from typing import Mapping
+
+from agents.backend import AgentBackend, BackendResult, get_default_backend
+from agents.routing import (
+    format_routing_summary,
+    get_orchestrator_config,
+    get_routing_table,
+    resolve_agent_default_model,
+    resolve_route,
+)
+from checkpoint import (
+    Checkpoint,
+    current_stage_from_checkpoint,
+    fetch_last_checkpoint,
+    write_checkpoint,
+)
+from circuit_breaker import (
+    PauseDecision,
+    apply_post_stage_circuit_breaker,
+    should_pause_for_plan,
+)
+from planner import Plan, format_plan_message, generate_plan, stage_to_intent
+from thread_log import LoggingBackend, log_stage_for_intent
+from verifier import (
+    IMPL_RETRY_LIMIT,
+    VerifierResult,
+    build_impl_retry_prompt,
+    run_verifier,
+)
 
 log = logging.getLogger("router")
-
-AGENTS_BIN = "/workspaces/invistus/.devcontainer/agents"
 SESSION_DIR = "/tmp/bridge-sessions"
 WORKSPACE   = "/workspaces/invistus"
 
 # ── Stage machine ─────────────────────────────────────────────────────────────
 
 STAGES = ["issue", "design", "backlog", "impl", "review", "validate"]
+
+INTENT_TO_STAGE = {
+    "stage_issue": "issue",
+    "stage_design": "design",
+    "stage_backlog": "backlog",
+    "stage_impl": "impl",
+    "stage_review": "review",
+    "stage_validate": "validate",
+}
+
+STAGE_TO_INTENT = {v: k for k, v in INTENT_TO_STAGE.items()}
 
 def session_path(thread: str) -> Path:
     Path(SESSION_DIR).mkdir(parents=True, exist_ok=True)
@@ -47,7 +87,7 @@ Thread state: {state}
 
 Return JSON with these fields:
 {{
-  "intent": one of [check_usage, question, stage_issue, stage_design, stage_backlog, stage_impl, stage_review, stage_pr, fast_track, advance],
+  "intent": one of [check_usage, check_config, question, stage_issue, stage_design, stage_backlog, stage_impl, stage_review, stage_pr, fast_track, advance],
   "agent": one of [claude, codex, cursor, null],
   "model": model name string or null,
   "issue_number": integer or null,
@@ -60,6 +100,7 @@ Return JSON with these fields:
 Intent rules:
 - "advance" = user says sim/ok/aprovado/yes/continua/next/proceed
 - "check_usage" = user asks about token usage, agent status, check-usage
+- "check_config" = user asks which agents/models are configured per stage, routing config, orchestrator model
 - "fast_track" = user explicitly asks to do multiple stages at once ("de uma vez", "tudo junto", "em uma etapa")
 - "stage_issue" = create or enrich a GitHub issue ("abra/crie uma issue", "open an issue", "nova issue")
 - "stage_design" = solution design, technical analysis, viability, impact
@@ -79,7 +120,7 @@ needs_confirmation rules (set true ONLY when genuinely ambiguous):
 - true: message could reasonably mean two different pipeline stages AND no explicit agent/intent signal was given
 - false: user specified an agent explicitly (codex/claude/cursor prefix or @mention) — NEVER confirm in this case
 - false: user used a clear action verb that maps to exactly one stage
-- false: intent is question/advance/check_usage/fast_track
+- false: intent is question/advance/check_usage/check_config/fast_track
 - false: when in doubt, prefer false and dispatch
 
 Examples of needs_confirmation=false:
@@ -105,6 +146,19 @@ def classify(message: str, state: dict) -> dict:
                 "issue_number": None, "fast_track": False, "stages": [],
                 "needs_confirmation": False, "ambiguity_reason": None}
 
+    # Shortcut: check-config / show routing
+    if re.search(
+        r"check-config|/check-config|"
+        r"quais?\s+(s[aã]o\s+)?(os\s+)?(agentes|models?|modelos)|"
+        r"(show|list|exib[ae]|mostra).*(routing|config|agents?|models?|modelos)|"
+        r"routing\s+config|configura[cç][aã]o\s+(do\s+)?(routing|agente|dev-?agent)|"
+        r"qual\s+(agent|modelo|model)\s+(por\s+stage|do\s+orchestrator)",
+        msg,
+    ):
+        return {"intent": "check_config", "agent": None, "model": None,
+                "issue_number": None, "fast_track": False, "stages": [],
+                "needs_confirmation": False, "ambiguity_reason": None}
+
     # Shortcut: advance
     if re.match(r"^(sim|ok|aprovado|continua|continuar|próximo|proximo|avança|avanca|yes|proceed|next)[\s!.]*$", msg):
         return {"intent": "advance", "agent": None, "model": None,
@@ -124,6 +178,13 @@ def _classify_gemini(message: str, state: dict) -> dict:
     if not api_key:
         raise ValueError("GOOGLE_API_KEY not set")
 
+    orch = get_orchestrator_config(_ROUTING_TABLE)
+    if orch.provider != "gemini":
+        raise ValueError(
+            f"Orchestrator provider {orch.provider!r} is not implemented yet "
+            "(only 'gemini' is supported). Update routing.yaml orchestrator.provider."
+        )
+
     prompt = CLASSIFY_PROMPT.format(
         message=message,
         state=json.dumps({k: v for k, v in state.items()
@@ -135,7 +196,7 @@ def _classify_gemini(message: str, state: dict) -> dict:
     }).encode()
 
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"gemini-2.5-flash-lite:generateContent?key={api_key}")
+           f"{orch.classifier_model}:generateContent?key={api_key}")
     req = urllib.request.Request(url, data=payload,
                                   headers={"Content-Type": "application/json"})
     resp = urllib.request.urlopen(req, timeout=10)
@@ -189,25 +250,24 @@ def _classify_rules(message: str, state: dict) -> dict:
 
     return result
 
-# ── Default agents per intent ─────────────────────────────────────────────────
+# ── Routing (loaded from agents/routing.yaml at import) ───────────────────────
 
-DEFAULT_AGENTS = {
-    "question":       "claude",
-    "stage_issue":    "claude",
-    "stage_design":   "claude",
-    "stage_backlog":  "claude",
-    "stage_impl":     "codex",
-    "stage_validate": "cursor",
-    "stage_review":   "claude",
-    "stage_pr":       "cursor",
-    "fast_track":     "claude",
-}
+_ROUTING_TABLE = get_routing_table()
 
-# Modelo padrão por intent (override explícito do usuário tem prioridade)
-DEFAULT_MODELS = {
-    "stage_pr":       "auto",   # cursor auto para commits, PRs e merges
-    "stage_validate": "auto",   # cursor auto para testes/lint
-}
+
+def _resolve_dispatch_targets(classification: dict) -> tuple[str, str | None, str]:
+    """Agent, model, backend from routing table with user-override priority."""
+    intent = classification["intent"]
+    route_cfg = resolve_route(intent, _ROUTING_TABLE)
+    user_agent = classification.get("agent")
+    agent = user_agent or route_cfg.agent
+    model = classification.get("model")
+    if model is None:
+        if user_agent and user_agent != route_cfg.agent:
+            model = resolve_agent_default_model(agent, _ROUTING_TABLE) or route_cfg.model
+        else:
+            model = route_cfg.model or resolve_agent_default_model(agent, _ROUTING_TABLE)
+    return agent, model, route_cfg.backend
 
 SKILL_MAP = {
     "stage_issue":   "/neotool-open-issue",
@@ -350,7 +410,7 @@ _INTENT_LABELS = {
 
 def _confirmation_message(classification: dict) -> str:
     intent = classification["intent"]
-    agent  = classification.get("agent") or DEFAULT_AGENTS.get(intent, "claude")
+    agent, _, _ = _resolve_dispatch_targets(classification)
     main   = _INTENT_LABELS.get(intent, intent)
     reason = classification.get("ambiguity_reason") or "Intenção ambígua"
     return (
@@ -361,12 +421,6 @@ def _confirmation_message(classification: dict) -> str:
 
 
 # ── Dispatcher ────────────────────────────────────────────────────────────────
-
-WRAPPER = {
-    "claude": f"{AGENTS_BIN}/claude-dev",
-    "codex":  f"{AGENTS_BIN}/codex-dev",
-    "cursor": f"{AGENTS_BIN}/cursor-dev",
-}
 
 
 def _setup_impl_branch(issue_number: int | None) -> str | None:
@@ -405,23 +459,29 @@ def _setup_impl_branch(issue_number: int | None) -> str | None:
         return None
 
 
-def dispatch(
+def _checkpoint_status_from_result(result: BackendResult) -> str:
+    """Map backend outcome to checkpoint status."""
+    return "completed" if result.exit_code == 0 else "failed"
+
+
+def dispatch_result(
     classification: dict,
     prompt: str,
     thread: str,
-    channel: str,
-    ts: str,
-    slack_token: str,
+    *,
+    adapter_env: Mapping[str, str] | None = None,
     progress_log: "str | None" = None,
     meta_callback: "callable | None" = None,
-) -> str:
+    backend: AgentBackend | None = None,
+) -> BackendResult:
     intent = classification["intent"]
-    agent  = classification.get("agent") or DEFAULT_AGENTS.get(intent, "claude")
-    # Modelo: declaração explícita do usuário tem prioridade; senão usa default por intent
-    model  = classification.get("model") or DEFAULT_MODELS.get(intent)
+    agent, model, routing_backend = _resolve_dispatch_targets(classification)
 
     TIMEOUT = {"claude": 1800, "codex": 1800, "cursor": 1800}.get(agent, 1800)
-    log.info("dispatch intent=%s agent=%s model=%s timeout=%ds", intent, agent, model, TIMEOUT)
+    log.info(
+        "dispatch intent=%s agent=%s model=%s backend=%s timeout=%ds",
+        intent, agent, model, routing_backend, TIMEOUT,
+    )
 
     # Para stage_impl: cria/faz checkout da branch antes de chamar o agente
     branch = None
@@ -439,90 +499,326 @@ def dispatch(
             "branch":       branch,
         })
 
-    wrapper = WRAPPER.get(agent, WRAPPER["claude"])
-    cmd = [wrapper]
-    if model:
-        if agent == "codex":
-            cmd += ["-m", model]
-        elif agent == "claude":
-            cmd += ["--model", model]
-        elif agent == "cursor":
-            cmd += ["--model", model]
-    cmd.append(prompt)
+    env: dict[str, str] = {"NEOTOOL_THREAD": thread}
+    if adapter_env:
+        env.update(adapter_env)
 
-    env = {
-        **os.environ,
-        "NEOTOOL_THREAD": thread,
-        "SLACK_CHANNEL":      channel,
-        "SLACK_TS":           ts,
-        "SLACK_TOKEN":        slack_token,
-        "PATH":               f"{AGENTS_BIN}:{os.environ.get('PATH', '')}",
-    }
+    if routing_backend != "cli":
+        log.warning("backend %r not implemented — using CLIBackend", routing_backend)
 
-    log.info("running: %s", " ".join(str(x) for x in cmd[:2]) + " " + prompt[:80])
-    t0 = time.time()
-    timed_out = [False]
+    invoke_backend = backend or LoggingBackend(
+        get_default_backend(),
+        task_id=thread,
+        stage=log_stage_for_intent(intent),
+    )
+    return invoke_backend.invoke(
+        prompt,
+        agent=agent,
+        model=model,
+        thread=thread,
+        env=env,
+        progress_log=progress_log,
+        timeout=TIMEOUT,
+    )
 
-    try:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,   # stderr separado: não polui progress log nem output final
-            text=True, bufsize=1, cwd=WORKSPACE, env=env,
+
+def dispatch(
+    classification: dict,
+    prompt: str,
+    thread: str,
+    *,
+    adapter_env: Mapping[str, str] | None = None,
+    progress_log: "str | None" = None,
+    meta_callback: "callable | None" = None,
+    backend: AgentBackend | None = None,
+) -> str:
+    """User-facing dispatch — returns agent output string only."""
+    return dispatch_result(
+        classification,
+        prompt,
+        thread,
+        adapter_env=adapter_env,
+        progress_log=progress_log,
+        meta_callback=meta_callback,
+        backend=backend,
+    ).output
+
+
+def _format_pause_output(output: str, pause: PauseDecision | None) -> str:
+    if pause and pause.pause:
+        return f"{output}\n\n⏸️ _Circuit-breaker: {pause.reason}_"
+    return output
+
+
+def _finalize_stage_run(
+    thread: str,
+    classification: dict,
+    state: dict,
+    *,
+    issue_number: int | None,
+    intent: str,
+    result: BackendResult,
+) -> PauseDecision | None:
+    """Write terminal checkpoint, update stage state, evaluate circuit-breakers."""
+    if issue_number and intent in INTENT_TO_STAGE:
+        _write_stage_checkpoint(
+            issue_number,
+            intent,
+            status=_checkpoint_status_from_result(result),
+            task_id=thread,
+            output_summary=result.output or "",
+        )
+    if _checkpoint_status_from_result(result) == "completed":
+        _apply_stage_state(thread, classification, state)
+
+    stage_name = INTENT_TO_STAGE.get(intent)
+    if not stage_name:
+        return None
+
+    merged_state = {**state, **load_state(thread)}
+    pause, updates = apply_post_stage_circuit_breaker(
+        stage=stage_name,
+        result=result,
+        state=merged_state,
+    )
+    if updates:
+        save_state(thread, updates)
+    return pause if pause.pause else None
+
+
+def _dispatch_stage_with_finalize(
+    classification: dict,
+    prompt: str,
+    thread: str,
+    state: dict,
+    *,
+    issue_number: int | None,
+    intent: str,
+    adapter_env: Mapping[str, str] | None = None,
+    progress_log: str | None = None,
+    meta_callback: callable | None = None,
+) -> str:
+    if issue_number and intent in INTENT_TO_STAGE:
+        _write_stage_checkpoint(
+            issue_number,
+            intent,
+            status="in_progress",
+            task_id=thread,
+        )
+    result = dispatch_result(
+        classification,
+        prompt,
+        thread,
+        adapter_env=adapter_env,
+        progress_log=progress_log,
+        meta_callback=meta_callback,
+    )
+    pause = _finalize_stage_run(
+        thread,
+        classification,
+        state,
+        issue_number=issue_number,
+        intent=intent,
+        result=result,
+    )
+    return _format_pause_output(result.output, pause)
+
+
+def _dispatch_review_with_verifier(
+    classification: dict,
+    prompt: str,
+    thread: str,
+    state: dict,
+    *,
+    issue_number: int | None,
+    adapter_env: Mapping[str, str] | None = None,
+    progress_log: str | None = None,
+    meta_callback: callable | None = None,
+    verifier_fn=run_verifier,
+) -> str:
+    """Run deterministic verifier before review; retry impl up to IMPL_RETRY_LIMIT."""
+    merged_state = {**state, **load_state(thread)}
+    retry_count = int(merged_state.get("impl_retry_count", 0))
+    verifier: VerifierResult = verifier_fn()
+
+    while not verifier.passed and retry_count < IMPL_RETRY_LIMIT:
+        retry_count += 1
+        save_state(thread, {"impl_retry_count": retry_count})
+        impl_classification = dict(classification)
+        impl_classification["intent"] = "stage_impl"
+        impl_prompt = build_impl_retry_prompt(verifier, issue_number)
+        log.info(
+            "verifier failed — impl retry %d/%d",
+            retry_count,
+            IMPL_RETRY_LIMIT,
+        )
+        _dispatch_stage_with_finalize(
+            impl_classification,
+            impl_prompt,
+            thread,
+            state,
+            issue_number=issue_number,
+            intent="stage_impl",
+            adapter_env=adapter_env,
+            progress_log=progress_log,
+            meta_callback=meta_callback,
+        )
+        verifier = verifier_fn()
+
+    if not verifier.passed:
+        save_state(thread, {"impl_retry_count": retry_count})
+        return (
+            "⏸️ _Verifier failed after "
+            f"{retry_count} impl retries (limit {IMPL_RETRY_LIMIT})._\n\n"
+            f"--- Last verifier output ---\n{verifier.output}"
         )
 
-        stdout_lines = []
-        stderr_lines = []
-        log_fh = open(progress_log, "w", buffering=1) if progress_log else None
+    save_state(thread, {"impl_retry_count": 0})
+    return _dispatch_stage_with_finalize(
+        classification,
+        prompt,
+        thread,
+        state,
+        issue_number=issue_number,
+        intent="stage_review",
+        adapter_env=adapter_env,
+        progress_log=progress_log,
+        meta_callback=meta_callback,
+    )
 
-        def _read_stdout():
-            try:
-                for line in iter(proc.stdout.readline, ""):
-                    stdout_lines.append(line)
-                    if log_fh:
-                        log_fh.write(line)
-                        log_fh.flush()
-            finally:
-                proc.stdout.close()
 
-        def _read_stderr():
-            try:
-                for line in iter(proc.stderr.readline, ""):
-                    stderr_lines.append(line)
-                    log.debug("[agent stderr] %s", line.rstrip())
-            finally:
-                proc.stderr.close()
+def _classification_for_stage(plan: Plan, stage: str) -> dict:
+    return {
+        "intent": stage_to_intent(stage),
+        "agent": None,
+        "model": None,
+        "issue_number": plan.issue_number,
+        "fast_track": False,
+        "stages": [],
+        "needs_confirmation": False,
+        "ambiguity_reason": None,
+    }
 
-        t_out = threading.Thread(target=_read_stdout, daemon=True)
-        t_err = threading.Thread(target=_read_stderr, daemon=True)
-        t_out.start(); t_err.start()
 
-        try:
-            proc.wait(timeout=TIMEOUT)
-        except subprocess.TimeoutExpired:
-            timed_out[0] = True
-            proc.kill()
-            proc.wait()
-        finally:
-            t_out.join(timeout=5)
-            t_err.join(timeout=5)
-            if log_fh:
-                log_fh.close()
+def execute_plan(
+    plan: Plan,
+    thread: str,
+    state: dict,
+    *,
+    adapter_env: Mapping[str, str] | None = None,
+    progress_log: str | None = None,
+    meta_callback: callable | None = None,
+) -> str:
+    """Run all stages in a plan sequentially, honoring circuit-breakers."""
+    outputs: list[str] = []
+    issue_number = plan.issue_number or state.get("issue_number")
 
-        elapsed = time.time() - t0
-        if timed_out[0]:
-            log.error("timeout after %ds", TIMEOUT)
-            return f"❌ Timeout — agente excedeu {TIMEOUT // 60} minutos."
+    for stage in plan.stages:
+        intent = stage_to_intent(stage)
+        classification = _classification_for_stage(plan, stage)
+        prompt = build_prompt(classification, plan.summary, state)
+        log.info("execute_plan stage=%s issue=%s", stage, issue_number)
 
-        output = "".join(stdout_lines).strip() or "".join(stderr_lines).strip()
-        log.info("agent done in %.1fs exit=%d chars=%d", elapsed, proc.returncode, len(output))
-        if proc.returncode != 0:
-            log.error("agent stderr (300): %s", "".join(stderr_lines)[:300])
-        return output or f"_(sem resposta do agente — exit {proc.returncode})_"
+        if stage == "review":
+            output = _dispatch_review_with_verifier(
+                classification,
+                prompt,
+                thread,
+                state,
+                issue_number=issue_number,
+                adapter_env=adapter_env,
+                progress_log=progress_log,
+                meta_callback=meta_callback,
+            )
+            outputs.append(f"**{stage}**\n{output}")
+            if output.startswith("⏸️"):
+                save_state(thread, {
+                    "pending_plan": {
+                        "plan": plan.to_dict(),
+                        "next_stage_index": plan.stages.index(stage) + 1,
+                    },
+                })
+                return "\n\n".join(outputs)
+            state = load_state(thread)
+            continue
 
-    except Exception as e:
-        log.exception("dispatch error: %s", e)
-        return f"❌ Erro interno: {e}"
+        if issue_number and intent in INTENT_TO_STAGE:
+            _write_stage_checkpoint(
+                issue_number,
+                intent,
+                status="in_progress",
+                task_id=thread,
+            )
+
+        result = dispatch_result(
+            classification,
+            prompt,
+            thread,
+            adapter_env=adapter_env,
+            progress_log=progress_log,
+            meta_callback=meta_callback,
+        )
+        pause = _finalize_stage_run(
+            thread,
+            classification,
+            state,
+            issue_number=issue_number,
+            intent=intent,
+            result=result,
+        )
+        stage_output = _format_pause_output(result.output, pause)
+        outputs.append(f"**{stage}**\n{stage_output}")
+
+        if pause and pause.pause:
+            save_state(thread, {
+                "pending_plan": {
+                    "plan": plan.to_dict(),
+                    "next_stage_index": plan.stages.index(stage) + 1,
+                },
+            })
+            return "\n\n".join(outputs)
+
+        state = load_state(thread)
+
+    save_state(thread, {"pending_plan": None})
+    return "\n\n".join(outputs)
+
+
+def _handle_fast_track(
+    message: str,
+    thread: str,
+    state: dict,
+    *,
+    mode: str,
+    adapter_env: Mapping[str, str] | None = None,
+    progress_log: str | None = None,
+    meta_callback: callable | None = None,
+) -> str:
+    issue_number = state.get("issue_number") or extract_issue_from_message(message)
+    issue_ctx = fetch_issue_context(issue_number) if issue_number else ""
+    plan = generate_plan(message, state, issue_context=issue_ctx)
+    if issue_number and not plan.issue_number:
+        plan = Plan(
+            summary=plan.summary,
+            stages=plan.stages,
+            open_questions=plan.open_questions,
+            autonomous_eligible=plan.autonomous_eligible,
+            issue_number=issue_number,
+        )
+
+    pause = should_pause_for_plan(plan, mode=mode)
+    if pause.pause:
+        save_state(thread, {"pending_plan": {"plan": plan.to_dict(), "next_stage_index": 0}})
+        return format_plan_message(plan, reason=pause.reason)
+
+    return execute_plan(
+        plan,
+        thread,
+        state,
+        adapter_env=adapter_env,
+        progress_log=progress_log,
+        meta_callback=meta_callback,
+    )
 
 
 def clean_slack_message(message: str) -> str:
@@ -549,6 +845,87 @@ def extract_issue_from_message(message: str) -> int | None:
     return None
 
 
+def _resolve_issue_number(
+    classification: dict,
+    state: dict,
+    message: str,
+) -> int | None:
+    issue_number = classification.get("issue_number") or state.get("issue_number")
+    if not issue_number:
+        issue_number = extract_issue_from_message(message)
+    return issue_number
+
+
+def _sync_state_from_checkpoint(state: dict, issue_number: int) -> dict:
+    """Merge GitHub issue checkpoint into thread state for resume."""
+    checkpoint = fetch_last_checkpoint(issue_number)
+    if not checkpoint:
+        return state
+    merged = dict(state)
+    stage_idx = current_stage_from_checkpoint(checkpoint, STAGES)
+    if stage_idx is not None:
+        merged["current_stage"] = stage_idx
+    merged["last_checkpoint"] = checkpoint.to_dict()
+    if checkpoint.issue_number:
+        merged["issue_number"] = checkpoint.issue_number
+    log.info(
+        "checkpoint resume issue=%s stage=%s status=%s → current_stage=%s",
+        issue_number,
+        checkpoint.stage,
+        checkpoint.status,
+        merged.get("current_stage"),
+    )
+    return merged
+
+
+def _maybe_bump_completed_stage_intent(
+    classification: dict,
+    checkpoint: Checkpoint | None,
+) -> dict:
+    """If user repeats a stage already completed, advance to the next one."""
+    if not checkpoint or checkpoint.status != "completed":
+        return classification
+    intent = classification.get("intent", "")
+    stage_name = INTENT_TO_STAGE.get(intent)
+    if not stage_name or stage_name != checkpoint.stage:
+        return classification
+    idx = STAGES.index(stage_name)
+    next_idx = idx + 1
+    if next_idx >= len(STAGES):
+        return classification
+    next_stage = STAGES[next_idx]
+    next_intent = STAGE_TO_INTENT[next_stage]
+    log.info(
+        "checkpoint: stage %s already completed — bumping intent %s → %s",
+        stage_name,
+        intent,
+        next_intent,
+    )
+    updated = dict(classification)
+    updated["intent"] = next_intent
+    return updated
+
+
+def _write_stage_checkpoint(
+    issue_number: int,
+    intent: str,
+    *,
+    status: str,
+    task_id: str,
+    output_summary: str = "",
+) -> None:
+    stage_name = INTENT_TO_STAGE.get(intent)
+    if not stage_name or not issue_number:
+        return
+    write_checkpoint(
+        issue_number,
+        stage=stage_name,
+        status=status,
+        task_id=task_id,
+        output_summary=output_summary,
+    )
+
+
 def _apply_stage_state(thread: str, classification: dict, state: dict) -> None:
     """Persiste issue_number e current_stage após dispatch."""
     updates = {}
@@ -569,16 +946,56 @@ def _apply_stage_state(thread: str, classification: dict, state: dict) -> None:
 def route(
     message: str,
     thread: str,
-    channel: str,
-    ts: str,
-    slack_token: str,
+    *,
+    adapter_env: Mapping[str, str] | None = None,
     progress_log: "str | None" = None,
     meta_callback: "callable | None" = None,
-) -> str:
+    clean_message: bool = True,
+    mode: str = "interactive",
+) -> str | None:
     """Entry point: classifica, confirma se ambíguo, despacha, atualiza estado."""
-    message_clean = clean_slack_message(message)
+    message_clean = clean_slack_message(message) if clean_message else message.strip()
     state = load_state(thread)
-    log.info("route thread=%s state=%s msg=%r", thread, state, message_clean[:100])
+    issue_number = state.get("issue_number") or extract_issue_from_message(message_clean)
+    if issue_number:
+        state = _sync_state_from_checkpoint(state, issue_number)
+        save_state(thread, {
+            "current_stage": state.get("current_stage"),
+            "issue_number": issue_number,
+            "last_checkpoint": state.get("last_checkpoint"),
+        })
+    log.info("route thread=%s mode=%s state=%s msg=%r", thread, mode, state, message_clean[:100])
+
+    # ── Plano pendente (aprovação ou resume pós circuit-breaker) ─────────────
+    pending_plan = state.get("pending_plan")
+    if pending_plan:
+        quick = classify(message_clean, {})
+        if quick["intent"] == "advance":
+            save_state(thread, {"pending_plan": None})
+            plan = Plan.from_dict(pending_plan.get("plan", {}))
+            if not plan:
+                return "❌ Plano pendente inválido — tente novamente."
+            start_idx = int(pending_plan.get("next_stage_index", 0))
+            if start_idx > 0:
+                plan = Plan(
+                    summary=plan.summary,
+                    stages=plan.stages[start_idx:],
+                    open_questions=plan.open_questions,
+                    autonomous_eligible=plan.autonomous_eligible,
+                    issue_number=plan.issue_number,
+                )
+            log.info("route: plano aprovado — executando %d estágios", len(plan.stages))
+            return execute_plan(
+                plan,
+                thread,
+                state,
+                adapter_env=adapter_env,
+                progress_log=progress_log,
+                meta_callback=meta_callback,
+            )
+        log.info("route: plano pendente cancelado → reclassificando")
+        save_state(thread, {"pending_plan": None})
+        state.pop("pending_plan", None)
 
     # ── Confirmação pendente ───────────────────────────────────────────────────
     pending = state.get("pending_confirmation")
@@ -591,10 +1008,33 @@ def route(
             prom = pending["prompt"]
             log.info("route: confirmação aceita → intent=%s agent=%s",
                      clf["intent"], clf.get("agent"))
-            output = dispatch(clf, prom, thread, channel, ts, slack_token,
-                              progress_log=progress_log, meta_callback=meta_callback)
-            _apply_stage_state(thread, clf, state)
-            return output
+            issue_number = _resolve_issue_number(clf, state, message_clean)
+            if issue_number:
+                clf = dict(clf)
+                clf["issue_number"] = issue_number
+            intent = clf["intent"]
+            if intent == "stage_review":
+                return _dispatch_review_with_verifier(
+                    clf,
+                    prom,
+                    thread,
+                    state,
+                    issue_number=issue_number,
+                    adapter_env=adapter_env,
+                    progress_log=progress_log,
+                    meta_callback=meta_callback,
+                )
+            return _dispatch_stage_with_finalize(
+                clf,
+                prom,
+                thread,
+                state,
+                issue_number=issue_number,
+                intent=intent,
+                adapter_env=adapter_env,
+                progress_log=progress_log,
+                meta_callback=meta_callback,
+            )
         else:
             # Usuário quer outra coisa → descarta pendência e reclassifica
             log.info("route: confirmação cancelada → reclassificando")
@@ -604,12 +1044,32 @@ def route(
 
     # ── Fluxo normal ──────────────────────────────────────────────────────────
     classification = classify(message_clean, state)
-    if not classification.get("issue_number"):
-        classification["issue_number"] = extract_issue_from_message(message)
+    issue_number = _resolve_issue_number(classification, state, message_clean)
+    if issue_number:
+        classification["issue_number"] = issue_number
+        state = _sync_state_from_checkpoint(state, issue_number)
+
+    last_cp_dict = state.get("last_checkpoint")
+    last_checkpoint = Checkpoint.from_dict(last_cp_dict) if last_cp_dict else None
+    classification = _maybe_bump_completed_stage_intent(classification, last_checkpoint)
     log.info("classification: %s", json.dumps(classification))
 
     if classification["intent"] == "check_usage":
         return None
+
+    if classification["intent"] == "check_config":
+        return format_routing_summary(_ROUTING_TABLE)
+
+    if classification["intent"] == "fast_track":
+        return _handle_fast_track(
+            message_clean,
+            thread,
+            state,
+            mode=mode,
+            adapter_env=adapter_env,
+            progress_log=progress_log,
+            meta_callback=meta_callback,
+        )
 
     prompt = build_prompt(classification, message_clean, state)
     log.info("prompt built: %s", prompt[:120])
@@ -623,7 +1083,27 @@ def route(
         }})
         return _confirmation_message(classification)
 
-    output = dispatch(classification, prompt, thread, channel, ts, slack_token,
-                      progress_log=progress_log, meta_callback=meta_callback)
-    _apply_stage_state(thread, classification, state)
-    return output
+    intent = classification["intent"]
+    if intent == "stage_review":
+        return _dispatch_review_with_verifier(
+            classification,
+            prompt,
+            thread,
+            state,
+            issue_number=issue_number,
+            adapter_env=adapter_env,
+            progress_log=progress_log,
+            meta_callback=meta_callback,
+        )
+
+    return _dispatch_stage_with_finalize(
+        classification,
+        prompt,
+        thread,
+        state,
+        issue_number=issue_number,
+        intent=intent,
+        adapter_env=adapter_env,
+        progress_log=progress_log,
+        meta_callback=meta_callback,
+    )

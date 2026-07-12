@@ -11,20 +11,21 @@ if [[ ! "$SESSION" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
     SESSION=""
 fi
 THREAD="${NEOTOOL_THREAD:-default}"
+MODEL="${NEOTOOL_MODEL:-gpt-5.4}"  # safety net; preferred source is routing.yaml via NEOTOOL_MODEL
 T0=$(date +%s%N)
 
 _log() { echo "$(date '+%Y-%m-%d %H:%M:%S') [codex-dev] $*" >> "$LOG"; }
 
 _log "▶ START thread=$THREAD session=${SESSION:-new} prompt=${*:0:120}"
-bash "$STATUS" "🔷 _Codex (gpt-5.4)_ — iniciando..." 2>/dev/null || true
+bash "$STATUS" "🔷 _Codex (${MODEL})_ — iniciando..." 2>/dev/null || true
 
 if [ -n "$SESSION" ]; then
-    OUTPUT=$(codex exec resume "$SESSION" -m gpt-5.4 \
+    OUTPUT=$(codex exec resume "$SESSION" -m "$MODEL" \
         --dangerously-bypass-approvals-and-sandbox "$*" 2>&1) || \
-    OUTPUT=$(codex exec -m gpt-5.4 \
+    OUTPUT=$(codex exec -m "$MODEL" \
         --dangerously-bypass-approvals-and-sandbox "$*" 2>&1)
 else
-    OUTPUT=$(codex exec -m gpt-5.4 \
+    OUTPUT=$(codex exec -m "$MODEL" \
         --dangerously-bypass-approvals-and-sandbox "$*" 2>&1)
 fi
 

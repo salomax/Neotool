@@ -11,18 +11,19 @@ if [[ ! "$SESSION" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
     SESSION=""
 fi
 THREAD="${NEOTOOL_THREAD:-default}"
+MODEL="${NEOTOOL_MODEL:-claude-sonnet-4-6}"  # safety net; preferred source is routing.yaml via NEOTOOL_MODEL
 T0=$(date +%s%N)
 
 _log() { echo "$(date '+%Y-%m-%d %H:%M:%S') [claude-dev] $*" >> "$LOG"; }
 
 _log "▶ START thread=$THREAD session=${SESSION:-new}"
 _log "  prompt: $*"
-bash "$STATUS" "🤖 _Claude (sonnet-4-6)_ — iniciando..." 2>/dev/null || true
+bash "$STATUS" "🤖 _Claude (${MODEL})_ — iniciando..." 2>/dev/null || true
 
 # Tenta resume se tiver sessão válida; se falhar, limpa e usa nova sessão
 if [ -n "$SESSION" ]; then
     _log "  tentando resume session=$SESSION"
-    RAW=$(claude --model claude-sonnet-4-6 --resume "$SESSION" -p "$*" \
+    RAW=$(claude --model "$MODEL" --resume "$SESSION" -p "$*" \
         --dangerously-skip-permissions --output-format json 2>&1) || {
         RESUME_EC=$?
         _log "  resume falhou (exit $RESUME_EC): ${RAW:0:200}"
@@ -36,7 +37,7 @@ fi
 if [ -z "$SESSION" ] || [ -z "$RAW" ]; then
     _log "  nova sessão"
     # Roda sem NEOTOOL_THREAD no env do claude para evitar conflito de nome de sessão
-    RAW=$(env -u NEOTOOL_THREAD claude --model claude-sonnet-4-6 -p "$*" \
+    RAW=$(env -u NEOTOOL_THREAD claude --model "$MODEL" -p "$*" \
         --dangerously-skip-permissions --output-format json 2>&1) || true
 fi
 
