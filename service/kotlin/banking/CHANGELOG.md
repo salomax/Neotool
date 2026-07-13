@@ -1,3 +1,14 @@
+## 0.9.0 (2026-07-13)
+
+### 🚀 Features
+
+- **banking:** allow BILL_PAYMENT on credit card transactions (GH-378) ([e1abf77b](https://github.com/invistus/invistus/commit/e1abf77b))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Marcos Salomão @salomax
+
 ## 0.8.9 (2026-07-13)
 
 ### 🚀 Features
