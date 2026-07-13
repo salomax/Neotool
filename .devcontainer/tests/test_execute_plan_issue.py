@@ -54,24 +54,24 @@ def test_execute_plan_impl_prompt_includes_issue_from_summary(
     assert "Issue: #359" in prompt
 
 
-@patch("router._finalize_stage_run")
 @patch("router.dispatch_result")
 @patch("router.write_checkpoint")
 @patch("router.fetch_last_checkpoint")
+@patch("router.save_state")
 @patch("router.load_state")
 def test_execute_plan_impl_blocked_output_pauses(
     mock_load,
+    mock_save,
     mock_fetch,
     mock_write,
     mock_dispatch,
-    mock_finalize,
 ) -> None:
     import router
     from agents.backend import BackendResult
+    from circuit_breaker import PauseDecision
 
     mock_fetch.return_value = None
     mock_load.return_value = {}
-    mock_finalize.return_value = None
     blocked = (
         "Preciso do número da issue para seguir o fluxo correto dessa implementação."
     )
@@ -81,12 +81,15 @@ def test_execute_plan_impl_blocked_output_pauses(
 
     plan = Plan(
         summary="Implement something",
-        stages=["impl"],
+        stages=["impl", "review"],
         issue_number=None,
     )
     output = router.execute_plan(plan, "cli-issue-blocked", {})
 
-    assert "Implementação bloqueada" in output
-    assert "pending_plan" in mock_load.return_value or True
-    # pause saves pending_plan via save_state in execute_plan
-    mock_finalize.assert_called_once()
+    assert "bloquead" in output.lower()
+    pending_calls = [
+        c.args[1] for c in mock_save.call_args_list
+        if len(c.args) > 1 and isinstance(c.args[1], dict) and "pending_plan" in c.args[1]
+    ]
+    assert pending_calls
+    assert pending_calls[-1]["pending_plan"]["next_stage_index"] == 0  # stay on impl

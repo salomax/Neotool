@@ -21,7 +21,11 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core import Task, handle_task
-import router as _router
+from slack_format import (
+    _NEXT_STAGE,
+    _STAGE_EMOJI,
+    format_stage_result,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,26 +61,6 @@ SLACK_APP_TOKEN = os.environ.get("SLACK_APP_TOKEN", "")
 WORKSPACE       = "/workspaces/invistus"
 MAX_CHARS       = 3800
 PROGRESS_INTERVAL = 30
-
-_STAGE_EMOJI = {
-    "stage_issue":    "📋",
-    "stage_design":   "🔍",
-    "stage_backlog":  "📝",
-    "stage_impl":     "⚙️",
-    "stage_review":   "🧐",
-    "stage_validate": "🧪",
-    "stage_pr":       "🚀",
-    "question":       "💬",
-}
-
-_NEXT_STAGE = {
-    "stage_issue":    "design",
-    "stage_design":   "backlog",
-    "stage_backlog":  "impl",
-    "stage_impl":     "review",
-    "stage_review":   "validate",
-    "stage_validate": "pr",
-}
 
 _SESSIONS_FILE = f"/tmp/neotool-sessions-{_DEVPOD_N}.json"
 
@@ -120,43 +104,7 @@ def slack_update(channel: str, ts: str, text: str) -> None:
 
 
 def format_slack_result(output: str | None, meta: dict) -> str:
-    if output is None:
-        return ""
-
-    result = output.strip() or "_(sem resposta)_"
-    if len(result) > MAX_CHARS:
-        result = result[:MAX_CHARS] + "\n_(truncado)_"
-
-    intent = meta.get("intent", "")
-    agent = meta.get("agent", "")
-    model = meta.get("model", "")
-    issue = meta.get("issue_number")
-    branch = meta.get("branch")
-
-    header_parts = []
-    if intent.startswith("stage_"):
-        stage_short = intent.replace("stage_", "")
-        emoji = _STAGE_EMOJI.get(intent, "✅")
-        header_parts.append(f"{emoji} *{stage_short} concluído*")
-    if issue:
-        header_parts.append(f"issue #{issue}")
-    if branch:
-        header_parts.append(f"`{branch}`")
-    elif agent:
-        a = f"`{agent}`"
-        if model:
-            a += f" / `{model}`"
-        header_parts.append(a)
-    if branch and agent:
-        a = f"`{agent}`"
-        if model:
-            a += f" / `{model}`"
-        header_parts.append(a)
-
-    header = "  ·  ".join(header_parts)
-    next_s = _NEXT_STAGE.get(intent)
-    footer = f"\n\n→ próximo: `{next_s}`  —  `sim` para continuar" if next_s else ""
-    return f"{header}\n\n{result}{footer}" if header else result
+    return format_stage_result(output, meta, max_chars=MAX_CHARS)
 
 
 def format_slack_progress(meta: dict, elapsed_secs: int) -> str:
