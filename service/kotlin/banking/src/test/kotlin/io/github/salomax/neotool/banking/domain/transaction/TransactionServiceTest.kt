@@ -943,7 +943,7 @@ class TransactionServiceTest {
         }
 
         @Test
-        fun `marking as BILL_PAYMENT is rejected for credit card account transactions`() {
+        fun `marking as BILL_PAYMENT with DEBIT direction is rejected for credit card account transactions`() {
             val txId = UUID.randomUUID()
             val cardAccountId = UUID.randomUUID()
             val cardAccount =
@@ -951,7 +951,7 @@ class TransactionServiceTest {
                     id = cardAccountId,
                     accountId = accountId,
                     createdByUserId = userId,
-                    type = FinancialAccountType.BANK,
+                    type = FinancialAccountType.CREDIT,
                     subtype = FinancialAccountSubtype.CREDIT_CARD,
                     name = "Credit Card",
                     currencyCode = "BRL",
@@ -964,11 +964,11 @@ class TransactionServiceTest {
                     financialAccountId = cardAccountId,
                     accountId = accountId,
                     createdByUserId = userId,
-                    creditDebitType = CreditDebitType.DEBIT,
-                    type = TransactionType.OTHER_EXPENSE,
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.OTHER_INCOME,
                     amount = BigDecimal("50.00"),
                     date = today,
-                    description = "Purchase",
+                    description = "Payment received",
                     createdAt = now,
                     updatedAt = now,
                 )
@@ -979,15 +979,107 @@ class TransactionServiceTest {
                 assertThrows<ValidationException> {
                     service.update(
                         txId,
-                        UpdateTransactionCommand(type = TransactionType.BILL_PAYMENT),
+                        UpdateTransactionCommand(
+                            type = TransactionType.BILL_PAYMENT,
+                            creditDebitType = CreditDebitType.DEBIT,
+                        ),
                         accountId,
                         userId,
                     )
                 }
 
             assertThat(ex.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
-            assertThat(ex.field).isEqualTo("type")
+            assertThat(ex.field).isEqualTo("creditDebitType")
             verify(transactionRepository, never()).update(any())
+        }
+
+        @Test
+        fun `marking as BILL_PAYMENT on credit card account forces CREDIT and keeps bill id`() {
+            val txId = UUID.randomUUID()
+            val cardAccountId = UUID.randomUUID()
+            val billId = UUID.randomUUID()
+            val cardAccount =
+                FinancialAccount(
+                    id = cardAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    type = FinancialAccountType.CREDIT,
+                    subtype = FinancialAccountSubtype.CREDIT_CARD,
+                    name = "Credit Card",
+                    currencyCode = "BRL",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = cardAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.OTHER_INCOME,
+                    amount = BigDecimal("200.00"),
+                    date = today,
+                    description = "Pagamento recebido",
+                    billId = billId,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(cardAccount))
+            whenever(
+                creditCardBillService.resolveBillForTransaction(any(), any(), any()),
+            ).thenReturn(null)
+            val updateCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.update(updateCaptor.capture())).thenAnswer { updateCaptor.firstValue }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(type = TransactionType.BILL_PAYMENT),
+                accountId,
+                userId,
+            )
+
+            assertThat(updateCaptor.firstValue.type).isEqualTo(TransactionType.BILL_PAYMENT)
+            assertThat(updateCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
+            assertThat(updateCaptor.firstValue.billId).isEqualTo(billId)
+            assertThat(updateCaptor.firstValue.categoryId).isNull()
+        }
+
+        @Test
+        fun `marking as BILL_PAYMENT on bank account forces DEBIT and clears bill id`() {
+            val txId = UUID.randomUUID()
+            val billId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("150.00"),
+                    date = today,
+                    description = "Bill payment",
+                    billId = billId,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
+            val updateCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.update(updateCaptor.capture())).thenAnswer { updateCaptor.firstValue }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(type = TransactionType.BILL_PAYMENT),
+                accountId,
+                userId,
+            )
+
+            assertThat(updateCaptor.firstValue.type).isEqualTo(TransactionType.BILL_PAYMENT)
+            assertThat(updateCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
+            assertThat(updateCaptor.firstValue.billId).isNull()
         }
 
         @Test
