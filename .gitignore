@@ -131,3 +131,6 @@ docs/03-features/brainstorming
 graph.json
 web/tsconfig.vitest.tsbuildinfo
 web/core 
+
+*_stderr.txt
+*_stdout.txt

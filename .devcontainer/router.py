@@ -29,7 +29,14 @@ from circuit_breaker import (
     apply_post_stage_circuit_breaker,
     should_pause_for_plan,
 )
-from planner import Plan, format_plan_message, generate_plan, stage_to_intent
+from planner import (
+    Plan,
+    format_plan_message,
+    generate_plan,
+    normalize_plan_issue,
+    resolve_plan_issue_number,
+    stage_to_intent,
+)
 from thread_log import (
     LoggingBackend,
     log_stage_for_intent,
@@ -336,7 +343,17 @@ SKILL_MAP = {
     "stage_issue":   "/neotool-open-issue",
     "stage_design":  "/neotool-solution-design",
     "stage_backlog": "/neotool-backlog-gen",
+    "stage_impl":    "/neotool-implement",
 }
+
+_AGENT_MISSING_ISSUE_RE = re.compile(
+    r"preciso do n[uú]mero da issue|"
+    r"what is the issue number|"
+    r"issue number is required|"
+    r"informe no formato\s*#|"
+    r"do not proceed without",
+    re.IGNORECASE,
+)
 
 # ── Prompt builder ────────────────────────────────────────────────────────────
 
@@ -402,7 +419,11 @@ def fetch_branch_diff() -> str:
 
 def build_prompt(classification: dict, original_message: str, state: dict) -> str:
     intent       = classification["intent"]
-    issue_number = classification.get("issue_number") or state.get("issue_number")
+    issue_number = (
+        classification.get("issue_number")
+        or state.get("issue_number")
+        or extract_issue_from_message(original_message)
+    )
 
     # Contexto completo da issue — injetado em todos os intents
     issue_ctx = fetch_issue_context(issue_number) if issue_number else ""
@@ -421,13 +442,18 @@ def build_prompt(classification: dict, original_message: str, state: dict) -> st
         return _with_issue(base)
 
     if intent == "stage_impl":
+        skill = SKILL_MAP["stage_impl"]
         ref = f"issue #{issue_number}" if issue_number else "a tarefa descrita"
         gh_comment = (
             f"\n\nQuando terminar, execute: "
             f"gh issue comment {issue_number} -b "
             '"\'**✅ Implementação concluída**\\n\\n<resumo do que foi implementado>"'
         ) if issue_number else ""
-        return _with_issue(f"Implementar o backlog da {ref}.\n{original_message}{gh_comment}")
+        base = f"{skill}\n\nImplementar o backlog da {ref}."
+        if issue_number:
+            base += f"\n\nIssue: #{issue_number}"
+        base += f"\n{original_message}{gh_comment}"
+        return _with_issue(base)
 
     if intent == "stage_pr":
         ref = f"issue #{issue_number}" if issue_number else "o trabalho atual"
@@ -526,9 +552,27 @@ def _setup_impl_branch(issue_number: int | None) -> str | None:
         return None
 
 
-def _checkpoint_status_from_result(result: BackendResult) -> str:
+def _checkpoint_status_from_result(
+    result: BackendResult,
+    *,
+    intent: str | None = None,
+) -> str:
     """Map backend outcome to checkpoint status."""
+    if intent == "stage_impl" and _agent_blocked_on_missing_issue(result.output):
+        return "failed"
     return "completed" if result.exit_code == 0 else "failed"
+
+
+def _agent_blocked_on_missing_issue(output: str) -> bool:
+    return bool(_AGENT_MISSING_ISSUE_RE.search(output or ""))
+
+
+def _classification_with_issue(classification: dict, issue_number: int | None) -> dict:
+    if not issue_number:
+        return classification
+    updated = dict(classification)
+    updated["issue_number"] = issue_number
+    return updated
 
 
 def dispatch_result(
@@ -631,11 +675,11 @@ def _finalize_stage_run(
         _write_stage_checkpoint(
             issue_number,
             intent,
-            status=_checkpoint_status_from_result(result),
+            status=_checkpoint_status_from_result(result, intent=intent),
             task_id=thread,
             output_summary=result.output or "",
         )
-    if _checkpoint_status_from_result(result) == "completed":
+    if _checkpoint_status_from_result(result, intent=intent) == "completed":
         _apply_stage_state(thread, classification, state)
 
     stage_name = INTENT_TO_STAGE.get(intent)
@@ -690,8 +734,8 @@ def _dispatch_stage_with_finalize(
     )
     output = _format_pause_output(result.output, pause)
     if (
-        intent == "stage_pr"
-        and _checkpoint_status_from_result(result) == "completed"
+        intent in ("stage_pr", "stage_merge")
+        and _checkpoint_status_from_result(result, intent=intent) == "completed"
     ):
         output = _append_thread_summary(thread, issue_number, output)
     return output
@@ -784,11 +828,20 @@ def execute_plan(
 ) -> str:
     """Run all stages in a plan sequentially, honoring circuit-breakers."""
     outputs: list[str] = []
-    issue_number = plan.issue_number or state.get("issue_number")
+    state = load_state(thread)
+    plan = normalize_plan_issue(plan, state)
+    issue_number = resolve_plan_issue_number(plan, state)
+    if issue_number:
+        save_state(thread, {"issue_number": issue_number})
 
     for stage in plan.stages:
+        state = load_state(thread)
+        issue_number = resolve_plan_issue_number(plan, state)
         intent = stage_to_intent(stage)
-        classification = _classification_for_stage(plan, stage)
+        classification = _classification_with_issue(
+            _classification_for_stage(plan, stage),
+            issue_number,
+        )
         prompt = build_prompt(classification, plan.summary, state)
         log.info("execute_plan stage=%s issue=%s", stage, issue_number)
 
@@ -839,10 +892,15 @@ def execute_plan(
             intent=intent,
             result=result,
         )
+        if stage == "impl" and _agent_blocked_on_missing_issue(result.output):
+            pause = PauseDecision(
+                pause=True,
+                reason="Implementação bloqueada — número da issue não foi repassado ao agente.",
+            )
         stage_output = _format_pause_output(result.output, pause)
         if (
             stage == "pr"
-            and _checkpoint_status_from_result(result) == "completed"
+            and _checkpoint_status_from_result(result, intent=intent) == "completed"
         ):
             stage_output = _append_thread_summary(thread, issue_number, stage_output)
         outputs.append(f"**{stage}**\n{stage_output}")
@@ -874,19 +932,15 @@ def _handle_fast_track(
 ) -> str:
     issue_number = state.get("issue_number") or extract_issue_from_message(message)
     issue_ctx = fetch_issue_context(issue_number) if issue_number else ""
-    plan = generate_plan(message, state, issue_context=issue_ctx)
-    if issue_number and not plan.issue_number:
-        plan = Plan(
-            summary=plan.summary,
-            stages=plan.stages,
-            open_questions=plan.open_questions,
-            autonomous_eligible=plan.autonomous_eligible,
-            issue_number=issue_number,
-        )
+    plan = normalize_plan_issue(generate_plan(message, state, issue_context=issue_ctx), state)
 
     pause = should_pause_for_plan(plan, mode=mode)
     if pause.pause:
-        save_state(thread, {"pending_plan": {"plan": plan.to_dict(), "next_stage_index": 0}})
+        pending_plan = {"plan": plan.to_dict(), "next_stage_index": 0}
+        updates: dict = {"pending_plan": pending_plan}
+        if plan.issue_number:
+            updates["issue_number"] = plan.issue_number
+        save_state(thread, updates)
         return format_plan_message(plan, reason=pause.reason)
 
     return execute_plan(
@@ -1054,6 +1108,10 @@ def route(
             plan = Plan.from_dict(pending_plan.get("plan", {}))
             if not plan:
                 return "❌ Plano pendente inválido — tente novamente."
+            state = load_state(thread)
+            plan = normalize_plan_issue(plan, state)
+            if plan.issue_number:
+                save_state(thread, {"issue_number": plan.issue_number})
             start_idx = int(pending_plan.get("next_stage_index", 0))
             if start_idx > 0:
                 plan = Plan(

@@ -93,6 +93,43 @@ def parse_plan_response(text: str) -> Plan | None:
     return Plan.from_dict(data)
 
 
+def extract_issue_number_from_text(text: str) -> int | None:
+    """Extract GitHub issue number from free text (#359, issue 359, github URL)."""
+    if not text:
+        return None
+    url_match = re.search(r"github\.com/[^/]+/[^/]+/issues/(\d+)", text)
+    if url_match:
+        return int(url_match.group(1))
+    hash_match = re.search(r"(?:issue\s*#?|#)(\d+)", text, re.I)
+    if hash_match:
+        return int(hash_match.group(1))
+    return None
+
+
+def resolve_plan_issue_number(plan: Plan, state: dict) -> int | None:
+    """Resolve issue number from plan field, thread state, or plan summary text."""
+    if plan.issue_number:
+        return plan.issue_number
+    state_number = state.get("issue_number")
+    if state_number:
+        return int(state_number)
+    return extract_issue_number_from_text(plan.summary)
+
+
+def normalize_plan_issue(plan: Plan, state: dict) -> Plan:
+    """Ensure plan.issue_number is set when recoverable from state or summary."""
+    resolved = resolve_plan_issue_number(plan, state)
+    if resolved and resolved != plan.issue_number:
+        return Plan(
+            summary=plan.summary,
+            stages=plan.stages,
+            open_questions=plan.open_questions,
+            autonomous_eligible=plan.autonomous_eligible,
+            issue_number=resolved,
+        )
+    return plan
+
+
 def _call_gemini(prompt: str) -> str:
     api_key = os.environ.get("GOOGLE_API_KEY", "")
     if not api_key:
@@ -138,15 +175,7 @@ def generate_plan(
         text = _call_gemini(prompt)
         plan = parse_plan_response(text)
         if plan:
-            if not plan.issue_number and state.get("issue_number"):
-                plan = Plan(
-                    summary=plan.summary,
-                    stages=plan.stages,
-                    open_questions=plan.open_questions,
-                    autonomous_eligible=plan.autonomous_eligible,
-                    issue_number=state.get("issue_number"),
-                )
-            return plan
+            return normalize_plan_issue(plan, state)
         log.warning("planner: no valid JSON in Gemini response: %s", text[:200])
     except Exception as exc:
         log.warning("planner: Gemini failed: %s", exc)
@@ -156,10 +185,7 @@ def generate_plan(
 
 def _fallback_plan(message: str, state: dict) -> Plan:
     """Rule-based fallback when Gemini is unavailable."""
-    issue_number = state.get("issue_number")
-    m = re.search(r"(?:issue\s*#?|#)(\d+)", message, re.I)
-    if m:
-        issue_number = int(m.group(1))
+    issue_number = state.get("issue_number") or extract_issue_number_from_text(message)
 
     stages = list(PIPELINE_STAGES)
     start_idx = state.get("current_stage", 0)
