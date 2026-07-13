@@ -1,3 +1,14 @@
+## 0.8.8 (2026-07-13)
+
+### 🩹 Fixes
+
+- **banking:** align MonthSummary month filter with bill due date for installments (GH-374) ([30d22adb](https://github.com/invistus/invistus/commit/30d22adb))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Marcos Salomão @salomax
+
 ## 0.8.7 (2026-07-12)
 
 ### 🚀 Features
