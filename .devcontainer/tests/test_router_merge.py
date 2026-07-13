@@ -52,8 +52,23 @@ def test_explicit_merge_dispatches_cursor(
     mock_summary.assert_called_once()
 
 
-def test_classify_merge_shortcut_is_stage_merge() -> None:
-    result = router.classify("faça o merge", {"issue_number": 359})
+def test_classify_merge_via_llm(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+    with patch.object(
+        router,
+        "_classify_gemini",
+        return_value={
+            "intent": "stage_merge",
+            "agent": None,
+            "model": None,
+            "issue_number": 359,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        },
+    ):
+        result = router.classify("faça o merge", {"issue_number": 359})
     assert result["intent"] == "stage_merge"
 
 

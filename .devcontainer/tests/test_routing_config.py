@@ -7,13 +7,44 @@ import router
 from agents.backend import BackendResult
 
 
-def test_classify_check_config_shortcut() -> None:
-    result = router.classify("quais são os agentes e models por stage?", {})
+def test_classify_check_config_via_llm(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+
+    def fake_gemini(message: str, state: dict) -> dict:
+        return {
+            "intent": "check_config",
+            "agent": None,
+            "model": None,
+            "issue_number": None,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        }
+
+    with patch.object(router, "_classify_gemini", side_effect=fake_gemini):
+        result = router.classify("quais são os agentes e models por stage?", {})
     assert result["intent"] == "check_config"
 
 
-def test_classify_check_config_english() -> None:
-    result = router.classify("show routing config", {})
+def test_classify_check_config_english_via_llm(monkeypatch) -> None:
+    monkeypatch.setenv("GOOGLE_API_KEY", "test-key")
+
+    with patch.object(
+        router,
+        "_classify_gemini",
+        return_value={
+            "intent": "check_config",
+            "agent": None,
+            "model": None,
+            "issue_number": None,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        },
+    ):
+        result = router.classify("show routing config", {})
     assert result["intent"] == "check_config"
 
 

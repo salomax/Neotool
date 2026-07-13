@@ -111,7 +111,7 @@ Return JSON with these fields:
 }}
 
 Intent rules:
-- "advance" = user says sim/ok/aprovado/yes/continua/next/proceed
+- "advance" = handled locally for bare sim/ok/aprovado — do NOT classify these from the message text
 - "check_usage" = user asks about token usage, agent status, check-usage
 - "check_config" = user asks which agents/models are configured per stage, routing config, orchestrator model
 - "fast_track" = user explicitly asks to do multiple stages at once ("de uma vez", "tudo junto", "em uma etapa")
@@ -121,9 +121,20 @@ Intent rules:
 - "stage_impl" = ONLY when user explicitly asks to write/implement NEW code or apply backlog tasks. The word "implementação" as a noun referring to past work does NOT trigger this.
 - "stage_pr" = commit changes and open pull request (default agent: cursor, model: auto). NEVER merge — merge is always human on GitHub
 - "stage_validate" = run tests, lint, typecheck (default agent: cursor, model: auto)
-- "stage_review" = code review of implemented changes: "revise o código", "faz um review", "analise o que foi implementado", "review" (default agent: claude)
-- "question" = everything else: questions, instructions to an agent that are not a pipeline stage, "poste um comentário", "crie um comentário", "revise", "analise", "verifique", "o que acha", "sumarize", "explique" (default agent: claude)
+- "stage_review" = code review of EXISTING implementation: "revise o código", "faz um review", "faça a revisão", "analise a implementação", "review", "já implementei" + pedido de revisão, link para comentário de implementação na issue (default agent: claude)
+- "question" = everything else: questions, instructions to an agent that are not a pipeline stage, "poste um comentário", "crie um comentário", "verifique", "o que acha", "sumarize", "explique" (default agent: claude)
+- IMPORTANT: GitHub issue URLs (…/issues/123) or issuecomment links do NOT mean stage_issue — use stage_review when the user asks for review of existing work
+- IMPORTANT: If user says work was already done outside the pipeline ("já implementei") and asks for review → stage_review, NOT stage_impl or stage_design
+- IMPORTANT: Use thread state (next_pipeline_stage_if_user_says_sim, last_checkpoint) to disambiguate resume vs new stage requests
 - IMPORTANT: "codex/claude/cursor, <do something>" where <something> is not a pipeline stage → "question" with that agent
+
+Thread state fields:
+- issue_number: active GitHub issue for this Slack thread
+- next_pipeline_stage_if_user_says_sim: stage that bare "sim" would run next (issue→design→backlog→impl→review→validate→pr)
+- last_checkpoint: last recorded pipeline stage on the issue and its status (completed/in_progress/failed)
+- has_pending_plan: true when a fast_track plan awaits approval
+
+Extract issue_number from message text or URLs when present.
 
 Agent override rules:
 - If message starts with or mentions "@claude", "@codex", "@cursor", "use claude/codex/cursor", "pelo claude/codex/cursor", or "codex/claude/cursor <verb>" — set agent accordingly
@@ -147,43 +158,65 @@ Examples of needs_confirmation=false:
 Examples of needs_confirmation=true:
   "pode criar isso?" -> true (create what? issue or implementation?)
   "continua com a issue 42" -> true (which stage? design? impl?)
+  "já implementei, faça a revisão" + issuecomment URL -> stage_review, agent=claude, false
 """
 
+_ADVANCE_ONLY_RE = re.compile(
+    r"^(sim|ok|aprovado|continua|continuar|próximo|proximo|avança|avanca|yes|proceed|next)[\s!.]*$",
+    re.IGNORECASE,
+)
+_ISSUE_COMMENT_URL_RE = re.compile(
+    r"github\.com/[^/\s]+/[^/\s]+/issues/(\d+)#issuecomment-(\d+)",
+    re.IGNORECASE,
+)
+
+
+class ClassificationError(Exception):
+    """Orchestrator LLM classifier failed or is unavailable."""
+
+
+def _classification_state_for_prompt(state: dict) -> dict:
+    """Thread context passed to the LLM classifier."""
+    ctx: dict = {}
+    issue = state.get("issue_number")
+    if issue:
+        ctx["issue_number"] = issue
+    stage_idx = state.get("current_stage")
+    if stage_idx is not None:
+        idx = int(stage_idx)
+        ctx["current_stage_index"] = idx
+        if 0 <= idx < len(STAGES):
+            ctx["next_pipeline_stage_if_user_says_sim"] = STAGES[idx]
+    last_cp = state.get("last_checkpoint")
+    if isinstance(last_cp, dict):
+        ctx["last_checkpoint"] = {
+            "stage": last_cp.get("stage"),
+            "status": last_cp.get("status"),
+        }
+    if state.get("pending_plan"):
+        ctx["has_pending_plan"] = True
+    return ctx
+
+
 def classify(message: str, state: dict) -> dict:
-    """Rule-based shortcuts first, Gemini fallback."""
-    msg = message.strip().lower()
+    """Bare advance (sim/ok/…) is local; everything else goes to the LLM classifier."""
+    if _ADVANCE_ONLY_RE.match(message.strip()):
+        return _sanitize_classification({
+            "intent": "advance",
+            "agent": None,
+            "model": None,
+            "issue_number": None,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        })
 
-    # Shortcut: check-usage
-    if re.search(r"check-usage|/check-usage", msg):
-        return _sanitize_classification({"intent": "check_usage", "agent": None, "model": None,
-                "issue_number": None, "fast_track": False, "stages": [],
-                "needs_confirmation": False, "ambiguity_reason": None})
-
-    # Shortcut: check-config / show routing
-    if re.search(
-        r"check-config|/check-config|"
-        r"quais?\s+(s[aã]o\s+)?(os\s+)?(agentes|models?|modelos)|"
-        r"(show|list|exib[ae]|mostra).*(routing|config|agents?|models?|modelos)|"
-        r"routing\s+config|configura[cç][aã]o\s+(do\s+)?(routing|agente|dev-?agent)|"
-        r"qual\s+(agent|modelo|model)\s+(por\s+stage|do\s+orchestrator)",
-        msg,
-    ):
-        return _sanitize_classification({"intent": "check_config", "agent": None, "model": None,
-                "issue_number": None, "fast_track": False, "stages": [],
-                "needs_confirmation": False, "ambiguity_reason": None})
-
-    # Shortcut: advance
-    if re.match(r"^(sim|ok|aprovado|continua|continuar|próximo|proximo|avança|avanca|yes|proceed|next)[\s!.]*$", msg):
-        return _sanitize_classification({"intent": "advance", "agent": None, "model": None,
-                "issue_number": None, "fast_track": False, "stages": [],
-                "needs_confirmation": False, "ambiguity_reason": None})
-
-    # Use Gemini Flash for everything else
     try:
         return _sanitize_classification(_classify_gemini(message, state))
     except Exception as e:
-        log.warning("Gemini classify failed: %s — fallback to rules", e)
-        return _sanitize_classification(_classify_rules(message, state))
+        log.warning("Gemini classify failed: %s", e)
+        raise ClassificationError(str(e)) from e
 
 
 def _classify_gemini(message: str, state: dict) -> dict:
@@ -200,8 +233,7 @@ def _classify_gemini(message: str, state: dict) -> dict:
 
     prompt = CLASSIFY_PROMPT.format(
         message=message,
-        state=json.dumps({k: v for k, v in state.items()
-                          if k in ("current_stage", "issue_number")})
+        state=json.dumps(_classification_state_for_prompt(state), ensure_ascii=False),
     )
     payload = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
@@ -222,46 +254,6 @@ def _classify_gemini(message: str, state: dict) -> dict:
         raise ValueError(f"No JSON in response: {text[:200]}")
     return json.loads(m.group(0))
 
-
-def _classify_rules(message: str, state: dict) -> dict:
-    """Pure regex fallback."""
-    msg = message.lower()
-    result = {"intent": "question", "agent": None, "model": None,
-              "issue_number": None, "fast_track": False, "stages": [],
-              "needs_confirmation": False, "ambiguity_reason": None}
-
-    for agent, pat in [("claude", r"@claude|use\s+o?\s*claude|pelo\s+claude"),
-                        ("codex",  r"@codex|use\s+o?\s*codex|pelo\s+codex"),
-                        ("cursor", r"@cursor|use\s+o?\s*cursor|pelo\s+cursor")]:
-        if re.search(pat, msg, re.I):
-            result["agent"] = agent
-            break
-
-    m = re.search(r"model\s+([\w.\-]+)|gpt-([\w.]+)", msg)
-    if m:
-        result["model"] = m.group(0).replace("model ", "")
-
-    m = re.search(r"(?:issue\s*#?|#)(\d+)", msg)
-    if m:
-        result["issue_number"] = int(m.group(1))
-
-    if re.search(r"de\s+uma\s+(única|unica)\s+etapa|de\s+uma\s+vez|tudo\s+junto|ao\s+mesmo\s+tempo", msg):
-        result["fast_track"] = True
-
-    for intent, pat in [
-        ("stage_pr",       r"\bpr\b|pull\s*request|\bcommit\b|git\s+commit|faz\s+(um\s+)?commit|commita"),
-        # "abra/crie/criar uma issue" tem prioridade sobre qualquer "implemente"
-        ("stage_issue",    r"abr[ae]\s+(uma\s+)?issue|cri[ae]\s+(uma\s+)?issue|open\s+(an?\s+)?issue|nova\s+issue|\bissue|demanda|enriquec|detalh"),
-        ("stage_impl",     r"\bimplementa|implement"),
-        ("stage_validate", r"\btesta|valida|lint"),
-        ("stage_backlog",  r"\bbacklog|tasks?"),
-        ("stage_design",   r"\bdesign|solução|análise|viabilidade|impacto"),
-    ]:
-        if re.search(pat, msg, re.I):
-            result["intent"] = intent
-            break
-
-    return result
 
 # ── Routing (loaded from agents/routing.yaml at import) ───────────────────────
 
@@ -465,12 +457,23 @@ def build_prompt(classification: dict, original_message: str, state: dict) -> st
 
     if intent == "stage_review":
         diff_ctx = fetch_branch_diff()
+        comment_url = extract_issue_comment_url(original_message)
         gh_comment = (
             f"\n\nAo terminar, execute: "
             f"gh issue comment {issue_number} -b "
             '"**🔍 Code Review**\\n\\n<achados: problemas encontrados, sugestões e veredicto final>"'
         ) if issue_number else ""
-        base = f"Revisar o código implementado.\n{original_message}{gh_comment}"
+        base = (
+            "Revisar o código já implementado (não reimplementar).\n"
+            f"{original_message}{gh_comment}"
+        )
+        if comment_url:
+            comment_id = extract_issue_comment_id(original_message)
+            base += (
+                f"\n\nReferência principal da implementação: {comment_url}\n"
+                f"Leia esse comentário com `gh api "
+                f"repos/invistus/invistus/issues/comments/{comment_id}`."
+            )
         if diff_ctx:
             base += f"\n\n{diff_ctx}"
         return _with_issue(base)
@@ -966,15 +969,30 @@ def clean_slack_message(message: str) -> str:
 
 def extract_issue_from_message(message: str) -> int | None:
     """Extrai número de issue de #123, issue 123 ou URL do GitHub."""
-    # URL GitHub: /issues/123
-    m = re.search(r'github\.com/[^/]+/[^/]+/issues/(\d+)', message)
+    # URL GitHub: /issues/123 (incl. issuecomment links)
+    m = re.search(r"github\.com/[^/\s]+/[^/\s]+/issues/(\d+)", message, re.I)
     if m:
         return int(m.group(1))
     # #123 ou issue #123 ou issue 123
-    m = re.search(r'(?:issue\s*#?|#)(\d+)', message, re.I)
+    m = re.search(r"(?:issue\s*#?|#)(\d+)", message, re.I)
     if m:
         return int(m.group(1))
     return None
+
+
+def extract_issue_comment_url(message: str) -> str | None:
+    """Return full GitHub issue-comment URL when present in the message."""
+    m = _ISSUE_COMMENT_URL_RE.search(message)
+    if not m:
+        return None
+    return m.group(0)
+
+
+def extract_issue_comment_id(message: str) -> int | None:
+    m = _ISSUE_COMMENT_URL_RE.search(message)
+    if not m:
+        return None
+    return int(m.group(2))
 
 
 def _resolve_issue_number(
@@ -1180,7 +1198,17 @@ def route(
             # cai no fluxo normal abaixo
 
     # ── Fluxo normal ──────────────────────────────────────────────────────────
-    classification = classify(message_clean, state)
+    try:
+        classification = classify(message_clean, state)
+    except ClassificationError as exc:
+        log.warning("route: classifier unavailable: %s", exc)
+        return (
+            "⚠️ Não consegui classificar a mensagem — o orquestrador (Gemini) "
+            "está indisponível ou sem `GOOGLE_API_KEY`.\n"
+            "Tente de novo em instantes ou reformule com um pedido explícito "
+            "(ex.: *faça a revisão da issue #376*)."
+        )
+
     issue_number = _resolve_issue_number(classification, state, message_clean)
     if issue_number:
         classification["issue_number"] = issue_number
