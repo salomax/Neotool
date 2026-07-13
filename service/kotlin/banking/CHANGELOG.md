@@ -1,3 +1,13 @@
+## 0.8.9 (2026-07-13)
+
+### 🚀 Features
+
+- **router:** enhance classification logic and add new intent rules ([5dca0600](https://github.com/invistus/invistus/commit/5dca0600))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.8.8 (2026-07-13)
 
 ### 🩹 Fixes
