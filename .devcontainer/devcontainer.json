@@ -12,6 +12,7 @@
     }
   },
   "remoteUser": "dev",
+  "initializeCommand": "mkdir -p \"${localEnv:HOME}/.cloudflare\" \"${localEnv:HOME}/.vault-keys\" \"${localEnv:HOME}/.claude\" \"${localEnv:HOME}/.codex\" \"${localEnv:HOME}/src/invistus/.agents\"",
   "mounts": [
     {
       "source": "invistus-gradle-cache",

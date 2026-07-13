@@ -1093,10 +1093,22 @@ dev_init() {
         exit 1
     fi
 
+    # Docker bind mounts require the host path to exist. Create placeholders for
+    # optional dirs (Cloudflare tunnel tokens, Vault keys, agent CLIs) so
+    # `devpod up` works even when those tools are not configured on this machine.
+    # Tunnel stays opt-in: start only via `neotool dev tunnel start <n>`.
+    mkdir -p \
+        "${HOME}/.cloudflare" \
+        "${HOME}/.vault-keys" \
+        "${HOME}/.claude" \
+        "${HOME}/.codex" \
+        "${HOME}/src/invistus/.agents"
+
     # 2. Start / recreate the DevPod workspace
     echo "▶ [1/3] Starting DevPod workspace..."
     local devpod_flags="--provider docker --ide none"
     [[ "$recreate" == "true" ]] && devpod_flags="$devpod_flags --recreate"
+    # shellcheck disable=SC2086
     devpod up "$PROJECT_ROOT" $devpod_flags
     echo "✓ DevPod ready"
 
