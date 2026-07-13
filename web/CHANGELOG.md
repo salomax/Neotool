@@ -1,3 +1,14 @@
+## 0.7.41 (2026-07-13)
+
+### 🚀 Features
+
+- **finance:** show negative closing balance in error color (GH-359) ([15720103](https://github.com/invistus/invistus/commit/15720103))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Marcos Salomão @salomax
+
 ## 0.7.40 (2026-07-12)
 
 ### 🚀 Features
