@@ -664,6 +664,28 @@ def _format_pause_output(output: str, pause: PauseDecision | None) -> str:
     return output
 
 
+def _notify_stage_outcome(
+    meta_callback: callable | None,
+    *,
+    intent: str,
+    issue_number: int | None,
+    status: str,
+) -> None:
+    """Push terminal stage status into adapter meta (Slack/CLI)."""
+    if not meta_callback:
+        return
+    payload = {
+        "intent": intent,
+        "status": status,
+        "issue_number": issue_number,
+        "label": _INTENT_LABELS.get(intent, "Trabalhando"),
+    }
+    try:
+        meta_callback(payload)
+    except Exception as exc:
+        log.warning("meta_callback status notify failed: %s", exc)
+
+
 def _finalize_stage_run(
     thread: str,
     classification: dict,
@@ -672,18 +694,51 @@ def _finalize_stage_run(
     issue_number: int | None,
     intent: str,
     result: BackendResult,
+    meta_callback: callable | None = None,
 ) -> PauseDecision | None:
     """Write terminal checkpoint, update stage state, evaluate circuit-breakers."""
+    status = _checkpoint_status_from_result(result, intent=intent)
+    blocked = intent == "stage_impl" and _agent_blocked_on_missing_issue(result.output)
+    outcome = "blocked" if blocked else status
+
     if issue_number and intent in INTENT_TO_STAGE:
         _write_stage_checkpoint(
             issue_number,
             intent,
-            status=_checkpoint_status_from_result(result, intent=intent),
+            status=status,
             task_id=thread,
             output_summary=result.output or "",
         )
-    if _checkpoint_status_from_result(result, intent=intent) == "completed":
+
+    if status == "completed":
         _apply_stage_state(thread, classification, state)
+        save_state(thread, {
+            "awaiting_issue_number": None,
+            "pending_retry_intent": None,
+        })
+    elif blocked:
+        # Do not advance current_stage — keep pending so "#N" or retry works.
+        save_state(thread, {
+            "awaiting_issue_number": True,
+            "pending_retry_intent": intent,
+            "issue_number": issue_number or state.get("issue_number"),
+        })
+
+    _notify_stage_outcome(
+        meta_callback,
+        intent=intent,
+        issue_number=issue_number,
+        status=outcome,
+    )
+
+    if blocked:
+        return PauseDecision(
+            pause=True,
+            reason=(
+                "Implementação bloqueada — o agente não recebeu o número da issue. "
+                "Envie `#N` (ex.: `#376`) para retentar. `sim` não avança para review."
+            ),
+        )
 
     stage_name = INTENT_TO_STAGE.get(intent)
     if not stage_name:
@@ -734,6 +789,7 @@ def _dispatch_stage_with_finalize(
         issue_number=issue_number,
         intent=intent,
         result=result,
+        meta_callback=meta_callback,
     )
     output = _format_pause_output(result.output, pause)
     if (
@@ -894,12 +950,8 @@ def execute_plan(
             issue_number=issue_number,
             intent=intent,
             result=result,
+            meta_callback=meta_callback,
         )
-        if stage == "impl" and _agent_blocked_on_missing_issue(result.output):
-            pause = PauseDecision(
-                pause=True,
-                reason="Implementação bloqueada — número da issue não foi repassado ao agente.",
-            )
         stage_output = _format_pause_output(result.output, pause)
         if (
             stage == "pr"
@@ -909,10 +961,16 @@ def execute_plan(
         outputs.append(f"**{stage}**\n{stage_output}")
 
         if pause and pause.pause:
+            idx = plan.stages.index(stage)
+            # Only skip ahead when the stage actually completed (circuit-breaker).
+            # Failed/blocked stages must resume on the same index.
+            completed = (
+                _checkpoint_status_from_result(result, intent=intent) == "completed"
+            )
             save_state(thread, {
                 "pending_plan": {
                     "plan": plan.to_dict(),
-                    "next_stage_index": plan.stages.index(stage) + 1,
+                    "next_stage_index": idx + 1 if completed else idx,
                 },
             })
             return "\n\n".join(outputs)
@@ -1116,6 +1174,95 @@ def route(
             "last_checkpoint": state.get("last_checkpoint"),
         })
     log.info("route thread=%s mode=%s state=%s msg=%r", thread, mode, state, message_clean[:100])
+
+    # ── Impl bloqueado aguardando #N (tem prioridade sobre pending_plan/sim) ──
+    if state.get("awaiting_issue_number"):
+        pending_intent = state.get("pending_retry_intent") or "stage_impl"
+        provided = extract_issue_from_message(message_clean)
+        if provided:
+            save_state(thread, {
+                "issue_number": provided,
+                "awaiting_issue_number": None,
+                "pending_retry_intent": None,
+            })
+            state = load_state(thread)
+            log.info(
+                "route: issue #%s fornecida — retentando %s",
+                provided,
+                pending_intent,
+            )
+            pending_plan = state.get("pending_plan")
+            if pending_plan:
+                plan = Plan.from_dict(pending_plan.get("plan", {}))
+                if plan:
+                    plan = normalize_plan_issue(
+                        Plan(
+                            summary=plan.summary,
+                            stages=plan.stages,
+                            open_questions=plan.open_questions,
+                            autonomous_eligible=plan.autonomous_eligible,
+                            issue_number=provided,
+                        ),
+                        state,
+                    )
+                    start_idx = int(pending_plan.get("next_stage_index", 0))
+                    if start_idx > 0:
+                        plan = Plan(
+                            summary=plan.summary,
+                            stages=plan.stages[start_idx:],
+                            open_questions=plan.open_questions,
+                            autonomous_eligible=plan.autonomous_eligible,
+                            issue_number=provided,
+                        )
+                    save_state(thread, {"pending_plan": None})
+                    return execute_plan(
+                        plan,
+                        thread,
+                        state,
+                        adapter_env=adapter_env,
+                        progress_log=progress_log,
+                        meta_callback=meta_callback,
+                    )
+            clf = {
+                "intent": pending_intent,
+                "agent": None,
+                "model": None,
+                "issue_number": provided,
+                "fast_track": False,
+                "stages": [],
+                "needs_confirmation": False,
+                "ambiguity_reason": None,
+            }
+            prompt = build_prompt(clf, message_clean, state)
+            if pending_intent == "stage_review":
+                return _dispatch_review_with_verifier(
+                    clf,
+                    prompt,
+                    thread,
+                    state,
+                    issue_number=provided,
+                    adapter_env=adapter_env,
+                    progress_log=progress_log,
+                    meta_callback=meta_callback,
+                )
+            return _dispatch_stage_with_finalize(
+                clf,
+                prompt,
+                thread,
+                state,
+                issue_number=provided,
+                intent=pending_intent,
+                adapter_env=adapter_env,
+                progress_log=progress_log,
+                meta_callback=meta_callback,
+            )
+        if _ADVANCE_ONLY_RE.match(message_clean.strip()):
+            return (
+                "⏸️ O estágio anterior ficou **bloqueado** — o agente não recebeu "
+                "o número da issue.\n"
+                "Envie `#N` (ex.: `#376`) para retentar. "
+                "`sim` **não** avança para review."
+            )
 
     # ── Plano pendente (aprovação ou resume pós circuit-breaker) ─────────────
     pending_plan = state.get("pending_plan")
