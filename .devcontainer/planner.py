@@ -14,7 +14,9 @@ from typing import Any
 
 log = logging.getLogger("planner")
 
-PIPELINE_STAGES = ["issue", "design", "backlog", "impl", "review", "validate"]
+PIPELINE_STAGES = ["issue", "design", "backlog", "impl", "review", "validate", "pr"]
+
+NO_MERGE_NOTE = "Merge no GitHub é sempre decisão humana — nunca automatizar merge."
 
 PLAN_PROMPT = """\
 You are a dev pipeline planner. Given a user request and thread state, return ONLY valid JSON.
@@ -27,7 +29,7 @@ Issue context (if any):
 Return JSON:
 {{
   "summary": "one-line plan summary",
-  "stages": ["issue", "design", "backlog", "impl", "review", "validate"],
+  "stages": ["issue", "design", "backlog", "impl", "review", "validate", "pr"],
   "open_questions": ["question needing human input before proceeding, or empty list"],
   "autonomous_eligible": true or false,
   "issue_number": integer or null
@@ -35,6 +37,8 @@ Return JSON:
 
 Rules:
 - "stages" must be an ordered subset of {allowed_stages}, starting from the appropriate point.
+- When the user asks for the full pipeline ("tudo", "todas as fases", "de uma vez"), include all stages through "pr".
+- Stage "pr" means commit on the feature branch and open a pull request — NEVER merge (merge is always human on GitHub).
 - Set "open_questions" when scope, issue number, or approach is unclear.
 - "autonomous_eligible" is false when human judgment is required before coding.
 - Prefer fewer stages when the user asks for a narrow task.
@@ -184,6 +188,8 @@ def format_plan_message(plan: Plan, *, reason: str | None = None) -> str:
         lines.extend(f"• {q}" for q in plan.open_questions)
     if reason:
         lines += ["", f"_{reason}_"]
+    if "pr" in plan.stages:
+        lines += ["", f"_{NO_MERGE_NOTE}_"]
     lines += ["", "Responda `sim` para executar o plano, ou descreva o que prefere."]
     return "\n".join(lines)
 

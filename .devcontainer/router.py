@@ -112,7 +112,7 @@ Intent rules:
 - "stage_design" = solution design, technical analysis, viability, impact
 - "stage_backlog" = generate task backlog
 - "stage_impl" = ONLY when user explicitly asks to write/implement NEW code or apply backlog tasks. The word "implementação" as a noun referring to past work does NOT trigger this.
-- "stage_pr" = create pull request, commit, merge branch (default agent: cursor, model: auto)
+- "stage_pr" = commit changes and open pull request (default agent: cursor, model: auto). NEVER merge — merge is always human on GitHub
 - "stage_validate" = run tests, lint, typecheck (default agent: cursor, model: auto)
 - "stage_review" = code review of implemented changes: "revise o código", "faz um review", "analise o que foi implementado", "review" (default agent: claude)
 - "question" = everything else: questions, instructions to an agent that are not a pipeline stage, "poste um comentário", "crie um comentário", "revise", "analise", "verifique", "o que acha", "sumarize", "explique" (default agent: claude)
@@ -242,7 +242,7 @@ def _classify_rules(message: str, state: dict) -> dict:
         result["fast_track"] = True
 
     for intent, pat in [
-        ("stage_pr",       r"\bpr\b|pull\s*request|\bcommit\b|\bmerge\b|git\s+commit|faz\s+(um\s+)?commit|commita"),  # commit/merge → cursor auto
+        ("stage_pr",       r"\bpr\b|pull\s*request|\bcommit\b|git\s+commit|faz\s+(um\s+)?commit|commita"),
         # "abra/crie/criar uma issue" tem prioridade sobre qualquer "implemente"
         ("stage_issue",    r"abr[ae]\s+(uma\s+)?issue|cri[ae]\s+(uma\s+)?issue|open\s+(an?\s+)?issue|nova\s+issue|\bissue|demanda|enriquec|detalh"),
         ("stage_impl",     r"\bimplementa|implement"),
@@ -431,7 +431,11 @@ def build_prompt(classification: dict, original_message: str, state: dict) -> st
 
     if intent == "stage_pr":
         ref = f"issue #{issue_number}" if issue_number else "o trabalho atual"
-        return _with_issue(f"Criar pull request para {ref}.\n{original_message}")
+        return _with_issue(
+            f"Fazer commit das alterações na branch atual e abrir pull request para {ref}.\n"
+            "NÃO faça merge do PR — merge é sempre decisão humana no GitHub.\n"
+            f"{original_message}"
+        )
 
     if intent == "stage_review":
         diff_ctx = fetch_branch_diff()
@@ -836,6 +840,11 @@ def execute_plan(
             result=result,
         )
         stage_output = _format_pause_output(result.output, pause)
+        if (
+            stage == "pr"
+            and _checkpoint_status_from_result(result) == "completed"
+        ):
+            stage_output = _append_thread_summary(thread, issue_number, stage_output)
         outputs.append(f"**{stage}**\n{stage_output}")
 
         if pause and pause.pause:
