@@ -108,6 +108,22 @@ describe.sequential('MonthSummary', () => {
     expect(bodyText).toMatch(/0[,.]00/);
   });
 
+  it('renders negative closing balance with error color', () => {
+    renderWithTheme(
+      <MonthSummary summary={{ ...mockSummary, closingBalance: -1500 }} loading={false} />,
+    );
+
+    const balanceEl = screen.getByTestId('month-summary-closing-balance');
+    expect(balanceEl).toHaveStyle({ color: theme.palette.error.main });
+  });
+
+  it('renders positive closing balance with primary text color', () => {
+    renderWithTheme(<MonthSummary summary={mockSummary} loading={false} />);
+
+    const balanceEl = screen.getByTestId('month-summary-closing-balance');
+    expect(balanceEl).toHaveStyle({ color: theme.palette.text.primary });
+  });
+
   it('renders tag summaries and forwards tag clicks', () => {
     const onTagClick = vi.fn();
     renderWithTheme(
