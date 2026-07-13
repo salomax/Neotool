@@ -968,6 +968,39 @@ open class DefaultTransactionRepository(
     }
 
     companion object {
+        private val MONTH_FILTERED_TRANSACTIONS_SQL =
+            """
+            SELECT t.amount, t.credit_debit_type, t.type, t.status
+            FROM banking.transactions t
+            WHERE t.financial_account_id = CAST(:financialAccountId AS uuid)
+              AND (t.installment_number IS NULL OR t.installment_number <= 1)
+              AND t.date >= make_date(:year, :month, 1)
+              AND t.date < (make_date(:year, :month, 1) + INTERVAL '1 month')
+              AND t.deleted_at IS NULL
+
+            UNION ALL
+
+            SELECT t.amount, t.credit_debit_type, t.type, t.status
+            FROM banking.transactions t
+            JOIN banking.credit_card_bills b ON b.id = t.bill_id AND b.deleted_at IS NULL
+            WHERE t.financial_account_id = CAST(:financialAccountId AS uuid)
+              AND t.installment_number > 1
+              AND b.due_date >= make_date(:year, :month, 1)
+              AND b.due_date < (make_date(:year, :month, 1) + INTERVAL '1 month')
+              AND t.deleted_at IS NULL
+
+            UNION ALL
+
+            SELECT t.amount, t.credit_debit_type, t.type, t.status
+            FROM banking.transactions t
+            WHERE t.financial_account_id = CAST(:financialAccountId AS uuid)
+              AND t.installment_number > 1
+              AND t.bill_id IS NULL
+              AND t.date >= make_date(:year, :month, 1)
+              AND t.date < (make_date(:year, :month, 1) + INTERVAL '1 month')
+              AND t.deleted_at IS NULL
+            """.trimIndent()
+
         private val MONTH_TOTALS_SQL =
             """
             SELECT
@@ -987,11 +1020,9 @@ open class DefaultTransactionRepository(
                                             AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT','BILL_PAYMENT')), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status = 'FUTURE'
                                             AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT','BILL_PAYMENT')), 0)
-            FROM banking.transactions
-            WHERE financial_account_id = CAST(:financialAccountId AS uuid)
-              AND date >= make_date(:year, :month, 1)
-              AND date < (make_date(:year, :month, 1) + INTERVAL '1 month')
-              AND deleted_at IS NULL
+            FROM (
+            $MONTH_FILTERED_TRANSACTIONS_SQL
+            ) tx
             """.trimIndent()
 
         private val MONTH_TRANSFER_TOTALS_SQL =
@@ -999,13 +1030,11 @@ open class DefaultTransactionRepository(
             SELECT
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT'), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'),  0)
-            FROM banking.transactions
-            WHERE financial_account_id = CAST(:financialAccountId AS uuid)
-              AND type = 'TRANSFER'
+            FROM (
+            $MONTH_FILTERED_TRANSACTIONS_SQL
+            ) tx
+            WHERE type = 'TRANSFER'
               AND status IN ('POSTED','PENDING')
-              AND date >= make_date(:year, :month, 1)
-              AND date < (make_date(:year, :month, 1) + INTERVAL '1 month')
-              AND deleted_at IS NULL
             """.trimIndent()
 
         private val SIMILAR_NON_MANUAL_COUNT_SQL =

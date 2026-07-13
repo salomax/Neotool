@@ -2,12 +2,15 @@ package io.github.salomax.neotool.banking.integration
 
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.account.CardData
+import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
+import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillRepository
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.service.account.FinancialAccountService
@@ -40,6 +43,9 @@ open class MonthSummaryQueryServiceIT : BankingPostgresIntegrationTest() {
     lateinit var snapshotRepository: MonthlyBalanceSnapshotRepository
 
     @Inject
+    lateinit var creditCardBillRepository: CreditCardBillRepository
+
+    @Inject
     lateinit var transactionRepository: TransactionRepository
 
     @Inject
@@ -65,6 +71,28 @@ open class MonthSummaryQueryServiceIT : BankingPostgresIntegrationTest() {
                     subtype = FinancialAccountSubtype.CONTA_CORRENTE,
                     name = name,
                     issuerName = "Banco Teste",
+                ),
+                accountId = accountId,
+                userId = userId,
+            ).id,
+        )
+
+    private fun createCreditCardAccount(
+        accountId: UUID = this.accountId,
+        name: String = "Cartao teste",
+    ): UUID =
+        requireNotNull(
+            financialAccountService.create(
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.CREDIT,
+                    subtype = FinancialAccountSubtype.CREDIT_CARD,
+                    name = name,
+                    issuerName = "Banco Teste",
+                    cardData =
+                        CardData(
+                            closingDay = 7,
+                            dueDay = 15,
+                        ),
                 ),
                 accountId = accountId,
                 userId = userId,
@@ -247,6 +275,62 @@ open class MonthSummaryQueryServiceIT : BankingPostgresIntegrationTest() {
         assertThat(summary.totalIncome).isEqualByComparingTo(BigDecimal.ZERO)
         assertThat(summary.totalExpenses).isEqualByComparingTo(BigDecimal.ZERO)
         assertThat(snapshotRepository.findByYearMonth(financialAccountId, prev.year, prev.monthValue)).isNotNull()
+    }
+
+    @Test
+    fun `getMonthSummary uses bill due month for installments tied to credit card bills`() {
+        val financialAccountId = createCreditCardAccount()
+        val purchaseMonth = YearMonth.of(2025, 7)
+        val dueMonth = purchaseMonth.plusMonths(1)
+        val bill =
+            creditCardBillRepository.findOrCreate(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                closingDate = LocalDate.of(2025, 7, 31),
+                dueDate = LocalDate.of(2025, 8, 10),
+                referenceMonth = LocalDate.of(2025, 8, 1),
+            )
+        assertThat(bill.status).isEqualTo(BillStatus.OPEN)
+
+        transactionRepository.save(
+            Transaction(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                creditDebitType = CreditDebitType.DEBIT,
+                type = TransactionType.CARD,
+                status = TransactionStatus.POSTED,
+                source = TransactionSource.MANUAL,
+                amount = BigDecimal("999.00"),
+                date = LocalDate.of(2025, 7, 15),
+                description = "Compra parcelada",
+                billId = requireNotNull(bill.id),
+                installmentNumber = 2,
+                totalInstallments = 3,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            ),
+        )
+
+        val purchaseMonthSummary =
+            monthSummaryQueryService.getMonthSummary(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                year = purchaseMonth.year,
+                month = purchaseMonth.monthValue,
+            )
+        val dueMonthSummary =
+            monthSummaryQueryService.getMonthSummary(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                year = dueMonth.year,
+                month = dueMonth.monthValue,
+            )
+
+        assertThat(purchaseMonthSummary.totalExpenses).isEqualByComparingTo(BigDecimal.ZERO)
+        assertThat(purchaseMonthSummary.closingBalance).isEqualByComparingTo(BigDecimal.ZERO)
+        assertThat(dueMonthSummary.totalExpenses).isEqualByComparingTo("999.00")
+        assertThat(dueMonthSummary.closingBalance).isEqualByComparingTo("-999.00")
     }
 
     @Test
