@@ -632,20 +632,28 @@ open class TransactionService(
             validateBalanceAdjustmentUpdate(command, existing)
         }
         val requestedType = command.type ?: existing.type
+        val cardAccount = resolveCardAccount(existing.financialAccountId, accountId)
+        val isCardAccount = cardAccount != null
         if (requestedType == TransactionType.BILL_PAYMENT) {
-            if (command.creditDebitType == CreditDebitType.CREDIT) {
-                throw ValidationException(
-                    errorCode = CommonErrorCode.INVALID_INPUT,
-                    field = "creditDebitType",
-                    parameters = mapOf("reason" to "BILL_PAYMENT transactions must be DEBIT"),
-                )
-            }
-            if (resolveCardAccount(existing.financialAccountId, accountId) != null) {
-                throw ValidationException(
-                    errorCode = CommonErrorCode.INVALID_INPUT,
-                    field = "type",
-                    parameters = mapOf("reason" to "BILL_PAYMENT is not allowed for credit card account transactions"),
-                )
+            if (isCardAccount) {
+                // CC-side: bill payment adjustment must be CREDIT
+                if (command.creditDebitType == CreditDebitType.DEBIT) {
+                    throw ValidationException(
+                        errorCode = CommonErrorCode.INVALID_INPUT,
+                        field = "creditDebitType",
+                        parameters =
+                            mapOf("reason" to "BILL_PAYMENT on credit card accounts must be CREDIT"),
+                    )
+                }
+            } else {
+                // Bank-side: bill payment must be DEBIT (existing behavior)
+                if (command.creditDebitType == CreditDebitType.CREDIT) {
+                    throw ValidationException(
+                        errorCode = CommonErrorCode.INVALID_INPUT,
+                        field = "creditDebitType",
+                        parameters = mapOf("reason" to "BILL_PAYMENT transactions must be DEBIT"),
+                    )
+                }
             }
         }
         val updatedBelongsTo = resolveBelongsToForUpdate(command)
@@ -660,7 +668,7 @@ open class TransactionService(
         val forcedBillPayment = requestedType == TransactionType.BILL_PAYMENT
         val effectiveCreditDebitType =
             if (forcedBillPayment) {
-                CreditDebitType.DEBIT
+                if (isCardAccount) CreditDebitType.CREDIT else CreditDebitType.DEBIT
             } else {
                 command.creditDebitType ?: existing.creditDebitType
             }
@@ -684,10 +692,9 @@ open class TransactionService(
         val newDate = command.date ?: existing.date
         val typeChanged = command.type != null && command.type != existing.type
         val newBillId: UUID? =
-            if (forcedBillPayment) {
+            if (forcedBillPayment && !isCardAccount) {
                 null
             } else if (command.date != null || typeChanged) {
-                val cardAccount = resolveCardAccount(existing.financialAccountId, accountId)
                 cardAccount?.let {
                     creditCardBillService.resolveBillForTransaction(it, newDate, requestedType)
                 } ?: existing.billId
