@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """
 routing.py — Load stage → agent/model/backend table from routing.yaml.
+
+routing.yaml is the single source of truth. Missing file, missing PyYAML, or
+invalid content raises — there is no built-in routing fallback.
 """
 from __future__ import annotations
 
@@ -14,40 +17,6 @@ log = logging.getLogger("routing")
 
 ROUTING_FILE = Path(__file__).resolve().parent / "routing.yaml"
 
-DEFAULT_AGENT_MODELS: dict[str, str] = {
-    "claude": "claude-sonnet-4-6",
-    "codex": "gpt-5.4",
-    "cursor": "auto",
-}
-
-DEFAULT_ORCHESTRATOR: dict[str, Any] = {
-    "provider": "gemini",
-    "classifier": {"model": "gemini-2.5-flash-lite"},
-    "planner": {"model": "gemini-2.5-flash-lite"},
-}
-
-# Fallback when routing.yaml is missing or PyYAML is unavailable.
-BUILTIN_ROUTING: dict[str, Any] = {
-    "defaults": {"agent": "claude", "backend": "cli"},
-    "agents": {
-        "claude": {"default_model": "claude-sonnet-4-6"},
-        "codex": {"default_model": "gpt-5.4"},
-        "cursor": {"default_model": "auto"},
-    },
-    "orchestrator": dict(DEFAULT_ORCHESTRATOR),
-    "stages": {
-        "question": {"agent": "claude"},
-        "stage_issue": {"agent": "claude", "model": "claude-haiku-4-5"},
-        "stage_design": {"agent": "claude", "model": "claude-sonnet-4-6"},
-        "stage_backlog": {"agent": "claude", "model": "claude-haiku-4-5"},
-        "stage_impl": {"agent": "codex"},
-        "stage_validate": {"agent": "cursor", "model": "auto"},
-        "stage_review": {"agent": "claude", "model": "claude-sonnet-4-6"},
-        "stage_pr": {"agent": "cursor", "model": "auto"},
-        "fast_track": {"agent": "claude", "model": "claude-sonnet-4-6"},
-    },
-}
-
 
 @dataclass(frozen=True)
 class RouteConfig:
@@ -58,18 +27,18 @@ class RouteConfig:
 
 @dataclass(frozen=True)
 class OrchestratorConfig:
-    provider: str = "gemini"
-    classifier_model: str = "gemini-2.5-flash-lite"
-    planner_model: str = "gemini-2.5-flash-lite"
+    provider: str
+    classifier_model: str
+    planner_model: str
 
 
 @dataclass(frozen=True)
 class RoutingTable:
     stages: dict[str, RouteConfig]
-    agent_defaults: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_AGENT_MODELS))
-    orchestrator: OrchestratorConfig = field(default_factory=OrchestratorConfig)
-    default_agent: str = "claude"
-    default_backend: str = "cli"
+    orchestrator: OrchestratorConfig
+    agent_defaults: dict[str, str] = field(default_factory=dict)
+    default_agent: str = ""
+    default_backend: str = ""
     default_model: str | None = None
 
 
@@ -89,13 +58,20 @@ def _parse_yaml(text: str) -> dict[str, Any]:
 
 def _load_raw_routing(path: Path) -> dict[str, Any]:
     if not path.is_file():
-        log.warning("routing file not found: %s — using built-in table", path)
-        return BUILTIN_ROUTING
-    return _parse_yaml(path.read_text(encoding="utf-8"))
+        raise FileNotFoundError(
+            f"routing config not found: {path}. "
+            "Create agents/routing.yaml or set NEOTOOL_ROUTING_FILE."
+        )
+    try:
+        return _parse_yaml(path.read_text(encoding="utf-8"))
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise ValueError(f"failed to parse routing config {path}: {exc}") from exc
 
 
 def _parse_agent_defaults(raw: dict[str, Any]) -> dict[str, str]:
-    agents = dict(DEFAULT_AGENT_MODELS)
+    agents: dict[str, str] = {}
     for name, cfg in (raw.get("agents") or {}).items():
         if not isinstance(cfg, dict):
             continue
@@ -106,9 +82,10 @@ def _parse_agent_defaults(raw: dict[str, Any]) -> dict[str, str]:
 
 
 def _parse_orchestrator(raw: dict[str, Any]) -> OrchestratorConfig:
-    orch = raw.get("orchestrator") or {}
+    orch = raw.get("orchestrator")
     if not isinstance(orch, dict):
-        orch = {}
+        raise ValueError("routing.yaml must define an orchestrator mapping")
+
     classifier = orch.get("classifier") or {}
     planner = orch.get("planner") or {}
     if not isinstance(classifier, dict):
@@ -116,36 +93,52 @@ def _parse_orchestrator(raw: dict[str, Any]) -> OrchestratorConfig:
     if not isinstance(planner, dict):
         planner = {}
 
-    provider = str(
-        os.environ.get("NEOTOOL_ORCHESTRATOR_PROVIDER")
-        or orch.get("provider")
-        or DEFAULT_ORCHESTRATOR["provider"]
+    provider = os.environ.get("NEOTOOL_ORCHESTRATOR_PROVIDER") or orch.get("provider")
+    classifier_model = (
+        os.environ.get("NEOTOOL_CLASSIFIER_MODEL") or classifier.get("model")
     )
-    classifier_model = str(
-        os.environ.get("NEOTOOL_CLASSIFIER_MODEL")
-        or classifier.get("model")
-        or DEFAULT_ORCHESTRATOR["classifier"]["model"]
-    )
-    planner_model = str(
-        os.environ.get("NEOTOOL_PLANNER_MODEL")
-        or planner.get("model")
-        or DEFAULT_ORCHESTRATOR["planner"]["model"]
-    )
+    planner_model = os.environ.get("NEOTOOL_PLANNER_MODEL") or planner.get("model")
+
+    if not provider:
+        raise ValueError("routing.yaml orchestrator.provider is required")
+    if not classifier_model:
+        raise ValueError(
+            "routing.yaml orchestrator.classifier.model is required "
+            "(or set NEOTOOL_CLASSIFIER_MODEL)"
+        )
+    if not planner_model:
+        raise ValueError(
+            "routing.yaml orchestrator.planner.model is required "
+            "(or set NEOTOOL_PLANNER_MODEL)"
+        )
+
     return OrchestratorConfig(
-        provider=provider,
-        classifier_model=classifier_model,
-        planner_model=planner_model,
+        provider=str(provider),
+        classifier_model=str(classifier_model),
+        planner_model=str(planner_model),
     )
 
 
 def _normalize_table(raw: dict[str, Any]) -> RoutingTable:
-    defaults = raw.get("defaults") or {}
-    default_agent = str(defaults.get("agent", "claude"))
-    default_backend = str(defaults.get("backend", "cli"))
+    defaults = raw.get("defaults")
+    if not isinstance(defaults, dict):
+        raise ValueError("routing.yaml must define a defaults mapping")
+
+    default_agent = defaults.get("agent")
+    default_backend = defaults.get("backend")
+    if not default_agent:
+        raise ValueError("routing.yaml defaults.agent is required")
+    if not default_backend:
+        raise ValueError("routing.yaml defaults.backend is required")
+
+    default_agent = str(default_agent)
+    default_backend = str(default_backend)
     default_model = defaults.get("model")
     agent_defaults = _parse_agent_defaults(raw)
     orchestrator = _parse_orchestrator(raw)
-    stages_raw = raw.get("stages") or {}
+    stages_raw = raw.get("stages")
+    if not isinstance(stages_raw, dict):
+        raise ValueError("routing.yaml must define a stages mapping")
 
     stages: dict[str, RouteConfig] = {}
     for intent, cfg in stages_raw.items():
@@ -173,15 +166,11 @@ def _normalize_table(raw: dict[str, Any]) -> RoutingTable:
 
 
 def load_routing_table(path: Path | None = None) -> RoutingTable:
-    """Load routing.yaml; fall back to BUILTIN_ROUTING only when the file is missing."""
-    routing_path = path or ROUTING_FILE
-    try:
-        raw = _load_raw_routing(routing_path)
-    except RuntimeError:
-        raise
-    except Exception as exc:
-        log.warning("failed to load routing from %s: %s — using built-in table", routing_path, exc)
-        raw = BUILTIN_ROUTING
+    """Load routing.yaml. Raises if the file or PyYAML is unavailable."""
+    routing_path = path or Path(
+        os.environ.get("NEOTOOL_ROUTING_FILE", str(ROUTING_FILE))
+    )
+    raw = _load_raw_routing(routing_path)
     return _normalize_table(raw)
 
 

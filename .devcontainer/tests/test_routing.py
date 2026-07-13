@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from agents.routing import (
-    BUILTIN_ROUTING,
     OrchestratorConfig,
     RouteConfig,
     format_routing_summary,
@@ -13,6 +14,15 @@ from agents.routing import (
     resolve_agent_default_model,
     resolve_route,
 )
+
+_MINIMAL_ORCHESTRATOR = """
+orchestrator:
+  provider: gemini
+  classifier:
+    model: gemini-2.5-flash-lite
+  planner:
+    model: gemini-2.5-flash-lite
+"""
 
 
 def test_load_routing_table_from_yaml(tmp_path: Path) -> None:
@@ -29,7 +39,6 @@ def test_load_routing_table_from_yaml(tmp_path: Path) -> None:
     assert table.stages["stage_backlog"] == RouteConfig(
         agent="claude", model="claude-haiku-4-5", backend="cli",
     )
-    # stage_impl has no model in YAML → agents.codex.default_model
     assert table.stages["stage_impl"] == RouteConfig(
         agent="codex", model="gpt-5.4", backend="cli",
     )
@@ -44,10 +53,33 @@ def test_load_routing_table_from_yaml(tmp_path: Path) -> None:
     assert table.orchestrator.planner_model == "gemini-2.5-flash-lite"
 
 
+def test_load_routing_table_missing_file_raises(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError, match="routing config not found"):
+        load_routing_table(tmp_path / "missing.yaml")
+
+
+def test_load_routing_table_missing_pyyaml_raises(tmp_path: Path, monkeypatch) -> None:
+    yaml_path = tmp_path / "routing.yaml"
+    yaml_path.write_text("defaults:\n  agent: claude\n  backend: cli\nstages: {}\n", encoding="utf-8")
+
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _block_yaml(name, *args, **kwargs):
+        if name == "yaml":
+            raise ImportError("blocked for test")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _block_yaml)
+    with pytest.raises(RuntimeError, match="PyYAML is required"):
+        load_routing_table(yaml_path)
+
+
 def test_resolve_route_unknown_intent_uses_table_defaults(tmp_path: Path) -> None:
     yaml_path = tmp_path / "routing.yaml"
     yaml_path.write_text(
-        """
+        f"""
 defaults:
   agent: codex
   backend: cli
@@ -55,6 +87,7 @@ defaults:
 agents:
   codex:
     default_model: gpt-5.4
+{_MINIMAL_ORCHESTRATOR}
 stages:
   stage_issue:
     agent: claude
@@ -72,14 +105,15 @@ stages:
 def test_resolve_route_unknown_intent_falls_back_to_agent_default(tmp_path: Path) -> None:
     yaml_path = tmp_path / "routing.yaml"
     yaml_path.write_text(
-        """
+        f"""
 defaults:
   agent: claude
   backend: cli
 agents:
   claude:
     default_model: claude-sonnet-4-6
-stages: {}
+{_MINIMAL_ORCHESTRATOR}
+stages: {{}}
 """,
         encoding="utf-8",
     )
@@ -96,21 +130,17 @@ def test_resolve_route_user_agent_override_not_applied_here() -> None:
     assert cfg.model == "gpt-5.4"
 
 
-def test_load_routing_table_missing_file_uses_builtin(tmp_path: Path) -> None:
-    table = load_routing_table(tmp_path / "missing.yaml")
-    assert table.stages["stage_design"].model == BUILTIN_ROUTING["stages"]["stage_design"]["model"]
-
-
 def test_load_routing_table_custom_stage(tmp_path: Path) -> None:
     yaml_path = tmp_path / "routing.yaml"
     yaml_path.write_text(
-        """
+        f"""
 defaults:
   agent: claude
   backend: cli
 agents:
   claude:
     default_model: claude-sonnet-4-6
+{_MINIMAL_ORCHESTRATOR}
 stages:
   stage_issue:
     agent: claude
@@ -126,17 +156,12 @@ stages:
 def test_orchestrator_env_overrides(tmp_path: Path, monkeypatch) -> None:
     yaml_path = tmp_path / "routing.yaml"
     yaml_path.write_text(
-        """
+        f"""
 defaults:
   agent: claude
   backend: cli
-orchestrator:
-  provider: gemini
-  classifier:
-    model: gemini-2.5-flash-lite
-  planner:
-    model: gemini-2.5-flash-lite
-stages: {}
+{_MINIMAL_ORCHESTRATOR}
+stages: {{}}
 """,
         encoding="utf-8",
     )
