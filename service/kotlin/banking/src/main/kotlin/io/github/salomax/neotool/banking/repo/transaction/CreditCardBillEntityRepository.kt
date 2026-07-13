@@ -38,6 +38,25 @@ interface CreditCardBillEntityRepository : GenericRepository<CreditCardBillEntit
 
     @Query(
         """
+        SELECT *
+          FROM banking.credit_card_bills
+         WHERE financial_account_id = :financialAccountId
+           AND account_id = :accountId
+           AND closing_date = :closingDate
+           AND deleted_at IS NOT NULL
+         ORDER BY updated_at DESC, created_at DESC, id DESC
+         LIMIT 1
+        """,
+        nativeQuery = true,
+    )
+    fun findByFinancialAccountIdAndAccountIdAndClosingDateAndDeletedAtIsNotNull(
+        financialAccountId: UUID,
+        accountId: UUID,
+        closingDate: LocalDate,
+    ): CreditCardBillEntity?
+
+    @Query(
+        """
         SELECT COUNT(*)
           FROM banking.credit_card_bills
          WHERE financial_account_id = :financialAccountId
@@ -123,6 +142,29 @@ interface CreditCardBillEntityRepository : GenericRepository<CreditCardBillEntit
         nativeQuery = true,
     )
     fun updateCycleMetadata(
+        billId: UUID,
+        accountId: UUID,
+        closingDate: LocalDate,
+        dueDate: LocalDate,
+        referenceMonth: LocalDate,
+        updatedAt: Instant,
+    )
+
+    @Query(
+        """
+        UPDATE banking.credit_card_bills
+           SET deleted_at = NULL,
+               closing_date = :closingDate,
+               due_date = :dueDate,
+               reference_month = :referenceMonth,
+               updated_at = :updatedAt
+         WHERE id = :billId
+           AND account_id = :accountId
+           AND deleted_at IS NOT NULL
+        """,
+        nativeQuery = true,
+    )
+    fun undelete(
         billId: UUID,
         accountId: UUID,
         closingDate: LocalDate,

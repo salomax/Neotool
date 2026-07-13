@@ -75,10 +75,26 @@ open class DefaultCreditCardBillRepository(
                     referenceMonth = referenceMonth,
                     updatedAt = Instant.now(),
                 )
-                entityManager.clear()
             }
-            return entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(existing.id!!, accountId)!!
-                .let(CreditCardBillMapper::toDomain)
+            return refreshAndMap(existing.id!!, accountId)
+        }
+
+        val deleted =
+            entityRepository.findByFinancialAccountIdAndAccountIdAndClosingDateAndDeletedAtIsNotNull(
+                financialAccountId,
+                accountId,
+                closingDate,
+            )
+        if (deleted != null) {
+            entityRepository.undelete(
+                billId = deleted.id!!,
+                accountId = accountId,
+                closingDate = closingDate,
+                dueDate = dueDate,
+                referenceMonth = referenceMonth,
+                updatedAt = Instant.now(),
+            )
+            return refreshAndMap(deleted.id!!, accountId)
         }
 
         entityRepository.insertIfAbsent(
@@ -108,9 +124,7 @@ open class DefaultCreditCardBillRepository(
                 referenceMonth = referenceMonth,
                 updatedAt = Instant.now(),
             )
-            entityManager.clear()
-            return entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(created.id!!, accountId)!!
-                .let(CreditCardBillMapper::toDomain)
+            return refreshAndMap(created.id!!, accountId)
         }
         return CreditCardBillMapper.toDomain(created)
     }
@@ -169,5 +183,15 @@ open class DefaultCreditCardBillRepository(
             dueDate < today -> BillStatus.OVERDUE
             else -> BillStatus.CLOSED
         }
+    }
+
+    private fun refreshAndMap(
+        billId: UUID,
+        accountId: UUID,
+    ): CreditCardBill {
+        entityManager.clear()
+        return entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(billId, accountId)
+            ?.let(CreditCardBillMapper::toDomain)
+            ?: throw IllegalStateException("CreditCardBill $billId was not found after refresh for account $accountId")
     }
 }

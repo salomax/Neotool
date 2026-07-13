@@ -272,6 +272,40 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
     }
 
     @Test
+    fun `reimport after orphan soft-delete restores original bills and reimports all 10 transactions`() {
+        val job = movePendingJobToAwaitingReview()
+        val jobId = requireNotNull(job.id)
+        val command = confirmCommand(jobId, excluded = null)
+
+        billImportService.confirmBillImport(accountId, userId, command)
+        val firstBatch = transactionRepository.findByAccount(accountId).filter { it.importJobId == jobId }
+        assertThat(firstBatch).hasSize(10)
+
+        val originalBillIds = firstBatch.mapNotNull { it.billId }.toSet()
+        assertThat(originalBillIds).hasSize(2)
+
+        firstBatch.forEach { tx -> transactionRepository.softDelete(requireNotNull(tx.id), accountId) }
+        originalBillIds.forEach { billId ->
+            assertThat(creditCardBillService.softDeleteIfOrphan(billId, accountId)).isTrue()
+        }
+
+        billImportJobRepository.update(
+            currentJob(jobId).copy(
+                status = BillImportJobStatus.AWAITING_REVIEW,
+                completedAt = null,
+                updatedAt = Instant.now(),
+            ),
+        )
+
+        val second = billImportService.confirmBillImport(accountId, userId, command)
+        assertThat(second.status).isEqualTo(BillImportJobStatus.DONE)
+
+        val liveTxs = transactionRepository.findByAccount(accountId).filter { it.importJobId == jobId }
+        assertThat(liveTxs).hasSize(10)
+        assertThat(liveTxs.mapNotNull { it.billId }.toSet()).isEqualTo(originalBillIds)
+    }
+
+    @Test
     fun `reimport after deleting one transaction reimports only that transaction`() {
         val job = movePendingJobToAwaitingReview()
         val jobId = requireNotNull(job.id)
