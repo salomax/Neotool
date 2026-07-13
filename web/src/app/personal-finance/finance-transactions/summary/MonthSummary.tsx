@@ -106,6 +106,7 @@ export function MonthSummary({
   const income = summary?.totalIncome ?? 0;
   const expenses = summary?.totalExpenses ?? 0;
   const balance = summary?.closingBalance ?? 0;
+  const balanceColor = balance < 0 ? 'error.main' : 'text.primary';
   const absIncome = Math.abs(income);
   const absExpenses = Math.abs(expenses);
   const totalVolume = absIncome + absExpenses;
@@ -176,7 +177,7 @@ export function MonthSummary({
             variant="h3"
             component="div"
             data-testid="month-summary-closing-balance"
-            sx={{ fontWeight: 700, mt: 0.5, fontSize: '2.3rem', color: theme.palette.text.primary }}
+            sx={{ fontWeight: 700, mt: 0.5, fontSize: '2.3rem', color: balanceColor }}
           >
             <Skeleton width={200} />
           </Typography>
@@ -188,7 +189,7 @@ export function MonthSummary({
             variant="h3"
             component="div"
             data-testid="month-summary-closing-balance"
-            sx={{ fontWeight: 700, mt: 0.5, fontSize: '2.3rem', color: theme.palette.text.primary }}
+            sx={{ fontWeight: 700, mt: 0.5, fontSize: '2.3rem', color: balanceColor }}
           />
         )}
       </Box>
