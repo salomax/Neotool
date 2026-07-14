@@ -26,6 +26,7 @@ from slack_format import (
     _STAGE_EMOJI,
     format_stage_result,
 )
+import state_store
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,6 +64,12 @@ MAX_CHARS       = 3800
 PROGRESS_INTERVAL = 30
 
 _SESSIONS_FILE = f"/tmp/neotool-sessions-{_DEVPOD_N}.json"
+
+# Event dedup: track recently-seen event IDs (client_msg_id or event_ts) to prevent re-running
+# when Slack redelivers the same event
+_SEEN_EVENTS = {}  # dedup_id -> timestamp
+_SEEN_EVENTS_MAX_SIZE = 1000  # bounded set
+_SEEN_EVENTS_LOCK = threading.Lock()
 
 
 def _sessions_load() -> dict:
@@ -181,6 +188,21 @@ def handle_message(event, client, logger):
     if event.get("bot_id") or event.get("subtype"):
         return
 
+    # Dedup: check if we've seen this event before
+    dedup_id = event.get("client_msg_id") or event.get("event_ts", "")
+    if dedup_id:
+        with _SEEN_EVENTS_LOCK:
+            if dedup_id in _SEEN_EVENTS:
+                log.info("⚠️  Event dedup: ignoring redelivered event %s", dedup_id[:20])
+                return
+            # Add to seen set with timestamp, keep it bounded
+            _SEEN_EVENTS[dedup_id] = time.time()
+            if len(_SEEN_EVENTS) > _SEEN_EVENTS_MAX_SIZE:
+                # Remove oldest entries to keep size bounded
+                oldest_keys = sorted(_SEEN_EVENTS.items(), key=lambda x: x[1])[:100]
+                for k, _ in oldest_keys:
+                    del _SEEN_EVENTS[k]
+
     channel   = event.get("channel", "")
     ts        = event.get("ts", "")
     thread_ts = event.get("thread_ts")
@@ -257,22 +279,25 @@ def handle_message(event, client, logger):
             slack_update(channel, working_ts, final)
             log.info("■ session=%s done (%d chars)", session_name, len(final))
 
-        try:
-            handle_task(
-                task,
-                on_progress=_on_progress,
-                on_result=_on_result,
-                meta_callback=_on_meta,
-                route_fn=_router.route,
-                progress_interval=PROGRESS_INTERVAL,
-                clean_message=True,
-            )
-        except Exception as e:
-            log.exception("✗ handle_task error: %s", e)
+        # Use per-thread lock to serialize work for this session key
+        # This prevents concurrent stage execution for the same Slack thread
+        thread_lock = state_store.get_thread_lock(session_key)
+        with thread_lock:
             try:
-                slack_update(channel, working_ts, f"❌ Erro interno: {e}")
-            except Exception:
-                pass
+                handle_task(
+                    task,
+                    on_progress=_on_progress,
+                    on_result=_on_result,
+                    meta_callback=_on_meta,
+                    progress_interval=PROGRESS_INTERVAL,
+                    clean_message=True,
+                )
+            except Exception as e:
+                log.exception("✗ handle_task error: %s", e)
+                try:
+                    slack_update(channel, working_ts, f"❌ Erro interno: {e}")
+                except Exception:
+                    pass
 
     threading.Thread(target=_run, daemon=True).start()
 

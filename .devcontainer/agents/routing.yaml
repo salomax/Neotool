@@ -60,6 +60,10 @@ stages:
     agent: cursor
     model: auto
 
+  stage_merge:
+    agent: cursor
+    model: auto
+
   fast_track:
     agent: claude
     model: claude-sonnet-4-6

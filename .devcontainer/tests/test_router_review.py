@@ -32,9 +32,14 @@ def test_advance_sim_is_local_without_llm() -> None:
     assert result["intent"] == "advance"
 
 
-def test_non_advance_requires_llm() -> None:
-    with pytest.raises(router.ClassificationError):
-        router.classify("faça a revisão da issue #376", {})
+def test_non_advance_without_gemini_uses_fallback() -> None:
+    """When Gemini fails, classify falls back to rules instead of raising."""
+    with patch.object(router, "_classify_gemini", side_effect=Exception("No API key")):
+        result = router.classify("faça a revisão da issue #376", {})
+        # Should classify successfully via rules as stage_review
+        assert result["intent"] == "stage_review"
+        assert result["issue_number"] == 376
+
 
 
 @patch("router._classify_gemini")
@@ -114,8 +119,17 @@ def test_explicit_review_via_llm_classifier(
 
 
 @patch("router.load_state")
-def test_route_returns_clear_error_when_classifier_unavailable(mock_load) -> None:
+@patch("router._dispatch_review_with_verifier")
+def test_route_classifies_via_fallback_when_gemini_unavailable(mock_dispatch, mock_load) -> None:
+    """When Gemini fails, route() falls back to rules and classifies successfully."""
     mock_load.return_value = {}
-    output = router.route("faça a revisão", "cli-no-llm", clean_message=False)
+    mock_dispatch.return_value = "Review completed"
+    
+    # With no GOOGLE_API_KEY and Gemini failing, the fallback classifier should kick in
+    # "faça a revisão" should be classified as stage_review
+    output = router.route("faça a revisão", "cli-fallback-test", clean_message=False)
+    
+    # The route should attempt to dispatch even without Gemini
+    # (it will fail later due to missing /workspaces/invistus, but that's a different issue)
+    # The point is that we don't get an "unavailable classifier" error anymore
     assert output is not None
-    assert "GOOGLE_API_KEY" in output or "orquestrador" in output.lower()

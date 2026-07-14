@@ -48,47 +48,33 @@ from verifier import (
     build_impl_retry_prompt,
     run_verifier,
 )
+import state_store
+import state_machine
+from decision import Action, next_action
 
 log = logging.getLogger("router")
 SESSION_DIR = "/tmp/bridge-sessions"
 WORKSPACE   = "/workspaces/invistus"
 
 # ── Stage machine ─────────────────────────────────────────────────────────────
+# Imported from state_machine to maintain canonical list
 
-STAGES = ["issue", "design", "backlog", "impl", "review", "validate", "pr"]
-
-INTENT_TO_STAGE = {
-    "stage_issue": "issue",
-    "stage_design": "design",
-    "stage_backlog": "backlog",
-    "stage_impl": "impl",
-    "stage_review": "review",
-    "stage_validate": "validate",
-    "stage_pr": "pr",
-}
-
-STAGE_TO_INTENT = {v: k for k, v in INTENT_TO_STAGE.items()}
+STAGES = state_machine.STAGES
+INTENT_TO_STAGE = state_machine.INTENT_TO_STAGE
+STAGE_TO_INTENT = state_machine.STAGE_TO_INTENT
 
 def session_path(thread: str) -> Path:
+    """[Legacy] Kept for compatibility. State is now stored in SQLite via state_store."""
     Path(SESSION_DIR).mkdir(parents=True, exist_ok=True)
     return Path(SESSION_DIR) / f"{thread}.json"
 
 def load_state(thread: str) -> dict:
-    p = session_path(thread)
-    try:
-        return json.loads(p.read_text()) if p.exists() else {}
-    except Exception:
-        return {}
+    """Load state from durable state_store (SQLite)."""
+    return state_store.load_state(thread)
 
 def save_state(thread: str, updates: dict):
-    p = session_path(thread)
-    state = load_state(thread)
-    for k, v in updates.items():
-        if v is None:
-            state.pop(k, None)   # None = remover chave
-        else:
-            state[k] = v
-    p.write_text(json.dumps(state, indent=2))
+    """Atomically update state in durable state_store (SQLite)."""
+    state_store.update_state(thread, updates)
 
 # ── Classifier ────────────────────────────────────────────────────────────────
 
@@ -198,6 +184,257 @@ def _classification_state_for_prompt(state: dict) -> dict:
     return ctx
 
 
+
+# ── Fallback rules-based classifier ───────────────────────────────────────────
+
+# Pattern matchers for rule-based classification
+_AGENT_MENTION_RE = re.compile(
+    r"@(?:claude|codex|cursor)|"
+    r"use\s+(?:claude|codex|cursor)|"
+    r"(?:codex|claude|cursor)\s+(?:abra?|crie|implemente|revise|faça)",
+    re.IGNORECASE,
+)
+
+_MODEL_OVERRIDE_RE = re.compile(
+    r"-m\s+(\S+)|"
+    r"model\s+(\S+)|"
+    r"gpt-(\S+)|"
+    r"sonnet-(\S+)",
+    re.IGNORECASE,
+)
+
+_CHECK_USAGE_RE = re.compile(
+    r"check-usage|check usage|usage|uso|token usage|quanto gastei|quanto\s+(?:já\s+)?usei|quanto\s+(?:foi\s+)?gasto",
+    re.IGNORECASE,
+)
+
+_CHECK_CONFIG_RE = re.compile(
+    r"(?:qual|quais|which)\s+(?:agente|modelo|agent|model)|"
+    r"config|routing|orchestrator|qual\s+agente|quais\s+modelos",
+    re.IGNORECASE,
+)
+
+_FAST_TRACK_RE = re.compile(
+    r"de uma vez|tudo junto|tudo de uma vez|em uma etapa|em uma só etapa|pipeline completo|todas as fases|all at once|everything together|full pipeline|all stages",
+    re.IGNORECASE,
+)
+
+_STAGE_ISSUE_RE = re.compile(
+    r"(?:abra|abre|crie|criar|open|new)\s+(?:um|uma|an|a)?\s*issue|nova\s+issue",
+    re.IGNORECASE,
+)
+
+_STAGE_DESIGN_RE = re.compile(
+    r"(?:design|análise\s+técnica|viabilidade|impacto|como\s+(?:implementar|resolver))",
+    re.IGNORECASE,
+)
+
+_STAGE_BACKLOG_RE = re.compile(
+    r"(?:backlog|quebra\s+em\s+tarefas|gera?s?\s+(?:as\s+)?tasks?|atividades)",
+    re.IGNORECASE,
+)
+
+_STAGE_IMPL_RE = re.compile(
+    r"(?:implemente|implementar|escreva\s+(?:o\s+)?código|apply\s+backlog)",
+    re.IGNORECASE,
+)
+
+_STAGE_REVIEW_RE = re.compile(
+    r"(?:revise?|review|faz?\s+(?:um\s+)?review|faça?\s+a\s+revisão|analise?\s+a\s+implementação|já\s+implementei)",
+    re.IGNORECASE,
+)
+
+_STAGE_VALIDATE_RE = re.compile(
+    r"(?:rode?\s+(?:os\s+)?testes?|valid|lint|typecheck)",
+    re.IGNORECASE,
+)
+
+_STAGE_PR_RE = re.compile(
+    r"(?:faz?\s+(?:o\s+)?commit|abra?\s+(?:o\s+)?pr|pull\s+request)",
+    re.IGNORECASE,
+)
+
+
+def _extract_agent_from_message(message: str) -> str | None:
+    """Extract agent mention from message: @claude, use claude, claude <verb>, etc."""
+    msg_lower = message.lower()
+    if "@claude" in msg_lower or "use claude" in msg_lower:
+        return "claude"
+    if "@codex" in msg_lower or "use codex" in msg_lower:
+        return "codex"
+    if "@cursor" in msg_lower or "use cursor" in msg_lower:
+        return "cursor"
+    # Pattern: "codex/claude/cursor <verb>"
+    if re.match(r"^\s*(?:codex|claude|cursor)\s+", message, re.IGNORECASE):
+        match = re.match(r"^\s*(codex|claude|cursor)\s+", message, re.IGNORECASE)
+        if match:
+            return match.group(1).lower()
+    return None
+
+
+def _extract_model_from_message(message: str) -> str | None:
+    """Extract model override from message: model X, gpt-X, sonnet-X, -m X."""
+    match = _MODEL_OVERRIDE_RE.search(message)
+    if match:
+        # Return the first non-None group
+        for group in match.groups():
+            if group:
+                return group
+    return None
+
+
+def _classify_rules(message: str, state: dict) -> dict:
+    """
+    Rule-based classifier fallback when Gemini is unavailable.
+    Returns same dict shape as _classify_gemini.
+    """
+    msg = message.strip()
+    
+    # Check for check_usage
+    if _CHECK_USAGE_RE.search(msg):
+        return {
+            "intent": "check_usage",
+            "agent": None,
+            "model": None,
+            "issue_number": None,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        }
+    
+    # Check for check_config
+    if _CHECK_CONFIG_RE.search(msg):
+        return {
+            "intent": "check_config",
+            "agent": None,
+            "model": None,
+            "issue_number": None,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        }
+    
+    # Extract agent and model overrides
+    agent = _extract_agent_from_message(msg)
+    model = _extract_model_from_message(msg)
+    
+    # Extract issue number
+    issue_number = extract_issue_from_message(msg)
+    
+    # Check for fast_track
+    if _FAST_TRACK_RE.search(msg):
+        return {
+            "intent": "fast_track",
+            "agent": agent,
+            "model": model,
+            "issue_number": issue_number,
+            "fast_track": True,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        }
+    
+    # Check for stage intents (in order of priority/clarity)
+    # Check concrete actions before abstract ones
+    if _STAGE_IMPL_RE.search(msg):
+        return {
+            "intent": "stage_impl",
+            "agent": agent,
+            "model": model,
+            "issue_number": issue_number,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        }
+    
+    if _STAGE_REVIEW_RE.search(msg):
+        return {
+            "intent": "stage_review",
+            "agent": agent,
+            "model": model,
+            "issue_number": issue_number,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        }
+    
+    if _STAGE_PR_RE.search(msg):
+        return {
+            "intent": "stage_pr",
+            "agent": agent,
+            "model": model,
+            "issue_number": issue_number,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        }
+    
+    if _STAGE_VALIDATE_RE.search(msg):
+        return {
+            "intent": "stage_validate",
+            "agent": agent,
+            "model": model,
+            "issue_number": issue_number,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        }
+    
+    if _STAGE_ISSUE_RE.search(msg):
+        return {
+            "intent": "stage_issue",
+            "agent": agent,
+            "model": model,
+            "issue_number": issue_number,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        }
+    
+    if _STAGE_DESIGN_RE.search(msg):
+        return {
+            "intent": "stage_design",
+            "agent": agent,
+            "model": model,
+            "issue_number": issue_number,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        }
+    
+    if _STAGE_BACKLOG_RE.search(msg):
+        return {
+            "intent": "stage_backlog",
+            "agent": agent,
+            "model": model,
+            "issue_number": issue_number,
+            "fast_track": False,
+            "stages": [],
+            "needs_confirmation": False,
+            "ambiguity_reason": None,
+        }
+    
+    # Default: question
+    return {
+        "intent": "question",
+        "agent": agent,
+        "model": model,
+        "issue_number": issue_number,
+        "fast_track": False,
+        "stages": [],
+        "needs_confirmation": False,
+        "ambiguity_reason": None,
+    }
+
+
 def classify(message: str, state: dict) -> dict:
     """Bare advance (sim/ok/…) is local; everything else goes to the LLM classifier."""
     if _ADVANCE_ONLY_RE.match(message.strip()):
@@ -215,8 +452,8 @@ def classify(message: str, state: dict) -> dict:
     try:
         return _sanitize_classification(_classify_gemini(message, state))
     except Exception as e:
-        log.warning("Gemini classify failed: %s", e)
-        raise ClassificationError(str(e)) from e
+        log.warning("Gemini classify failed: %s — falling back to rules", e)
+        return _sanitize_classification(_classify_rules(message, state))
 
 
 def _classify_gemini(message: str, state: dict) -> dict:
@@ -455,6 +692,15 @@ def build_prompt(classification: dict, original_message: str, state: dict) -> st
             f"{original_message}"
         )
 
+    if intent == "stage_merge":
+        ref = f"issue #{issue_number}" if issue_number else "o PR atual"
+        return _with_issue(
+            f"Fazer merge explicitamente do pull request para {ref}.\n"
+            "Só faça merge se a pull request estiver pronta (passou em testes, review aprovado).\n"
+            "Use: gh pr merge\n"
+            f"{original_message}"
+        )
+
     if intent == "stage_review":
         diff_ctx = fetch_branch_diff()
         comment_url = extract_issue_comment_url(original_message)
@@ -500,6 +746,7 @@ _INTENT_LABELS = {
     "stage_validate": "Validar / testar",
     "stage_review":   "Revisar código",
     "stage_pr":       "Criar PR",
+    "stage_merge":    "Fazer merge do PR",
     "question":       "Responder pergunta",
     "fast_track":     "Executar tudo",
 }
@@ -1065,19 +1312,38 @@ def _resolve_issue_number(
 
 
 def _sync_state_from_checkpoint(state: dict, issue_number: int) -> dict:
-    """Merge GitHub issue checkpoint into thread state for resume."""
+    """Merge GitHub issue checkpoint into thread state for resume.
+    
+    Local state_store is authoritative. GitHub checkpoint is read-only to fill gaps.
+    Never downgrade local current_stage based on GitHub.
+    """
     checkpoint = fetch_last_checkpoint(issue_number)
     if not checkpoint:
         return state
     merged = dict(state)
     stage_idx = current_stage_from_checkpoint(checkpoint, STAGES)
-    if stage_idx is not None:
+    local_stage = merged.get("current_stage", 0)
+    
+    # Only update current_stage if GitHub has advanced further than local state
+    if stage_idx is not None and stage_idx > local_stage:
         merged["current_stage"] = stage_idx
+        log.info(
+            "checkpoint resume: advancing from local_stage=%d to GitHub stage=%d",
+            local_stage,
+            stage_idx,
+        )
+    elif stage_idx is not None and stage_idx < local_stage:
+        log.info(
+            "checkpoint resume: local_stage=%d is ahead of GitHub stage=%d — keeping local",
+            local_stage,
+            stage_idx,
+        )
+    
     merged["last_checkpoint"] = checkpoint.to_dict()
     if checkpoint.issue_number:
         merged["issue_number"] = checkpoint.issue_number
     log.info(
-        "checkpoint resume issue=%s stage=%s status=%s → current_stage=%s",
+        "checkpoint sync issue=%s stage=%s status=%s → local_stage=%s",
         issue_number,
         checkpoint.stage,
         checkpoint.status,
@@ -1122,34 +1388,439 @@ def _write_stage_checkpoint(
     task_id: str,
     output_summary: str = "",
 ) -> None:
+    """Write checkpoint to GitHub as best-effort (don't fail on write error).
+    
+    Local state_store is the authoritative source of truth; GitHub checkpoint
+    is a secondary mirror for cross-session resume.
+    """
     stage_name = INTENT_TO_STAGE.get(intent)
     if not stage_name or not issue_number:
         return
-    write_checkpoint(
+    success = write_checkpoint(
         issue_number,
         stage=stage_name,
         status=status,
         task_id=task_id,
         output_summary=output_summary,
     )
+    if not success:
+        log.warning(
+            "GitHub checkpoint write failed for issue=%s stage=%s status=%s — "
+            "continuing anyway (local state_store is authoritative)",
+            issue_number,
+            stage_name,
+            status,
+        )
 
 
 def _apply_stage_state(thread: str, classification: dict, state: dict) -> None:
-    """Persiste issue_number e current_stage após dispatch."""
+    """Persiste issue_number e current_stage após dispatch.
+
+    current_stage is derived from the canonical STAGES/INTENT_TO_STAGE
+    tables (single source of truth) rather than a parallel hardcoded map.
+    """
     updates = {}
     if classification.get("issue_number"):
         updates["issue_number"] = classification["issue_number"]
     intent = classification["intent"]
-    stage_map = {"stage_issue": 1, "stage_design": 2, "stage_backlog": 3,
-                 "stage_impl": 4, "stage_review": 5, "stage_validate": 6,
-                 "stage_pr": 7}
-    if intent in stage_map:
-        updates["current_stage"] = stage_map[intent]
+    stage_name = INTENT_TO_STAGE.get(intent)
+    if stage_name:
+        updates["current_stage"] = STAGES.index(stage_name) + 1
     elif intent == "advance":
         stage_idx = state.get("current_stage", 0)
         updates["current_stage"] = min(stage_idx + 1, len(STAGES))
     if updates:
         save_state(thread, updates)
+
+
+def _slice_plan_from_index(plan: Plan, start_idx: int) -> Plan:
+    """Return `plan` with the first `start_idx` stages already consumed.
+
+    No-op when `start_idx` is 0 (nothing to skip).
+    """
+    if start_idx <= 0:
+        return plan
+    return Plan(
+        summary=plan.summary,
+        stages=plan.stages[start_idx:],
+        open_questions=plan.open_questions,
+        autonomous_eligible=plan.autonomous_eligible,
+        issue_number=plan.issue_number,
+    )
+
+
+def _dispatch_by_action(
+    action: Action,
+    classification: dict,
+    prompt: str,
+    thread: str,
+    state: dict,
+    *,
+    adapter_env: Mapping[str, str] | None = None,
+    progress_log: str | None = None,
+    meta_callback: callable | None = None,
+) -> str:
+    """The single place that turns an `Action` into an actual dispatch call.
+
+    stage_review always runs through the deterministic verifier gate
+    (`_dispatch_review_with_verifier`); every other stage/question dispatches
+    directly and finalizes checkpoint/state (`_dispatch_stage_with_finalize`).
+    Called from every phase of `route()` that needs to dispatch, so the
+    review-vs-stage branch exists in exactly one place.
+    """
+    if action.kind == "dispatch_review":
+        return _dispatch_review_with_verifier(
+            classification,
+            prompt,
+            thread,
+            state,
+            issue_number=action.issue_number,
+            adapter_env=adapter_env,
+            progress_log=progress_log,
+            meta_callback=meta_callback,
+        )
+    return _dispatch_stage_with_finalize(
+        classification,
+        prompt,
+        thread,
+        state,
+        issue_number=action.issue_number,
+        intent=action.intent,
+        adapter_env=adapter_env,
+        progress_log=progress_log,
+        meta_callback=meta_callback,
+    )
+
+
+def _resume_blocked_stage(
+    message: str,
+    thread: str,
+    pending_intent: str,
+    provided: int,
+    *,
+    adapter_env: Mapping[str, str] | None = None,
+    progress_log: str | None = None,
+    meta_callback: callable | None = None,
+) -> str:
+    """Retry the blocked stage now that the user supplied `#N`.
+
+    Resumes a pending plan (if any) from where it stopped, forcing the
+    freshly-provided issue number; otherwise retries the single blocked
+    stage directly.
+    """
+    save_state(thread, {
+        "issue_number": provided,
+        "awaiting_issue_number": None,
+        "pending_retry_intent": None,
+    })
+    state = load_state(thread)
+    log.info("route: issue #%s fornecida — retentando %s", provided, pending_intent)
+
+    pending_plan = state.get("pending_plan")
+    if pending_plan:
+        plan = Plan.from_dict(pending_plan.get("plan", {}))
+        if plan:
+            plan = normalize_plan_issue(
+                Plan(
+                    summary=plan.summary,
+                    stages=plan.stages,
+                    open_questions=plan.open_questions,
+                    autonomous_eligible=plan.autonomous_eligible,
+                    issue_number=provided,
+                ),
+                state,
+            )
+            plan = _slice_plan_from_index(plan, int(pending_plan.get("next_stage_index", 0)))
+            save_state(thread, {"pending_plan": None})
+            return execute_plan(
+                plan,
+                thread,
+                state,
+                adapter_env=adapter_env,
+                progress_log=progress_log,
+                meta_callback=meta_callback,
+            )
+
+    clf = {
+        "intent": pending_intent,
+        "agent": None,
+        "model": None,
+        "issue_number": provided,
+        "fast_track": False,
+        "stages": [],
+        "needs_confirmation": False,
+        "ambiguity_reason": None,
+    }
+    prompt = build_prompt(clf, message, state)
+    action = next_action(state, clf)
+    return _dispatch_by_action(
+        action,
+        clf,
+        prompt,
+        thread,
+        state,
+        adapter_env=adapter_env,
+        progress_log=progress_log,
+        meta_callback=meta_callback,
+    )
+
+
+def _handle_awaiting_issue_number(
+    message: str,
+    thread: str,
+    state: dict,
+    *,
+    adapter_env: Mapping[str, str] | None = None,
+    progress_log: str | None = None,
+    meta_callback: callable | None = None,
+) -> str | None:
+    """Resume an impl that's blocked waiting for `#N` (has priority over
+    pending_plan/pending_confirmation).
+
+    A `#N` reply retries the blocked stage. A bare "sim" is explicitly
+    rejected — it must not be mistaken for advancing to review. Any other
+    message means this phase doesn't apply, so it returns None and route()
+    falls through.
+    """
+    if not state.get("awaiting_issue_number"):
+        return None
+
+    pending_intent = state.get("pending_retry_intent") or "stage_impl"
+    provided = extract_issue_from_message(message)
+
+    if provided:
+        return _resume_blocked_stage(
+            message,
+            thread,
+            pending_intent,
+            provided,
+            adapter_env=adapter_env,
+            progress_log=progress_log,
+            meta_callback=meta_callback,
+        )
+
+    if _ADVANCE_ONLY_RE.match(message.strip()):
+        return (
+            "⏸️ O estágio anterior ficou **bloqueado** — o agente não recebeu "
+            "o número da issue.\n"
+            "Envie `#N` (ex.: `#376`) para retentar. "
+            "`sim` **não** avança para review."
+        )
+
+    return None
+
+
+def _handle_pending_plan(
+    message: str,
+    thread: str,
+    state: dict,
+    *,
+    adapter_env: Mapping[str, str] | None = None,
+    progress_log: str | None = None,
+    meta_callback: callable | None = None,
+) -> str | None:
+    """Approve or cancel a fast-track plan awaiting confirmation.
+
+    Bare "sim" resumes `execute_plan` from `next_stage_index`. Anything else
+    discards the pending plan — mutating `state` in place so the next phase
+    sees the change — and returns None to fall through to reclassification.
+    """
+    pending_plan = state.get("pending_plan")
+    if not pending_plan:
+        return None
+
+    quick = classify(message, {})
+    if quick["intent"] == "advance":
+        save_state(thread, {"pending_plan": None})
+        plan = Plan.from_dict(pending_plan.get("plan", {}))
+        if not plan:
+            return "❌ Plano pendente inválido — tente novamente."
+        state = load_state(thread)
+        plan = normalize_plan_issue(plan, state)
+        if plan.issue_number:
+            save_state(thread, {"issue_number": plan.issue_number})
+        plan = _slice_plan_from_index(plan, int(pending_plan.get("next_stage_index", 0)))
+        log.info("route: plano aprovado — executando %d estágios", len(plan.stages))
+        return execute_plan(
+            plan,
+            thread,
+            state,
+            adapter_env=adapter_env,
+            progress_log=progress_log,
+            meta_callback=meta_callback,
+        )
+
+    log.info("route: plano pendente cancelado → reclassificando")
+    save_state(thread, {"pending_plan": None})
+    state.pop("pending_plan", None)
+    return None
+
+
+def _handle_pending_confirmation(
+    message: str,
+    thread: str,
+    state: dict,
+    *,
+    adapter_env: Mapping[str, str] | None = None,
+    progress_log: str | None = None,
+    meta_callback: callable | None = None,
+) -> str | None:
+    """Approve or cancel an ambiguous classification awaiting confirmation.
+
+    Bare "sim" dispatches the classification/prompt captured when the
+    ambiguity was first detected. Anything else discards the pending
+    confirmation — mutating `state` in place — and returns None to fall
+    through to reclassification.
+    """
+    pending = state.get("pending_confirmation")
+    if not pending:
+        return None
+
+    quick = classify(message, {})
+    if quick["intent"] != "advance":
+        log.info("route: confirmação cancelada → reclassificando")
+        save_state(thread, {"pending_confirmation": None})
+        state.pop("pending_confirmation", None)
+        return None
+
+    # Usuário confirmou → executa ação pendente
+    save_state(thread, {"pending_confirmation": None})
+    clf = dict(pending["classification"])
+    prompt = pending["prompt"]
+    log.info("route: confirmação aceita → intent=%s agent=%s", clf["intent"], clf.get("agent"))
+
+    issue_number = _resolve_issue_number(clf, state, message)
+    if issue_number:
+        clf["issue_number"] = issue_number
+    # Already confirmed by the user — never re-trigger the ambiguity check.
+    clf["needs_confirmation"] = False
+
+    action = next_action(state, clf)
+    return _dispatch_by_action(
+        action,
+        clf,
+        prompt,
+        thread,
+        state,
+        adapter_env=adapter_env,
+        progress_log=progress_log,
+        meta_callback=meta_callback,
+    )
+
+
+def _handle_normal_flow(
+    message: str,
+    thread: str,
+    state: dict,
+    *,
+    adapter_env: Mapping[str, str] | None = None,
+    progress_log: str | None = None,
+    meta_callback: callable | None = None,
+    mode: str = "interactive",
+) -> str | None:
+    """Classify the message and dispatch it end to end.
+
+    Runs once every pending-state phase has been ruled out: classifies,
+    syncs the GitHub checkpoint, bumps a repeated-but-completed stage,
+    remaps bare "sim" to the next pipeline stage, then resolves a single
+    `Action` (`decision.next_action`) that drives every remaining branch —
+    check_usage/check_config/summarize/fast_track, confirmation, and finally
+    stage_review-vs-plain-stage dispatch.
+    """
+    classification = classify(message, state)
+
+    issue_number = _resolve_issue_number(classification, state, message)
+    if issue_number:
+        classification["issue_number"] = issue_number
+        state = _sync_state_from_checkpoint(state, issue_number)
+
+    last_cp_dict = state.get("last_checkpoint")
+    last_checkpoint = Checkpoint.from_dict(last_cp_dict) if last_cp_dict else None
+    classification = _maybe_bump_completed_stage_intent(classification, last_checkpoint)
+    if classification["intent"] == "advance":
+        classification = _remap_advance(classification, state)
+    log.info("classification: %s", json.dumps(classification))
+
+    action = next_action(state, classification)
+
+    if action.kind == "check_usage":
+        return None
+
+    if action.kind == "check_config":
+        return format_routing_summary(_ROUTING_TABLE)
+
+    if action.kind == "summarize":
+        summary = write_thread_summary(thread)
+        if issue_number:
+            _post_issue_comment(issue_number, summary)
+        return summary
+
+    if action.kind == "fast_track":
+        return _handle_fast_track(
+            message,
+            thread,
+            state,
+            mode=mode,
+            adapter_env=adapter_env,
+            progress_log=progress_log,
+            meta_callback=meta_callback,
+        )
+
+    prompt = build_prompt(classification, message, state)
+    log.info("prompt built: %s", prompt[:120])
+
+    if action.kind == "confirm":
+        log.info("route: Gemini pediu confirmação — %s", classification.get("ambiguity_reason"))
+        save_state(thread, {"pending_confirmation": {
+            "classification": classification,
+            "prompt": prompt,
+        }})
+        return _confirmation_message(classification)
+
+    return _dispatch_by_action(
+        action,
+        classification,
+        prompt,
+        thread,
+        state,
+        adapter_env=adapter_env,
+        progress_log=progress_log,
+        meta_callback=meta_callback,
+    )
+
+
+def _prepare_route_state(
+    message: str,
+    thread: str,
+    clean_message: bool,
+    mode: str,
+) -> tuple[str, dict]:
+    """Clean the incoming message, load thread state, and sync it against
+    the GitHub checkpoint when an issue number is already known.
+
+    Returns (message_clean, state) for the phase handlers to consume.
+    """
+    message_clean = clean_slack_message(message) if clean_message else message.strip()
+    state = load_state(thread)
+    issue_number = state.get("issue_number") or extract_issue_from_message(message_clean)
+    if issue_number:
+        state = _sync_state_from_checkpoint(state, issue_number)
+        save_state(thread, {
+            "current_stage": state.get("current_stage"),
+            "issue_number": issue_number,
+            "last_checkpoint": state.get("last_checkpoint"),
+        })
+    log.info("route thread=%s mode=%s state=%s msg=%r", thread, mode, state, message_clean[:100])
+    return message_clean, state
+
+
+# Pending-state phases tried in order before falling back to the normal
+# classify-and-dispatch flow. Each returns None when it doesn't apply.
+_PENDING_STATE_PHASES = (
+    _handle_awaiting_issue_number,
+    _handle_pending_plan,
+    _handle_pending_confirmation,
+)
 
 
 def route(
@@ -1162,268 +1833,23 @@ def route(
     clean_message: bool = True,
     mode: str = "interactive",
 ) -> str | None:
-    """Entry point: classifica, confirma se ambíguo, despacha, atualiza estado."""
-    message_clean = clean_slack_message(message) if clean_message else message.strip()
-    state = load_state(thread)
-    issue_number = state.get("issue_number") or extract_issue_from_message(message_clean)
-    if issue_number:
-        state = _sync_state_from_checkpoint(state, issue_number)
-        save_state(thread, {
-            "current_stage": state.get("current_stage"),
-            "issue_number": issue_number,
-            "last_checkpoint": state.get("last_checkpoint"),
-        })
-    log.info("route thread=%s mode=%s state=%s msg=%r", thread, mode, state, message_clean[:100])
+    """Entry point: classifica, confirma se ambíguo, despacha, atualiza estado.
 
-    # ── Impl bloqueado aguardando #N (tem prioridade sobre pending_plan/sim) ──
-    if state.get("awaiting_issue_number"):
-        pending_intent = state.get("pending_retry_intent") or "stage_impl"
-        provided = extract_issue_from_message(message_clean)
-        if provided:
-            save_state(thread, {
-                "issue_number": provided,
-                "awaiting_issue_number": None,
-                "pending_retry_intent": None,
-            })
-            state = load_state(thread)
-            log.info(
-                "route: issue #%s fornecida — retentando %s",
-                provided,
-                pending_intent,
-            )
-            pending_plan = state.get("pending_plan")
-            if pending_plan:
-                plan = Plan.from_dict(pending_plan.get("plan", {}))
-                if plan:
-                    plan = normalize_plan_issue(
-                        Plan(
-                            summary=plan.summary,
-                            stages=plan.stages,
-                            open_questions=plan.open_questions,
-                            autonomous_eligible=plan.autonomous_eligible,
-                            issue_number=provided,
-                        ),
-                        state,
-                    )
-                    start_idx = int(pending_plan.get("next_stage_index", 0))
-                    if start_idx > 0:
-                        plan = Plan(
-                            summary=plan.summary,
-                            stages=plan.stages[start_idx:],
-                            open_questions=plan.open_questions,
-                            autonomous_eligible=plan.autonomous_eligible,
-                            issue_number=provided,
-                        )
-                    save_state(thread, {"pending_plan": None})
-                    return execute_plan(
-                        plan,
-                        thread,
-                        state,
-                        adapter_env=adapter_env,
-                        progress_log=progress_log,
-                        meta_callback=meta_callback,
-                    )
-            clf = {
-                "intent": pending_intent,
-                "agent": None,
-                "model": None,
-                "issue_number": provided,
-                "fast_track": False,
-                "stages": [],
-                "needs_confirmation": False,
-                "ambiguity_reason": None,
-            }
-            prompt = build_prompt(clf, message_clean, state)
-            if pending_intent == "stage_review":
-                return _dispatch_review_with_verifier(
-                    clf,
-                    prompt,
-                    thread,
-                    state,
-                    issue_number=provided,
-                    adapter_env=adapter_env,
-                    progress_log=progress_log,
-                    meta_callback=meta_callback,
-                )
-            return _dispatch_stage_with_finalize(
-                clf,
-                prompt,
-                thread,
-                state,
-                issue_number=provided,
-                intent=pending_intent,
-                adapter_env=adapter_env,
-                progress_log=progress_log,
-                meta_callback=meta_callback,
-            )
-        if _ADVANCE_ONLY_RE.match(message_clean.strip()):
-            return (
-                "⏸️ O estágio anterior ficou **bloqueado** — o agente não recebeu "
-                "o número da issue.\n"
-                "Envie `#N` (ex.: `#376`) para retentar. "
-                "`sim` **não** avança para review."
-            )
+    Thin orchestrator: runs each phase in order and returns the first
+    non-None result. Each phase decides for itself whether it applies to
+    the current thread state (returning None means "not mine, keep going").
+    """
+    message_clean, state = _prepare_route_state(message, thread, clean_message, mode)
 
-    # ── Plano pendente (aprovação ou resume pós circuit-breaker) ─────────────
-    pending_plan = state.get("pending_plan")
-    if pending_plan:
-        quick = classify(message_clean, {})
-        if quick["intent"] == "advance":
-            save_state(thread, {"pending_plan": None})
-            plan = Plan.from_dict(pending_plan.get("plan", {}))
-            if not plan:
-                return "❌ Plano pendente inválido — tente novamente."
-            state = load_state(thread)
-            plan = normalize_plan_issue(plan, state)
-            if plan.issue_number:
-                save_state(thread, {"issue_number": plan.issue_number})
-            start_idx = int(pending_plan.get("next_stage_index", 0))
-            if start_idx > 0:
-                plan = Plan(
-                    summary=plan.summary,
-                    stages=plan.stages[start_idx:],
-                    open_questions=plan.open_questions,
-                    autonomous_eligible=plan.autonomous_eligible,
-                    issue_number=plan.issue_number,
-                )
-            log.info("route: plano aprovado — executando %d estágios", len(plan.stages))
-            return execute_plan(
-                plan,
-                thread,
-                state,
-                adapter_env=adapter_env,
-                progress_log=progress_log,
-                meta_callback=meta_callback,
-            )
-        log.info("route: plano pendente cancelado → reclassificando")
-        save_state(thread, {"pending_plan": None})
-        state.pop("pending_plan", None)
-
-    # ── Confirmação pendente ───────────────────────────────────────────────────
-    pending = state.get("pending_confirmation")
-    if pending:
-        quick = classify(message_clean, {})
-        if quick["intent"] == "advance":
-            # Usuário confirmou → executa ação pendente
-            save_state(thread, {"pending_confirmation": None})
-            clf  = pending["classification"]
-            prom = pending["prompt"]
-            log.info("route: confirmação aceita → intent=%s agent=%s",
-                     clf["intent"], clf.get("agent"))
-            issue_number = _resolve_issue_number(clf, state, message_clean)
-            if issue_number:
-                clf = dict(clf)
-                clf["issue_number"] = issue_number
-            intent = clf["intent"]
-            if intent == "stage_review":
-                return _dispatch_review_with_verifier(
-                    clf,
-                    prom,
-                    thread,
-                    state,
-                    issue_number=issue_number,
-                    adapter_env=adapter_env,
-                    progress_log=progress_log,
-                    meta_callback=meta_callback,
-                )
-            return _dispatch_stage_with_finalize(
-                clf,
-                prom,
-                thread,
-                state,
-                issue_number=issue_number,
-                intent=intent,
-                adapter_env=adapter_env,
-                progress_log=progress_log,
-                meta_callback=meta_callback,
-            )
-        else:
-            # Usuário quer outra coisa → descarta pendência e reclassifica
-            log.info("route: confirmação cancelada → reclassificando")
-            save_state(thread, {"pending_confirmation": None})
-            state.pop("pending_confirmation", None)
-            # cai no fluxo normal abaixo
-
-    # ── Fluxo normal ──────────────────────────────────────────────────────────
-    try:
-        classification = classify(message_clean, state)
-    except ClassificationError as exc:
-        log.warning("route: classifier unavailable: %s", exc)
-        return (
-            "⚠️ Não consegui classificar a mensagem — o orquestrador (Gemini) "
-            "está indisponível ou sem `GOOGLE_API_KEY`.\n"
-            "Tente de novo em instantes ou reformule com um pedido explícito "
-            "(ex.: *faça a revisão da issue #376*)."
-        )
-
-    issue_number = _resolve_issue_number(classification, state, message_clean)
-    if issue_number:
-        classification["issue_number"] = issue_number
-        state = _sync_state_from_checkpoint(state, issue_number)
-
-    last_cp_dict = state.get("last_checkpoint")
-    last_checkpoint = Checkpoint.from_dict(last_cp_dict) if last_cp_dict else None
-    classification = _maybe_bump_completed_stage_intent(classification, last_checkpoint)
-    if classification["intent"] == "advance":
-        classification = _remap_advance(classification, state)
-    log.info("classification: %s", json.dumps(classification))
-
-    if classification["intent"] == "check_usage":
-        return None
-
-    if classification["intent"] == "check_config":
-        return format_routing_summary(_ROUTING_TABLE)
-
-    if classification["intent"] == "summarize":
-        summary = write_thread_summary(thread)
-        if issue_number:
-            _post_issue_comment(issue_number, summary)
-        return summary
-
-    if classification["intent"] == "fast_track":
-        return _handle_fast_track(
-            message_clean,
-            thread,
-            state,
-            mode=mode,
-            adapter_env=adapter_env,
-            progress_log=progress_log,
-            meta_callback=meta_callback,
-        )
-
-    prompt = build_prompt(classification, message_clean, state)
-    log.info("prompt built: %s", prompt[:120])
-
-    # ── Confirmação: decisão do Gemini, não de regex ────────────────────────────
-    if classification.get("needs_confirmation"):
-        log.info("route: Gemini pediu confirmação — %s", classification.get("ambiguity_reason"))
-        save_state(thread, {"pending_confirmation": {
-            "classification": classification,
-            "prompt": prompt,
-        }})
-        return _confirmation_message(classification)
-
-    intent = classification["intent"]
-    if intent == "stage_review":
-        return _dispatch_review_with_verifier(
-            classification,
-            prompt,
-            thread,
-            state,
-            issue_number=issue_number,
-            adapter_env=adapter_env,
-            progress_log=progress_log,
-            meta_callback=meta_callback,
-        )
-
-    return _dispatch_stage_with_finalize(
-        classification,
-        prompt,
-        thread,
-        state,
-        issue_number=issue_number,
-        intent=intent,
+    phase_kwargs = dict(
         adapter_env=adapter_env,
         progress_log=progress_log,
         meta_callback=meta_callback,
     )
+
+    for handler in _PENDING_STATE_PHASES:
+        result = handler(message_clean, thread, state, **phase_kwargs)
+        if result is not None:
+            return result
+
+    return _handle_normal_flow(message_clean, thread, state, mode=mode, **phase_kwargs)
