@@ -1,3 +1,14 @@
+## 0.7.42 (2026-07-14)
+
+### 🩹 Fixes
+
+- **web:** align recurring payments summary metric amounts to the right (GH-382) ([4697f6e1](https://github.com/invistus/invistus/commit/4697f6e1))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Marcos Salomão @salomax
+
 ## 0.7.41 (2026-07-13)
 
 ### 🚀 Features
