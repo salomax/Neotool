@@ -13,7 +13,7 @@
   </root>
   
   <!-- io.github.salomax.neotool.Application-specific loggers -->
-  <logger name="io.github.salomax.neotool" level="DEBUG" additivity="false">
+  <logger name="io.github.salomax.neotool" level="INFO" additivity="false">
     <appender-ref ref="STDOUT" />
   </logger>
   
@@ -23,10 +23,7 @@
   </logger>
   
   <!-- Database logging for development -->
-  <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
-    <appender-ref ref="STDOUT" />
-  </logger>
-  <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE" additivity="false">
+  <logger name="org.hibernate.SQL" level="WARN" additivity="false">
     <appender-ref ref="STDOUT" />
   </logger>
 </configuration>
