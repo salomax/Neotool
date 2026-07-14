@@ -1,3 +1,14 @@
+## 0.7.43 (2026-07-14)
+
+### 🚀 Features
+
+- **web:** change default dashboard bottom layout to treemap left, recurring right (GH-388) ([d188bbb4](https://github.com/invistus/invistus/commit/d188bbb4))
+
+### ❤️ Thank You
+
+- Claude Sonnet 4.6
+- Marcos Salomão @salomax
+
 ## 0.7.42 (2026-07-14)
 
 ### 🩹 Fixes
