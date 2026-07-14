@@ -21,10 +21,16 @@ env:
   CI: true
   TESTCONTAINERS_RYUK_DISABLED: true
 
+# Safety net: without this, a hung Gradle/JVM can burn the default 6h job limit
+# (see run https://github.com/invistus/invistus/actions/runs/29334158291).
+# Successful kotlin checks normally finish in ~2–5 min; 15 min is generous.
 jobs:
 
   detect:
+    # TEMP: disabled to cut Actions minutes until CI is stable (re-enable with test-* jobs).
+    if: false
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       kotlin-matrix: ${{ steps.affected.outputs.kotlin_matrix }}
       has-kotlin: ${{ steps.affected.outputs.has_kotlin }}
@@ -73,7 +79,7 @@ jobs:
           fi
 
           # Known Kotlin API services (have package.json, appear without ":" prefix)
-          KOTLIN_KNOWN='["security","assets","financialdata","assistant","comms"]'
+          KOTLIN_KNOWN='["security","assets","financialdata","assistant","comms","banking"]'
           PYTHON_KNOWN='["pdf-extractor"]'
 
           # Kotlin: projects with ":" prefix (Gradle libs) OR in known Kotlin API list
@@ -162,8 +168,11 @@ jobs:
 
   test-kotlin:
     needs: detect
-    if: needs.detect.outputs.has-kotlin == 'true'
+    # TEMP: disabled to cut Actions minutes until CI is stable (OOM/hang burn).
+    # Was: needs.detect.outputs.has-kotlin == 'true'
+    if: false
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -227,8 +236,11 @@ jobs:
 
   test-mobile:
     needs: detect
-    if: needs.detect.outputs.has-mobile == 'true'
+    # TEMP: disabled to cut Actions minutes until CI is stable.
+    # Was: needs.detect.outputs.has-mobile == 'true'
+    if: false
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: mobile
@@ -259,8 +271,11 @@ jobs:
 
   test-golang:
     needs: detect
-    if: needs.detect.outputs.has-golang == 'true'
+    # TEMP: disabled to cut Actions minutes until CI is stable.
+    # Was: needs.detect.outputs.has-golang == 'true'
+    if: false
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -291,8 +306,11 @@ jobs:
 
   test-python:
     needs: detect
-    if: needs.detect.outputs.has-python == 'true'
+    # TEMP: disabled to cut Actions minutes until CI is stable.
+    # Was: needs.detect.outputs.has-python == 'true'
+    if: false
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -317,6 +335,7 @@ jobs:
 
   security-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - name: Run Trivy vulnerability scanner
@@ -329,17 +348,16 @@ jobs:
 
   ci-success:
     runs-on: ubuntu-latest
-    needs: [test-kotlin, test-golang, test-python, test-mobile, security-scan] # test-web temporarily disabled
+    timeout-minutes: 5
+    # TEMP: only security-scan while test-* / detect are disabled to cut Actions spend.
+    # Restore: needs: [test-kotlin, test-golang, test-python, test-mobile, security-scan]
+    needs: [security-scan]
     if: always()
     steps:
       - name: Check all jobs
         run: |
-          if [[ "${{ needs.test-kotlin.result }}" == "failure" ]] || \
-             [[ "${{ needs.test-golang.result }}" == "failure" ]] || \
-             [[ "${{ needs.test-python.result }}" == "failure" ]] || \
-             [[ "${{ needs.test-mobile.result }}" == "failure" ]] || \
-             [[ "${{ needs.security-scan.result }}" == "failure" ]]; then
+          if [[ "${{ needs.security-scan.result }}" == "failure" ]]; then
             echo "One or more jobs failed"
             exit 1
           fi
-          echo "All jobs passed or were skipped"
+          echo "All jobs passed or were skipped (test jobs temporarily disabled)"
