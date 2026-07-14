@@ -1,3 +1,7 @@
+## 0.6.3 (2026-07-14)
+
+This was a version bump only for financialdata to align it with other projects, there were no code changes.
+
 ## 0.6.2 (2026-07-10)
 
 This was a version bump only for financialdata to align it with other projects, there were no code changes.
