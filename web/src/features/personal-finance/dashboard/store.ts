@@ -27,18 +27,18 @@ const DEFAULT_LAYOUTS: { [key: string]: Layout } = {
     { i: 'month-summary-kpi-1', x: 8, y: 0, w: 4, h: 4 },
     { i: 'cash-flow-1', x: 0, y: 4, w: 8, h: 4 },
     { i: CATEGORY_SUMMARY_WIDGET_ID, x: 8, y: 4, w: 4, h: 4 },
-    { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 6, h: 4 },
-    { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 6, y: 8, w: 6, h: 4 },
-    { i: UPCOMING_RECURRING_WIDGET_ID, x: 0, y: 12, w: 6, h: 4 },
+    { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 8, h: 4 },
+    { i: UPCOMING_RECURRING_WIDGET_ID, x: 8, y: 8, w: 4, h: 4 },
+    { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 0, y: 12, w: 8, h: 4 },
   ],
   md: [
     { i: NET_WORTH_WIDGET_ID, x: 0, y: 0, w: 8, h: 4 },
     { i: 'month-summary-kpi-1', x: 8, y: 0, w: 4, h: 4 },
     { i: 'cash-flow-1', x: 0, y: 4, w: 8, h: 4 },
     { i: CATEGORY_SUMMARY_WIDGET_ID, x: 8, y: 4, w: 4, h: 4 },
-    { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 6, h: 4 },
-    { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 6, y: 8, w: 6, h: 4 },
-    { i: UPCOMING_RECURRING_WIDGET_ID, x: 0, y: 12, w: 6, h: 4 },
+    { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 8, h: 4 },
+    { i: UPCOMING_RECURRING_WIDGET_ID, x: 8, y: 8, w: 4, h: 4 },
+    { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 0, y: 12, w: 8, h: 4 },
   ],
   sm: [
     { i: NET_WORTH_WIDGET_ID, x: 0, y: 0, w: 8, h: 4 },
@@ -172,6 +172,35 @@ function ensureRequiredLayouts(layouts: any) {
   return ensureWidgetLayouts(withTreemap, UPCOMING_RECURRING_WIDGET_ID, 'upcoming-recurring-');
 }
 
+function migrateBottomWidgetLayout(layouts: any) {
+  if (!layouts || typeof layouts !== 'object') return layouts;
+
+  let changed = false;
+  const nextLayouts = { ...layouts };
+
+  for (const breakpoint of ['lg', 'md'] as const) {
+    const current = Array.isArray(layouts[breakpoint]) ? layouts[breakpoint] : [];
+    const next = current.map((item: any) => {
+      if (item?.i === INVESTMENT_ALLOCATION_WIDGET_ID && item?.x === 0 && item?.y === 8 && item?.w === 6) {
+        changed = true;
+        return { ...item, w: 8 };
+      }
+      if (item?.i === INVESTMENT_TREEMAP_WIDGET_ID && item?.x === 6 && item?.y === 8 && item?.w === 6) {
+        changed = true;
+        return { ...item, x: 0, y: 12, w: 8 };
+      }
+      if (item?.i === UPCOMING_RECURRING_WIDGET_ID && item?.x === 0 && item?.y === 12 && item?.w === 6) {
+        changed = true;
+        return { ...item, x: 8, y: 8, w: 4 };
+      }
+      return item;
+    });
+    nextLayouts[breakpoint] = next;
+  }
+
+  return changed ? nextLayouts : layouts;
+}
+
 function migrateInvestmentAllocationHalfWidth(layouts: any) {
   if (!layouts || typeof layouts !== 'object') return layouts;
 
@@ -301,6 +330,14 @@ function migratePersistedState(persistedState: any) {
     };
   }
 
+  const migratedBottom = migrateBottomWidgetLayout(root?.layouts);
+  if (migratedBottom !== root?.layouts) {
+    root = {
+      ...root,
+      layouts: migratedBottom,
+    };
+  }
+
   return withStateRoot(persistedState, root);
 }
 
@@ -382,7 +419,7 @@ export const useDashboardStore = create<DashboardState>()(
     }),
     {
       name: 'dashboard-storage',
-      version: 7,
+      version: 8,
       migrate: (persistedState: any) => migratePersistedState(persistedState),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
