@@ -59,7 +59,12 @@ function SummaryMetricRow({
       tabIndex={interactive ? 0 : undefined}
       aria-disabled={dimmed || undefined}
       aria-label={interactive ? ariaLabel : undefined}
-      sx={interactiveRowSx(theme, interactive, dimmed)}
+      sx={{
+        ...interactiveRowSx(theme, interactive, dimmed),
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+      }}
     >
       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, minWidth: 0 }}>
         <TransactionDirectionBadge
