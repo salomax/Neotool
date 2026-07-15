@@ -1101,8 +1101,7 @@ dev_init() {
         "${HOME}/.cloudflare" \
         "${HOME}/.vault-keys" \
         "${HOME}/.claude" \
-        "${HOME}/.codex" \
-        "${HOME}/src/invistus/.agents"
+        "${HOME}/.codex"
 
     # 2. Start / recreate the DevPod workspace
     echo "▶ [1/3] Starting DevPod workspace..."

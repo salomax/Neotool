@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh workflow *)",
+      "Bash(gh run *)",
+      "Bash(gh pr *)",
+      "Bash(git rebase *)",
+      "Bash(kubectl rollout *)",
+      "Read(//Users/salomax/src/**)",
+      "Read(//Users/salomax/**)"
+    ]
+  }
+}

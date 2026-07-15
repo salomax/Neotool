@@ -1,0 +1,4 @@
+interface:
+  display_name: "Neotool Code Review"
+  short_description: "Revisa código de uma GitHub issue e publica o review"
+  default_prompt: "Use $neotool-review para revisar o código da issue #123 e publicar o code review como comentário na issue."

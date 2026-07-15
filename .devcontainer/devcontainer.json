@@ -12,7 +12,7 @@
     }
   },
   "remoteUser": "dev",
-  "initializeCommand": "mkdir -p \"${localEnv:HOME}/.cloudflare\" \"${localEnv:HOME}/.vault-keys\" \"${localEnv:HOME}/.claude\" \"${localEnv:HOME}/.codex\" \"${localEnv:HOME}/src/invistus/.agents\"",
+  "initializeCommand": "mkdir -p \"${localEnv:HOME}/.cloudflare\" \"${localEnv:HOME}/.vault-keys\" \"${localEnv:HOME}/.claude\" \"${localEnv:HOME}/.codex\"",
   "mounts": [
     {
       "source": "invistus-gradle-cache",
@@ -27,12 +27,6 @@
     {
       "source": "${localEnv:HOME}/.vault-keys",
       "target": "/home/dev/.vault-keys",
-      "type": "bind",
-      "readonly": true
-    },
-    {
-      "source": "${localEnv:HOME}/src/invistus/.agents",
-      "target": "/home/dev/.agents",
       "type": "bind",
       "readonly": true
     },

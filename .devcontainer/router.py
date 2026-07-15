@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 router.py — Classifier + Stage Machine + Dispatcher
-Substitui o Goose como router no pipeline Slack → Agentes.
+Router no pipeline Slack -> Agentes (claude-dev, codex-dev, cursor-dev).
 """
 from __future__ import annotations
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Neotool Solution Design"
+  short_description: "Produz análise técnica para GitHub issues"
+  default_prompt: "Use $neotool-solution-design para analisar a issue #123 e publicar uma proposta técnica estruturada."

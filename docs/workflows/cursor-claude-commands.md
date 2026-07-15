@@ -16,7 +16,7 @@ tags: [cursor, claude-code, commands, skills, automation, sdd]
 
 Both Cursor and Claude Code support workflow automation:
 - **Cursor**: Uses "commands" (files in `.cursor/commands/`)
-- **Claude Code**: Uses "skills" (files in `.claude/skills/`)
+- **Claude Code**: Uses "skills" (files in `.claude/skills/`, a symlink to the canonical `.agents/skills/` — see [Agent Skills spec](../specs/agent-skills/spec.md))
 
 Both follow the **same new SDD workflow** - just different interfaces.
 
@@ -206,7 +206,7 @@ Claude: ✅ Ready for review!
 └── e2e.md                     # Still valid
 ```
 
-### Claude Code Skills (`.claude/skills/`)
+### Claude Code Skills (`.claude/skills/`, symlink to `.agents/skills/`)
 
 ```
 .claude/skills/
@@ -216,7 +216,7 @@ Claude: ✅ Ready for review!
 └── spec-validate.md           # Validate implementation skill
 ```
 
-**Note:** Claude skills reference Cursor command instructions to avoid duplication.
+**Note:** Claude skills reference Cursor command instructions to avoid duplication. Also note: `.claude/skills/` is a symlink to `.agents/skills/` (`.claude/skills -> ../.agents/skills`, versioned in git) — edit skill content in `.agents/skills/`; `.claude/skills/` just follows it, no build step involved.
 
 ---
 
@@ -478,7 +478,7 @@ Recommendations: None - excellent implementation!
 
 **Solution:**
 - Cursor: Check files exist in `.cursor/commands/`
-- Claude: Check files exist in `.claude/skills/`
+- Claude: Check files exist in `.claude/skills/` (symlink to `.agents/skills/`)
 - Restart IDE/terminal
 
 ### Spec File Not Found
@@ -640,7 +640,8 @@ If you have old workflow commands:
 - **Spec Templates:** [spec/templates/](../../spec/templates/)
 - **Spec README:** [spec/README.md](../../spec/README.md)
 - **Cursor Commands:** [.cursor/commands/](../../.cursor/commands/)
-- **Claude Skills:** [.claude/skills/](../../.claude/skills/)
+- **Agent Skills (canonical, edit here):** [.agents/skills/](../../.agents/skills/)
+- **Claude Skills (symlink):** [.claude/skills/](../../.claude/skills/)
 
 ---
 
@@ -650,7 +651,7 @@ If you have old workflow commands:
 **A:** Either! Both produce identical results. Choose based on preference (IDE vs terminal).
 
 **Q: Can I customize the commands/skills?**
-**A:** Yes! Edit the markdown files in `.cursor/commands/` or `.claude/skills/`.
+**A:** Yes! Edit the markdown files in `.cursor/commands/` or `.agents/skills/` (`.claude/skills/` is a symlink to `.agents/skills/`, so both paths point at the same files — no sync step needed).
 
 **Q: What if I don't want to use commands?**
 **A:** You can still follow the manual workflow from `sdd-workflow.md`. Commands just automate it.
@@ -659,7 +660,7 @@ If you have old workflow commands:
 **A:** Yes! They adapt to your codebase patterns. Works for any feature type.
 
 **Q: Can I add my own commands/skills?**
-**A:** Yes! Create new `.md` files in `.cursor/commands/` or `.claude/skills/`.
+**A:** Yes! Create new `.md` files in `.cursor/commands/` or new skill folders in `.agents/skills/` (they'll be copied into `.claude/skills/` automatically).
 
 **Q: How do commands know what patterns to follow?**
 **A:** They read the integration points in your spec and explore that code to learn patterns automatically.

@@ -1,16 +1,18 @@
 # Agent Skills — Implementation Spec
 
+> **Nota (2026-07-15):** A localização canônica mudou de `.claude/skills/` para `.agents/skills/` — ver seção 2. `.claude/skills/` continua existindo, mas hoje é um symlink versionado no git (`.claude/skills -> ../.agents/skills`), não o diretório editável. O restante deste documento é o registro histórico da implementação original (4 skills iniciais, antes do rename para o prefixo `neotool-`) e não reflete mais a lista completa de skills existentes — consulte `invistus/.agents/skills/` para o estado atual.
+
 > **Para o agente implementador:** Este documento contém tudo que você precisa para criar a estrutura completa de Agent Skills do projeto Invistus. Não questione as decisões arquiteturais listadas na seção 2 — elas já foram tomadas. Siga o checklist em ordem.
 
 ---
 
 ## 1. Objetivo
 
-Implementar a estrutura de [Agent Skills](https://agentskills.io) em `.claude/skills/`, seguindo o padrão aberto do mercado. As skills fornecem conhecimento específico do projeto para agentes de IA (Claude Code, TRAE, Codex, Gemini) via progressive disclosure — o agente carrega apenas `name + description` no startup e o conteúdo completo somente quando relevante.
+Implementar a estrutura de [Agent Skills](https://agentskills.io) em `.agents/skills/`, seguindo o padrão aberto do mercado. As skills fornecem conhecimento específico do projeto para agentes de IA (Claude Code, Codex, Cursor) via progressive disclosure — o agente carrega apenas `name + description` no startup e o conteúdo completo somente quando relevante.
 
 O resultado final habilita:
-- Claude Code a auto-descobrir e auto-ativar skills por contexto
-- Outros agentes (TRAE, Codex, Gemini) a consumir as skills via referência explícita nos spec files
+- Codex e Cursor a auto-descobrir skills diretamente em `.agents/skills/` (convenção nativa, zero config)
+- Claude Code a auto-descobrir e auto-ativar skills via `.claude/skills/`, que é um symlink versionado no git para `.agents/skills/` — sempre em sincronia, sem etapa de build
 
 ---
 
@@ -18,20 +20,20 @@ O resultado final habilita:
 
 | Decisão | Valor |
 |---|---|
-| Localização canônica | `.claude/skills/` dentro do projeto Invistus |
+| Localização canônica | `.agents/skills/` dentro do projeto Invistus (editar sempre aqui) |
 | Padrão | [agentskills.io](https://agentskills.io/specification) — SKILL.md com frontmatter YAML |
 | Granularidade técnica | Coarse skills + `references/` para profundidade (não uma skill por camada) |
-| Granularidade de domínio | Uma skill `personal-finance/` cobre todos os conceitos (Transaction, Bill, Snapshot) |
+| Granularidade de domínio | Uma skill `neotool-finance-domain/` cobre todos os conceitos (Transaction, Bill, Snapshot) |
 | Scripts | Documentar neotool actions existentes — não criar scripts novos |
-| Outros agentes | Consomem via referência explícita no spec, não via auto-discovery |
-| Symlinks | Não usar — `.claude/skills/` é o canônico direto |
+| Outros agentes | Codex e Cursor leem `.agents/skills/` diretamente (convenção nativa de ambos); Claude Code lê `.claude/skills/` |
+| Symlinks | Usar — `.agents/skills/` é o canônico editável; `.claude/skills` é um symlink relativo (`../.agents/skills`), versionado no git, seguindo o padrão de referência [Integralist/agent-skills](https://github.com/Integralist/agent-skills) |
 
 ---
 
 ## 3. Estrutura Final a Criar
 
 ```
-invistus/.claude/skills/
+invistus/.agents/skills/
 ├── shared-conventions/
 │   ├── SKILL.md
 │   └── references/
@@ -110,7 +112,7 @@ Instruções concisas. Referências a arquivos em references/:
 Execute em ordem. Marque cada item ao concluir.
 
 ### Setup
-- [ ] Verificar que `.claude/skills/` existe em `invistus/` (criar se não existir)
+- [ ] Verificar que `.agents/skills/` existe em `invistus/` (criar se não existir) e que `.claude/skills` é o symlink `../.agents/skills` (não uma pasta real)
 - [ ] Verificar que `.claude/settings.local.json` não tem regras que bloqueiem skills
 
 ### Skill 1 — shared-conventions

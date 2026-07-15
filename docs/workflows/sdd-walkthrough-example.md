@@ -756,7 +756,7 @@ Ready to build your next feature faster?
 
 You have the commands:
 - Cursor: `.cursor/commands/`
-- Claude Code: `.claude/skills/`
+- Claude Code: `.claude/skills/` (symlink to the canonical `.agents/skills/`)
 
 ### Step 2: Pick a Feature
 
@@ -811,7 +811,8 @@ Want to implement this in your team?
 - **Workflow Guide:** [docs/workflows/sdd-workflow.md](./sdd-workflow.md)
 - **Spec Templates:** [spec/templates/](../../spec/templates/)
 - **Cursor Commands:** [.cursor/commands/](../../.cursor/commands/)
-- **Claude Skills:** [.claude/skills/](../../.claude/skills/)
+- **Agent Skills (canonical, edit here):** [.agents/skills/](../../.agents/skills/)
+- **Claude Skills (symlink):** [.claude/skills/](../../.claude/skills/)
 - **Command Guide:** [docs/workflows/cursor-claude-commands.md](./cursor-claude-commands.md)
 
 ---

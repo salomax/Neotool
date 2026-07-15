@@ -1,0 +1,4 @@
+interface:
+  display_name: "Neotool Backlog Gen"
+  short_description: "Gera backlog executável para GitHub issues"
+  default_prompt: "Use $neotool-backlog-gen para gerar um backlog detalhado para a issue #123 com base na análise técnica já definida."

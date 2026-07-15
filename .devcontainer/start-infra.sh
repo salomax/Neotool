@@ -255,39 +255,11 @@ echo "  Observability:   docker compose -f infra/docker/docker-compose.local.yml
 echo "  Serviços Kotlin: .devcontainer/start-dev.sh kotlin"
 
 # =============================================================================
-# Agent Skills: criar symlinks para cada agente a partir do bind-mount
+# Agent Skills: nada a fazer aqui
 # =============================================================================
-# As skills ficam versionadas em ~/.agents/skills/ (bind-mount de ~/src/invistus/.agents/skills/)
-# e cada agente as enxerga no path que espera.
+# Fonte única em .agents/skills/ (padrão agentskills.io), versionada no repo.
+# Codex e Cursor leem .agents/skills/ diretamente (convenção nativa). Claude
+# Code só descobre .claude/skills/, que é um symlink versionado no git
+# (.claude/skills -> ../.agents/skills) — já materializado pelo checkout,
+# sem sync em runtime.
 # =============================================================================
-
-AGENTS_SKILLS_DIR="${HOME}/.agents/skills"
-
-if [ -d "$AGENTS_SKILLS_DIR" ]; then
-    echo "▶ [skills] Sincronizando symlinks de agent skills..."
-
-    # Claude Code → .claude/skills/ no projeto (não bind-mounted, não polui o Mac)
-    CLAUDE_SKILLS_DIR="${WORKSPACE_FOLDER:-/workspaces/invistus}/.claude/skills"
-    mkdir -p "$CLAUDE_SKILLS_DIR"
-    for skill in "${AGENTS_SKILLS_DIR}"/neotool-*; do
-        [ -d "$skill" ] || continue
-        ln -sf "$skill" "$CLAUDE_SKILLS_DIR/$(basename "$skill")"
-    done
-    echo "✓ [skills] Claude Code: $(ls "$CLAUDE_SKILLS_DIR/" | wc -l | tr -d ' ') skills em $CLAUDE_SKILLS_DIR"
-
-    # Remove symlinks quebrados do ~/.claude/skills/ se existirem do setup anterior
-    if [ -d "${HOME}/.claude/skills" ]; then
-        find "${HOME}/.claude/skills" -maxdepth 1 -name "neotool-*" -type l -delete 2>/dev/null || true
-    fi
-
-    # Codex → ~/.codex/skills/
-    mkdir -p "${HOME}/.codex/skills"
-    for skill in "${AGENTS_SKILLS_DIR}"/neotool-*; do
-        [ -d "$skill" ] || continue
-        ln -sf "$skill" "${HOME}/.codex/skills/$(basename "$skill")"
-    done
-    echo "✓ [skills] Codex: $(ls "${HOME}/.codex/skills/" | wc -l | tr -d ' ') skills"
-else
-    echo "⚠ [skills] ~/.agents/skills não encontrado — bind-mount do .agents ausente?"
-    echo "   Verifique devcontainer.json e reconstrua o DevPod se necessário."
-fi

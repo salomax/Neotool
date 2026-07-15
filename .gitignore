@@ -120,7 +120,11 @@ terraform.rc
 # IDE settings
 .vscode/
 .claude/*
+!.claude/settings.json
+!.claude/skills
 .cursor/
+.codex/
+.mcp.json
 
 # Drafting ideas
 docs/03-features/brainstorming
