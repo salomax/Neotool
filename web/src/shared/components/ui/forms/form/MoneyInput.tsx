@@ -36,6 +36,10 @@ export interface MoneyInputProps {
   allowNegative?: boolean;
   /** Optional styles for the clear (×) icon button when the field has a value. */
   clearButtonSx?: SxProps<Theme>;
+  /** Maximum number of decimal places accepted by the input. Defaults to 2. */
+  fractionDigits?: number;
+  /** Whether to pad the value to the configured decimal places. Defaults to true. */
+  fixedDecimalScale?: boolean;
 }
 
 export const MoneyInput: React.FC<MoneyInputProps> = (props) => {
@@ -89,6 +93,8 @@ export function BaseMoneyInput({
   'data-testid': dataTestId,
   allowNegative = false,
   clearButtonSx,
+  fractionDigits = 2,
+  fixedDecimalScale = true,
 }: BaseMoneyInputProps) {
   // Determine locale and separators
   const currentLocale = locale || i18n.language || "pt-BR";
@@ -148,8 +154,8 @@ export function BaseMoneyInput({
       onBlur={onBlur}
       thousandSeparator={group ?? false}
       decimalSeparator={decimal}
-      decimalScale={2}
-      fixedDecimalScale
+      decimalScale={fractionDigits}
+      fixedDecimalScale={fixedDecimalScale}
       allowNegative={allowNegative}
       InputProps={{
         ...InputProps,

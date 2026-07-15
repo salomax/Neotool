@@ -41,6 +41,7 @@ import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
 import { Label } from "@/shared/components/ui/primitives/Label";
+import { useDebounce } from "@/shared/hooks/ui";
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from "../../finance-transactions/constants/dateWindow";
 import { personalFinanceTranslations } from "../../i18n";
 import { FundAutocomplete, FundAutocompleteValue } from "./FundAutocomplete";
@@ -145,6 +146,7 @@ export function RecordFundHoldingDrawer({
   const isLockedGate = assetGate?.mode === "locked";
   const showListingSection = !isEdit && !isLockedGate;
   const lastEditSeedRef = React.useRef<{ holdingId: string | null; transactionId: string | null } | null>(null);
+  const lastAutoFilledUnitPriceRef = React.useRef<number | null>(null);
 
   const parseLocalizedNumber = React.useCallback(
     (value: unknown) => {
@@ -233,6 +235,11 @@ export function RecordFundHoldingDrawer({
     () => (selectedTradeDate ? formatDateOnly(selectedTradeDate) : null),
     [selectedTradeDate],
   );
+  const debouncedTradeDateIso = useDebounce(tradeDateIso, 400);
+  const navLookupKey = React.useMemo(
+    () => (listingMode === "CVM" && selectedFund?.id && debouncedTradeDateIso ? `${selectedFund.id}:${debouncedTradeDateIso}` : null),
+    [debouncedTradeDateIso, listingMode, selectedFund?.id],
+  );
 
   useSyncDefaultSettlementDate<RecordFundFormData>({
     enabled: open,
@@ -251,26 +258,56 @@ export function RecordFundHoldingDrawer({
     },
     { id: string; to: string }
   >(INVESTMENT_FUND_NAV, {
-    variables: { id: selectedFund?.id ?? "", to: tradeDateIso ?? "" },
-    skip: listingMode !== "CVM" || !selectedFund?.id || !tradeDateIso,
+    variables: { id: selectedFund?.id ?? "", to: debouncedTradeDateIso ?? "" },
+    skip: listingMode !== "CVM" || !selectedFund?.id || !debouncedTradeDateIso,
     fetchPolicy: "cache-and-network",
     errorPolicy: "all",
   });
 
-  const suggestedUnitPrice =
-    listingMode === "CVM" ? (fundNavQuery.data?.investmentFund?.priceHistory?.[0]?.closePrice ?? null) : null;
+  const suggestedUnitPrice = React.useMemo(() => {
+    if (listingMode !== "CVM") return null;
+
+    const fundData = fundNavQuery.data?.investmentFund;
+    const historyMatch = fundData?.priceHistory?.[0] ?? null;
+    if (historyMatch?.closePrice != null) {
+      return historyMatch.closePrice;
+    }
+
+    const latestNav = fundData?.latestNav;
+    if (latestNav?.closePrice != null && latestNav.date === debouncedTradeDateIso) {
+      return latestNav.closePrice;
+    }
+
+    return null;
+  }, [debouncedTradeDateIso, fundNavQuery.data?.investmentFund, listingMode]);
+
+  const shouldPreserveManualUnitPrice = React.useMemo(() => {
+    if (!dirtyFields.unitPrice) return false;
+    if (unitPriceValue == null) return false;
+    return lastAutoFilledUnitPriceRef.current == null || unitPriceValue !== lastAutoFilledUnitPriceRef.current;
+  }, [dirtyFields.unitPrice, unitPriceValue]);
 
   useEffect(() => {
-    if (!open) return;
-    if (!suggestedUnitPrice) return;
-    if (dirtyFields.unitPrice) return;
-    if (typeof unitPriceValue === "number" && unitPriceValue > 0) return;
+    if (!open || isEdit) return;
+    if (listingMode !== "CVM") return;
+    if (!navLookupKey) return;
+    if (shouldPreserveManualUnitPrice) return;
+    methods.setValue("unitPrice", undefined, { shouldDirty: false, shouldTouch: false, shouldValidate: false });
+  }, [isEdit, listingMode, methods, navLookupKey, open, shouldPreserveManualUnitPrice]);
+
+  useEffect(() => {
+    if (!open || isEdit) return;
+    if (listingMode !== "CVM") return;
+    if (suggestedUnitPrice == null) return;
+    if (shouldPreserveManualUnitPrice) return;
+    lastAutoFilledUnitPriceRef.current = suggestedUnitPrice;
     methods.setValue("unitPrice", suggestedUnitPrice, { shouldDirty: false, shouldTouch: true, shouldValidate: true });
-  }, [dirtyFields.unitPrice, methods, open, suggestedUnitPrice, unitPriceValue]);
+  }, [isEdit, listingMode, methods, open, shouldPreserveManualUnitPrice, suggestedUnitPrice]);
 
   useEffect(() => {
     if (!open) {
       lastEditSeedRef.current = null;
+      lastAutoFilledUnitPriceRef.current = null;
       reset(buildDefaultValues());
       setValueFlow("BY_AMOUNT");
       setListingMode("CVM");
@@ -330,6 +367,7 @@ export function RecordFundHoldingDrawer({
     clearErrors();
     methods.setValue("fund", null, { shouldDirty: false, shouldValidate: false });
     methods.setValue("unitPrice", undefined, { shouldDirty: false, shouldValidate: false });
+    lastAutoFilledUnitPriceRef.current = null;
   }, [clearErrors, embedded, isEdit, isLockedGate, listingMode, methods]);
 
   const [createAsset, { loading: creatingAsset, error: createAssetError }] = useMutation<
@@ -716,36 +754,28 @@ export function RecordFundHoldingDrawer({
 
               {valueFlow === "BY_AMOUNT" ? (
                 <FormStack spacing={1.5}>
-                  {listingMode !== "CVM" || !suggestedUnitPrice ? (
-                    <FormRowStack alignItems="flex-start">
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <MoneyInput
-                          name="grossValue"
-                          label="Valor aplicado"
-                          currency="BRL"
-                          size="medium"
-                          data-testid="record-fund-gross-value"
-                        />
-                      </Box>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <MoneyInput
-                          name="unitPrice"
-                          label={t("investments.recordFund.fields.unitPrice")}
-                          currency="BRL"
-                          size="medium"
-                          data-testid="record-fund-unit-price"
-                        />
-                      </Box>
-                    </FormRowStack>
-                  ) : (
-                    <MoneyInput
-                      name="grossValue"
-                      label="Valor aplicado"
-                      currency="BRL"
-                      size="medium"
-                      data-testid="record-fund-gross-value"
-                    />
-                  )}
+                  <FormRowStack alignItems="flex-start">
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <MoneyInput
+                        name="grossValue"
+                        label={t("investments.recordFund.fields.grossValue")}
+                        currency="BRL"
+                        size="medium"
+                        data-testid="record-fund-gross-value"
+                      />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <MoneyInput
+                        name="unitPrice"
+                        label={t("investments.recordFund.fields.unitPrice")}
+                        currency="BRL"
+                        fractionDigits={8}
+                        fixedDecimalScale={false}
+                        size="medium"
+                        data-testid="record-fund-unit-price"
+                      />
+                    </Box>
+                  </FormRowStack>
                 </FormStack>
               ) : (
                 <FormStack spacing={1.5}>
@@ -770,6 +800,8 @@ export function RecordFundHoldingDrawer({
                         name="unitPrice"
                         label={t("investments.recordFund.fields.unitPrice")}
                         currency="BRL"
+                        fractionDigits={8}
+                        fixedDecimalScale={false}
                         size="medium"
                         data-testid="record-fund-unit-price"
                       />
