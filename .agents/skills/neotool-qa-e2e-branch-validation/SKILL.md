@@ -1,5 +1,5 @@
 ---
-name: qa-e2e-branch-validation
+name: neotool-qa-e2e-branch-validation
 description: >
   Use when Codex needs to validate the current Invistus git branch with
   Playwright end-to-end coverage: inspect the branch diff against
@@ -9,6 +9,10 @@ description: >
   as "cobrir a branch atual com E2E", "gerar plano de teste da branch",
   "mapear mudanças para Playwright", "criar testes E2E faltantes", "rodar os
   testes da branch", or "validar a branch atual com QA E2E".
+compatibility: Requires Playwright configured in web/ and an existing web/tests/e2e/ suite.
+metadata:
+  author: invistus
+  version: "1.0"
 ---
 
 # QA E2E Branch Validation
