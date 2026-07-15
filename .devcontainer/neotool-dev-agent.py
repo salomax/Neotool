@@ -21,11 +21,7 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core import Task, handle_task
-from slack_format import (
-    _NEXT_STAGE,
-    _STAGE_EMOJI,
-    format_stage_result,
-)
+from slack_format import format_progress_header, format_stage_result
 import state_store
 
 logging.basicConfig(
@@ -112,25 +108,6 @@ def slack_update(channel: str, ts: str, text: str) -> None:
 
 def format_slack_result(output: str | None, meta: dict) -> str:
     return format_stage_result(output, meta, max_chars=MAX_CHARS)
-
-
-def format_slack_progress(meta: dict, elapsed_secs: int) -> str:
-    intent = meta.get("intent", "")
-    agent = meta.get("agent", "")
-    model = meta.get("model", "")
-    label = meta.get("label", "Trabalhando")
-    emoji = _STAGE_EMOJI.get(intent, "⏳")
-    mins, secs = divmod(elapsed_secs, 60)
-
-    agent_str = f"`{agent}`" if agent else ""
-    if model:
-        agent_str += f" / `{model}`"
-
-    parts = [f"{emoji} {label}"]
-    if agent_str:
-        parts.append(agent_str)
-    parts.append(f"{mins:02d}:{secs:02d}")
-    return "  ·  ".join(parts)
 
 
 def run_usage_check(channel: str, ts: str) -> None:
@@ -265,12 +242,14 @@ def handle_message(event, client, logger):
             meta_snapshot.update(data)
             progress_started.set()
             t_progress_start[0] = time.time()
+            # Show agent/model/issue right away instead of a bare "Trabalhando...".
+            slack_update(channel, working_ts, format_progress_header(meta_snapshot, 0))
 
         def _on_progress(_status: str) -> None:
             if not progress_started.is_set():
                 return
             elapsed = int(time.time() - t_progress_start[0])
-            slack_update(channel, working_ts, format_slack_progress(meta_snapshot, elapsed))
+            slack_update(channel, working_ts, format_progress_header(meta_snapshot, elapsed))
 
         def _on_result(output: str | None, meta: dict) -> None:
             if output is None:

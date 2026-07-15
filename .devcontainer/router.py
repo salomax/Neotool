@@ -5,7 +5,7 @@ Substitui o Goose como router no pipeline Slack → Agentes.
 """
 from __future__ import annotations
 
-import json, logging, os, re, subprocess, urllib.request
+import json, logging, os, re, subprocess, time, urllib.request
 from pathlib import Path
 from typing import Mapping
 
@@ -42,6 +42,7 @@ from thread_log import (
     log_stage_for_intent,
     write_thread_summary,
 )
+from slack_format import format_pipeline_log
 from verifier import (
     IMPL_RETRY_LIMIT,
     VerifierResult,
@@ -154,6 +155,27 @@ _ADVANCE_ONLY_RE = re.compile(
 _ISSUE_COMMENT_URL_RE = re.compile(
     r"github\.com/[^/\s]+/[^/\s]+/issues/(\d+)#issuecomment-(\d+)",
     re.IGNORECASE,
+)
+
+# GitHub *issue* URL (never matches /pull/NNN -- that path segment is "pull", not "issues").
+_ISSUE_URL_RE = re.compile(
+    r"github\.com/[^/\s]+/[^/\s]+/issues/(\d+)",
+    re.IGNORECASE,
+)
+
+# GitHub *pull request* URL — used to surface a PR link in the pipeline log.
+_PR_URL_RE = re.compile(
+    r"github\.com/[^/\s]+/[^/\s]+/pull/(\d+)",
+    re.IGNORECASE,
+)
+
+# Explicit "issue was just created" phrasing in agent output: "created issue #390",
+# "issue #390 criada", "issue #390 created", or a leading "#390".
+_CREATED_ISSUE_PHRASE_RE = re.compile(
+    r"created\s+issue\s*#?(\d+)|"
+    r"issue\s*#?(\d+)\s*(?:criada|created)|"
+    r"^\s*#(\d+)\b",
+    re.IGNORECASE | re.MULTILINE,
 )
 
 
@@ -568,6 +590,26 @@ def _resolve_dispatch_targets(classification: dict) -> tuple[str, str | None, st
             model = route_cfg.model or resolve_agent_default_model(agent, _ROUTING_TABLE)
     return agent, model, route_cfg.backend
 
+
+def _extract_stage_link(stage: str, output: str | None) -> tuple[str | None, str | None]:
+    """Parse a stage's raw agent output for a shareable link, for the pipeline log.
+
+    Returns (link_label, url) — e.g. ("PR #391", "github.com/.../pull/391") for
+    the pr stage, or ("comentário", "github.com/.../issues/42#issuecomment-9")
+    for the impl stage. (None, None) when nothing is found.
+    """
+    if not output:
+        return None, None
+    if stage == "pr":
+        m = _PR_URL_RE.search(output)
+        if m:
+            return f"PR #{m.group(1)}", m.group(0)
+    if stage == "impl":
+        m = _ISSUE_COMMENT_URL_RE.search(output)
+        if m:
+            return "comentário", m.group(0)
+    return None, None
+
 SKILL_MAP = {
     "stage_issue":   "/neotool-open-issue",
     "stage_design":  "/neotool-solution-design",
@@ -654,8 +696,26 @@ def build_prompt(classification: dict, original_message: str, state: dict) -> st
         or extract_issue_from_message(original_message)
     )
 
-    # Contexto completo da issue — injetado em todos os intents
-    issue_ctx = fetch_issue_context(issue_number) if issue_number else ""
+    # Check if issue is referenced in the CURRENT message
+    issue_from_message = extract_issue_from_message(original_message)
+
+    # Decide whether to inject issue context (lazy fetch):
+    # - For 'question' intent: only if the issue is referenced in the CURRENT message
+    # - For all other intents: inject when issue_number is present (existing behavior)
+    want_issue_ctx = (
+        (intent != "question" and issue_number)
+        or (intent == "question" and issue_from_message)
+    )
+
+    # Lazy fetch: only call gh if we actually need the context
+    issue_ctx = ""
+    if want_issue_ctx:
+        # For question with message reference: fetch the message-referenced issue
+        # For other intents: fetch the resolved issue_number
+        if intent == "question" and issue_from_message:
+            issue_ctx = fetch_issue_context(issue_from_message)
+        elif intent != "question" and issue_number:
+            issue_ctx = fetch_issue_context(issue_number)
 
     def _with_issue(base: str) -> str:
         return f"{base}\n\n{issue_ctx}" if issue_ctx else base
@@ -917,6 +977,7 @@ def _notify_stage_outcome(
     intent: str,
     issue_number: int | None,
     status: str,
+    elapsed_ms: int | None = None,
 ) -> None:
     """Push terminal stage status into adapter meta (Slack/CLI)."""
     if not meta_callback:
@@ -927,6 +988,8 @@ def _notify_stage_outcome(
         "issue_number": issue_number,
         "label": _INTENT_LABELS.get(intent, "Trabalhando"),
     }
+    if elapsed_ms is not None:
+        payload["elapsed_ms"] = elapsed_ms
     try:
         meta_callback(payload)
     except Exception as exc:
@@ -947,6 +1010,25 @@ def _finalize_stage_run(
     status = _checkpoint_status_from_result(result, intent=intent)
     blocked = intent == "stage_impl" and _agent_blocked_on_missing_issue(result.output)
     outcome = "blocked" if blocked else status
+
+    # A freshly-created issue's number only ever appears in the agent's own
+    # output (issue URL / "#N") -- nothing else captures it. Fill the gap so
+    # later stages (e.g. stage_impl's `Issue: #N` prompt line) see it.
+    if (
+        status == "completed"
+        and intent == "stage_issue"
+        and not classification.get("issue_number")
+        and not state.get("issue_number")
+    ):
+        created_issue_number = extract_created_issue_number(result.output)
+        if created_issue_number:
+            log.info(
+                "stage_issue: captured created issue #%d from agent output",
+                created_issue_number,
+            )
+            classification["issue_number"] = created_issue_number
+            issue_number = created_issue_number
+            save_state(thread, {"issue_number": created_issue_number})
 
     if issue_number and intent in INTENT_TO_STAGE:
         _write_stage_checkpoint(
@@ -976,6 +1058,7 @@ def _finalize_stage_run(
         intent=intent,
         issue_number=issue_number,
         status=outcome,
+        elapsed_ms=result.elapsed_ms,
     )
 
     if blocked:
@@ -1132,13 +1215,34 @@ def execute_plan(
     progress_log: str | None = None,
     meta_callback: callable | None = None,
 ) -> str:
-    """Run all stages in a plan sequentially, honoring circuit-breakers."""
-    outputs: list[str] = []
+    """Run all stages in a plan sequentially, honoring circuit-breakers.
+
+    Instead of collapsing every stage's full output into one balloon, this
+    builds a compact per-stage log (slack_format.format_pipeline_log): one
+    row per stage with agent/model, status, elapsed time and — when the
+    agent output carries one — a PR/comment link. The detailed per-stage
+    output already lands on the GitHub issue as comments (see
+    _append_thread_summary / the stage_impl gh-comment instruction).
+    """
+    rows: list[dict] = []
     state = load_state(thread)
     plan = normalize_plan_issue(plan, state)
     issue_number = resolve_plan_issue_number(plan, state)
     if issue_number:
         save_state(thread, {"issue_number": issue_number})
+
+    def _finish(paused: str | None = None) -> str:
+        if meta_callback:
+            try:
+                meta_callback({
+                    "intent": "fast_track",
+                    "status": "paused" if paused else "completed",
+                    "issue_number": issue_number,
+                    "label": "Pipeline",
+                })
+            except Exception as exc:
+                log.warning("meta_callback pipeline notify failed: %s", exc)
+        return format_pipeline_log(rows, issue_number=issue_number, paused=paused)
 
     for stage in plan.stages:
         state = load_state(thread)
@@ -1150,8 +1254,10 @@ def execute_plan(
         )
         prompt = build_prompt(classification, plan.summary, state)
         log.info("execute_plan stage=%s issue=%s", stage, issue_number)
+        agent, model, _ = _resolve_dispatch_targets(classification)
 
         if stage == "review":
+            t0 = time.monotonic()
             output = _dispatch_review_with_verifier(
                 classification,
                 prompt,
@@ -1162,15 +1268,29 @@ def execute_plan(
                 progress_log=progress_log,
                 meta_callback=meta_callback,
             )
-            outputs.append(f"**{stage}**\n{output}")
+            elapsed_ms = int((time.monotonic() - t0) * 1000)
             if output.startswith("⏸️"):
+                rows.append({
+                    "stage": stage,
+                    "agent": agent,
+                    "model": model,
+                    "status": "blocked",
+                    "elapsed_ms": elapsed_ms,
+                })
                 save_state(thread, {
                     "pending_plan": {
                         "plan": plan.to_dict(),
                         "next_stage_index": plan.stages.index(stage) + 1,
                     },
                 })
-                return "\n\n".join(outputs)
+                return _finish(paused=output.lstrip("⏸️").strip().strip("_").strip())
+            rows.append({
+                "stage": stage,
+                "agent": agent,
+                "model": model,
+                "status": "completed",
+                "elapsed_ms": elapsed_ms,
+            })
             state = load_state(thread)
             continue
 
@@ -1200,32 +1320,39 @@ def execute_plan(
             meta_callback=meta_callback,
         )
         stage_output = _format_pause_output(result.output, pause)
-        if (
-            stage == "pr"
-            and _checkpoint_status_from_result(result, intent=intent) == "completed"
-        ):
+        stage_completed = _checkpoint_status_from_result(result, intent=intent) == "completed"
+        if stage == "pr" and stage_completed:
             stage_output = _append_thread_summary(thread, issue_number, stage_output)
-        outputs.append(f"**{stage}**\n{stage_output}")
+
+        blocked = intent == "stage_impl" and _agent_blocked_on_missing_issue(result.output)
+        row_status = "blocked" if blocked else _checkpoint_status_from_result(result, intent=intent)
+        link_label, link = _extract_stage_link(stage, stage_output)
+        rows.append({
+            "stage": stage,
+            "agent": agent,
+            "model": model,
+            "status": row_status,
+            "elapsed_ms": result.elapsed_ms,
+            "link_label": link_label,
+            "link": link,
+        })
 
         if pause and pause.pause:
             idx = plan.stages.index(stage)
             # Only skip ahead when the stage actually completed (circuit-breaker).
             # Failed/blocked stages must resume on the same index.
-            completed = (
-                _checkpoint_status_from_result(result, intent=intent) == "completed"
-            )
             save_state(thread, {
                 "pending_plan": {
                     "plan": plan.to_dict(),
-                    "next_stage_index": idx + 1 if completed else idx,
+                    "next_stage_index": idx + 1 if stage_completed else idx,
                 },
             })
-            return "\n\n".join(outputs)
+            return _finish(paused=pause.reason)
 
         state = load_state(thread)
 
     save_state(thread, {"pending_plan": None})
-    return "\n\n".join(outputs)
+    return _finish()
 
 
 def _handle_fast_track(
@@ -1282,6 +1409,31 @@ def extract_issue_from_message(message: str) -> int | None:
     m = re.search(r"(?:issue\s*#?|#)(\d+)", message, re.I)
     if m:
         return int(m.group(1))
+    return None
+
+
+def extract_created_issue_number(output: str) -> int | None:
+    """Parse stage_issue agent OUTPUT for the number of the issue it just created.
+
+    Priority order:
+      1. A GitHub *issue* URL (github.com/<owner>/<repo>/issues/N). Never
+         matches a /pull/N URL, since that path segment is "pull" not "issues".
+         If both an issue URL and a PR URL are present, this still finds the
+         issue URL correctly (regex only matches the "issues" segment).
+      2. Explicit phrasing: "created issue #N", "issue #N criada",
+         "issue #N created", or a leading "#N".
+    Returns None when nothing confident is found.
+    """
+    if not output:
+        return None
+    m = _ISSUE_URL_RE.search(output)
+    if m:
+        return int(m.group(1))
+    m = _CREATED_ISSUE_PHRASE_RE.search(output)
+    if m:
+        for group in m.groups():
+            if group:
+                return int(group)
     return None
 
 
