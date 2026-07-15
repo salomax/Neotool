@@ -94,6 +94,24 @@ Invistus is implemented on top of NeoTool.
 | **Institution enrichment and ratings workloads** | Data enrichment workers and rating pipelines | [`docs/03-features/financial_data/institution-enhancement/institution-enhancement.md`](docs/03-features/financial_data/institution-enhancement/institution-enhancement.md), [`docs/03-features/financial_data/ratings/financial-institution-ratings.md`](docs/03-features/financial_data/ratings/financial-institution-ratings.md) |
 | **Personal finance product direction** | Accounts/cards flows and user-centric finance features | [`docs/03-features/personal-finance/personal-finance-overview.md`](docs/03-features/personal-finance/personal-finance-overview.md), [`docs/03-features/personal-finance/phase-1-accounts-cards.md`](docs/03-features/personal-finance/phase-1-accounts-cards.md) |
 
+### 6. Agents, Skills, and Spec-Driven Development
+
+| Topic | What It Tackles | Where to Read |
+| --- | --- | --- |
+| **Specification-Driven Development (SDD)** | Docs are the source of truth — specs are written first, AI assistants implement from them, checklists validate compliance | [`docs/12-specification-driven-dev/README.md`](docs/12-specification-driven-dev/README.md), [`docs/01-overview/specification-driven-development.md`](docs/01-overview/specification-driven-development.md) |
+| **Agent Skills** | Portable, reusable knowledge packages (`SKILL.md`) that Claude Code, Codex, and Cursor all auto-discover from one canonical source | [`docs/specs/agent-skills/spec.md`](docs/specs/agent-skills/spec.md), [`.agents/skills/`](.agents/skills/) |
+| **neotool-dev-agent** | Slack-driven pipeline (issue → design → backlog → impl → review → validate → pr) that dispatches each stage to Claude, Codex, or Cursor | [`.devcontainer/README.md`](.devcontainer/README.md) |
+
+**How skills are discovered.** Invistus follows the [agentskills.io](https://agentskills.io) open standard. Skills live in one canonical place, `.agents/skills/`, and each agent finds them from there:
+
+| Agent | Reads from | How |
+| --- | --- | --- |
+| Codex | `.agents/skills/` | Native convention, no config needed |
+| Cursor | `.agents/skills/` | Native convention, no config needed |
+| Claude Code | `.claude/skills/` | Symlink to `.agents/skills/` (Claude Code doesn't support a custom skills path yet) |
+
+Always edit skills in `.agents/skills/` — `.claude/skills` just follows it, nothing to keep in sync.
+
 ## Core Service Modules
 
 | Service | Main Responsibility | Current Scope | Primary Docs |
