@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.banking.integration
 
+import io.github.salomax.neotool.banking.domain.account.CardData
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
-import io.github.salomax.neotool.banking.domain.account.CardData
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction

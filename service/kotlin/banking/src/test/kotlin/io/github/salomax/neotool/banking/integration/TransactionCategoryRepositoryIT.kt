@@ -93,6 +93,53 @@ class TransactionCategoryRepositoryIT : BankingPostgresIntegrationTest() {
             assertThat(belezaChildren.find { it.name == "Manicure e Pedicure" }?.icon).isEqualTo("color_lens")
             assertThat(belezaChildren.find { it.name == "Estética Facial" }?.icon).isEqualTo("face_retouching_natural")
             assertThat(belezaChildren.find { it.name == "Massagem" }?.icon).isEqualTo("self_improvement")
+            val alimentacaoChildren = all.filter { it.parentId == alimentacao.id }
+            val padaria = alimentacaoChildren.find { it.name == "Padaria" }
+            assertThat(padaria).isNotNull
+            assertThat(padaria!!.applicableTo.name).isEqualTo("EXPENSE")
+            assertThat(padaria.icon).isEqualTo("bakery_dining")
+            assertThat(padaria.sortOrder).isEqualTo(50)
+            assertThat(padaria.color).isEqualTo(alimentacao.color)
+            val moradia = roots.find { it.name == "Moradia" }
+            assertThat(moradia).isNotNull
+            assertThat(moradia!!.isSystem).isTrue()
+            val moradiaChildren = all.filter { it.parentId == moradia.id }
+            val lavanderia = moradiaChildren.find { it.name == "Lavanderia" }
+            assertThat(lavanderia).isNotNull
+            assertThat(lavanderia!!.applicableTo.name).isEqualTo("EXPENSE")
+            assertThat(lavanderia.icon).isEqualTo("local_laundry_service")
+            assertThat(lavanderia.sortOrder).isEqualTo(80)
+            assertThat(lavanderia.color).isEqualTo(moradia.color)
+            val transporte = roots.find { it.name == "Transporte" }
+            assertThat(transporte).isNotNull
+            assertThat(transporte!!.isSystem).isTrue()
+            val transporteChildren = all.filter { it.parentId == transporte.id }
+            val lavaRapido = transporteChildren.find { it.name == "Lava rápido" }
+            assertThat(lavaRapido).isNotNull
+            assertThat(lavaRapido!!.applicableTo.name).isEqualTo("EXPENSE")
+            assertThat(lavaRapido.icon).isEqualTo("local_car_wash")
+            assertThat(lavaRapido.sortOrder).isEqualTo(90)
+            assertThat(lavaRapido.color).isEqualTo(transporte.color)
+            val lazer = roots.find { it.name == "Lazer e Entretenimento" }
+            assertThat(lazer).isNotNull
+            assertThat(lazer!!.isSystem).isTrue()
+            val lazerChildren = all.filter { it.parentId == lazer.id }
+            val hotelAirbnb = lazerChildren.find { it.name == "Hotel / Airbnb e similares" }
+            assertThat(hotelAirbnb).isNotNull
+            assertThat(hotelAirbnb!!.applicableTo.name).isEqualTo("EXPENSE")
+            assertThat(hotelAirbnb.icon).isEqualTo("hotel")
+            assertThat(hotelAirbnb.sortOrder).isEqualTo(45)
+            assertThat(hotelAirbnb.color).isEqualTo(lazer.color)
+            val tarifasBancarias = roots.find { it.name == "Tarifas Bancárias" }
+            assertThat(tarifasBancarias).isNotNull
+            assertThat(tarifasBancarias!!.isSystem).isTrue()
+            val tarifasBancariasChildren = all.filter { it.parentId == tarifasBancarias.id }
+            val faturaCartao = tarifasBancariasChildren.find { it.name == "Fatura Cartão de Crédito" }
+            assertThat(faturaCartao).isNotNull
+            assertThat(faturaCartao!!.applicableTo.name).isEqualTo("EXPENSE")
+            assertThat(faturaCartao.icon).isEqualTo("credit_card")
+            assertThat(faturaCartao.sortOrder).isEqualTo(40)
+            assertThat(faturaCartao.color).isEqualTo(tarifasBancarias.color)
             val withParent = all.filter { it.parentId != null }
             assertThat(withParent).allMatch { cat -> all.any { it.id == cat.parentId } }
         }
