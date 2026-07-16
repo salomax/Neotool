@@ -1,3 +1,13 @@
+## 0.8.0 (2026-07-16)
+
+### 🚀 Features
+
+- enhance RecurringPaymentForm with date validation and error handling ([64cd47cd](https://github.com/invistus/invistus/commit/64cd47cd))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.43 (2026-07-14)
 
 ### 🚀 Features
