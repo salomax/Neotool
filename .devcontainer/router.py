@@ -101,8 +101,8 @@ Intent rules:
 - "advance" = handled locally for bare sim/ok/aprovado — do NOT classify these from the message text
 - "check_usage" = user asks about token usage, agent status, check-usage
 - "check_config" = user asks which agents/models are configured per stage, routing config, orchestrator model
-- "fast_track" = user explicitly asks to do multiple stages at once ("de uma vez", "tudo junto", "em uma etapa")
-- "stage_issue" = create or enrich a GitHub issue ("abra/crie uma issue", "open an issue", "nova issue")
+- "fast_track" = user asks to run multiple pipeline stages at once: "de uma vez", "tudo junto", "em uma etapa", "#fast-track", "faça essa/a issue de uma vez", "execute tudo", "rode o pipeline completo". IMPORTANT: "Faça/execute essa issue de uma vez" = fast_track, NOT stage_issue.
+- "stage_issue" = create or enrich a GitHub issue: "abra/crie uma issue", "open an issue", "nova issue". NEVER use stage_issue when the user says "de uma vez" or "fast-track" — that is always fast_track.
 - "stage_design" = solution design, technical analysis, viability, impact
 - "stage_backlog" = generate task backlog
 - "stage_impl" = ONLY when user explicitly asks to write/implement NEW code or apply backlog tasks. The word "implementação" as a noun referring to past work does NOT trigger this.
@@ -237,7 +237,7 @@ _CHECK_CONFIG_RE = re.compile(
 )
 
 _FAST_TRACK_RE = re.compile(
-    r"de uma vez|tudo junto|tudo de uma vez|em uma etapa|em uma só etapa|pipeline completo|todas as fases|all at once|everything together|full pipeline|all stages",
+    r"de uma vez|tudo junto|tudo de uma vez|em uma etapa|em uma só etapa|pipeline completo|todas as fases|all at once|everything together|full pipeline|all stages|#fast.?track|fast.?track",
     re.IGNORECASE,
 )
 
@@ -308,7 +308,7 @@ def _extract_model_from_message(message: str) -> str | None:
 def _classify_rules(message: str, state: dict) -> dict:
     """
     Rule-based classifier fallback when Gemini is unavailable.
-    Returns same dict shape as _classify_gemini.
+    Returns same dict shape as _classify_claude.
     """
     msg = message.strip()
     
@@ -457,8 +457,32 @@ def _classify_rules(message: str, state: dict) -> dict:
     }
 
 
+# JSON Schema enforced by claude --json-schema (no regex fallback needed)
+_CLASSIFICATION_SCHEMA = json.dumps({
+    "type": "object",
+    "required": ["intent", "needs_confirmation"],
+    "properties": {
+        "intent": {
+            "type": "string",
+            "enum": [
+                "stage_issue", "stage_design", "stage_backlog", "stage_impl",
+                "stage_review", "stage_validate", "stage_pr",
+                "fast_track", "question", "check_usage", "check_config",
+            ],
+        },
+        "agent":              {"type": ["string", "null"]},
+        "model":              {"type": ["string", "null"]},
+        "issue_number":       {"type": ["integer", "null"]},
+        "fast_track":         {"type": "boolean"},
+        "stages":             {"type": "array", "items": {"type": "string"}},
+        "needs_confirmation": {"type": "boolean"},
+        "ambiguity_reason":   {"type": ["string", "null"]},
+    },
+})
+
+
 def classify(message: str, state: dict) -> dict:
-    """Bare advance (sim/ok/…) is local; everything else goes to the LLM classifier."""
+    """Bare advance (sim/ok/…) is local; everything else goes to Claude Haiku classifier."""
     if _ADVANCE_ONLY_RE.match(message.strip()):
         return _sanitize_classification({
             "intent": "advance",
@@ -472,46 +496,52 @@ def classify(message: str, state: dict) -> dict:
         })
 
     try:
-        return _sanitize_classification(_classify_gemini(message, state))
+        return _sanitize_classification(_classify_claude(message, state))
     except Exception as e:
-        log.warning("Gemini classify failed: %s — falling back to rules", e)
+        log.warning("Claude classifier failed: %s — falling back to rules", e)
         return _sanitize_classification(_classify_rules(message, state))
 
 
-def _classify_gemini(message: str, state: dict) -> dict:
-    api_key = os.environ.get("GOOGLE_API_KEY", "")
-    if not api_key:
-        raise ValueError("GOOGLE_API_KEY not set")
-
+def _classify_claude(message: str, state: dict) -> dict:
+    """Classify via claude CLI with --json-schema (schema-guaranteed output, no regex)."""
     orch = get_orchestrator_config(_ROUTING_TABLE)
-    if orch.provider != "gemini":
-        raise ValueError(
-            f"Orchestrator provider {orch.provider!r} is not implemented yet "
-            "(only 'gemini' is supported). Update routing.yaml orchestrator.provider."
-        )
+    model = orch.classifier_model or "claude-haiku-4-5-20251001"
 
     prompt = CLASSIFY_PROMPT.format(
         message=message,
         state=json.dumps(_classification_state_for_prompt(state), ensure_ascii=False),
     )
-    payload = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 384},
-    }).encode()
 
-    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"{orch.classifier_model}:generateContent?key={api_key}")
-    req = urllib.request.Request(url, data=payload,
-                                  headers={"Content-Type": "application/json"})
-    resp = urllib.request.urlopen(req, timeout=10)
-    body = json.loads(resp.read())
-    text = body["candidates"][0]["content"]["parts"][0]["text"].strip()
+    result = subprocess.run(
+        [
+            "claude",
+            "--model", model,
+            "--json-schema", _CLASSIFICATION_SCHEMA,
+            "--output-format", "json",
+            "-p", prompt,
+            "--dangerously-skip-permissions",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    if result.returncode != 0:
+        raise ValueError(f"claude classifier exit {result.returncode}: {result.stderr[:200]}")
 
-    # Extract JSON (may be wrapped in ```json ... ```)
-    m = re.search(r"\{.*\}", text, re.DOTALL)
-    if not m:
-        raise ValueError(f"No JSON in response: {text[:200]}")
-    return json.loads(m.group(0))
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if data.get("type") == "result":
+            raw = data.get("result", "")
+            # --json-schema guarantees valid JSON in result field
+            return json.loads(raw) if isinstance(raw, str) else raw
+
+    raise ValueError(f"No result in claude output: {result.stdout[:300]}")
 
 
 # ── Routing (loaded from agents/routing.yaml at import) ───────────────────────
@@ -619,6 +649,7 @@ SKILL_MAP = {
 
 _AGENT_MISSING_ISSUE_RE = re.compile(
     r"preciso do n[uú]mero da issue|"
+    r"qual [eé] o n[uú]mero da issue|"
     r"what is the issue number|"
     r"issue number is required|"
     r"informe no formato\s*#|"
@@ -723,7 +754,7 @@ def build_prompt(classification: dict, original_message: str, state: dict) -> st
     if intent == "fast_track":
         return _with_issue(original_message)
 
-    if intent in SKILL_MAP:
+    if intent in SKILL_MAP and intent != "stage_impl":
         skill = SKILL_MAP[intent]
         base  = f"{skill}\n\n{original_message}"
         if issue_number:

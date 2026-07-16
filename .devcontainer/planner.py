@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-planner.py — Gemini-powered pipeline planner for autonomous dev-agent runs.
+planner.py — Claude-powered pipeline planner for autonomous dev-agent runs.
 """
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import json
 import logging
 import os
 import re
-import urllib.request
+import subprocess
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -130,32 +130,52 @@ def normalize_plan_issue(plan: Plan, state: dict) -> Plan:
     return plan
 
 
-def _call_gemini(prompt: str) -> str:
-    api_key = os.environ.get("GOOGLE_API_KEY", "")
-    if not api_key:
-        raise ValueError("GOOGLE_API_KEY not set")
+_PLAN_SCHEMA = json.dumps({
+    "type": "object",
+    "required": ["summary", "stages", "autonomous_eligible"],
+    "properties": {
+        "summary":             {"type": "string"},
+        "stages":              {"type": "array", "items": {"type": "string", "enum": PIPELINE_STAGES}},
+        "open_questions":      {"type": "array", "items": {"type": "string"}},
+        "autonomous_eligible": {"type": "boolean"},
+        "issue_number":        {"type": ["integer", "null"]},
+    },
+})
 
+
+def _call_claude_planner(prompt: str) -> str:
     from agents.routing import get_orchestrator_config
-
     orch = get_orchestrator_config()
-    if orch.provider != "gemini":
-        raise ValueError(
-            f"Orchestrator provider {orch.provider!r} is not implemented yet "
-            "(only 'gemini' is supported). Update routing.yaml orchestrator.provider."
-        )
+    model = orch.planner_model or "claude-haiku-4-5-20251001"
 
-    payload = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 768},
-    }).encode()
-    url = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{orch.planner_model}:generateContent?key={api_key}"
+    result = subprocess.run(
+        [
+            "claude",
+            "--model", model,
+            "--json-schema", _PLAN_SCHEMA,
+            "--output-format", "json",
+            "-p", prompt,
+            "--dangerously-skip-permissions",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
-    resp = urllib.request.urlopen(req, timeout=15)
-    body = json.loads(resp.read())
-    return body["candidates"][0]["content"]["parts"][0]["text"].strip()
+    if result.returncode != 0:
+        raise ValueError(f"claude planner exit {result.returncode}: {result.stderr[:200]}")
+
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if data.get("type") == "result":
+            return data.get("result", "")
+
+    raise ValueError(f"No result in claude planner output: {result.stdout[:300]}")
 
 
 def generate_plan(
@@ -164,7 +184,7 @@ def generate_plan(
     *,
     issue_context: str = "",
 ) -> Plan:
-    """Generate a pipeline plan via Gemini, with a deterministic fallback."""
+    """Generate a pipeline plan via Claude, with a deterministic fallback."""
     prompt = PLAN_PROMPT.format(
         message=message,
         state=json.dumps({k: v for k, v in state.items() if k in ("current_stage", "issue_number")}),
@@ -172,13 +192,13 @@ def generate_plan(
         allowed_stages=json.dumps(PIPELINE_STAGES),
     )
     try:
-        text = _call_gemini(prompt)
+        text = _call_claude_planner(prompt)
         plan = parse_plan_response(text)
         if plan:
             return normalize_plan_issue(plan, state)
-        log.warning("planner: no valid JSON in Gemini response: %s", text[:200])
+        log.warning("planner: no valid JSON in claude response: %s", text[:200])
     except Exception as exc:
-        log.warning("planner: Gemini failed: %s", exc)
+        log.warning("planner: claude planner failed: %s", exc)
 
     return _fallback_plan(message, state)
 

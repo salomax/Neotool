@@ -152,7 +152,7 @@ elif [ -n "${API_KEYS_B64:-}" ]; then
     rm -f "$API_KEYS_TMP"
 else
     echo "⚠ [api-keys] Nenhum api-keys.env encontrado."
-    echo "   Mac:   crie ~/.vault-keys/api-keys.env com OPENAI_API_KEY, GOOGLE_API_KEY e GH_TOKEN"
+    echo "   Mac:   crie ~/.vault-keys/api-keys.env com OPENAI_API_KEY e GH_TOKEN"
     echo "   Cloud: export API_KEYS_B64=\$(base64 -i ~/.vault-keys/api-keys.env)"
 fi
 

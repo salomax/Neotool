@@ -301,7 +301,6 @@ if __name__ == "__main__":
 
     log.info("neotool-dev-agent iniciando (DevPod %s, Socket Mode)", _DEVPOD_N)
     log.info("  OPENAI_API_KEY:    %s", "✓" if os.environ.get("OPENAI_API_KEY") else "✗ AUSENTE")
-    log.info("  GOOGLE_API_KEY:    %s", "✓" if os.environ.get("GOOGLE_API_KEY") else "✗ AUSENTE")
     log.info("  GH_TOKEN:          %s", "✓" if os.environ.get("GH_TOKEN") else "✗ AUSENTE")
     log.info("  devpod env:        %s", _DEVPOD_ENV)
 
