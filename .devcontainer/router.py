@@ -1927,7 +1927,7 @@ def _handle_normal_flow(
     action = next_action(state, classification)
 
     if action.kind == "check_usage":
-        return None
+        return write_thread_summary(thread)
 
     if action.kind == "check_config":
         return format_routing_summary(_ROUTING_TABLE)

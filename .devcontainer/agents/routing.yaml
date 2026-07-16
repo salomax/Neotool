@@ -32,6 +32,7 @@ orchestrator:
 stages:
   question:
     agent: claude
+    model: claude-haiku-4-5-20251001
 
   stage_issue:
     agent: claude
