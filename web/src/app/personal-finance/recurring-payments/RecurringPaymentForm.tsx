@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import {
   Alert,
   alpha,
@@ -44,6 +45,7 @@ import type { RecurringPaymentRow } from './recurringPaymentRowModel';
 export type RecurringPaymentRecord = RecurringPaymentRow;
 
 type Frequency = RecurringFrequency;
+const RECURRING_PAYMENT_DUE_DATE_MAX_YEARS = 3;
 
 type FormValues = {
   financialAccountId: string;
@@ -91,6 +93,16 @@ function formatFromTransactionDateLabel(date: string | undefined | null): string
   return new Intl.DateTimeFormat('pt-BR').format(d);
 }
 
+function isDateWithinRange(date: Date | null | undefined, minDate: Date, maxDate: Date): boolean {
+  return isValidDate(date) && date.getTime() >= minDate.getTime() && date.getTime() <= maxDate.getTime();
+}
+
+function clampDateToRange(date: Date, minDate: Date, maxDate: Date): Date {
+  if (date.getTime() < minDate.getTime()) return minDate;
+  if (date.getTime() > maxDate.getTime()) return maxDate;
+  return date;
+}
+
 interface RecurringPaymentFormProps {
   open: boolean;
   onClose: () => void;
@@ -104,6 +116,11 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
   const theme = useTheme();
   const isEdit = Boolean(recurring?.id);
   const isFromTransaction = Boolean(fromTransaction?.id) && !isEdit;
+  const today = useMemo(() => toStartOfDayLocal(new Date()), []);
+  const maxCreateDueDate = useMemo(
+    () => dayjs(today).add(RECURRING_PAYMENT_DUE_DATE_MAX_YEARS, 'year').toDate(),
+    [today],
+  );
 
   const methods = useForm<FormValues>({
     defaultValues: emptyForm(),
@@ -112,6 +129,13 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
   const { reset, handleSubmit, control, setValue } = methods;
 
   const [categoryPickerAnchorEl, setCategoryPickerAnchorEl] = useState<HTMLElement | null>(null);
+  const dueDateValidationSessionKey = `${open ? 'open' : 'closed'}:${recurring?.id ?? 'create'}:${fromTransaction?.id ?? 'none'}`;
+  const [dueDatePickerState, setDueDatePickerState] = useState<{ sessionKey: string; error: string | null }>({
+    sessionKey: dueDateValidationSessionKey,
+    error: null,
+  });
+  const dueDatePickerError =
+    dueDatePickerState.sessionKey === dueDateValidationSessionKey ? dueDatePickerState.error : null;
 
   const { data: accountsData } = useQuery<{ financialAccounts: FinancialAccount[] }>(FINANCIAL_ACCOUNTS, {
     fetchPolicy: 'cache-first',
@@ -172,6 +196,7 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
       const txDate = String(fromTransaction.date ?? '');
       const dayPart = toDateInput(txDate).slice(-2).replace(/^0+/, '');
       const dom = Number(dayPart) || 1;
+      const parsedDueDate = parseDateOnly(toDateInput(txDate)) ?? today;
       reset({
         financialAccountId: fromTransaction.financialAccountId,
         name: fromTransaction.description,
@@ -183,14 +208,14 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
         frequency: RecurringFrequency.Monthly,
         dayOfMonth: Number.isFinite(dom) ? dom : 1,
         intervalDays: '',
-        dueDate: parseDateOnly(toDateInput(txDate)) ?? toStartOfDayLocal(new Date()),
+        dueDate: clampDateToRange(parsedDueDate, today, maxCreateDueDate),
         remindDaysBefore: 10,
         notes: '',
       });
       return;
     }
     reset(emptyForm());
-  }, [open, recurring, fromTransaction, reset]);
+  }, [open, recurring, fromTransaction, reset, today, maxCreateDueDate]);
 
   const creditDebitWatch = useWatch({ control, name: 'creditDebitType', defaultValue: 'DEBIT' });
   const merchantIdVal = useWatch({ control, name: 'merchantId', defaultValue: '' });
@@ -240,7 +265,10 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
         ? state.remindDaysBefore
         : 10;
 
-    if (!isValidDate(state.dueDate)) {
+    if (!isValidDate(state.dueDate) || dueDatePickerError) {
+      return;
+    }
+    if (!isEdit && !isDateWithinRange(state.dueDate, today, maxCreateDueDate)) {
       return;
     }
     const firstDueDate = formatDateOnly(state.dueDate);
@@ -318,14 +346,16 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
     '& .MuiChip-label': { minWidth: 0, maxWidth: '100%', width: '100%', py: 0 },
   } as const;
 
-  const dueDateOk = isValidDate(dueDateWatch as Date | null | undefined);
+  const dueDateOk = isEdit
+    ? isValidDate(dueDateWatch as Date | null | undefined)
+    : isDateWithinRange(dueDateWatch as Date | null | undefined, today, maxCreateDueDate);
 
   return (
     <Drawer open={open} onClose={onClose} anchor="right" size="md" forceMobileTemporary>
       <Drawer.Header title={drawerTitle} />
       <Drawer.Body>
         <FormProvider {...methods}>
-          <form id="recurring-payment-form" onSubmit={handleSubmit(onSubmit)}>
+          <form id="recurring-payment-form" aria-label={drawerTitle} onSubmit={handleSubmit(onSubmit)}>
             <FormStack>
               {isFromTransaction ? (
                 <Alert severity="info">
@@ -512,6 +542,9 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
                 name="dueDate"
                 label={t('recurringPayments.form.firstDueDate')}
                 size="medium"
+                minDate={isEdit ? undefined : today}
+                maxDate={isEdit ? undefined : maxCreateDueDate}
+                onErrorChange={(error) => setDueDatePickerState({ sessionKey: dueDateValidationSessionKey, error })}
                 data-testid="recurring-payment-due-date"
               />
 
@@ -545,7 +578,7 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
           submitText={submitting ? t('financeTransactions.actions.saving') : t('actions.save')}
           onCancel={onClose}
           submitForm="recurring-payment-form"
-          submitDisabled={!nameWatch?.trim() || !dueDateOk || submitting}
+          submitDisabled={!nameWatch?.trim() || !dueDateOk || dueDatePickerError != null || submitting}
           submitting={submitting}
         />
       </Drawer.Footer>

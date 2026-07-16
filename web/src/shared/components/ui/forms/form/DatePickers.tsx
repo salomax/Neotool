@@ -106,6 +106,7 @@ export interface DatePickerFieldProps {
   pickerSlotProps?: DatePickerProps["slotProps"];
   /** Input density; matches `FormTextField` / `MoneyInput` (default `medium`). Overrides `pickerSlotProps.textField.size` when set. */
   size?: DatePickerTextFieldSize;
+  onErrorChange?: (reason: string | null) => void;
   'data-testid'?: string;
 }
 
@@ -252,6 +253,7 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
   openTo,
   pickerSlotProps,
   size,
+  onErrorChange,
   'data-testid': dataTestId,
 }) => {
   const { t } = useTranslation(COMMON_NS);
@@ -268,6 +270,14 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
   );
   const effectiveLabel = label ?? t("datePicker.placeholder");
   const localeText = React.useMemo(() => buildMuiDatePickerLocaleText(t), [t]);
+  const handlePickerError = React.useCallback(
+    (reason: unknown) => {
+      const nextReason = typeof reason === "string" ? reason : null;
+      setPickerError(nextReason);
+      onErrorChange?.(nextReason);
+    },
+    [onErrorChange],
+  );
   const pickerErrorText = React.useMemo(() => {
     if (!pickerError) return undefined;
 
@@ -324,7 +334,7 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
             pickerError={pickerError}
             pickerErrorText={pickerErrorText}
             formatHint={t("datePicker.formatHint")}
-            setPickerError={(reason) => setPickerError(reason as any)}
+            setPickerError={handlePickerError}
           />
         )}
       />
