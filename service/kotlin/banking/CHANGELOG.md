@@ -1,3 +1,13 @@
+## 0.9.2 (2026-07-16)
+
+### 🚀 Features
+
+- **categories:** add five new expense subcategories (GH-380) ([#397](https://github.com/invistus/invistus/pull/397), [#380](https://github.com/invistus/invistus/issues/380))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.9.1 (2026-07-14)
 
 This was a version bump only for banking to align it with other projects, there were no code changes.
