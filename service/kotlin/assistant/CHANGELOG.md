@@ -1,3 +1,7 @@
+## 0.4.6 (2026-07-17)
+
+This was a version bump only for assistant to align it with other projects, there were no code changes.
+
 ## 0.4.5 (2026-07-14)
 
 This was a version bump only for assistant to align it with other projects, there were no code changes.

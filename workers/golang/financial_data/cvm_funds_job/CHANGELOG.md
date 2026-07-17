@@ -1,3 +1,13 @@
+## 0.1.6 (2026-07-17)
+
+### 🩹 Fixes
+
+- **banking:** serialize portfolio recalculation per account ([#400](https://github.com/invistus/invistus/pull/400))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.1.5 (2026-07-10)
 
 This was a version bump only for cvm-funds-job to align it with other projects, there were no code changes.

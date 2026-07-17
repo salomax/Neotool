@@ -1,3 +1,7 @@
+## 0.2.11 (2026-07-17)
+
+This was a version bump only for bacen-ifdata-cronjob to align it with other projects, there were no code changes.
+
 ## 0.2.10 (2026-07-10)
 
 This was a version bump only for bacen-ifdata-cronjob to align it with other projects, there were no code changes.

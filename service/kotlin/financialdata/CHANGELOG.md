@@ -1,3 +1,13 @@
+## 0.6.4 (2026-07-17)
+
+### 🩹 Fixes
+
+- **banking:** serialize portfolio recalculation per account ([#400](https://github.com/invistus/invistus/pull/400))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.6.3 (2026-07-14)
 
 This was a version bump only for financialdata to align it with other projects, there were no code changes.

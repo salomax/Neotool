@@ -1,3 +1,7 @@
+## 0.4.9 (2026-07-17)
+
+This was a version bump only for security to align it with other projects, there were no code changes.
+
 ## 0.4.8 (2026-07-14)
 
 This was a version bump only for security to align it with other projects, there were no code changes.

@@ -1,3 +1,7 @@
+## 0.5.7 (2026-07-17)
+
+This was a version bump only for comms to align it with other projects, there were no code changes.
+
 ## 0.5.6 (2026-07-14)
 
 This was a version bump only for comms to align it with other projects, there were no code changes.

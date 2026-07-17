@@ -1,3 +1,13 @@
+## 0.8.1 (2026-07-17)
+
+### 🩹 Fixes
+
+- **banking:** serialize portfolio recalculation per account ([#400](https://github.com/invistus/invistus/pull/400))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.8.0 (2026-07-16)
 
 ### 🚀 Features
