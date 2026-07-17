@@ -2,20 +2,23 @@
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "defaultBase": "main",
   "cacheDirectory": ".nx/cache",
+  "cli": {
+    "packageManager": "npm"
+  },
   "plugins": [
     {
-      "plugin": "@nx/gradle",
-      "include": ["service/kotlin/**/*"]
-    },
-    {
       "plugin": "@nx/next/plugin",
-      "include": ["web/**/*"]
+      "include": [
+        "web/**/*"
+      ]
     }
   ],
   "targetDefaults": {
     "build": {
       "cache": true,
-      "dependsOn": ["^build"]
+      "dependsOn": [
+        "^build"
+      ]
     },
     "test": {
       "cache": true

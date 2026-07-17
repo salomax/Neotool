@@ -1,5 +1,9 @@
 {
-  "tags": ["type:job", "lang:go"],
+  "name": "ratings-job",
+  "tags": [
+    "type:job",
+    "lang:go"
+  ],
   "targets": {
     "build": {
       "executor": "nx:run-commands",
