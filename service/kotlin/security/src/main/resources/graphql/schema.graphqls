@@ -50,6 +50,48 @@ type Account {
   isOwner: Boolean!
 }
 
+enum AccountRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  REMOVED
+}
+
+type AccountMember {
+  membershipId: ID!
+  accountId: ID!
+  userId: ID
+  email: String!
+  displayName: String
+  avatarUrl: String
+  role: AccountRole!
+  status: MembershipStatus!
+  joinedAt: String
+  invitedAt: String
+  removedAt: String
+  isDefault: Boolean!
+  isCurrentUser: Boolean!
+}
+
+input InviteMemberInput {
+  accountId: ID!
+  email: String!
+  """Interim: only MEMBER is accepted via invite until per-membership RBAC lands."""
+  role: AccountRole = MEMBER
+}
+
+type AcceptInvitationPayload {
+  membershipId: ID!
+  accountId: ID!
+  accountName: String!
+}
+
 input UpdateAccountInput {
   accountName: String!
 }
@@ -71,6 +113,7 @@ extend type Query {
   """Current user's preferences (defaults when no row exists)."""
   userPreferences: UserPreferences!
   myAccounts: [Account!]!
+  accountMembers(accountId: ID!): [AccountMember!]!
 
   # Authorization management queries
   user(id: ID!): User
@@ -98,6 +141,13 @@ extend type Mutation {
   updateUserAvatar(input: UpdateUserAvatarInput!): User!
   removeUserAvatar: User!
   updateAccount(accountId: ID!, input: UpdateAccountInput!): Account!
+  inviteMember(input: InviteMemberInput!): AccountMember!
+  cancelInvitation(accountId: ID!, membershipId: ID!): Boolean!
+  acceptInvitation(token: String!): AcceptInvitationPayload!
+  declineInvitation(token: String!): Boolean!
+  removeMember(accountId: ID!, membershipId: ID!): Boolean!
+  changeMemberRole(accountId: ID!, membershipId: ID!, role: AccountRole!): AccountMember!
+  leaveAccount(accountId: ID!): Boolean!
 
   # Authorization management mutations
   enableUser(userId: ID!): User!

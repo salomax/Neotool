@@ -112,7 +112,7 @@ describe("ProfilePage", () => {
       refetch: vi.fn(),
     });
 
-    mockUseMutation.mockImplementation(() => [vi.fn()]);
+    mockUseMutation.mockImplementation(() => [vi.fn(), { loading: false }]);
   });
 
   it("toggles keepMeConnected preference", async () => {
@@ -160,9 +160,9 @@ describe("ProfilePage", () => {
 
     mockUseMutation.mockImplementation((document: unknown) => {
       if (document === UPDATE_ACCOUNT) {
-        return [updateAccountMutation];
+        return [updateAccountMutation, { loading: false }];
       }
-      return [vi.fn()];
+      return [vi.fn(), { loading: false }];
     });
 
     const view = renderPage();

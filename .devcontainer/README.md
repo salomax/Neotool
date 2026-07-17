@@ -188,6 +188,8 @@ Cada workspace tem git worktree próprio. Sem conflito de porta (VMs separadas).
 docker ps
 
 # Subir Apollo Router (depois de gerar o supergraph)
+# Rover + plugin: baked no DevPod (`neotool dev up --recreate`) e na imagem
+# `invistus-rover` (host/CI: `graphql generate --docker`). Versões em rover-versions.env.
 neotool graphql generate
 docker compose -f infra/docker/docker-compose.local.yml --profile gateway up -d
 
@@ -218,7 +220,8 @@ neotool validate --web
 | Parar (preserva dados) | `devpod stop <nome>` |
 | Retomar | `devpod up <nome>` |
 | Destruir (libera recursos) | `devpod delete <nome>` |
-| Rebuild da imagem | `devpod up <nome> --recreate` |
+| Rebuild da imagem | `devpod up <nome> --recreate` ou `./neotool dev up --recreate` |
+| Rover + plugin GraphQL | baked no rebuild (`rover-versions.env`); sync não baixa plugin em runtime |
 
 ---
 

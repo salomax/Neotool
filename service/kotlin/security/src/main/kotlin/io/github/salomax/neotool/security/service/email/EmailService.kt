@@ -58,7 +58,7 @@ abstract class EmailService(
      * @param acceptLink Full URL for the invitee to accept (frontend + token)
      * @param expiryDays Number of days until the invitation expires
      * @param role Role being offered (e.g. MEMBER, ADMIN)
-     * @param locale Locale for template (default: "en")
+     * @param locale Locale for template (default: "pt")
      */
     abstract fun sendAccountInvitationEmail(
         to: String,
@@ -67,7 +67,7 @@ abstract class EmailService(
         acceptLink: String,
         expiryDays: Long,
         role: String,
-        locale: String = "en",
+        locale: String = "pt",
     )
 
     /**

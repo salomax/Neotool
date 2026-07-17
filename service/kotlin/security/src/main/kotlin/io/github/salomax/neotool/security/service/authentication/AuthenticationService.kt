@@ -500,8 +500,16 @@ open class AuthenticationService(
         val userId = requireNotNull(savedUser.id) { "User ID is required after save" }
         ensureUserPrincipalExists(userId, enabled = true)
 
-        // Create personal account and OWNER membership (FR-2.1); same transaction as user
-        createPersonalAccountAndMembership(userId, name, email)
+        // Invite-before-signup: bind pending invitations and skip personal account when present,
+        // so accepting the invite is not blocked by the v1 1:1 account membership constraint.
+        val boundPendingInvites = bindPendingInvitationsToUser(userId, email)
+        if (boundPendingInvites == 0) {
+            createPersonalAccountAndMembership(userId, name, email)
+        } else {
+            logger.info {
+                "Skipped personal account for $email; bound $boundPendingInvites pending invitation(s)"
+            }
+        }
 
         // Enroll in default group so user inherits standard permissions
         addUserToDefaultGroup(userId)
@@ -773,8 +781,14 @@ open class AuthenticationService(
         val userId = requireNotNull(savedUser.id) { "User ID is required after save" }
         ensureUserPrincipalExists(userId, enabled = true)
 
-        // Create personal account and OWNER membership (FR-2.1); same transaction as user
-        createPersonalAccountAndMembership(userId, claims.name, claims.email)
+        val boundPendingInvites = bindPendingInvitationsToUser(userId, claims.email)
+        if (boundPendingInvites == 0) {
+            createPersonalAccountAndMembership(userId, claims.name, claims.email)
+        } else {
+            logger.info {
+                "Skipped personal account for ${claims.email}; bound $boundPendingInvites pending invitation(s)"
+            }
+        }
 
         // Enroll in default group so user inherits standard permissions
         addUserToDefaultGroup(userId)
@@ -814,6 +828,32 @@ open class AuthenticationService(
         } else {
             trimmed
         }
+    }
+
+    /**
+     * Bind PENDING invite-before-signup memberships to a newly created user.
+     * @return number of pending invitations bound
+     */
+    private fun bindPendingInvitationsToUser(
+        userId: UUID,
+        email: String,
+    ): Int {
+        val normalizedEmail = email.trim().lowercase()
+        val pending =
+            accountMembershipRepository.findByInviteeEmailAndMembershipStatus(
+                normalizedEmail,
+                MembershipStatus.PENDING,
+            )
+        if (pending.isEmpty()) {
+            return 0
+        }
+        pending.forEach { membership ->
+            if (membership.userId == null) {
+                membership.userId = userId
+                accountMembershipRepository.save(membership)
+            }
+        }
+        return pending.size
     }
 
     /**

@@ -15,7 +15,9 @@ const AUTH_ONLY_ROUTES = [
 
 export type SearchParamsLike =
   | { get(key: string): string | null }
-  | URLSearchParams;
+  | URLSearchParams
+  | null
+  | undefined;
 
 const DEFAULT_FALLBACK = '/';
 
@@ -26,6 +28,9 @@ const DEFAULT_FALLBACK = '/';
 export function extractNextFromSearchParams(
   params: SearchParamsLike
 ): string | null {
+  if (!params || typeof params.get !== 'function') {
+    return null;
+  }
   const raw = params.get('next');
   if (raw == null || typeof raw !== 'string') return null;
   const trimmed = raw.trim();
@@ -88,4 +93,19 @@ export function resolvePostLoginRedirect(
 ): string {
   const raw = extractNextFromSearchParams(params);
   return sanitizeRedirectTarget(raw, fallback);
+}
+
+/**
+ * Builds an auth-page href that preserves a safe `next` redirect target when present.
+ * Used for links between /signin and /signup during invitation/deep-link flows.
+ */
+export function buildAuthHrefWithNext(
+  path: "/signin" | "/signup",
+  params: SearchParamsLike,
+): string {
+  const next = resolvePostLoginRedirect(params, "");
+  if (!next) {
+    return path;
+  }
+  return `${path}?next=${encodeURIComponent(next)}`;
 }

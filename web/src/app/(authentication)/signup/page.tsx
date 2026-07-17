@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Container, Box, Typography } from "@mui/material";
 import { SignUpForm } from "@/shared/components/auth/SignUpForm";
 import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
@@ -10,21 +10,31 @@ import { Logo } from "@/shared/ui/brand";
 import { Paper } from "@/shared/components/ui/layout/Paper";
 import { Stack } from "@/shared/components/ui/layout/Stack";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
+import { resolvePostLoginRedirect } from "@/shared/utils/auth/redirect-target";
 import { signupTranslations } from "./i18n";
 
 export default function SignUpPage() {
   const { t } = useTranslation(signupTranslations);
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const { isAuthenticated, isLoading, setPostLoginRedirect } = useAuth();
+  const resolvedTarget = React.useMemo(
+    () => resolvePostLoginRedirect(searchParams, "/"),
+    [searchParams],
+  );
+
+  React.useEffect(() => {
+    setPostLoginRedirect(resolvedTarget);
+  }, [resolvedTarget, setPostLoginRedirect]);
 
   // Redirect if already authenticated
   React.useEffect(() => {
     if (!isLoading && isAuthenticated) {
       const pendingVerificationEmail =
         typeof window !== "undefined" ? sessionStorage.getItem("pendingVerificationEmail") : null;
-      router.push(pendingVerificationEmail ? "/verify-email" : "/");
+      router.push(pendingVerificationEmail ? "/verify-email" : resolvedTarget);
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, resolvedTarget, router]);
 
   if (isLoading) {
     return (

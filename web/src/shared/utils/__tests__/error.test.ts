@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import i18n from '@/shared/i18n/config';
-import { cleanErrorMessage, extractErrorCode, extractErrorMessage, extractErrorParameters } from '../error';
+import { cleanErrorMessage, extractErrorCode, extractErrorFields, extractErrorMessage, extractErrorParameters } from '../error';
 
 describe('error utilities', () => {
   describe('cleanErrorMessage', () => {
@@ -311,6 +311,39 @@ describe('error utilities', () => {
     it('should return undefined when no code is present', () => {
       const error = { graphQLErrors: [{ message: 'Invalid email or password' }] };
       expect(extractErrorCode(error)).toBeUndefined();
+    });
+  });
+
+  describe('extractErrorFields', () => {
+    it('should extract field array from graphQLErrors extensions', () => {
+      const error = {
+        graphQLErrors: [
+          {
+            message: 'Invitation token is invalid or not for this user',
+            extensions: { code: 'INVITATION_INVALID', field: ['actorUserId'] },
+          },
+        ],
+      };
+      expect(extractErrorFields(error)).toEqual(['actorUserId']);
+    });
+
+    it('should extract a single field string', () => {
+      const error = {
+        graphQLErrors: [
+          {
+            message: 'Invalid token',
+            extensions: { code: 'INVITATION_INVALID', field: 'invitationToken' },
+          },
+        ],
+      };
+      expect(extractErrorFields(error)).toEqual(['invitationToken']);
+    });
+
+    it('should return an empty array when field is missing', () => {
+      const error = {
+        graphQLErrors: [{ message: 'Invitation is invalid', extensions: { code: 'INVITATION_INVALID' } }],
+      };
+      expect(extractErrorFields(error)).toEqual([]);
     });
   });
 

@@ -47,9 +47,11 @@ import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.dto.UserEdgeDTO
 import io.github.salomax.neotool.security.graphql.dto.UserPreferencesDTO
+import io.github.salomax.neotool.security.graphql.mapper.AccountMembershipMapper
 import io.github.salomax.neotool.security.graphql.mapper.GroupManagementMapper
 import io.github.salomax.neotool.security.graphql.mapper.RoleManagementMapper
 import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
+import io.github.salomax.neotool.security.graphql.resolver.AccountMembershipResolver
 import io.github.salomax.neotool.security.graphql.resolver.AccountResolver
 import io.github.salomax.neotool.security.graphql.resolver.GroupManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.PermissionManagementResolver
@@ -66,6 +68,7 @@ import java.util.concurrent.CompletableFuture
 class SecurityWiringFactory(
     private val userPreferencesResolver: UserPreferencesResolver,
     private val accountResolver: AccountResolver,
+    private val accountMembershipResolver: AccountMembershipResolver,
     private val authResolver: SecurityAuthResolver,
     private val emailVerificationResolver: EmailVerificationResolver,
     private val authorizationResolver: io.github.salomax.neotool.security.graphql.resolver.AuthorizationResolver,
@@ -73,6 +76,7 @@ class SecurityWiringFactory(
     private val groupManagementResolver: GroupManagementResolver,
     private val roleManagementResolver: RoleManagementResolver,
     private val permissionManagementResolver: PermissionManagementResolver,
+    private val accountMembershipMapper: AccountMembershipMapper,
     private val groupManagementMapper: GroupManagementMapper,
     private val roleManagementMapper: RoleManagementMapper,
     private val userManagementMapper: UserManagementMapper,
@@ -207,6 +211,13 @@ class SecurityWiringFactory(
                 createValidatedDataFetcher(emptyList()) { env ->
                     val principal = env.principal()
                     accountResolver.myAccounts(principal)
+                },
+            ).dataFetcher(
+                "accountMembers",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val accountId = getRequiredString(env, "accountId")
+                    accountMembershipResolver.accountMembers(accountId, principal)
                 },
             ).dataFetcher(
                 "checkPermission",
@@ -414,6 +425,61 @@ class SecurityWiringFactory(
                         env.getArgument<Map<String, Any?>>("input")
                             ?: throw IllegalArgumentException("input is required")
                     accountResolver.updateAccount(accountId, input, principal)
+                },
+            ).dataFetcher(
+                "inviteMember",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val input =
+                        env.getArgument<Map<String, Any?>>("input")
+                            ?: throw IllegalArgumentException("input is required")
+                    accountMembershipResolver.inviteMember(input, principal)
+                },
+            ).dataFetcher(
+                "cancelInvitation",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val accountId = getRequiredString(env, "accountId")
+                    val membershipId = getRequiredString(env, "membershipId")
+                    accountMembershipResolver.cancelInvitation(accountId, membershipId, principal)
+                },
+            ).dataFetcher(
+                "acceptInvitation",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val token = getRequiredString(env, "token")
+                    accountMembershipResolver.acceptInvitation(token, principal)
+                },
+            ).dataFetcher(
+                "declineInvitation",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val token = getRequiredString(env, "token")
+                    accountMembershipResolver.declineInvitation(token, principal)
+                },
+            ).dataFetcher(
+                "removeMember",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val accountId = getRequiredString(env, "accountId")
+                    val membershipId = getRequiredString(env, "membershipId")
+                    accountMembershipResolver.removeMember(accountId, membershipId, principal)
+                },
+            ).dataFetcher(
+                "changeMemberRole",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val accountId = getRequiredString(env, "accountId")
+                    val membershipId = getRequiredString(env, "membershipId")
+                    val role = getRequiredString(env, "role")
+                    accountMembershipResolver.changeMemberRole(accountId, membershipId, role, principal)
+                },
+            ).dataFetcher(
+                "leaveAccount",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val accountId = getRequiredString(env, "accountId")
+                    accountMembershipResolver.leaveAccount(accountId, principal)
                 },
             ).dataFetcher(
                 "enableUser",

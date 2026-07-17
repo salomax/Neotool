@@ -90,6 +90,11 @@ enum class SecurityErrorCode(
 
     // Invitation (FR-4)
     ALREADY_MEMBER("ALREADY_MEMBER", "User is already a member of this account", 409),
+    ACCOUNT_ALREADY_MEMBER(
+        "ACCOUNT_ALREADY_MEMBER",
+        "You already have an active account. A user can only be associated with one account.",
+        409,
+    ),
     MEMBER_LIMIT_REACHED("MEMBER_LIMIT_REACHED", "Account has reached maximum members for its type", 409),
     INVITATION_EXPIRED("INVITATION_EXPIRED", "Invitation has expired", 400),
     INVITATION_INVALID("INVITATION_INVALID", "Invitation token is invalid or not for this user", 400),

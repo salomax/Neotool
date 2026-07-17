@@ -27,6 +27,8 @@ import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
 import { signupTranslations } from "@/app/(authentication)/signup/i18n";
 import { validatePassword, passwordValidationRules } from "@/shared/utils/passwordValidation";
 import { extractErrorMessage } from "@/shared/utils/error";
+import { useSearchParams } from "next/navigation";
+import { buildAuthHrefWithNext } from "@/shared/utils/auth/redirect-target";
 
 const signUpSchema = z.object({
   name: z.string().min(1, "errors.required"),
@@ -59,6 +61,11 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSuccess }) => {
   const { t, tCommon } = useTranslation(signupTranslations);
   const { signUp } = useAuth();
   const { error: showError } = useToast();
+  const searchParams = useSearchParams();
+  const signinHref = React.useMemo(
+    () => buildAuthHrefWithNext("/signin", searchParams),
+    [searchParams],
+  );
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -257,7 +264,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({ onSuccess }) => {
             <Typography variant="body2" color="text.secondary" component="span">
               {t("alreadyHaveAccount")}{" "}
             </Typography>
-            <Link component={NextLink} href="/signin" name="signin-link">
+            <Link component={NextLink} href={signinHref} name="signin-link">
               {t("signIn")}
             </Link>
           </Box>

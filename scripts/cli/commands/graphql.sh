@@ -43,7 +43,7 @@ Subcommands:
     Alias of "sync" (kept for backwards compatibility).
 
 Options:
-  --docker    Use Docker for rover (useful for CI/CD)
+  --docker    Use baked invistus-rover image (plugin included; build via `neotool dev up --recreate`)
   --production   Generate only the production supergraph (default)
   --all          Generate production + local + staging supergraphs
   --sync-flux    Copy production supergraph files into the Flux repo (default)
@@ -53,6 +53,7 @@ Options:
 Environment variables:
   CI=true              - Use Docker for rover (CI environment)
   USE_DOCKER_ROVER=true - Force Docker usage for rover
+  ROVER_DOCKER_IMAGE   - Override baked image (default: invistus-rover:<rover>-sg<plugin>)
 
 Examples:
   $0 sync
@@ -62,6 +63,9 @@ Examples:
   $0 generate --all
   $0 generate --no-sync-flux
   $0 all
+
+Rover / supergraph plugin are pinned in .devcontainer/rover-versions.env and baked at:
+  ./neotool dev up --recreate
 
 For more information, see: scripts/cli/commands/graphql/sync-schemas.sh
 EOF

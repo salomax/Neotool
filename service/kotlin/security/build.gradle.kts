@@ -106,3 +106,21 @@ tasks.register<Test>("testIntegration") {
         }
     }
 }
+
+// Security-specific Kover exclusions:
+// GraphQL resolvers are thin adapters (principal → service → DTO). Business coverage is
+// enforced on services / policy engines; GraphQL mutation ITs cover the wire when needed.
+afterEvaluate {
+    extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
+        reports {
+            filters {
+                excludes {
+                    classes(
+                        "io.github.salomax.neotool.security.graphql.resolver.*",
+                        "io.github.salomax.neotool.security.graphql.*Resolver",
+                    )
+                }
+            }
+        }
+    }
+}

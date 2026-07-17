@@ -180,12 +180,46 @@ RUN EXISTING_GROUP="$(getent group ${USER_GID} | cut -d: -f1)" \
 # Playwright browsers (stored under /ms-playwright) must be readable by dev user
 RUN chmod -R 755 /ms-playwright 2>/dev/null || true
 
+# -----------------------------------------------------------------------------
+# 12b. Apollo Rover + supergraph composition plugin (pinned, offline for sync)
+#      Download happens only at image build (`neotool dev up` / `--recreate`).
+#      Keep versions in sync with .devcontainer/rover-versions.env
+# -----------------------------------------------------------------------------
+ARG ROVER_VERSION=0.40.0
+ARG SUPERGRAPH_PLUGIN_VERSION=2.15.0
+ENV APOLLO_ELV2_LICENSE=accept
+RUN ARCH=$(dpkg --print-architecture) \
+    && case "$ARCH" in \
+         amd64) RARCH=x86_64-unknown-linux-gnu; SARCH=x86_64-unknown-linux-gnu ;; \
+         arm64) RARCH=aarch64-unknown-linux-gnu; SARCH=aarch64-unknown-linux-gnu ;; \
+         *) echo "Unsupported arch: $ARCH" >&2; exit 1 ;; \
+       esac \
+    && echo "Installing Rover v${ROVER_VERSION} (${RARCH})..." \
+    && curl -fsSL "https://github.com/apollographql/rover/releases/download/v${ROVER_VERSION}/rover-v${ROVER_VERSION}-${RARCH}.tar.gz" \
+         | tar -xz -C /tmp \
+    && install -m 755 /tmp/dist/rover /usr/local/bin/rover \
+    && rm -rf /tmp/dist \
+    && echo "Installing supergraph plugin v${SUPERGRAPH_PLUGIN_VERSION} (${SARCH})..." \
+    && mkdir -p /home/${USERNAME}/.rover/bin /home/${USERNAME}/.config/rover \
+    && curl -fsSL "https://rover.apollo.dev/tar/supergraph/${SARCH}/v${SUPERGRAPH_PLUGIN_VERSION}" \
+         | tar -xz -C /tmp \
+    && install -m 755 /tmp/dist/supergraph \
+         /home/${USERNAME}/.rover/bin/supergraph-v${SUPERGRAPH_PLUGIN_VERSION} \
+    && rm -rf /tmp/dist \
+    && printf 'accepted = true\n' > /home/${USERNAME}/.config/rover/elv2_license.toml \
+    && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.rover /home/${USERNAME}/.config/rover \
+    && rover --version
+
 # Gradle user-home inside the container (caches downloaded wrappers/deps)
 ENV GRADLE_USER_HOME=/home/${USERNAME}/.gradle
 
 # -----------------------------------------------------------------------------
 # 13. Finalize
 # -----------------------------------------------------------------------------
+# Re-declare so smoke-test stays in sync with ARG defaults / build.args
+ARG SUPERGRAPH_PLUGIN_VERSION
+ARG USERNAME
+
 USER ${USERNAME}
 
 # .zshrc — history, autosuggestions, syntax highlighting, fzf
@@ -199,5 +233,7 @@ RUN java -version \
     && npm --version \
     && git --version \
     && gh --version \
+    && rover --version \
+    && test -x "/home/${USERNAME}/.rover/bin/supergraph-v${SUPERGRAPH_PLUGIN_VERSION}" \
     && cursor --help > /dev/null 2>&1 || true \
     && cloudflared --version 2>&1 || true

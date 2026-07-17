@@ -3,6 +3,7 @@ package io.github.salomax.neotool.security.service.management.membership
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.security.domain.AccountMembership
+import io.github.salomax.neotool.security.domain.preferences.Language
 import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.account.AccountMembershipEntity
 import io.github.salomax.neotool.security.model.account.AccountRole
@@ -13,11 +14,13 @@ import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.email.EmailService
+import io.github.salomax.neotool.security.service.preferences.UserPreferencesService
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import mu.KotlinLogging
 import java.security.SecureRandom
 import java.time.Instant
+import java.util.UUID
 
 /** Max members per account type (FR-1.1). */
 private fun maxMembersForAccountType(accountType: AccountType): Int =
@@ -30,6 +33,7 @@ private fun maxMembersForAccountType(accountType: AccountType): Int =
 private const val INVITATION_EXPIRY_DAYS = 7L
 private const val TOKEN_BYTES = 32
 private const val TOKEN_UNIQUE_RETRIES = 5
+private const val DEFAULT_INVITATION_LOCALE = "pt"
 
 /**
  * Service for account membership and invitation operations (FR-4).
@@ -43,15 +47,18 @@ open class AccountMembershipService(
     private val userRepository: UserRepository,
     private val membershipPolicyEngine: MembershipPolicyEngine,
     private val emailService: EmailService,
+    private val userPreferencesService: UserPreferencesService,
 ) {
     private val logger = KotlinLogging.logger {}
     private val secureRandom = SecureRandom()
 
     /**
-     * Issue an invitation to an existing user by email (FR-4.1).
+     * Issue an invitation by email (FR-4.1).
      * Creates a PENDING membership with secure token and 7-day expiry.
+     * The invitee does not need an existing platform user — invite-before-signup stores
+     * the email and binds the user later at registration / acceptance.
      *
-     * @throws ValidationException with NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT, USER_NOT_FOUND,
+     * @throws ValidationException with NOT_ACCOUNT_MEMBER, ACCOUNT_ROLE_INSUFFICIENT,
      *   ALREADY_MEMBER, MEMBER_LIMIT_REACHED
      */
     @Transactional
@@ -81,21 +88,66 @@ open class AccountMembershipService(
                 )
         }
 
-        val invitee =
-            userRepository.findByEmail(command.inviteeEmail.trim())
-                ?: throw ValidationException(SecurityErrorCode.USER_NOT_FOUND, field = "inviteeEmail")
+        val normalizedEmail = command.inviteeEmail.trim().lowercase()
 
-        val existing =
+        val invitee =
+            userRepository.findByEmail(normalizedEmail)
+                ?: userRepository.findByEmail(command.inviteeEmail.trim())
+
+        if (invitee != null) {
+            val activeElsewhere =
+                accountMembershipRepository
+                    .findByUserIdAndMembershipStatus(invitee.id!!, MembershipStatus.ACTIVE)
+                    .any { it.accountId != command.accountId }
+            if (activeElsewhere) {
+                throw ValidationException(SecurityErrorCode.ACCOUNT_ALREADY_MEMBER, field = "inviteeEmail")
+            }
+
+            val existing =
+                accountMembershipRepository
+                    .findOneByAccountIdAndUserId(command.accountId, invitee.id!!)
+                    .orElse(null)
+            if (existing != null &&
+                (
+                    existing.membershipStatus == MembershipStatus.ACTIVE ||
+                        existing.membershipStatus == MembershipStatus.PENDING
+                )
+            ) {
+                throw ValidationException(SecurityErrorCode.ALREADY_MEMBER, field = "inviteeEmail")
+            }
+            if (existing != null && existing.membershipStatus == MembershipStatus.REMOVED) {
+                return reactivateInvitation(
+                    existing = existing,
+                    inviteeUserId = invitee.id,
+                    inviteeEmail = normalizedEmail,
+                    role = command.role,
+                    inviterUserId = command.inviterUserId,
+                    accountName = account.accountName,
+                )
+            }
+        }
+
+        val existingByEmail =
             accountMembershipRepository
-                .findOneByAccountIdAndUserId(command.accountId, invitee.id!!)
+                .findOneByAccountIdAndInviteeEmail(command.accountId, normalizedEmail)
                 .orElse(null)
-        if (existing != null &&
+        if (existingByEmail != null &&
             (
-                existing.membershipStatus == MembershipStatus.ACTIVE ||
-                    existing.membershipStatus == MembershipStatus.PENDING
+                existingByEmail.membershipStatus == MembershipStatus.ACTIVE ||
+                    existingByEmail.membershipStatus == MembershipStatus.PENDING
             )
         ) {
             throw ValidationException(SecurityErrorCode.ALREADY_MEMBER, field = "inviteeEmail")
+        }
+        if (existingByEmail != null && existingByEmail.membershipStatus == MembershipStatus.REMOVED) {
+            return reactivateInvitation(
+                existing = existingByEmail,
+                inviteeUserId = invitee?.id ?: existingByEmail.userId,
+                inviteeEmail = normalizedEmail,
+                role = command.role,
+                inviterUserId = command.inviterUserId,
+                accountName = account.accountName,
+            )
         }
 
         if (account.accountType == AccountType.PERSONAL) {
@@ -117,7 +169,7 @@ open class AccountMembershipService(
         val membership =
             AccountMembershipEntity(
                 accountId = command.accountId,
-                userId = invitee.id!!,
+                userId = invitee?.id,
                 accountRole = command.role,
                 membershipStatus = MembershipStatus.PENDING,
                 joinedAt = null,
@@ -126,36 +178,26 @@ open class AccountMembershipService(
                 invitedAt = now,
                 invitationToken = token,
                 invitationExpiresAt = expiresAt,
+                inviteeEmail = normalizedEmail,
             )
         val saved = accountMembershipRepository.save(membership)
 
-        try {
-            val inviter = userRepository.findById(command.inviterUserId).orElse(null)
-            val inviterDisplayName = inviter?.displayName?.takeIf { it.isNotBlank() } ?: inviter?.email
-            val acceptLink = emailService.buildInvitationAcceptUrl(token)
-            emailService.sendAccountInvitationEmail(
-                to = command.inviteeEmail.trim(),
-                inviterDisplayName = inviterDisplayName,
-                accountName = account.accountName,
-                acceptLink = acceptLink,
-                expiryDays = INVITATION_EXPIRY_DAYS,
-                role = command.role.name,
-                locale = "en",
-            )
-        } catch (e: Exception) {
-            logger.error(e) {
-                "Failed to send invitation email to ${command.inviteeEmail}; membership already created"
-            }
-        }
+        sendInvitationEmail(
+            inviteeEmail = normalizedEmail,
+            inviterUserId = command.inviterUserId,
+            accountName = account.accountName,
+            token = token,
+            role = command.role,
+        )
 
         logger.info {
-            "Invitation issued: account=${command.accountId}, invitee=${command.inviteeEmail}, role=${command.role}"
+            "Invitation issued: account=${command.accountId}, invitee=$normalizedEmail, role=${command.role}"
         }
         return AccountMembership.InvitationResult(
             membershipId = saved.id!!,
             invitationToken = token,
             expiresAt = expiresAt,
-            inviteeEmail = command.inviteeEmail.trim(),
+            inviteeEmail = normalizedEmail,
             role = command.role,
         )
     }
@@ -232,7 +274,17 @@ open class AccountMembershipService(
                 .orElseThrow {
                     ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "invitationToken")
                 }
-        if (membership.userId != command.actorUserId) {
+
+        val actor =
+            userRepository.findById(command.actorUserId).orElseThrow {
+                ValidationException(SecurityErrorCode.USER_NOT_FOUND, field = "actorUserId")
+            }
+        val actorEmail = actor.email.trim().lowercase()
+        val inviteeEmail = membership.inviteeEmail?.trim()?.lowercase()
+        val isInvitee =
+            membership.userId == command.actorUserId ||
+                (membership.userId == null && inviteeEmail != null && inviteeEmail == actorEmail)
+        if (!isInvitee) {
             throw ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "actorUserId")
         }
         if (membership.invitationExpiresAt == null || membership.invitationExpiresAt!! < Instant.now()) {
@@ -242,10 +294,21 @@ open class AccountMembershipService(
             throw ValidationException(SecurityErrorCode.NOT_PENDING_INVITATION, field = "invitationToken")
         }
 
+        val activeMemberships =
+            accountMembershipRepository.findByUserIdAndMembershipStatus(command.actorUserId, MembershipStatus.ACTIVE)
+        if (activeMemberships.any { it.accountId != membership.accountId }) {
+            throw ValidationException(SecurityErrorCode.ACCOUNT_ALREADY_MEMBER, field = "actorUserId")
+        }
+
+        membership.userId = command.actorUserId
+        membership.inviteeEmail = inviteeEmail ?: actorEmail
         membership.membershipStatus = MembershipStatus.ACTIVE
         membership.joinedAt = Instant.now()
         membership.invitationToken = null
         membership.invitationExpiresAt = null
+        if (activeMemberships.isEmpty()) {
+            membership.isDefault = true
+        }
         accountMembershipRepository.save(membership)
 
         logger.info {
@@ -272,7 +335,16 @@ open class AccountMembershipService(
                 .orElseThrow {
                     ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "invitationToken")
                 }
-        if (membership.userId != command.actorUserId) {
+        val actor =
+            userRepository.findById(command.actorUserId).orElseThrow {
+                ValidationException(SecurityErrorCode.USER_NOT_FOUND, field = "actorUserId")
+            }
+        val actorEmail = actor.email.trim().lowercase()
+        val inviteeEmail = membership.inviteeEmail?.trim()?.lowercase()
+        val isInvitee =
+            membership.userId == command.actorUserId ||
+                (membership.userId == null && inviteeEmail != null && inviteeEmail == actorEmail)
+        if (!isInvitee) {
             throw ValidationException(SecurityErrorCode.INVITATION_INVALID, field = "actorUserId")
         }
         if (membership.membershipStatus != MembershipStatus.PENDING) {
@@ -415,6 +487,7 @@ open class AccountMembershipService(
 
         val now = Instant.now()
         targetMembership.membershipStatus = MembershipStatus.REMOVED
+        targetMembership.isDefault = false
         targetMembership.removedAt = now
         targetMembership.removedBy = command.actorUserId
         accountMembershipRepository.save(targetMembership)
@@ -477,6 +550,7 @@ open class AccountMembershipService(
 
         val now = Instant.now()
         actorMembership.membershipStatus = MembershipStatus.REMOVED
+        actorMembership.isDefault = false
         actorMembership.removedAt = now
         actorMembership.removedBy = null
         accountMembershipRepository.save(actorMembership)
@@ -539,6 +613,96 @@ open class AccountMembershipService(
         }
     }
 
+    private fun reactivateInvitation(
+        existing: AccountMembershipEntity,
+        inviteeUserId: UUID?,
+        inviteeEmail: String,
+        role: AccountRole,
+        inviterUserId: UUID,
+        accountName: String,
+    ): AccountMembership.InvitationResult {
+        val statuses = listOf(MembershipStatus.ACTIVE, MembershipStatus.PENDING)
+        val currentCount =
+            accountMembershipRepository
+                .countByAccountIdAndMembershipStatusIn(existing.accountId, statuses)
+        val account =
+            accountRepository.findById(existing.accountId)
+                .orElseThrow { ValidationException(SecurityErrorCode.ACCOUNT_NOT_FOUND, field = "accountId") }
+        if (account.accountType == AccountType.PERSONAL) {
+            throw ValidationException(SecurityErrorCode.MEMBER_LIMIT_REACHED, field = "accountId")
+        }
+        val maxMembers = maxMembersForAccountType(account.accountType)
+        if (currentCount >= maxMembers) {
+            throw ValidationException(SecurityErrorCode.MEMBER_LIMIT_REACHED, field = "accountId")
+        }
+
+        val now = Instant.now()
+        val expiresAt = now.plusSeconds(INVITATION_EXPIRY_DAYS * 24 * 60 * 60)
+        val token = generateUniqueInvitationToken()
+
+        existing.userId = inviteeUserId
+        existing.accountRole = role
+        existing.membershipStatus = MembershipStatus.PENDING
+        existing.joinedAt = null
+        existing.isDefault = false
+        existing.invitedBy = inviterUserId
+        existing.invitedAt = now
+        existing.invitationToken = token
+        existing.invitationExpiresAt = expiresAt
+        existing.inviteeEmail = inviteeEmail
+        existing.removedAt = null
+        existing.removedBy = null
+        val saved = accountMembershipRepository.save(existing)
+
+        sendInvitationEmail(
+            inviteeEmail = inviteeEmail,
+            inviterUserId = inviterUserId,
+            accountName = accountName,
+            token = token,
+            role = role,
+        )
+
+        logger.info {
+            "Invitation reissued for removed membership: " +
+                "membershipId=${saved.id}, account=${existing.accountId}, invitee=$inviteeEmail"
+        }
+        return AccountMembership.InvitationResult(
+            membershipId = saved.id!!,
+            invitationToken = token,
+            expiresAt = expiresAt,
+            inviteeEmail = inviteeEmail,
+            role = role,
+        )
+    }
+
+    private fun sendInvitationEmail(
+        inviteeEmail: String,
+        inviterUserId: UUID,
+        accountName: String,
+        token: String,
+        role: AccountRole,
+    ) {
+        try {
+            val inviter = userRepository.findById(inviterUserId).orElse(null)
+            val inviterDisplayName = inviter?.displayName?.takeIf { it.isNotBlank() } ?: inviter?.email
+            val locale = resolveInvitationLocale(inviterUserId)
+            val acceptLink = emailService.buildInvitationAcceptUrl(token)
+            emailService.sendAccountInvitationEmail(
+                to = inviteeEmail,
+                inviterDisplayName = inviterDisplayName,
+                accountName = accountName,
+                acceptLink = acceptLink,
+                expiryDays = INVITATION_EXPIRY_DAYS,
+                role = localizedRoleLabel(role, locale),
+                locale = locale,
+            )
+        } catch (e: Exception) {
+            logger.error(e) {
+                "Failed to send invitation email to $inviteeEmail; membership already created"
+            }
+        }
+    }
+
     private fun generateSecureToken(): String {
         val bytes = ByteArray(TOKEN_BYTES)
         secureRandom.nextBytes(bytes)
@@ -553,5 +717,28 @@ open class AccountMembershipService(
             }
         }
         throw IllegalStateException("Could not generate unique invitation token after $TOKEN_UNIQUE_RETRIES attempts")
+    }
+
+    /**
+     * Invitation emails use the inviter's language preference (app default is Portuguese).
+     * The invitee typically has no preferences yet.
+     */
+    private fun resolveInvitationLocale(inviterUserId: UUID): String =
+        when (userPreferencesService.get(inviterUserId).language) {
+            Language.ENGLISH -> "en"
+            Language.PORTUGUESE -> DEFAULT_INVITATION_LOCALE
+        }
+
+    private fun localizedRoleLabel(
+        role: AccountRole,
+        locale: String,
+    ): String {
+        val isPortuguese = locale.lowercase().startsWith("pt")
+        return when (role) {
+            AccountRole.OWNER -> if (isPortuguese) "Proprietário" else "Owner"
+            AccountRole.ADMIN -> if (isPortuguese) "Administrador" else "Admin"
+            AccountRole.MEMBER -> if (isPortuguese) "Membro" else "Member"
+            AccountRole.VIEWER -> if (isPortuguese) "Visualizador" else "Viewer"
+        }
     }
 }

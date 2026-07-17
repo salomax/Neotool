@@ -7,6 +7,7 @@ import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.domain.AccountManagement
 import io.github.salomax.neotool.security.domain.AccountMembership
 import io.github.salomax.neotool.security.error.SecurityErrorCode
+import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.model.account.AccountRole
 import io.github.salomax.neotool.security.model.account.MembershipStatus
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
@@ -67,6 +68,23 @@ class AccountMembershipServiceIntegrationTest :
 
     private fun uniqueEmail(prefix: String) = SecurityTestDataBuilders.uniqueEmail(prefix)
 
+    private fun createUserWithoutAccount(
+        name: String,
+        email: String,
+    ): UserEntity {
+        val saved =
+            authenticationService.saveUser(
+                UserEntity(
+                    email = email,
+                    displayName = name,
+                    passwordHash = authenticationService.hashPassword("TestPassword123!"),
+                    emailVerified = true,
+                ),
+            )
+        authenticationService.ensureUserPrincipalExists(requireNotNull(saved.id))
+        return saved
+    }
+
     @BeforeEach
     fun cleanupBefore() {
         cleanupTestData()
@@ -98,9 +116,8 @@ class AccountMembershipServiceIntegrationTest :
         val ownerEmail = uniqueEmail("invite-owner")
         val inviteeEmail = uniqueEmail("invitee")
         authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
-        authenticationService.registerUser("Invitee", inviteeEmail, "TestPassword123!")
         val owner = userRepository.findByEmail(ownerEmail)!!
-        val invitee = userRepository.findByEmail(inviteeEmail)!!
+        val invitee = createUserWithoutAccount("Invitee", inviteeEmail)
 
         val createCmd =
             AccountManagement.CreateAccountCommand(
@@ -144,13 +161,65 @@ class AccountMembershipServiceIntegrationTest :
     }
 
     @Test
+    fun `invite succeeds for email without platform user then register and accept`() {
+        val ownerEmail = uniqueEmail("invite-new-owner")
+        val inviteeEmail = uniqueEmail("invite-new-invitee")
+        authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
+        val owner = userRepository.findByEmail(ownerEmail)!!
+
+        val createCmd =
+            AccountManagement.CreateAccountCommand(
+                accountName = "Family Account",
+                accountType = io.github.salomax.neotool.security.model.account.AccountType.FAMILY,
+                ownerUserId = owner.id!!,
+            )
+        val account = accountService.create(createCmd)
+        val accountId = account.id!!
+
+        val inviteCmd =
+            AccountMembership.InviteMemberCommand(
+                accountId = accountId,
+                inviterUserId = owner.id!!,
+                inviteeEmail = inviteeEmail,
+                role = AccountRole.MEMBER,
+            )
+        val invitation = accountMembershipService.invite(inviteCmd)
+
+        assertThat(invitation.membershipId).isNotNull()
+        assertThat(invitation.inviteeEmail).isEqualTo(inviteeEmail.lowercase())
+        val pendingBeforeSignup =
+            accountMembershipRepository.findOneByAccountIdAndInviteeEmail(accountId, inviteeEmail.lowercase())
+        assertThat(pendingBeforeSignup).isPresent
+        assertThat(pendingBeforeSignup.get().userId).isNull()
+        assertThat(pendingBeforeSignup.get().membershipStatus).isEqualTo(MembershipStatus.PENDING)
+
+        authenticationService.registerUser("Invitee", inviteeEmail, "TestPassword123!")
+        val invitee = userRepository.findByEmail(inviteeEmail)!!
+        assertThat(
+            accountMembershipRepository.findByUserIdAndMembershipStatus(invitee.id!!, MembershipStatus.ACTIVE),
+        ).isEmpty()
+
+        val acceptCmd =
+            AccountMembership.AcceptInvitationCommand(
+                invitationToken = invitation.invitationToken,
+                actorUserId = invitee.id!!,
+            )
+        val accepted = accountMembershipService.acceptInvitation(acceptCmd)
+        assertThat(accepted.accountId).isEqualTo(accountId)
+
+        val active = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, invitee.id!!)
+        assertThat(active).isPresent
+        assertThat(active.get().membershipStatus).isEqualTo(MembershipStatus.ACTIVE)
+        assertThat(active.get().accountRole).isEqualTo(AccountRole.MEMBER)
+    }
+
+    @Test
     fun `invite throws ALREADY_MEMBER when invitee already in account`() {
         val ownerEmail = uniqueEmail("dup-owner")
         val memberEmail = uniqueEmail("dup-member")
         authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
-        authenticationService.registerUser("Member", memberEmail, "TestPassword123!")
         val owner = userRepository.findByEmail(ownerEmail)!!
-        val member = userRepository.findByEmail(memberEmail)!!
+        val member = createUserWithoutAccount("Member", memberEmail)
 
         val createCmd =
             AccountManagement.CreateAccountCommand(
@@ -168,7 +237,13 @@ class AccountMembershipServiceIntegrationTest :
                 inviteeEmail = memberEmail,
                 role = AccountRole.MEMBER,
             )
-        accountMembershipService.invite(inviteCmd)
+        val invitation = accountMembershipService.invite(inviteCmd)
+        accountMembershipService.acceptInvitation(
+            AccountMembership.AcceptInvitationCommand(
+                invitationToken = invitation.invitationToken,
+                actorUserId = member.id!!,
+            ),
+        )
 
         assertThrows<ValidationException> {
             accountMembershipService.invite(inviteCmd)
@@ -180,9 +255,8 @@ class AccountMembershipServiceIntegrationTest :
         val ownerEmail = uniqueEmail("accept-owner")
         val inviteeEmail = uniqueEmail("accept-invitee")
         authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
-        authenticationService.registerUser("Invitee", inviteeEmail, "TestPassword123!")
         val owner = userRepository.findByEmail(ownerEmail)!!
-        val invitee = userRepository.findByEmail(inviteeEmail)!!
+        val invitee = createUserWithoutAccount("Invitee", inviteeEmail)
 
         val createCmd =
             AccountManagement.CreateAccountCommand(
@@ -224,9 +298,8 @@ class AccountMembershipServiceIntegrationTest :
         val ownerEmail = uniqueEmail("decline-owner")
         val inviteeEmail = uniqueEmail("decline-invitee")
         authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
-        authenticationService.registerUser("Invitee", inviteeEmail, "TestPassword123!")
         val owner = userRepository.findByEmail(ownerEmail)!!
-        val invitee = userRepository.findByEmail(inviteeEmail)!!
+        val invitee = createUserWithoutAccount("Invitee", inviteeEmail)
 
         val createCmd =
             AccountManagement.CreateAccountCommand(
@@ -264,11 +337,9 @@ class AccountMembershipServiceIntegrationTest :
         val inviteeEmail = uniqueEmail("wrong-invitee")
         val otherEmail = uniqueEmail("wrong-other")
         authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
-        authenticationService.registerUser("Invitee", inviteeEmail, "TestPassword123!")
-        authenticationService.registerUser("Other", otherEmail, "TestPassword123!")
         val owner = userRepository.findByEmail(ownerEmail)!!
-        val invitee = userRepository.findByEmail(inviteeEmail)!!
-        val other = userRepository.findByEmail(otherEmail)!!
+        val invitee = createUserWithoutAccount("Invitee", inviteeEmail)
+        val other = createUserWithoutAccount("Other", otherEmail)
 
         val createCmd =
             AccountManagement.CreateAccountCommand(
@@ -307,9 +378,8 @@ class AccountMembershipServiceIntegrationTest :
         val ownerEmail = uniqueEmail("chrole-owner")
         val memberEmail = uniqueEmail("chrole-member")
         authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
-        authenticationService.registerUser("Member", memberEmail, "TestPassword123!")
         val owner = userRepository.findByEmail(ownerEmail)!!
-        val member = userRepository.findByEmail(memberEmail)!!
+        val member = createUserWithoutAccount("Member", memberEmail)
 
         val createCmd =
             AccountManagement.CreateAccountCommand(
@@ -356,9 +426,8 @@ class AccountMembershipServiceIntegrationTest :
         val ownerEmail = uniqueEmail("rem-owner")
         val memberEmail = uniqueEmail("rem-member")
         authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
-        authenticationService.registerUser("Member", memberEmail, "TestPassword123!")
         val owner = userRepository.findByEmail(ownerEmail)!!
-        val member = userRepository.findByEmail(memberEmail)!!
+        val member = createUserWithoutAccount("Member", memberEmail)
 
         val createCmd =
             AccountManagement.CreateAccountCommand(
@@ -393,6 +462,7 @@ class AccountMembershipServiceIntegrationTest :
         val afterRemove = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, member.id!!)
         assertThat(afterRemove).isPresent
         assertThat(afterRemove.get().membershipStatus).isEqualTo(MembershipStatus.REMOVED)
+        assertThat(afterRemove.get().isDefault).isFalse()
         assertThat(afterRemove.get().removedAt).isNotNull()
         assertThat(afterRemove.get().removedBy).isEqualTo(owner.id)
     }
@@ -402,9 +472,8 @@ class AccountMembershipServiceIntegrationTest :
         val ownerEmail = uniqueEmail("leave-owner")
         val memberEmail = uniqueEmail("leave-member")
         authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
-        authenticationService.registerUser("Member", memberEmail, "TestPassword123!")
         val owner = userRepository.findByEmail(ownerEmail)!!
-        val member = userRepository.findByEmail(memberEmail)!!
+        val member = createUserWithoutAccount("Member", memberEmail)
 
         val createCmd =
             AccountManagement.CreateAccountCommand(
@@ -437,6 +506,7 @@ class AccountMembershipServiceIntegrationTest :
         val afterLeave = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, member.id!!)
         assertThat(afterLeave).isPresent
         assertThat(afterLeave.get().membershipStatus).isEqualTo(MembershipStatus.REMOVED)
+        assertThat(afterLeave.get().isDefault).isFalse()
         assertThat(afterLeave.get().removedAt).isNotNull()
     }
 
@@ -445,9 +515,8 @@ class AccountMembershipServiceIntegrationTest :
         val ownerEmail = uniqueEmail("xfer-owner")
         val adminEmail = uniqueEmail("xfer-admin")
         authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
-        authenticationService.registerUser("Admin", adminEmail, "TestPassword123!")
         val owner = userRepository.findByEmail(ownerEmail)!!
-        val admin = userRepository.findByEmail(adminEmail)!!
+        val admin = createUserWithoutAccount("Admin", adminEmail)
 
         val createCmd =
             AccountManagement.CreateAccountCommand(
@@ -463,11 +532,22 @@ class AccountMembershipServiceIntegrationTest :
                 accountId = accountId,
                 inviterUserId = owner.id!!,
                 inviteeEmail = adminEmail,
-                role = AccountRole.ADMIN,
+                role = AccountRole.MEMBER,
             )
         val invitation = accountMembershipService.invite(inviteCmd)
         accountMembershipService.acceptInvitation(
             AccountMembership.AcceptInvitationCommand(invitation.invitationToken, admin.id!!),
+        )
+
+        val adminMembership =
+            accountMembershipRepository.findOneByAccountIdAndUserId(accountId, admin.id!!).get()
+        accountMembershipService.changeMemberRole(
+            AccountMembership.ChangeMemberRoleCommand(
+                accountId = accountId,
+                actorUserId = owner.id!!,
+                targetMembershipId = adminMembership.id!!,
+                newRole = AccountRole.ADMIN,
+            ),
         )
 
         val transferCmd =
@@ -486,5 +566,34 @@ class AccountMembershipServiceIntegrationTest :
 
         val newOwnerMembership = accountMembershipRepository.findOneByAccountIdAndUserId(accountId, admin.id!!).get()
         assertThat(newOwnerMembership.accountRole).isEqualTo(AccountRole.OWNER)
+    }
+
+    @Test
+    fun `invite throws ACCOUNT_ALREADY_MEMBER when invitee already has an active account`() {
+        val ownerEmail = uniqueEmail("already-owner")
+        val inviteeEmail = uniqueEmail("already-invitee")
+        authenticationService.registerUser("Owner", ownerEmail, "TestPassword123!")
+        authenticationService.registerUser("Invitee", inviteeEmail, "TestPassword123!")
+        val owner = userRepository.findByEmail(ownerEmail)!!
+
+        val account =
+            accountService.create(
+                AccountManagement.CreateAccountCommand(
+                    accountName = "Already Member Account",
+                    accountType = io.github.salomax.neotool.security.model.account.AccountType.BUSINESS,
+                    ownerUserId = owner.id!!,
+                ),
+            )
+
+        assertThrows<ValidationException> {
+            accountMembershipService.invite(
+                AccountMembership.InviteMemberCommand(
+                    accountId = account.id!!,
+                    inviterUserId = owner.id!!,
+                    inviteeEmail = inviteeEmail,
+                    role = AccountRole.MEMBER,
+                ),
+            )
+        }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_ALREADY_MEMBER) }
     }
 }

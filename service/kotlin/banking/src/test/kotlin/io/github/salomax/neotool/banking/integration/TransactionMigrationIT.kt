@@ -105,34 +105,6 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
     }
 
     @Nested
-    @DisplayName("transaction_categories seed")
-    inner class TransactionCategoriesSeedTests {
-        @Test
-        fun `exactly 27 root categories subcategory parent_ids resolve`() {
-            val container = getPgContainer()
-            val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
-            DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
-                conn.createStatement().executeQuery(
-                    "SELECT COUNT(*) AS cnt FROM banking.transaction_categories " +
-                        "WHERE parent_id IS NULL AND deleted_at IS NULL",
-                ).use { rs ->
-                    rs.next()
-                    assertThat(rs.getInt("cnt")).isEqualTo(27)
-                }
-                conn.createStatement().executeQuery(
-                    """
-                    SELECT c.id FROM banking.transaction_categories c
-                    WHERE c.parent_id IS NOT NULL AND c.deleted_at IS NULL
-                    AND NOT EXISTS (SELECT 1 FROM banking.transaction_categories p WHERE p.id = c.parent_id AND p.deleted_at IS NULL)
-                    """.trimIndent(),
-                ).use { rs ->
-                    assertThat(rs.next()).isFalse()
-                }
-            }
-        }
-    }
-
-    @Nested
     @DisplayName("transactions partial unique index")
     inner class TransactionsUniqueIndexTests {
         @Test

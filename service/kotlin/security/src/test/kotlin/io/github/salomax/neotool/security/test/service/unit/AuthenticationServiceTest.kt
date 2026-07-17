@@ -95,6 +95,9 @@ class AuthenticationServiceTest {
             )
         }
         whenever(accountMembershipRepository.save(any())).thenAnswer { it.arguments[0] as AccountMembershipEntity }
+        whenever(
+            accountMembershipRepository.findByInviteeEmailAndMembershipStatus(any(), any()),
+        ).thenReturn(emptyList())
         authenticationService =
             AuthenticationService(
                 userRepository,

@@ -10,13 +10,21 @@ import java.util.UUID
  * Command and result DTOs for account membership and invitation operations (FR-4).
  */
 object AccountMembership {
-    private val INVITABLE_ROLES = setOf(AccountRole.ADMIN, AccountRole.MEMBER, AccountRole.VIEWER)
+    /**
+     * Interim invite policy: only MEMBER may be offered via invite until per-membership RBAC
+     * (issue #398) enforces account_role on banking mutations. ADMIN/OWNER/VIEWER remain valid
+     * enum values for existing memberships and change-role flows.
+     */
+    private val INVITE_ROLES = setOf(AccountRole.MEMBER)
+
+    /** Roles an OWNER may assign via change-role (not via invite). */
+    private val CHANGEABLE_ROLES = setOf(AccountRole.ADMIN, AccountRole.MEMBER, AccountRole.VIEWER)
     private val EMAIL_REGEX = Regex("^[^@]+@[^@]+\\.[^@]+$")
 
     /**
      * Command to invite an existing user to an account by email (FR-4.1).
      *
-     * @throws ValidationException if role not in ADMIN/MEMBER/VIEWER or email blank/invalid
+     * @throws ValidationException if role is not MEMBER or email blank/invalid
      */
     data class InviteMemberCommand(
         val accountId: UUID,
@@ -37,11 +45,16 @@ object AccountMembership {
                     field = "inviteeEmail",
                 )
             }
-            if (role !in INVITABLE_ROLES) {
+            if (role !in INVITE_ROLES) {
                 throw ValidationException(
                     errorCode = SecurityErrorCode.TARGET_NOT_ELIGIBLE,
                     field = "role",
-                    parameters = mapOf("reason" to "Invitation role must be ADMIN, MEMBER, or VIEWER"),
+                    parameters =
+                        mapOf(
+                            "reason" to
+                                "Invitation role must be MEMBER; " +
+                                "OWNER, ADMIN, and VIEWER cannot be assigned via invite",
+                        ),
                 )
             }
         }
@@ -123,7 +136,7 @@ object AccountMembership {
         val newRole: AccountRole,
     ) {
         init {
-            if (newRole !in INVITABLE_ROLES) {
+            if (newRole !in CHANGEABLE_ROLES) {
                 throw ValidationException(
                     errorCode = SecurityErrorCode.TARGET_NOT_ELIGIBLE,
                     field = "newRole",

@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1
+# Invistus Rover — official Rover image with the supergraph composition plugin baked in.
+# Built once during `neotool dev up` / `--recreate` so `graphql generate --docker` never
+# downloads plugins at runtime (sandbox / DinD / CI).
+
+ARG ROVER_VERSION=0.40.0
+ARG SUPERGRAPH_PLUGIN_VERSION=2.15.0
+
+FROM alpine:3.20 AS plugin
+ARG SUPERGRAPH_PLUGIN_VERSION
+ARG TARGETARCH
+RUN apk add --no-cache curl ca-certificates \
+    && case "${TARGETARCH}" in \
+         amd64) SARCH=x86_64-unknown-linux-gnu ;; \
+         arm64) SARCH=aarch64-unknown-linux-gnu ;; \
+         *) echo "Unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+       esac \
+    && echo "Downloading supergraph plugin v${SUPERGRAPH_PLUGIN_VERSION} (${SARCH})..." \
+    && mkdir -p /out \
+    && curl -fsSL "https://rover.apollo.dev/tar/supergraph/${SARCH}/v${SUPERGRAPH_PLUGIN_VERSION}" \
+         | tar -xz -C /tmp \
+    && cp /tmp/dist/supergraph "/out/supergraph-v${SUPERGRAPH_PLUGIN_VERSION}" \
+    && chmod 755 "/out/supergraph-v${SUPERGRAPH_PLUGIN_VERSION}"
+
+FROM ghcr.io/apollographql/rover:${ROVER_VERSION}
+ARG SUPERGRAPH_PLUGIN_VERSION
+USER root
+RUN mkdir -p /home/rover/.rover/bin /home/rover/.config/rover
+COPY --from=plugin /out/supergraph-v${SUPERGRAPH_PLUGIN_VERSION} /home/rover/.rover/bin/supergraph-v${SUPERGRAPH_PLUGIN_VERSION}
+# Accept ELv2 so compose never prompts in non-interactive environments.
+RUN printf 'accepted = true\n' > /home/rover/.config/rover/elv2_license.toml \
+    && chown -R 10001:10001 /home/rover/.rover /home/rover/.config
+USER 10001
+ENV HOME=/home/rover \
+    APOLLO_ELV2_LICENSE=accept

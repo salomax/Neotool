@@ -18,13 +18,19 @@ import PersonIcon from "@mui/icons-material/Person";
 import ColorLensIcon from "@mui/icons-material/ColorLens";
 import EditIcon from "@mui/icons-material/Edit";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import LogoutIcon from "@mui/icons-material/Logout";
+import { AccountMembersSection } from "@/features/account-membership/components/AccountMembersSection";
+import { AccountMembersDocument } from "@/lib/graphql/operations/auth/accountMembership.generated";
+import { LEAVE_ACCOUNT } from "@/lib/graphql/operations/auth/accountMembership";
 import { Page, Container, Paper, Stack } from "@/shared/components/ui/layout";
 import { Box } from "@/shared/components/ui/layout/Box";
 import { SegmentedControl } from "@/shared/components/ui/inputs";
 import { Label } from "@/shared/components/ui/primitives";
+import { Button } from "@/shared/components/ui/primitives/Button";
 import { useAuth, usePreferences, useToast } from "@/shared/providers";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { useTranslation } from "react-i18next";
+import { extractErrorMessage } from "@/shared/utils/error";
 import { MY_ACCOUNTS } from "@/lib/graphql/operations/auth/queries";
 import {
   REMOVE_USER_AVATAR,
@@ -124,6 +130,7 @@ export default function ProfilePage() {
       skip: !user,
     });
   const accounts = accountsData?.myAccounts ?? [];
+  const primaryAccount = accounts[0] ?? null;
 
   const [updateAccountMutation] = useMutation<
     UpdateAccountMutationData,
@@ -150,6 +157,9 @@ export default function ProfilePage() {
   >(UPDATE_USER_AVATAR);
   const [removeUserAvatar] = useMutation<RemoveUserAvatarMutationData>(
     REMOVE_USER_AVATAR,
+  );
+  const [leaveAccountMutation, { loading: leaveAccountLoading }] = useMutation(
+    LEAVE_ACCOUNT,
   );
 
   usePageTitle(t("routes.profile"));
@@ -399,6 +409,27 @@ export default function ProfilePage() {
     }
   }, [isEmailUser, removeUserAvatar, setUser, syncAvatarInCache, t, toast, user]);
 
+  const handleLeaveAccount = React.useCallback(async () => {
+    if (!primaryAccount) return;
+    try {
+      await leaveAccountMutation({ variables: { accountId: primaryAccount.id } });
+      toast.success(t("profile.members.leaveSuccess"));
+      await Promise.all([
+        refetchAccounts(),
+        apolloClient.refetchQueries({ include: [AccountMembersDocument] }),
+      ]);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("profile.members.actionError")));
+    }
+  }, [
+    apolloClient,
+    leaveAccountMutation,
+    primaryAccount,
+    refetchAccounts,
+    t,
+    toast,
+  ]);
+
   const themeOptions = React.useMemo(
     () => [
       { value: Theme.Light, label: t("profile.preferences.themeLight") },
@@ -412,9 +443,17 @@ export default function ProfilePage() {
     <Page>
       <Container maxWidth="md" sx={{ py: { xs: 3, sm: 6 } }}>
         <Stack gap={4}>
-          <Paper elevation={1} name="profile-user-card">
+          <Paper elevation={0} variant="outlined" name="profile-user-card">
             <Stack gap={2}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, minWidth: 0 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  gap: 2,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2, minWidth: 0 }}>
                 <Box sx={{ position: "relative", width: 64, height: 64, flexShrink: 0 }}>
                   <Avatar
                     variant="rounded"
@@ -487,6 +526,30 @@ export default function ProfilePage() {
                     </Link>
                   )}
                 </Box>
+                </Box>
+
+                {primaryAccount && !primaryAccount.isOwner ? (
+                  <Button
+                    color="inherit"
+                    variant="outlined"
+                    startIcon={<LogoutIcon />}
+                    loading={leaveAccountLoading}
+                    onClick={() => {
+                      void handleLeaveAccount();
+                    }}
+                    sx={{
+                      flexShrink: 0,
+                      color: "text.secondary",
+                      borderColor: "divider",
+                      "&:hover": {
+                        borderColor: "text.secondary",
+                        bgcolor: "action.hover",
+                      },
+                    }}
+                  >
+                    {t("profile.members.leaveAction")}
+                  </Button>
+                ) : null}
               </Box>
 
               <Divider />
@@ -531,7 +594,7 @@ export default function ProfilePage() {
             <Label sx={{ mb: 0, pl: 2, fontSize: (theme) => theme.typography.subtitle1.fontSize }}>
               {t("profile.accounts.title")}
             </Label>
-            <Paper elevation={1} name="profile-accounts">
+            <Paper elevation={0} variant="outlined" name="profile-accounts">
               <Stack gap={1.5}>
                 {accountsLoading ? (
                   <Typography variant="body2" color="text.secondary">
@@ -607,11 +670,15 @@ export default function ProfilePage() {
             </Paper>
           </Stack>
 
+          {primaryAccount ? (
+            <AccountMembersSection accountId={primaryAccount.id} />
+          ) : null}
+
           <Stack gap={1}>
             <Label sx={{ mb: 0, pl: 2, fontSize: (theme) => theme.typography.subtitle1.fontSize }}>
               {t("profile.preferences.title")}
             </Label>
-            <Paper elevation={1} name="profile-preferences">
+            <Paper elevation={0} variant="outlined" name="profile-preferences">
               <Stack gap={2}>
                 {isLoading ? (
                   <Typography variant="body2" color="text.secondary">

@@ -1302,19 +1302,45 @@ dev_init() {
         "${HOME}/.codex"
 
     # 2. Start / recreate the DevPod workspace
-    echo "▶ [1/3] Starting DevPod workspace..."
+    echo "▶ [1/4] Starting DevPod workspace..."
     local devpod_flags="--provider docker --ide none"
     [[ "$recreate" == "true" ]] && devpod_flags="$devpod_flags --recreate"
     # shellcheck disable=SC2086
+    # Pass pinned Rover/plugin versions into the DevPod image build.
+    # shellcheck source=/dev/null
+    source "$PROJECT_ROOT/.devcontainer/rover-versions.env"
+    export BUILDKIT_INLINE_CACHE=1
+    # DevPod uses the Dockerfile ARGs when rebuilding; document pins in rover-versions.env.
     devpod up "$PROJECT_ROOT" $devpod_flags
     echo "✓ DevPod ready"
 
+    # 2b. Build host-side invistus-rover (for `graphql generate --docker` / CI on this daemon)
+    echo ""
+    echo "▶ [2/4] Building invistus-rover image (plugin baked in)..."
+    if "$PROJECT_ROOT/scripts/cli/commands/graphql/build-rover-image.sh"; then
+        echo "✓ invistus-rover image ready"
+    else
+        echo "⚠ Failed to build invistus-rover — \`graphql generate --docker\` may not work until this succeeds"
+    fi
+
+    # Also bake the image into the DevPod DinD daemon (separate from the host Docker).
+    local container
+    container=$(docker ps --filter "label=devpod.user" --format "{{.Names}}" 2>/dev/null | head -1)
+    if [[ -n "$container" ]]; then
+        echo "  Building invistus-rover inside DevPod DinD..."
+        if docker exec -i "$container" bash -c \
+            "cd /workspaces/invistus && ./scripts/cli/commands/graphql/build-rover-image.sh"; then
+            echo "✓ invistus-rover available inside DevPod DinD"
+        else
+            echo "⚠ DinD invistus-rover build failed — DevPod sync uses local rover (baked in DevPod image)"
+        fi
+    fi
+
     # 3. Wait for infra (start-infra.sh runs via postStartCommand, give it time)
     echo ""
-    echo "▶ [2/3] Waiting for infrastructure to be ready..."
+    echo "▶ [3/4] Waiting for infrastructure to be ready..."
     local max_wait=180
     local waited=0
-    local container
     container=$(docker ps --filter "label=devpod.user" --format "{{.Names}}" 2>/dev/null | head -1)
 
     # Router não entra na lista: sobe junto mas fica em erro até os serviços Kotlin estarem no ar
@@ -1348,7 +1374,7 @@ dev_init() {
 
     # 4. Activate port forwarding (uses socat proxy — devpod ssh -N does not work reliably)
     echo ""
-    echo "▶ [3/3] Activating port forwarding..."
+    echo "▶ [4/4] Activating port forwarding..."
     dev_forward
 
     # 5. Optionally start all services
@@ -1381,12 +1407,14 @@ dev_sync() {
     # Detect context: inside DevPod (tmux present) vs Mac
     if command -v tmux >/dev/null 2>&1; then
         # ── Inside DevPod ──────────────────────────────────────────────────────
-        # rover not installed in DevPod → use --docker (DinD); non-fatal if it fails
+        # Rover + supergraph plugin are baked into the DevPod image at
+        # `neotool dev up` / `--recreate` — compose is offline (no plugin download).
         log "\n▶ [1/5] Regenerating GraphQL supergraph..." "$BLUE"
-        if "$NEOTOOL" graphql all --all --docker; then
+        if "$NEOTOOL" graphql all --all; then
             log "✓ Supergraph updated" "$GREEN"
         else
             log "⚠ Supergraph generation failed (see above) — continuing with remaining steps" "$YELLOW"
+            log "  If rover/plugin is missing: ./neotool dev up --recreate" "$YELLOW"
         fi
 
         echo ""
@@ -1417,11 +1445,13 @@ dev_sync() {
             return 1
         fi
 
+        # Host uses the baked invistus-rover image (built in `dev up`); no local plugin install.
         log "\n▶ [1/5] Regenerating GraphQL supergraph..." "$BLUE"
-        if "$NEOTOOL" graphql all --all; then
+        if "$NEOTOOL" graphql all --all --docker; then
             log "✓ Supergraph updated" "$GREEN"
         else
             log "⚠ Supergraph generation failed (see above) — continuing with remaining steps" "$YELLOW"
+            log "  If image missing: ./neotool dev up --recreate  (or build-rover-image.sh)" "$YELLOW"
         fi
 
         echo ""

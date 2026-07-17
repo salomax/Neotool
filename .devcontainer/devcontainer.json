@@ -2,7 +2,11 @@
   "name": "Invistus DevPod",
   "build": {
     "dockerfile": "Dockerfile",
-    "context": ".."
+    "context": "..",
+    "args": {
+      "ROVER_VERSION": "0.40.0",
+      "SUPERGRAPH_PLUGIN_VERSION": "2.15.0"
+    }
   },
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {

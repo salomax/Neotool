@@ -2,6 +2,7 @@ package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.AccountMembership
+import io.github.salomax.neotool.security.domain.preferences.UserPreferences
 import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.account.AccountEntity
 import io.github.salomax.neotool.security.model.account.AccountMembershipEntity
@@ -17,6 +18,7 @@ import io.github.salomax.neotool.security.service.management.membership.AccountM
 import io.github.salomax.neotool.security.service.management.membership.MembershipOperation
 import io.github.salomax.neotool.security.service.management.membership.MembershipPolicyEngine
 import io.github.salomax.neotool.security.service.management.membership.MembershipPolicyResult
+import io.github.salomax.neotool.security.service.preferences.UserPreferencesService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -43,6 +45,7 @@ class AccountMembershipServiceTest {
     private lateinit var userRepository: UserRepository
     private lateinit var membershipPolicyEngine: MembershipPolicyEngine
     private lateinit var emailService: EmailService
+    private lateinit var userPreferencesService: UserPreferencesService
     private lateinit var accountMembershipService: AccountMembershipService
 
     @BeforeEach
@@ -52,9 +55,13 @@ class AccountMembershipServiceTest {
         userRepository = mock()
         membershipPolicyEngine = mock()
         emailService = mock()
+        userPreferencesService = mock()
         whenever(
             emailService.buildInvitationAcceptUrl(any()),
         ).thenReturn("http://localhost:3000/invitations/accept?token=test")
+        whenever(userPreferencesService.get(any())).thenReturn(
+            UserPreferences.defaultsFor(UUID.randomUUID()),
+        )
         accountMembershipService =
             AccountMembershipService(
                 accountRepository,
@@ -62,6 +69,7 @@ class AccountMembershipServiceTest {
                 userRepository,
                 membershipPolicyEngine,
                 emailService,
+                userPreferencesService,
             )
     }
 
@@ -119,7 +127,13 @@ class AccountMembershipServiceTest {
             )
                 .thenReturn(MembershipPolicyResult.Allowed)
             whenever(userRepository.findByEmail(eq(inviteeEmail))).thenReturn(invitee)
+            whenever(
+                accountMembershipRepository.findByUserIdAndMembershipStatus(eq(inviteeId), eq(MembershipStatus.ACTIVE)),
+            )
+                .thenReturn(emptyList())
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviteeId)))
+                .thenReturn(Optional.empty())
+            whenever(accountMembershipRepository.findOneByAccountIdAndInviteeEmail(eq(accountId), eq(inviteeEmail)))
                 .thenReturn(Optional.empty())
             whenever(accountMembershipRepository.countByAccountIdAndMembershipStatusIn(eq(accountId), any()))
                 .thenReturn(1L)
@@ -141,6 +155,51 @@ class AccountMembershipServiceTest {
             assertThat(result.invitationToken).isNotBlank()
             assertThat(result.expiresAt).isAfter(Instant.now())
             verify(accountMembershipRepository).save(any())
+        }
+
+        @Test
+        fun `invite throws TARGET_NOT_ELIGIBLE when role is OWNER`() {
+            assertThrows<ValidationException> {
+                AccountMembership.InviteMemberCommand(
+                    accountId = UUID.randomUUID(),
+                    inviterUserId = UUID.randomUUID(),
+                    inviteeEmail = "owner-attempt@example.com",
+                    role = AccountRole.OWNER,
+                )
+            }.also { ex ->
+                assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.TARGET_NOT_ELIGIBLE)
+                assertThat(ex.parameters["reason"].toString()).contains("MEMBER")
+            }
+        }
+
+        @Test
+        fun `invite throws TARGET_NOT_ELIGIBLE when role is ADMIN`() {
+            assertThrows<ValidationException> {
+                AccountMembership.InviteMemberCommand(
+                    accountId = UUID.randomUUID(),
+                    inviterUserId = UUID.randomUUID(),
+                    inviteeEmail = "admin-attempt@example.com",
+                    role = AccountRole.ADMIN,
+                )
+            }.also { ex ->
+                assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.TARGET_NOT_ELIGIBLE)
+                assertThat(ex.parameters["reason"].toString()).contains("ADMIN")
+            }
+        }
+
+        @Test
+        fun `invite throws TARGET_NOT_ELIGIBLE when role is VIEWER`() {
+            assertThrows<ValidationException> {
+                AccountMembership.InviteMemberCommand(
+                    accountId = UUID.randomUUID(),
+                    inviterUserId = UUID.randomUUID(),
+                    inviteeEmail = "viewer-attempt@example.com",
+                    role = AccountRole.VIEWER,
+                )
+            }.also { ex ->
+                assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.TARGET_NOT_ELIGIBLE)
+                assertThat(ex.parameters["reason"].toString()).contains("VIEWER")
+            }
         }
 
         @Test
@@ -191,9 +250,10 @@ class AccountMembershipServiceTest {
         }
 
         @Test
-        fun `invite throws USER_NOT_FOUND when invitee email not found`() {
+        fun `invite succeeds when invitee email has no platform user yet`() {
             val accountId = UUID.randomUUID()
             val inviterId = UUID.randomUUID()
+            val inviteeEmail = "nonexistent@example.com"
             val account =
                 AccountEntity(
                     id = accountId,
@@ -209,6 +269,20 @@ class AccountMembershipServiceTest {
                     accountRole = AccountRole.OWNER,
                     membershipStatus = MembershipStatus.ACTIVE,
                 )
+            val savedMembershipId = UUID.randomUUID()
+            val savedMembership =
+                AccountMembershipEntity(
+                    id = savedMembershipId,
+                    accountId = accountId,
+                    userId = null,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.PENDING,
+                    invitationToken = "token123",
+                    invitationExpiresAt = Instant.now().plusSeconds(604800),
+                    invitedBy = inviterId,
+                    invitedAt = Instant.now(),
+                    inviteeEmail = inviteeEmail,
+                )
             whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviterId)))
                 .thenReturn(Optional.of(inviterMembership))
@@ -223,19 +297,27 @@ class AccountMembershipServiceTest {
                 ),
             )
                 .thenReturn(MembershipPolicyResult.Allowed)
-            whenever(userRepository.findByEmail(eq("nonexistent@example.com"))).thenReturn(null)
+            whenever(userRepository.findByEmail(eq(inviteeEmail))).thenReturn(null)
+            whenever(accountMembershipRepository.findOneByAccountIdAndInviteeEmail(eq(accountId), eq(inviteeEmail)))
+                .thenReturn(Optional.empty())
+            whenever(accountMembershipRepository.countByAccountIdAndMembershipStatusIn(eq(accountId), any()))
+                .thenReturn(1L)
+            whenever(accountMembershipRepository.findOneByInvitationToken(any())).thenReturn(Optional.empty())
+            whenever(accountMembershipRepository.save(any())).thenReturn(savedMembership)
 
             val command =
                 AccountMembership.InviteMemberCommand(
                     accountId = accountId,
                     inviterUserId = inviterId,
-                    inviteeEmail = "nonexistent@example.com",
+                    inviteeEmail = inviteeEmail,
                     role = AccountRole.MEMBER,
                 )
-            assertThrows<ValidationException> {
-                accountMembershipService.invite(command)
-            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.USER_NOT_FOUND) }
-            verify(accountMembershipRepository, never()).save(any())
+            val result = accountMembershipService.invite(command)
+
+            assertThat(result.membershipId).isEqualTo(savedMembershipId)
+            assertThat(result.inviteeEmail).isEqualTo(inviteeEmail)
+            assertThat(result.role).isEqualTo(AccountRole.MEMBER)
+            verify(accountMembershipRepository).save(any())
         }
 
         @Test
@@ -282,6 +364,10 @@ class AccountMembershipServiceTest {
             )
                 .thenReturn(MembershipPolicyResult.Allowed)
             whenever(userRepository.findByEmail(eq(inviteeEmail))).thenReturn(invitee)
+            whenever(
+                accountMembershipRepository.findByUserIdAndMembershipStatus(eq(inviteeId), eq(MembershipStatus.ACTIVE)),
+            )
+                .thenReturn(emptyList())
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviteeId)))
                 .thenReturn(Optional.of(existingMembership))
 
@@ -296,6 +382,148 @@ class AccountMembershipServiceTest {
                 accountMembershipService.invite(command)
             }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ALREADY_MEMBER) }
             verify(accountMembershipRepository, never()).save(any())
+        }
+
+        @Test
+        fun `invite throws ACCOUNT_ALREADY_MEMBER when invitee already active in another account`() {
+            val accountId = UUID.randomUUID()
+            val otherAccountId = UUID.randomUUID()
+            val inviterId = UUID.randomUUID()
+            val inviteeId = UUID.randomUUID()
+            val inviteeEmail = "busy@example.com"
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = inviterId,
+                )
+            val invitee = SecurityTestDataBuilders.user(id = inviteeId, email = inviteeEmail)
+            val inviterMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = inviterId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val otherMembership =
+                AccountMembershipEntity(
+                    accountId = otherAccountId,
+                    userId = inviteeId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviterId)))
+                .thenReturn(Optional.of(inviterMembership))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.INVITE),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            )
+                .thenReturn(MembershipPolicyResult.Allowed)
+            whenever(userRepository.findByEmail(eq(inviteeEmail))).thenReturn(invitee)
+            whenever(
+                accountMembershipRepository.findByUserIdAndMembershipStatus(eq(inviteeId), eq(MembershipStatus.ACTIVE)),
+            )
+                .thenReturn(listOf(otherMembership))
+
+            val command =
+                AccountMembership.InviteMemberCommand(
+                    accountId = accountId,
+                    inviterUserId = inviterId,
+                    inviteeEmail = inviteeEmail,
+                    role = AccountRole.MEMBER,
+                )
+            assertThrows<ValidationException> {
+                accountMembershipService.invite(command)
+            }.also { ex -> assertThat(ex.errorCode).isEqualTo(SecurityErrorCode.ACCOUNT_ALREADY_MEMBER) }
+            verify(accountMembershipRepository, never()).save(any())
+        }
+
+        @Test
+        fun `invite reactivates REMOVED membership instead of inserting`() {
+            val accountId = UUID.randomUUID()
+            val inviterId = UUID.randomUUID()
+            val inviteeId = UUID.randomUUID()
+            val inviteeEmail = "returning@example.com"
+            val membershipId = UUID.randomUUID()
+            val account =
+                AccountEntity(
+                    id = accountId,
+                    accountName = "Biz",
+                    accountType = AccountType.BUSINESS,
+                    accountStatus = AccountStatus.ACTIVE,
+                    ownerUserId = inviterId,
+                )
+            val invitee = SecurityTestDataBuilders.user(id = inviteeId, email = inviteeEmail)
+            val inviterMembership =
+                AccountMembershipEntity(
+                    accountId = accountId,
+                    userId = inviterId,
+                    accountRole = AccountRole.OWNER,
+                    membershipStatus = MembershipStatus.ACTIVE,
+                )
+            val removedMembership =
+                AccountMembershipEntity(
+                    id = membershipId,
+                    accountId = accountId,
+                    userId = inviteeId,
+                    accountRole = AccountRole.MEMBER,
+                    membershipStatus = MembershipStatus.REMOVED,
+                    inviteeEmail = inviteeEmail,
+                    removedAt = Instant.now().minusSeconds(3600),
+                    removedBy = inviterId,
+                )
+            whenever(accountRepository.findById(eq(accountId))).thenReturn(Optional.of(account))
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviterId)))
+                .thenReturn(Optional.of(inviterMembership))
+            whenever(
+                membershipPolicyEngine.evaluate(
+                    eq(MembershipOperation.INVITE),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            )
+                .thenReturn(MembershipPolicyResult.Allowed)
+            whenever(userRepository.findByEmail(eq(inviteeEmail))).thenReturn(invitee)
+            whenever(
+                accountMembershipRepository.findByUserIdAndMembershipStatus(eq(inviteeId), eq(MembershipStatus.ACTIVE)),
+            )
+                .thenReturn(emptyList())
+            whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviteeId)))
+                .thenReturn(Optional.of(removedMembership))
+            whenever(accountMembershipRepository.countByAccountIdAndMembershipStatusIn(eq(accountId), any()))
+                .thenReturn(1L)
+            whenever(accountMembershipRepository.findOneByInvitationToken(any())).thenReturn(Optional.empty())
+            whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
+
+            val command =
+                AccountMembership.InviteMemberCommand(
+                    accountId = accountId,
+                    inviterUserId = inviterId,
+                    inviteeEmail = inviteeEmail,
+                    role = AccountRole.MEMBER,
+                )
+            val result = accountMembershipService.invite(command)
+
+            assertThat(result.membershipId).isEqualTo(membershipId)
+            assertThat(result.role).isEqualTo(AccountRole.MEMBER)
+            assertThat(removedMembership.membershipStatus).isEqualTo(MembershipStatus.PENDING)
+            assertThat(removedMembership.accountRole).isEqualTo(AccountRole.MEMBER)
+            assertThat(removedMembership.invitationToken).isNotBlank()
+            assertThat(removedMembership.removedAt).isNull()
+            assertThat(removedMembership.removedBy).isNull()
+            verify(accountMembershipRepository).save(removedMembership)
         }
 
         @Test
@@ -335,7 +563,13 @@ class AccountMembershipServiceTest {
             )
                 .thenReturn(MembershipPolicyResult.Allowed)
             whenever(userRepository.findByEmail(eq(inviteeEmail))).thenReturn(invitee)
+            whenever(
+                accountMembershipRepository.findByUserIdAndMembershipStatus(eq(inviteeId), eq(MembershipStatus.ACTIVE)),
+            )
+                .thenReturn(emptyList())
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviteeId)))
+                .thenReturn(Optional.empty())
+            whenever(accountMembershipRepository.findOneByAccountIdAndInviteeEmail(eq(accountId), eq(inviteeEmail)))
                 .thenReturn(Optional.empty())
 
             val command =
@@ -388,7 +622,13 @@ class AccountMembershipServiceTest {
             )
                 .thenReturn(MembershipPolicyResult.Allowed)
             whenever(userRepository.findByEmail(eq(inviteeEmail))).thenReturn(invitee)
+            whenever(
+                accountMembershipRepository.findByUserIdAndMembershipStatus(eq(inviteeId), eq(MembershipStatus.ACTIVE)),
+            )
+                .thenReturn(emptyList())
             whenever(accountMembershipRepository.findOneByAccountIdAndUserId(eq(accountId), eq(inviteeId)))
+                .thenReturn(Optional.empty())
+            whenever(accountMembershipRepository.findOneByAccountIdAndInviteeEmail(eq(accountId), eq(inviteeEmail)))
                 .thenReturn(Optional.empty())
             whenever(accountMembershipRepository.countByAccountIdAndMembershipStatusIn(eq(accountId), any()))
                 .thenReturn(10L)
@@ -582,6 +822,7 @@ class AccountMembershipServiceTest {
             val inviteeId = UUID.randomUUID()
             val token = "valid-token-abc"
             val membershipId = UUID.randomUUID()
+            val invitee = SecurityTestDataBuilders.user(id = inviteeId, email = "invitee@example.com")
             val membership =
                 AccountMembershipEntity(
                     id = membershipId,
@@ -591,9 +832,15 @@ class AccountMembershipServiceTest {
                     membershipStatus = MembershipStatus.PENDING,
                     invitationToken = token,
                     invitationExpiresAt = Instant.now().plusSeconds(86400),
+                    inviteeEmail = "invitee@example.com",
                 )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
+            whenever(userRepository.findById(eq(inviteeId))).thenReturn(Optional.of(invitee))
+            whenever(
+                accountMembershipRepository.findByUserIdAndMembershipStatus(eq(inviteeId), eq(MembershipStatus.ACTIVE)),
+            )
+                .thenReturn(emptyList())
             whenever(accountMembershipRepository.save(any())).thenAnswer { it.getArgument(0) }
 
             val command =
@@ -609,6 +856,7 @@ class AccountMembershipServiceTest {
             assertThat(membership.joinedAt).isNotNull()
             assertThat(membership.invitationToken).isNull()
             assertThat(membership.invitationExpiresAt).isNull()
+            assertThat(membership.isDefault).isTrue()
             verify(accountMembershipRepository).save(membership)
         }
 
@@ -632,6 +880,7 @@ class AccountMembershipServiceTest {
             val inviteeId = UUID.randomUUID()
             val otherUserId = UUID.randomUUID()
             val token = "valid-token"
+            val otherUser = SecurityTestDataBuilders.user(id = otherUserId, email = "other@example.com")
             val membership =
                 AccountMembershipEntity(
                     id = UUID.randomUUID(),
@@ -641,9 +890,11 @@ class AccountMembershipServiceTest {
                     membershipStatus = MembershipStatus.PENDING,
                     invitationToken = token,
                     invitationExpiresAt = Instant.now().plusSeconds(86400),
+                    inviteeEmail = "invitee@example.com",
                 )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
+            whenever(userRepository.findById(eq(otherUserId))).thenReturn(Optional.of(otherUser))
 
             val command =
                 AccountMembership.AcceptInvitationCommand(
@@ -660,6 +911,7 @@ class AccountMembershipServiceTest {
         fun `acceptInvitation throws INVITATION_EXPIRED when token expired`() {
             val inviteeId = UUID.randomUUID()
             val token = "expired-token"
+            val invitee = SecurityTestDataBuilders.user(id = inviteeId, email = "invitee@example.com")
             val membership =
                 AccountMembershipEntity(
                     id = UUID.randomUUID(),
@@ -669,9 +921,11 @@ class AccountMembershipServiceTest {
                     membershipStatus = MembershipStatus.PENDING,
                     invitationToken = token,
                     invitationExpiresAt = Instant.now().minusSeconds(3600),
+                    inviteeEmail = "invitee@example.com",
                 )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
+            whenever(userRepository.findById(eq(inviteeId))).thenReturn(Optional.of(invitee))
 
             val command =
                 AccountMembership.AcceptInvitationCommand(
@@ -688,6 +942,7 @@ class AccountMembershipServiceTest {
         fun `acceptInvitation throws NOT_PENDING_INVITATION when membership already ACTIVE`() {
             val inviteeId = UUID.randomUUID()
             val token = "used-token"
+            val invitee = SecurityTestDataBuilders.user(id = inviteeId, email = "invitee@example.com")
             val membership =
                 AccountMembershipEntity(
                     id = UUID.randomUUID(),
@@ -697,9 +952,11 @@ class AccountMembershipServiceTest {
                     membershipStatus = MembershipStatus.ACTIVE,
                     invitationToken = token,
                     invitationExpiresAt = Instant.now().plusSeconds(86400),
+                    inviteeEmail = "invitee@example.com",
                 )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
+            whenever(userRepository.findById(eq(inviteeId))).thenReturn(Optional.of(invitee))
 
             val command =
                 AccountMembership.AcceptInvitationCommand(
@@ -722,6 +979,7 @@ class AccountMembershipServiceTest {
             val inviteeId = UUID.randomUUID()
             val membershipId = UUID.randomUUID()
             val token = "valid-token"
+            val invitee = SecurityTestDataBuilders.user(id = inviteeId, email = "invitee@example.com")
             val membership =
                 AccountMembershipEntity(
                     id = membershipId,
@@ -731,9 +989,11 @@ class AccountMembershipServiceTest {
                     membershipStatus = MembershipStatus.PENDING,
                     invitationToken = token,
                     invitationExpiresAt = Instant.now().plusSeconds(86400),
+                    inviteeEmail = "invitee@example.com",
                 )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
+            whenever(userRepository.findById(eq(inviteeId))).thenReturn(Optional.of(invitee))
 
             val command =
                 AccountMembership.DeclineInvitationCommand(
@@ -765,6 +1025,7 @@ class AccountMembershipServiceTest {
             val inviteeId = UUID.randomUUID()
             val otherUserId = UUID.randomUUID()
             val token = "valid-token"
+            val otherUser = SecurityTestDataBuilders.user(id = otherUserId, email = "other@example.com")
             val membership =
                 AccountMembershipEntity(
                     id = UUID.randomUUID(),
@@ -774,9 +1035,11 @@ class AccountMembershipServiceTest {
                     membershipStatus = MembershipStatus.PENDING,
                     invitationToken = token,
                     invitationExpiresAt = Instant.now().plusSeconds(86400),
+                    inviteeEmail = "invitee@example.com",
                 )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
+            whenever(userRepository.findById(eq(otherUserId))).thenReturn(Optional.of(otherUser))
 
             val command =
                 AccountMembership.DeclineInvitationCommand(
@@ -793,6 +1056,7 @@ class AccountMembershipServiceTest {
         fun `declineInvitation throws NOT_PENDING_INVITATION when membership already ACTIVE`() {
             val inviteeId = UUID.randomUUID()
             val token = "used-token"
+            val invitee = SecurityTestDataBuilders.user(id = inviteeId, email = "invitee@example.com")
             val membership =
                 AccountMembershipEntity(
                     id = UUID.randomUUID(),
@@ -801,9 +1065,11 @@ class AccountMembershipServiceTest {
                     accountRole = AccountRole.MEMBER,
                     membershipStatus = MembershipStatus.ACTIVE,
                     invitationToken = token,
+                    inviteeEmail = "invitee@example.com",
                 )
             whenever(accountMembershipRepository.findOneByInvitationToken(eq(token)))
                 .thenReturn(Optional.of(membership))
+            whenever(userRepository.findById(eq(inviteeId))).thenReturn(Optional.of(invitee))
 
             val command =
                 AccountMembership.DeclineInvitationCommand(
@@ -1092,6 +1358,7 @@ class AccountMembershipServiceTest {
             accountMembershipService.removeMember(command)
 
             assertThat(targetMembership.membershipStatus).isEqualTo(MembershipStatus.REMOVED)
+            assertThat(targetMembership.isDefault).isFalse()
             assertThat(targetMembership.removedAt).isNotNull()
             assertThat(targetMembership.removedBy).isEqualTo(ownerId)
             verify(accountMembershipRepository).save(targetMembership)
@@ -1317,6 +1584,7 @@ class AccountMembershipServiceTest {
             accountMembershipService.leaveAccount(command)
 
             assertThat(memberMembership.membershipStatus).isEqualTo(MembershipStatus.REMOVED)
+            assertThat(memberMembership.isDefault).isFalse()
             assertThat(memberMembership.removedAt).isNotNull()
             verify(accountMembershipRepository).save(memberMembership)
         }

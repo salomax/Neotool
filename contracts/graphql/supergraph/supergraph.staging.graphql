@@ -489,6 +489,7 @@ type Query @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(
   """Current user's preferences (defaults when no row exists)."""
   userPreferences: UserPreferences! @join__field(graph: SECURITY)
   myAccounts: [Account!]! @join__field(graph: SECURITY)
+  accountMembers(accountId: ID!): [AccountMember!]! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
   users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection! @join__field(graph: SECURITY)
   group(id: ID!): Group @join__field(graph: SECURITY)
@@ -755,6 +756,13 @@ type Mutation @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__ty
   updateUserAvatar(input: UpdateUserAvatarInput!): User! @join__field(graph: SECURITY)
   removeUserAvatar: User! @join__field(graph: SECURITY)
   updateAccount(accountId: ID!, input: UpdateAccountInput!): Account! @join__field(graph: SECURITY)
+  inviteMember(input: InviteMemberInput!): AccountMember! @join__field(graph: SECURITY)
+  cancelInvitation(accountId: ID!, membershipId: ID!): Boolean! @join__field(graph: SECURITY)
+  acceptInvitation(token: String!): AcceptInvitationPayload! @join__field(graph: SECURITY)
+  declineInvitation(token: String!): Boolean! @join__field(graph: SECURITY)
+  removeMember(accountId: ID!, membershipId: ID!): Boolean! @join__field(graph: SECURITY)
+  changeMemberRole(accountId: ID!, membershipId: ID!, role: AccountRole!): AccountMember! @join__field(graph: SECURITY)
+  leaveAccount(accountId: ID!): Boolean! @join__field(graph: SECURITY)
   enableUser(userId: ID!): User! @join__field(graph: SECURITY)
   disableUser(userId: ID!): User! @join__field(graph: SECURITY)
   updateUser(userId: ID!, input: UpdateUserInput!): User! @join__field(graph: SECURITY)
@@ -4023,6 +4031,50 @@ type Account @join__type(graph: SECURITY) {
   accountType: String!
   accountStatus: String!
   isOwner: Boolean!
+}
+
+enum AccountRole @join__type(graph: SECURITY) {
+  OWNER @join__enumValue(graph: SECURITY)
+  ADMIN @join__enumValue(graph: SECURITY)
+  MEMBER @join__enumValue(graph: SECURITY)
+  VIEWER @join__enumValue(graph: SECURITY)
+}
+
+enum MembershipStatus @join__type(graph: SECURITY) {
+  PENDING @join__enumValue(graph: SECURITY)
+  ACTIVE @join__enumValue(graph: SECURITY)
+  REMOVED @join__enumValue(graph: SECURITY)
+}
+
+type AccountMember @join__type(graph: SECURITY) {
+  membershipId: ID!
+  accountId: ID!
+  userId: ID
+  email: String!
+  displayName: String
+  avatarUrl: String
+  role: AccountRole!
+  status: MembershipStatus!
+  joinedAt: String
+  invitedAt: String
+  removedAt: String
+  isDefault: Boolean!
+  isCurrentUser: Boolean!
+}
+
+input InviteMemberInput @join__type(graph: SECURITY) {
+  accountId: ID!
+  email: String!
+  """
+  Interim: only MEMBER is accepted via invite until per-membership RBAC lands.
+  """
+  role: AccountRole = MEMBER
+}
+
+type AcceptInvitationPayload @join__type(graph: SECURITY) {
+  membershipId: ID!
+  accountId: ID!
+  accountName: String!
 }
 
 input UpdateAccountInput @join__type(graph: SECURITY) {

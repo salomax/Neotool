@@ -38,6 +38,22 @@ interface AccountMembershipRepository : JpaRepository<AccountMembershipEntity, U
     ): Optional<AccountMembershipEntity>
 
     /**
+     * Find a membership for (account, invitee email). Used for invite-before-signup duplicate checks.
+     */
+    fun findOneByAccountIdAndInviteeEmail(
+        accountId: UUID,
+        inviteeEmail: String,
+    ): Optional<AccountMembershipEntity>
+
+    /**
+     * Pending (or other) invitations targeting an email that may not have a user yet.
+     */
+    fun findByInviteeEmailAndMembershipStatus(
+        inviteeEmail: String,
+        membershipStatus: MembershipStatus,
+    ): List<AccountMembershipEntity>
+
+    /**
      * Resolve invitation by token. Service layer must enforce invitation_expires_at.
      * Uses index idx_memberships_token.
      */

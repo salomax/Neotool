@@ -27,7 +27,7 @@ type AuthContextType = {
   signIn: (email: string, password: string, rememberMe?: boolean | null) => Promise<void>;
   signInWithOAuth: (provider: string, idToken: string, rememberMe?: boolean | null) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
-  signOut: () => void;
+  signOut: (options?: { redirectTo?: string }) => void;
   setUser: (user: User | null) => void;
   setPostLoginRedirect: (path: string | null) => void;
   isAuthenticated: boolean;
@@ -305,7 +305,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [finalizeAuthenticatedSession, routeAfterAuthentication, router]);
 
-  const signOut = React.useCallback(() => {
+  const signOut = React.useCallback((options?: { redirectTo?: string }) => {
     setUser(null);
     setToken(null);
     syncAuthHintCookie(false);
@@ -319,8 +319,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     sessionStorage.removeItem(REFRESH_TOKEN_KEY);
     void clearAuthSessionCookie();
 
-    // Redirect to signin
-    router.push("/signin");
+    // Redirect to signin (optionally with a return URL, e.g. invitation accept)
+    router.push(options?.redirectTo ?? "/signin");
   }, [router, syncAuthHintCookie]);
 
   const value: AuthContextType = {

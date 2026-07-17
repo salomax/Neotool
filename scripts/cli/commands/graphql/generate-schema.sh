@@ -8,7 +8,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../" && pwd)"
 CONTRACTS_DIR="$PROJECT_ROOT/contracts/graphql"
 SUPERGRAPH_DIR="$CONTRACTS_DIR/supergraph"
-ROVER_DOCKER_IMAGE="${ROVER_DOCKER_IMAGE:-ghcr.io/apollographql/rover:0.40.0}"
+# shellcheck source=/dev/null
+source "$PROJECT_ROOT/.devcontainer/rover-versions.env"
+# Baked image from `neotool dev up` / `--recreate` (plugin already inside — no runtime download).
+ROVER_DOCKER_IMAGE="${ROVER_DOCKER_IMAGE:-invistus-rover:${ROVER_VERSION}-sg${SUPERGRAPH_PLUGIN_VERSION}}"
 
 # Flags
 PRODUCTION_ONLY=true
@@ -33,31 +36,52 @@ for arg in "$@"; do
     esac
 done
 
+ensure_invistus_rover_image() {
+    if docker image inspect "$ROVER_DOCKER_IMAGE" >/dev/null 2>&1; then
+        return 0
+    fi
+    echo "❌ Rover image not found: $ROVER_DOCKER_IMAGE"
+    echo "   Build it once during sandbox setup (downloads plugin at build time only):"
+    echo "     ./neotool dev up --recreate"
+    echo "   Or:"
+    echo "     $PROJECT_ROOT/scripts/cli/commands/graphql/build-rover-image.sh"
+    echo "   Override with ROVER_DOCKER_IMAGE=<image> if you manage your own image."
+    return 1
+}
+
 # Function to generate a supergraph with rover in Docker
 generate_with_docker() {
     local config_file="$1"
     local output_file="$2"
     local env_name="$3"
     local error_log
+    local status
     error_log="$(mktemp)"
+
+    ensure_invistus_rover_image || return 1
     
     echo "  Generating $env_name supergraph..."
-    if ! docker run --rm \
+    echo "  Using baked image $ROVER_DOCKER_IMAGE (--skip-update, no plugin download)..."
+    set +e
+    docker run --rm \
         -v "$CONTRACTS_DIR:/workspace" \
         -w /workspace/supergraph \
         -e APOLLO_ELV2_LICENSE=accept \
         "$ROVER_DOCKER_IMAGE" \
         supergraph compose \
         --elv2-license accept \
+        --skip-update \
+        --federation-version "=${SUPERGRAPH_PLUGIN_VERSION}" \
         --config "./$config_file" \
-        --output "./$output_file" 2>"$error_log"; then
+        --output "./$output_file" 2>&1 | tee "$error_log"
+    status=${PIPESTATUS[0]}
+    set -e
+    if [[ "$status" -ne 0 ]]; then
         echo "❌ Docker-based rover failed while generating $env_name supergraph"
         echo "   Image: $ROVER_DOCKER_IMAGE"
         if grep -qi "pull access denied\|not found\|manifest unknown" "$error_log"; then
-            echo "   The configured Rover image is unavailable."
-            echo "   Override it with ROVER_DOCKER_IMAGE=<valid-image> or run locally without --docker."
+            echo "   Rebuild with: ./neotool dev up --recreate"
         fi
-        cat "$error_log"
         rm -f "$error_log"
         return 1
     fi
@@ -71,23 +95,31 @@ generate_with_local() {
     local output_file="$2"
     local env_name="$3"
     local error_log
+    local status
     error_log="$(mktemp)"
     
     echo "  Generating $env_name supergraph..."
+    echo "  Using local rover (--skip-update; plugin should already be installed)..."
     cd "$SUPERGRAPH_DIR"
-    if ! APOLLO_ELV2_LICENSE=accept rover supergraph compose \
+    set +e
+    APOLLO_ELV2_LICENSE=accept rover supergraph compose \
         --elv2-license accept \
+        --skip-update \
+        --federation-version "=${SUPERGRAPH_PLUGIN_VERSION}" \
         --config "./$config_file" \
-        --output "./$output_file" 2>"$error_log"; then
+        --output "./$output_file" 2>&1 | tee "$error_log"
+    status=${PIPESTATUS[0]}
+    set -e
+    if [[ "$status" -ne 0 ]]; then
         echo "❌ Local rover failed while generating $env_name supergraph"
         if grep -qi "ELV2 license must be accepted" "$error_log"; then
             echo "   Rover requires the Apollo ELv2 license to be accepted for composition."
         fi
-        if grep -qi "unable to find dependency\|error sending request\|dns error\|failed to lookup address information" "$error_log"; then
-            echo "   Rover could not download the composition dependency."
-            echo "   Retry with network access, or use --docker with a valid Rover image."
+        if grep -qi "unable to find dependency\|error sending request\|dns error\|failed to lookup address information\|skip-update\|plugin\|Failed to run the composition binary" "$error_log"; then
+            echo "   Composition plugin missing or incompatible."
+            echo "   Inside DevPod: ./neotool dev up --recreate  (bakes rover + plugin into the image)"
+            echo "   On the host:   rover install --plugin supergraph@=${SUPERGRAPH_PLUGIN_VERSION} --elv2-license accept"
         fi
-        cat "$error_log"
         rm -f "$error_log"
         return 1
     fi
@@ -97,7 +129,7 @@ generate_with_local() {
 
 # Function to run rover in Docker (recommended for CI/CD)
 run_rover_docker() {
-    echo "Using Docker-based rover..."
+    echo "Using Docker-based rover ($ROVER_DOCKER_IMAGE)..."
     generate_with_docker "supergraph.yaml" "supergraph.graphql" "production"
     if [[ "$PRODUCTION_ONLY" == false ]]; then
         generate_with_docker "supergraph.local.yaml" "supergraph.local.graphql" "development"
@@ -112,11 +144,12 @@ run_rover_local() {
     # Check if rover is installed
     if ! command -v rover &> /dev/null; then
         echo "Error: rover is not installed or not in PATH"
-        echo "Please install rover first:"
-        echo "  curl -sSL https://rover.apollo.dev/nix/latest | sh"
-        echo "  or visit: https://www.apollographql.com/docs/rover/getting-started/"
+        echo "Inside DevPod: ./neotool dev up --recreate"
+        echo "On the host:"
+        echo "  curl -sSL https://rover.apollo.dev/nix/v${ROVER_VERSION} | sh"
+        echo "  rover install --plugin supergraph@=${SUPERGRAPH_PLUGIN_VERSION} --elv2-license accept"
         echo ""
-        echo "Alternatively, use Docker:"
+        echo "Alternatively, use the baked Docker image:"
         echo "  ./neotool graphql generate --docker"
         exit 1
     fi

@@ -70,6 +70,61 @@
       "editLabel": "Edit account name",
       "updateError": "Could not update account name. Please try again."
     },
+    "members": {
+      "title": "Members",
+      "loading": "Loading members...",
+      "loadError": "Could not load account members.",
+      "empty": "No members found.",
+      "searchEmpty": "No members match your search.",
+      "searchPlaceholder": "Search by name or email",
+      "clearSearchAriaLabel": "Clear member search",
+      "inviteTitle": "Invite member",
+      "inviteAction": "Invite",
+      "inviteSuccess": "Invitation sent successfully.",
+      "cancelAction": "Cancel invitation",
+      "cancelSuccess": "Invitation canceled successfully.",
+      "removeAction": "Remove member",
+      "removeConfirmTitle": "Remove member?",
+      "removeConfirmDescription": "Are you sure you want to remove {{name}} from this account?",
+      "removeSuccess": "Member removed successfully.",
+      "leaveAction": "Leave this account",
+      "leaveSuccess": "You left the account successfully.",
+      "roleLabel": "Role",
+      "emailLabel": "Email",
+      "actionError": "Could not complete the membership action. Please try again.",
+      "roleChangeSuccess": "Member role updated successfully.",
+      "table": {
+        "ariaLabel": "Account members table",
+        "member": "Member",
+        "role": "Role",
+        "status": "Status",
+        "permission": "Permission",
+        "noPermissionAction": "—"
+      },
+      "roles": {
+        "OWNER": "Owner",
+        "ADMIN": "Admin",
+        "MEMBER": "Member",
+        "VIEWER": "Viewer"
+      },
+      "status": {
+        "PENDING": "Pending",
+        "ACTIVE": "Active",
+        "REMOVED": "Removed"
+      }
+    },
+    "invitation": {
+      "acceptedTitle": "Invitation accepted",
+      "acceptedDescription": "You now have access to {{accountName}}.",
+      "acceptSuccess": "Invitation accepted successfully.",
+      "acceptError": "Could not accept this invitation.",
+      "errorTitle": "Invitation unavailable",
+      "invalidToken": "The invitation token is missing or invalid.",
+      "wrongAccountTitle": "Wrong account",
+      "wrongAccountDescription": "This invitation was sent to a different email. Sign out and sign in with the invited account to accept it.",
+      "switchAccount": "Sign out and continue",
+      "goHome": "Go to home"
+    },
     "avatar": {
       "changePhoto": "Change photo",
       "removePhoto": "Remove photo",
@@ -148,6 +203,7 @@
   },
   "errors": {
     "ACCOUNT_ALREADY_EXISTS": "Account already exists.",
+    "ACCOUNT_ALREADY_MEMBER": "You already have an active account.",
     "ACCOUNT_DELETION_NOT_ALLOWED": "This account cannot be deleted.",
     "ACCOUNT_INACTIVE": "Account is inactive.",
     "ACCOUNT_NAME_REQUIRED": "Account name is required.",

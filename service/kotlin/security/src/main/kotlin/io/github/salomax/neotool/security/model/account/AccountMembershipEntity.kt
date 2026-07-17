@@ -28,8 +28,9 @@ open class AccountMembershipEntity(
     override val id: UUID? = null,
     @Column(name = "account_id", nullable = false, columnDefinition = "uuid")
     open var accountId: UUID,
-    @Column(name = "user_id", nullable = false, columnDefinition = "uuid")
-    open var userId: UUID,
+    /** Null while a PENDING invite targets an email that has no platform user yet. */
+    @Column(name = "user_id", columnDefinition = "uuid")
+    open var userId: UUID? = null,
     @Enumerated(EnumType.STRING)
     @Column(name = "account_role", nullable = false)
     open var accountRole: AccountRole,
@@ -44,6 +45,9 @@ open class AccountMembershipEntity(
     open var invitedBy: UUID? = null,
     @Column(name = "invited_at")
     open var invitedAt: Instant? = null,
+    /** Normalized invitee email; required for invite-before-signup PENDING rows. */
+    @Column(name = "invitee_email")
+    open var inviteeEmail: String? = null,
     @Column(name = "invitation_token")
     open var invitationToken: String? = null,
     @Column(name = "invitation_expires_at")

@@ -21,6 +21,13 @@ export type Scalars = {
   link__Import: { input: unknown; output: unknown; }
 };
 
+export type AcceptInvitationPayload = {
+  __typename: 'AcceptInvitationPayload';
+  accountId: Scalars['ID']['output'];
+  accountName: Scalars['String']['output'];
+  membershipId: Scalars['ID']['output'];
+};
+
 export type Account = {
   __typename: 'Account';
   accountName: Scalars['String']['output'];
@@ -28,6 +35,23 @@ export type Account = {
   accountType: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   isOwner: Scalars['Boolean']['output'];
+};
+
+export type AccountMember = {
+  __typename: 'AccountMember';
+  accountId: Scalars['ID']['output'];
+  avatarUrl: Maybe<Scalars['String']['output']>;
+  displayName: Maybe<Scalars['String']['output']>;
+  email: Scalars['String']['output'];
+  invitedAt: Maybe<Scalars['String']['output']>;
+  isCurrentUser: Scalars['Boolean']['output'];
+  isDefault: Scalars['Boolean']['output'];
+  joinedAt: Maybe<Scalars['String']['output']>;
+  membershipId: Scalars['ID']['output'];
+  removedAt: Maybe<Scalars['String']['output']>;
+  role: AccountRole;
+  status: MembershipStatus;
+  userId: Maybe<Scalars['ID']['output']>;
 };
 
 export type AccountPendingAction = {
@@ -48,6 +72,13 @@ export type AccountPreferences = {
   __typename: 'AccountPreferences';
   defaultTransactionStatus: TransactionStatus;
 };
+
+export enum AccountRole {
+  Admin = 'ADMIN',
+  Member = 'MEMBER',
+  Owner = 'OWNER',
+  Viewer = 'VIEWER'
+}
 
 /** ANBIMA fund category. Required for correct tax treatment (come-cotas schedule). */
 export enum AnbimaCategory {
@@ -2127,6 +2158,13 @@ export enum InvestmentTransactionType {
   WithholdingTax = 'WITHHOLDING_TAX'
 }
 
+export type InviteMemberInput = {
+  accountId: Scalars['ID']['input'];
+  email: Scalars['String']['input'];
+  /** Interim: only MEMBER is accepted via invite until per-membership RBAC lands. */
+  role?: InputMaybe<AccountRole>;
+};
+
 /** Financial institution associated with an account. */
 export type Issuer = {
   __typename: 'Issuer';
@@ -2241,6 +2279,12 @@ export type MaturityCashMovementInput = {
   financialAccountId: Scalars['ID']['input'];
 };
 
+export enum MembershipStatus {
+  Active = 'ACTIVE',
+  Pending = 'PENDING',
+  Removed = 'REMOVED'
+}
+
 /**
  * A merchant (payee) associated with a transaction.
  * System merchants are shared across all accounts; user merchants are account-scoped.
@@ -2338,6 +2382,7 @@ export type MonthSummary = {
 export type Mutation = {
   __typename: 'Mutation';
   _bankingService: Maybe<Scalars['String']['output']>;
+  acceptInvitation: AcceptInvitationPayload;
   applyTransactionEditToSimilar: SimilarTransactionEditResult;
   /**
    * Applies the given transaction rule to historical (non-manual) transactions that match it.
@@ -2362,6 +2407,8 @@ export type Mutation = {
   /** Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL. */
   bulkCategorize: BulkOperationResult;
   cancelImportReview: Scalars['Boolean']['output'];
+  cancelInvitation: Scalars['Boolean']['output'];
+  changeMemberRole: AccountMember;
   chat: ChatResponse;
   clearConversation: Scalars['Boolean']['output'];
   /**
@@ -2465,6 +2512,7 @@ export type Mutation = {
   /** Create a transaction rule for auto-categorization and/or merchant suggestion. Invalid REGEX pattern returns a validation error. */
   createTransactionRule: TransactionRule;
   createWishlistItem: WishlistItem;
+  declineInvitation: Scalars['Boolean']['output'];
   /**
    * Delete an asset.
    *
@@ -2499,6 +2547,8 @@ export type Mutation = {
   generateCompletion: CompletionResponse;
   importNfce: ImportResult;
   importTransactionsFile: ImportResult;
+  inviteMember: AccountMember;
+  leaveAccount: Scalars['Boolean']['output'];
   linkTransactionToRecurring: Transaction;
   mapItemToVariant: ProductAlias;
   markWishlistItemAsPurchased: WishlistItem;
@@ -2517,6 +2567,7 @@ export type Mutation = {
   removeGroupFromUser: User;
   /** Remove an attachment from a holding and delete the underlying asset. */
   removeHoldingAttachment: Scalars['Boolean']['output'];
+  removeMember: Scalars['Boolean']['output'];
   removePermissionFromRole: Role;
   removeRoleFromGroup: Group;
   /** Remove an attachment from a transaction and delete the underlying asset. */
@@ -2580,6 +2631,11 @@ export type Mutation = {
 };
 
 
+export type MutationAcceptInvitationArgs = {
+  token: Scalars['String']['input'];
+};
+
+
 export type MutationApplyTransactionEditToSimilarArgs = {
   applyToExisting?: InputMaybe<Scalars['Boolean']['input']>;
   applyToFuture?: InputMaybe<Scalars['Boolean']['input']>;
@@ -2630,6 +2686,19 @@ export type MutationBulkCategorizeArgs = {
 
 export type MutationCancelImportReviewArgs = {
   jobId: Scalars['ID']['input'];
+};
+
+
+export type MutationCancelInvitationArgs = {
+  accountId: Scalars['ID']['input'];
+  membershipId: Scalars['ID']['input'];
+};
+
+
+export type MutationChangeMemberRoleArgs = {
+  accountId: Scalars['ID']['input'];
+  membershipId: Scalars['ID']['input'];
+  role: AccountRole;
 };
 
 
@@ -2755,6 +2824,11 @@ export type MutationCreateWishlistItemArgs = {
 };
 
 
+export type MutationDeclineInvitationArgs = {
+  token: Scalars['String']['input'];
+};
+
+
 export type MutationDeleteAssetArgs = {
   assetId: Scalars['ID']['input'];
 };
@@ -2846,6 +2920,16 @@ export type MutationImportTransactionsFileArgs = {
 };
 
 
+export type MutationInviteMemberArgs = {
+  input: InviteMemberInput;
+};
+
+
+export type MutationLeaveAccountArgs = {
+  accountId: Scalars['ID']['input'];
+};
+
+
 export type MutationLinkTransactionToRecurringArgs = {
   recurringPaymentId: Scalars['ID']['input'];
   transactionId: Scalars['ID']['input'];
@@ -2910,6 +2994,12 @@ export type MutationRemoveGroupFromUserArgs = {
 
 export type MutationRemoveHoldingAttachmentArgs = {
   attachmentId: Scalars['ID']['input'];
+};
+
+
+export type MutationRemoveMemberArgs = {
+  accountId: Scalars['ID']['input'];
+  membershipId: Scalars['ID']['input'];
 };
 
 
@@ -3487,6 +3577,7 @@ export type Query = {
   __typename: 'Query';
   _bankingService: Maybe<Scalars['String']['output']>;
   _empty: Maybe<Scalars['String']['output']>;
+  accountMembers: Array<AccountMember>;
   /** Current account (tenant) preferences (defaults when no row exists). */
   accountPreferences: AccountPreferences;
   /**
@@ -3718,6 +3809,11 @@ export type Query = {
   wishlistItems: Array<WishlistItem>;
   /** Best-effort product metadata preview from schema.org/Product or Open Graph. */
   wishlistProductMetadataPreview: Maybe<WishlistProductMetadataPreview>;
+};
+
+
+export type QueryAccountMembersArgs = {
+  accountId: Scalars['ID']['input'];
 };
 
 

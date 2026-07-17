@@ -25,6 +25,8 @@ import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
 import { signinTranslations } from "@/app/(authentication)/signin/i18n";
 import { extractErrorMessage } from "@/shared/utils/error";
 import { useOAuth } from "@/shared/hooks/auth";
+import { useSearchParams } from "next/navigation";
+import { buildAuthHrefWithNext } from "@/shared/utils/auth/redirect-target";
 
 const signInSchema = z.object({
   email: z.string().email("errors.invalidEmail").min(1, "errors.required"),
@@ -42,6 +44,11 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
   const { t, tCommon } = useTranslation(signinTranslations);
   const { signIn, signInWithOAuth } = useAuth();
   const { error: showError } = useToast();
+  const searchParams = useSearchParams();
+  const signupHref = React.useMemo(
+    () => buildAuthHrefWithNext("/signup", searchParams),
+    [searchParams],
+  );
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isOAuthLoading, setIsOAuthLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -208,7 +215,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
             <Typography variant="body2" color="text.secondary" component="span">
               {t("dontHaveAccount")}{" "}
             </Typography>
-            <Link component={NextLink} href="/signup" name="signup-link" data-testid="link-signup">
+            <Link component={NextLink} href={signupHref} name="signup-link" data-testid="link-signup">
               {t("signUp")}
             </Link>
           </Box>

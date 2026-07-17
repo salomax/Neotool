@@ -70,6 +70,61 @@
       "editLabel": "Editar nome da conta",
       "updateError": "Não foi possível atualizar o nome da conta. Tente novamente."
     },
+    "members": {
+      "title": "Membros",
+      "loading": "Carregando membros...",
+      "loadError": "Não foi possível carregar os membros da conta.",
+      "empty": "Nenhum membro encontrado.",
+      "searchEmpty": "Nenhum membro corresponde à pesquisa.",
+      "searchPlaceholder": "Pesquisar por nome ou e-mail",
+      "clearSearchAriaLabel": "Limpar pesquisa de membros",
+      "inviteTitle": "Convidar membro",
+      "inviteAction": "Convidar",
+      "inviteSuccess": "Convite enviado com sucesso.",
+      "cancelAction": "Cancelar convite",
+      "cancelSuccess": "Convite cancelado com sucesso.",
+      "removeAction": "Remover membro",
+      "removeConfirmTitle": "Remover membro?",
+      "removeConfirmDescription": "Tem certeza de que deseja remover {{name}} desta conta?",
+      "removeSuccess": "Membro removido com sucesso.",
+      "leaveAction": "Desvincular desta conta",
+      "leaveSuccess": "Você saiu da conta com sucesso.",
+      "roleLabel": "Papel",
+      "emailLabel": "E-mail",
+      "actionError": "Não foi possível concluir a ação de membership. Tente novamente.",
+      "roleChangeSuccess": "Papel do membro atualizado com sucesso.",
+      "table": {
+        "ariaLabel": "Tabela de membros da conta",
+        "member": "Membro",
+        "role": "Papel",
+        "status": "Status",
+        "permission": "Permissão",
+        "noPermissionAction": "—"
+      },
+      "roles": {
+        "OWNER": "Proprietário",
+        "ADMIN": "Administrador",
+        "MEMBER": "Membro",
+        "VIEWER": "Visualizador"
+      },
+      "status": {
+        "PENDING": "Pendente",
+        "ACTIVE": "Ativo",
+        "REMOVED": "Removido"
+      }
+    },
+    "invitation": {
+      "acceptedTitle": "Convite aceito",
+      "acceptedDescription": "Agora você tem acesso a {{accountName}}.",
+      "acceptSuccess": "Convite aceito com sucesso.",
+      "acceptError": "Não foi possível aceitar este convite.",
+      "errorTitle": "Convite indisponível",
+      "invalidToken": "O token do convite está ausente ou é inválido.",
+      "wrongAccountTitle": "Conta incorreta",
+      "wrongAccountDescription": "Este convite foi enviado para outro e-mail. Saia da conta atual e entre com a conta convidada para aceitá-lo.",
+      "switchAccount": "Sair e continuar",
+      "goHome": "Ir para a página inicial"
+    },
     "avatar": {
       "changePhoto": "Alterar foto",
       "removePhoto": "Remover foto",
@@ -148,6 +203,7 @@
   },
   "errors": {
     "ACCOUNT_ALREADY_EXISTS": "A conta já existe.",
+    "ACCOUNT_ALREADY_MEMBER": "Você já possui uma conta ativa.",
     "ACCOUNT_DELETION_NOT_ALLOWED": "Esta conta não pode ser excluída.",
     "ACCOUNT_INACTIVE": "A conta está inativa.",
     "ACCOUNT_NAME_REQUIRED": "O nome da conta é obrigatório.",

@@ -70,6 +70,7 @@ type GraphQLErrorEntry = {
   extensions?: {
     code?: string;
     parameters?: Record<string, unknown>;
+    field?: string | string[];
   };
 };
 
@@ -242,6 +243,31 @@ export function extractErrorCode(error: unknown): string | undefined {
 export function extractErrorParameters(error: unknown): Record<string, unknown> | undefined {
   const graphqlErrors = collectGraphQLErrors(error);
   return extractParametersFromErrorArray(graphqlErrors);
+}
+
+/**
+ * Extracts GraphQL `extensions.field` values from Apollo/GraphQL errors.
+ */
+export function extractErrorFields(error: unknown): string[] {
+  const graphqlErrors = collectGraphQLErrors(error);
+  const fields: string[] = [];
+
+  for (const entry of graphqlErrors) {
+    const field = entry.extensions?.field;
+    if (typeof field === "string" && field.trim().length > 0) {
+      fields.push(field.trim());
+      continue;
+    }
+    if (Array.isArray(field)) {
+      for (const item of field) {
+        if (typeof item === "string" && item.trim().length > 0) {
+          fields.push(item.trim());
+        }
+      }
+    }
+  }
+
+  return fields;
 }
 
 /**

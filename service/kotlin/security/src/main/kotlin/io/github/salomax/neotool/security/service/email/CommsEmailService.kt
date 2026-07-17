@@ -204,8 +204,10 @@ class CommsEmailService(
                                             "acceptLink" to acceptLink,
                                             "expiryDays" to expiryDays.toString(),
                                             "role" to role,
-                                            "supportEmail" to "support@neotool.io",
-                                            "logoUrl" to "https://neotool.io/logo.png",
+                                            "supportEmail" to "suporte@invistus.com.br",
+                                            "logoUrl" to
+                                                "https://invistus.com.br/images/logos/" +
+                                                "invistus-logo-white-transparent.png",
                                         ),
                                 ),
                         ),

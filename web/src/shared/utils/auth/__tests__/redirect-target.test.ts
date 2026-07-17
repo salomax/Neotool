@@ -3,6 +3,7 @@ import {
   extractNextFromSearchParams,
   sanitizeRedirectTarget,
   resolvePostLoginRedirect,
+  buildAuthHrefWithNext,
 } from '../redirect-target';
 
 function paramsFromObject(record: Record<string, string>): URLSearchParams {
@@ -11,6 +12,11 @@ function paramsFromObject(record: Record<string, string>): URLSearchParams {
 
 describe('redirect-target', () => {
   describe('extractNextFromSearchParams', () => {
+    it('returns null when params are null or undefined', () => {
+      expect(extractNextFromSearchParams(null)).toBeNull();
+      expect(extractNextFromSearchParams(undefined)).toBeNull();
+    });
+
     it('returns null when next param is missing', () => {
       const params = paramsFromObject({});
       expect(extractNextFromSearchParams(params)).toBeNull();
@@ -204,6 +210,29 @@ describe('redirect-target', () => {
     it('uses custom fallback when provided', () => {
       const params = paramsFromObject({});
       expect(resolvePostLoginRedirect(params, '/welcome')).toBe('/welcome');
+    });
+  });
+
+  describe('buildAuthHrefWithNext', () => {
+    it('returns path without query when next is missing', () => {
+      expect(buildAuthHrefWithNext('/signup', paramsFromObject({}))).toBe('/signup');
+      expect(buildAuthHrefWithNext('/signin', paramsFromObject({}))).toBe('/signin');
+    });
+
+    it('preserves a safe invitation next target', () => {
+      const next = '/invitations/accept?token=abc';
+      const params = paramsFromObject({ next });
+      expect(buildAuthHrefWithNext('/signup', params)).toBe(
+        `/signup?next=${encodeURIComponent(next)}`,
+      );
+      expect(buildAuthHrefWithNext('/signin', params)).toBe(
+        `/signin?next=${encodeURIComponent(next)}`,
+      );
+    });
+
+    it('drops unsafe next targets', () => {
+      const params = paramsFromObject({ next: 'https://evil.com' });
+      expect(buildAuthHrefWithNext('/signup', params)).toBe('/signup');
     });
   });
 });
