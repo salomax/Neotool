@@ -19,6 +19,9 @@ venv
 /retry-worker
 *.tsbuildinfo
 .pnpm-store/
+# Root uses npm (package-lock.json). Keep web/ and mobile/ pnpm lockfiles tracked.
+/pnpm-lock.yaml
+/pnpm-workspace.yaml
 
 *.code-workspace
 .idea
