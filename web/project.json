@@ -1,3 +1,4 @@
 {
+  "name": "neotool-web",
   "tags": ["type:app", "lang:typescript", "scope:web"]
 }

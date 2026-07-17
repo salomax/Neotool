@@ -1,5 +1,9 @@
 {
-  "tags": ["type:cronjob", "lang:go"],
+  "name": "b3-cotahist-job",
+  "tags": [
+    "type:cronjob",
+    "lang:go"
+  ],
   "targets": {
     "build": {
       "executor": "nx:run-commands",

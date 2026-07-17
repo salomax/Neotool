@@ -1,5 +1,9 @@
 {
-  "tags": ["type:consumer", "lang:go"],
+  "name": "institution-enhancement-consumer",
+  "tags": [
+    "type:consumer",
+    "lang:go"
+  ],
   "targets": {
     "build": {
       "executor": "nx:run-commands",
