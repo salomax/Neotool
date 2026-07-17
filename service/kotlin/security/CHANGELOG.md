@@ -1,3 +1,14 @@
+## 0.5.0 (2026-07-17)
+
+### 🚀 Features
+
+- **security:** account invitations — interim MEMBER-only invite roles (GH-312) ([#399](https://github.com/invistus/invistus/pull/399), [#398](https://github.com/invistus/invistus/issues/398))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Marcos Salomão @salomax
+
 ## 0.4.9 (2026-07-17)
 
 This was a version bump only for security to align it with other projects, there were no code changes.
