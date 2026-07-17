@@ -152,6 +152,23 @@ class BankingGraphQLExceptionHandler : DataFetcherExceptionHandler {
                     code = CommonErrorCode.INVALID_INPUT.code,
                 )
             }
+            is io.github.salomax.neotool.banking.client.import.nfce.NfceUnavailableException -> {
+                logger.warn("GraphQL NFC-e fetch unavailable: {}", exception.message)
+                buildErrorResponse(
+                    handlerParameters = handlerParameters,
+                    message = CommonErrorCode.SERVICE_UNAVAILABLE.defaultMessage,
+                    code = CommonErrorCode.SERVICE_UNAVAILABLE.code,
+                )
+            }
+            is io.github.salomax.neotool.banking.client.import.nfce.NfceInvalidException -> {
+                logger.warn("GraphQL NFC-e payload invalid: {}", exception.message)
+                buildErrorResponse(
+                    handlerParameters = handlerParameters,
+                    message = CommonErrorCode.INVALID_INPUT.defaultMessage,
+                    code = CommonErrorCode.INVALID_INPUT.code,
+                    field = listOf("qrCodeUrl"),
+                )
+            }
             is NoSuchElementException -> {
                 logger.debug("GraphQL resource not found: {}", exception.message)
                 buildErrorResponse(

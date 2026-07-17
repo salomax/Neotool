@@ -1,5 +1,6 @@
 "use client";
 
+import { formatCnpj } from "@/lib/utils/formatCnpj";
 import type { HoldingDetailHeaderVariant } from "./HoldingDetailHeader";
 import { getHoldingKind, type HoldingRow } from "./table/investmentTableHelpers";
 
@@ -9,6 +10,8 @@ export interface HoldingDetailHeaderTraits {
   indexerLabel?: string | null;
   taxExemptLabel?: string | null;
   subtitleLabel?: string | null;
+  /** Raw fund CNPJ digits/formatted string; presented only for fund holdings. */
+  fundCnpj?: string | null;
 }
 
 export interface HoldingDetailHeaderMetrics {
@@ -119,31 +122,59 @@ export function buildHoldingDetailHeaderModelFromRow(
   };
 }
 
+function joinUniqueLabelParts(rawParts: Array<string | null | undefined>): string | null {
+  const uniqueParts = new Set<string>();
+  for (const rawPart of rawParts) {
+    const part = (rawPart ?? "").trim();
+    if (!part || part === "—") continue;
+    uniqueParts.add(part);
+  }
+  return [...uniqueParts].join(" • ").trim() || null;
+}
+
 export function presentHoldingDetailHeaderLabels(model: HoldingDetailHeaderModel): HoldingDetailHeaderLabels {
-  const accountLabel = model.account?.name ?? null;
-  const normalizedAccount = accountLabel?.trim().toLocaleLowerCase() ?? null;
+  const accountName = model.account?.name ?? null;
+  const normalizedAccount = accountName?.trim().toLocaleLowerCase() ?? null;
   const {
     issuerLabel,
     assetTypeLabel,
     indexerLabel,
     taxExemptLabel,
     subtitleLabel,
+    fundCnpj,
   } = model.traits;
 
-  const rawParts =
-    model.variant === "fixedIncome"
-      ? [issuerLabel, assetTypeLabel, indexerLabel, taxExemptLabel]
-      : [issuerLabel, assetTypeLabel, subtitleLabel];
+  if (model.variant === "fund") {
+    const trimmedFundCnpj = (fundCnpj ?? "").trim();
+    return {
+      metaLabel: joinUniqueLabelParts([
+        assetTypeLabel,
+        subtitleLabel,
+        trimmedFundCnpj ? formatCnpj(trimmedFundCnpj) : null,
+      ]),
+      // Account line carries custody + issuer so the description stays fund-specific.
+      accountLabel: joinUniqueLabelParts([accountName, issuerLabel]),
+    };
+  }
 
+  if (model.variant === "fixedIncome") {
+    return {
+      metaLabel: joinUniqueLabelParts([issuerLabel, assetTypeLabel, indexerLabel, taxExemptLabel]),
+      accountLabel: accountName,
+    };
+  }
+
+  const equityMetaParts: Array<string | null | undefined> = [issuerLabel, assetTypeLabel, subtitleLabel];
   const uniqueParts = new Set<string>();
-  for (const rawPart of rawParts) {
+  for (const rawPart of equityMetaParts) {
     const part = (rawPart ?? "").trim();
-    if (!part) continue;
-    if (normalizedAccount && part.toLocaleLowerCase() === normalizedAccount && model.variant !== "fixedIncome") continue;
+    if (!part || part === "—") continue;
+    if (normalizedAccount && part.toLocaleLowerCase() === normalizedAccount) continue;
     uniqueParts.add(part);
   }
 
-  const metaLabel = [...uniqueParts].join(" • ").trim() || null;
-
-  return { metaLabel, accountLabel };
+  return {
+    metaLabel: [...uniqueParts].join(" • ").trim() || null,
+    accountLabel: accountName,
+  };
 }

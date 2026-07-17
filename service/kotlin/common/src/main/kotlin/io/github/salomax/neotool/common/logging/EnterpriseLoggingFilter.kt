@@ -70,7 +70,7 @@ class EnterpriseLoggingFilter : HttpServerFilter {
         val clientIp = request.headers.get("X-Forwarded-For") ?: "unknown"
         val contentLength = request.headers.get("Content-Length") ?: "unknown"
 
-        logger.info {
+        logger.debug {
             "HTTP Request: $method $path - Client: $clientIp - User-Agent: $userAgent - " +
                 "Size: $contentLength - CorrelationId: $correlationId"
         }

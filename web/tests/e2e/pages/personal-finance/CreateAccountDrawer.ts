@@ -284,7 +284,10 @@ export class CreateAccountDrawer {
     }
     const input = this.drawerPanel().getByTestId('initial-balance-date-input').getByRole('textbox').first();
     await expect(input).toBeVisible();
-    await input.fill(dateStr);
+    await input.click();
+    await input.press(`${process.platform === 'darwin' ? 'Meta' : 'Control'}+A`);
+    await input.press('Delete');
+    await input.type(dateStr, { delay: 20 });
     await input.press('Tab');
   }
 
@@ -395,12 +398,14 @@ export class CreateAccountDrawer {
 
   /** Asserts that a validation error message is visible for the given field. */
   async expectFieldError(fieldTestId: string, messagePattern?: string | RegExp): Promise<void> {
-    const fieldCandidates = this.drawerPanel().getByTestId(fieldTestId);
-    const inputLikeField = fieldCandidates.locator('input, textarea, select').first();
-    const field =
-      (await inputLikeField.count()) > 0
-        ? inputLikeField
-        : fieldCandidates.first();
+    const visibleFieldCandidates = this.visibleDrawerPanel().getByTestId(fieldTestId);
+    const hiddenFieldCandidates = this.drawerPanel().getByTestId(fieldTestId);
+    const fieldCandidates =
+      (await visibleFieldCandidates.count()) > 0
+        ? visibleFieldCandidates
+        : hiddenFieldCandidates;
+    const inputLikeField = fieldCandidates.locator('input, textarea, select, [role="textbox"]').first();
+    const field = (await inputLikeField.count()) > 0 ? inputLikeField : fieldCandidates.first();
     const describedBy = await field.getAttribute('aria-describedby');
     const describedByIds = (describedBy ?? '')
       .split(' ')
@@ -430,12 +435,16 @@ export class CreateAccountDrawer {
       await expect(errorEl).toBeVisible();
       return;
     }
-    await expect(field).toHaveAttribute('aria-invalid', 'true');
+    if ((await field.count()) > 0) {
+      await expect(field).toHaveAttribute('aria-invalid', 'true');
+      return;
+    }
+    await expect(fieldCandidates.first()).toHaveAttribute('aria-invalid', 'true');
   }
 
   /** Asserts that the drawer is still open (form was not closed despite submit). */
   async expectStillOpen(): Promise<void> {
-    await expect(this.drawer).toBeVisible();
+    await expect(this.visibleDrawerPanel()).toBeVisible();
   }
 
   async expectDeleteError(messagePattern?: string | RegExp): Promise<void> {

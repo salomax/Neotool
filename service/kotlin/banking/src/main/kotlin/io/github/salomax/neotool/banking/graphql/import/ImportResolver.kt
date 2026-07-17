@@ -216,7 +216,11 @@ class ImportResolver(
                             ImportDuplicateCandidateDTO(
                                 rowIndex = c.rowIndex,
                                 parsed = c.parsed.toDTO(),
-                                candidates = c.candidates.map { it.toDTO() },
+                                candidates =
+                                    c.candidates.mapNotNull { candidate ->
+                                        val candidateId = candidate.id ?: return@mapNotNull null
+                                        candidate.toDTO(candidateId)
+                                    },
                             )
                         }
             }
@@ -252,9 +256,9 @@ class ImportResolver(
             counterpartyDocument = counterpartyDocument,
         )
 
-    private fun Transaction.toDTO(): TransactionDTO =
+    private fun Transaction.toDTO(resolvedId: UUID = requireNotNull(id)): TransactionDTO =
         TransactionDTO(
-            id = id!!,
+            id = resolvedId,
             financialAccountId = financialAccountId,
             belongsToUserId = belongsToUserId,
             belongsToName = belongsToName,

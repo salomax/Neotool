@@ -10,7 +10,7 @@ help: ## Show this help message
 
 build: ## Build cronjob binary
 	@mkdir -p $(BINARY_DIR)
-	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(BINARY) ./cmd/cronjob
+	CGO_ENABLED=0 go build -buildvcs=false -ldflags="-s -w" -o $(BINARY) ./cmd/cronjob
 	@echo "Built: $(BINARY)"
 
 clean: ## Remove build artifacts

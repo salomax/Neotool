@@ -74,6 +74,32 @@ open class DefaultInvestmentTransactionRepository(
             providerTransactionId,
         )
 
+    override fun findByProviderTransactionId(
+        financialAccountId: UUID,
+        accountId: UUID,
+        providerTransactionId: String,
+    ): InvestmentTransaction? =
+        entityRepository
+            .findByFinancialAccountIdAndAccountIdAndProviderTransactionIdAndDeletedAtIsNull(
+                financialAccountId,
+                accountId,
+                providerTransactionId,
+            )
+            ?.let(InvestmentTransactionMapper::toDomain)
+
+    override fun existsWithholdingTaxForHoldingOnTradeDate(
+        holdingId: UUID,
+        accountId: UUID,
+        tradeDate: LocalDate,
+    ): Boolean = entityRepository.existsWithholdingTaxForHoldingOnTradeDate(holdingId, accountId, tradeDate)
+
+    override fun existsWithholdingTaxForHoldingInDateRange(
+        holdingId: UUID,
+        accountId: UUID,
+        from: LocalDate,
+        to: LocalDate,
+    ): Boolean = entityRepository.existsWithholdingTaxForHoldingInDateRange(holdingId, accountId, from, to)
+
     @Transactional
     override fun save(transaction: InvestmentTransaction): InvestmentTransaction {
         val entity = InvestmentTransactionMapper.toEntity(transaction)

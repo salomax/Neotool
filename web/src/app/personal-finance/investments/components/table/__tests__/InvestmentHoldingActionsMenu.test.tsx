@@ -32,7 +32,6 @@ describe.sequential('InvestmentHoldingActionsMenu', () => {
     onRecordSplit: vi.fn(),
     onRecordBonus: vi.fn(),
     onRecordSubscription: vi.fn(),
-    onRecordWithholdingTax: vi.fn(),
     onRecordAmortization: vi.fn(),
     onRecordStockLending: vi.fn(),
     onTransferCustody: vi.fn(),

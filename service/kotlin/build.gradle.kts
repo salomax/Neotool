@@ -77,6 +77,31 @@ allprojects {
             events("passed", "skipped", "failed")
         }
         systemProperty("api.version", "1.41")
+
+        // Mockito and MockK both need JVM instrumentation via ByteBuddy.
+        // On macOS self-attach usually works; in Linux containers (DevPod) it
+        // often fails with "Could not self-attach to current VM".
+        //
+        // Attach ONLY byte-buddy-agent (not also mockito-core):
+        // - MockK looks up Instrumentation via ByteBuddyAgent.install()
+        // - Mockito reuses that same Instrumentation for the inline mock-maker
+        // Attaching both agents causes retransform conflicts like:
+        // "class redefinition failed: attempted to delete a method"
+        // See: https://github.com/mockk/mockk/issues/1171
+        // See: https://javadoc.io/doc/org.mockito/mockito-core/latest/org/mockito/Mockito.html#0.3
+        jvmArgumentProviders.add(
+            CommandLineArgumentProvider {
+                val byteBuddyAgent =
+                    classpath.files.firstOrNull {
+                        it.name.startsWith("byte-buddy-agent-") && it.name.endsWith(".jar")
+                    }
+                if (byteBuddyAgent != null) {
+                    listOf("-javaagent:${byteBuddyAgent.absolutePath}")
+                } else {
+                    emptyList()
+                }
+            },
+        )
     }
 }
 
@@ -147,9 +172,14 @@ subprojects {
 
     // Configure Kover after plugin is applied
     afterEvaluate {
-        // Configure Kover to exclude Micronaut internals and generated classes
-        // and set coverage thresholds aligned with big tech standards
         extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
+            // Kover's default instrumenter conflicts with Mockito/MockK ByteBuddy
+            // inline mocks ("class redefinition failed: attempted to delete a method").
+            // JaCoCo coexists with ByteBuddy agents; needed especially when we preload
+            // byte-buddy-agent for DevPod (no self-attach).
+            // See: https://github.com/Kotlin/kotlinx-kover/issues/742
+            useJacoco()
+
             reports {
                 filters {
                     excludes {

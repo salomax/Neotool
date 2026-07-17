@@ -716,6 +716,7 @@ export function InvestmentHoldingDetailDrawer({
               issuerLabel: fundViewModel?.issuerLabel ?? null,
               assetTypeLabel: assetTypeLabel,
               subtitleLabel: fundCategoryLabel ?? fundViewModel?.subtitle ?? null,
+              fundCnpj: kind === "fund" ? fundData?.investmentHolding?.asset.fundCnpj ?? null : null,
             },
             metrics: {
               totalValueLabel: t("investments.detailDrawer.grid.grossTotal"),
@@ -862,6 +863,7 @@ export function InvestmentHoldingDetailDrawer({
       sellLabel={sellDirectionLabel}
       transactions={movementTransactions.map((transaction) => ({
         id: transaction.id,
+        type: transaction.type,
         direction: transaction.direction,
         tradeDate: transaction.tradeDate,
         quantity: transaction.quantity,

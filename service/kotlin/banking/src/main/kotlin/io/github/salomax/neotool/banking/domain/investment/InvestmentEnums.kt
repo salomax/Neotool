@@ -212,7 +212,7 @@ enum class AnbimaCategory { RENDA_FIXA, ACOES, MULTIMERCADO, CAMBIAL }
  * How the investment data entered the system.
  * Mirrors TransactionSource for banking transactions.
  */
-enum class InvestmentSource { MANUAL, OPEN_FINANCE, FILE_IMPORT }
+enum class InvestmentSource { MANUAL, OPEN_FINANCE, FILE_IMPORT, SYSTEM }
 
 /**
  * How a fund holding should derive its current valuation.

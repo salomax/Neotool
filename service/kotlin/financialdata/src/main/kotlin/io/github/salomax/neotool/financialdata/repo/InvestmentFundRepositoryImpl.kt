@@ -345,6 +345,7 @@ open class InvestmentFundRepositoryImpl(
             SELECT
                 ia.fund_cnpj,
                 ia.asset_type,
+                ia.name,
                 nav.price_date,
                 nav.close_price,
                 nav.volume
@@ -366,18 +367,19 @@ open class InvestmentFundRepositoryImpl(
         @Suppress("UNCHECKED_CAST")
         val rows = q.resultList as List<Array<Any?>>
         return rows.map { row ->
-            val navDate = row[2] as? java.sql.Date
-            val navClose = row[3] as? BigDecimal
+            val fundName = row[2] as? String
+            val navDate = row[3] as? java.sql.Date
+            val navClose = row[4] as? BigDecimal
             InvestmentFundMarketSnapshot(
                 cnpj = row[0] as String,
                 assetType = row[1] as String,
-                taxProfile = taxProfileFor(row[1] as String),
+                taxProfile = taxProfileFor(row[1] as String, fundName),
                 latestNav =
                     if (navDate != null && navClose != null) {
                         FundDailyNav(
                             date = navDate.toLocalDate(),
                             closePrice = navClose,
-                            totalNetAssets = row[4] as? BigDecimal,
+                            totalNetAssets = row[5] as? BigDecimal,
                         )
                     } else {
                         null
@@ -507,11 +509,8 @@ open class InvestmentFundRepositoryImpl(
         )
     }
 
-    private fun taxProfileFor(assetType: String): FundTaxProfile =
-        when (assetType) {
-            "FIXED_INCOME_FUND", "MULTI_MARKET_FUND" -> FundTaxProfile.COME_COTAS_LONG
-            "EQUITY_FUND" -> FundTaxProfile.VARIABLE_INCOME_15
-            "PGBL", "VGBL" -> FundTaxProfile.PENSION
-            else -> FundTaxProfile.UNKNOWN
-        }
+    private fun taxProfileFor(
+        assetType: String,
+        fundName: String? = null,
+    ): FundTaxProfile = FundTaxProfileClassifier.taxProfileFor(assetType, fundName)
 }

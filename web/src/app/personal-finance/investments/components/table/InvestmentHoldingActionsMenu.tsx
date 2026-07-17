@@ -7,7 +7,6 @@ import EventIcon from '@mui/icons-material/Event';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-import PercentIcon from '@mui/icons-material/Percent';
 import PaymentsIcon from '@mui/icons-material/Payments';
 import SavingsIcon from '@mui/icons-material/Savings';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
@@ -33,7 +32,6 @@ interface InvestmentHoldingActionsMenuProps {
   onRecordSplit?: () => void;
   onRecordBonus?: () => void;
   onRecordSubscription?: () => void;
-  onRecordWithholdingTax?: () => void;
   onRecordAmortization?: () => void;
   onRecordStockLending?: () => void;
   onTransferCustody?: () => void;
@@ -106,7 +104,6 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
   onRecordSplit,
   onRecordBonus,
   onRecordSubscription,
-  onRecordWithholdingTax,
   onRecordAmortization,
   onRecordStockLending,
   onTransferCustody,
@@ -116,7 +113,6 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
   const holdingGroup = holding?.asset?.assetType ? getAssetGroupKey(holding.asset.assetType) : null;
   const showCorporateEvents = holdingGroup === 'variableIncome' || holdingGroup === 'mutualFunds' || holdingGroup === 'pension';
   const showExtendedCorporateEvents = holdingGroup === 'variableIncome';
-  const showWithholdingTaxAction = holding?.asset?.assetType === 'MUTUAL_FUND';
   const showAmortizationAction = AMORTIZABLE_ASSET_TYPES.has(holding?.asset?.assetType ?? '');
   const showStockLendingAction = LENDABLE_ASSET_TYPES.has(holding?.asset?.assetType ?? '');
   const showTransferCustodyAction = (holding?.quantity ?? 0) > 0;
@@ -165,16 +161,6 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
         icon: SwapHorizIcon,
         disabled: isDisabled,
         onClick: withClose(onTransferCustody),
-      });
-    }
-
-    if (showWithholdingTaxAction && onRecordWithholdingTax) {
-      items.push({
-        id: 'record-withholding-tax',
-        label: t('investments.table.rowActions.recordWithholdingTax'),
-        icon: PercentIcon,
-        disabled: isDisabled,
-        onClick: withClose(onRecordWithholdingTax),
       });
     }
 
@@ -247,14 +233,12 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
     onRecordSplit,
     onRecordStockLending,
     onRecordSubscription,
-    onRecordWithholdingTax,
     onTransferCustody,
     showAmortizationAction,
     showCorporateEvents,
     showExtendedCorporateEvents,
     showStockLendingAction,
     showTransferCustodyAction,
-    showWithholdingTaxAction,
     t,
     withClose,
   ]);

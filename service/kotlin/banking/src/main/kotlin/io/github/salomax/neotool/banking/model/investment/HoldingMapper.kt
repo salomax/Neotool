@@ -31,6 +31,7 @@ object HoldingMapper {
             pricingMode = entity.pricingMode,
             manualGrossValue = entity.manualGrossValue,
             manualValuedAt = entity.manualValuedAt,
+            comeCotasEnabled = entity.comeCotasEnabled,
             source = entity.source,
             providerInvestmentId = entity.providerInvestmentId,
             deletedAt = entity.deletedAt,
@@ -65,6 +66,7 @@ object HoldingMapper {
             pricingMode = domain.pricingMode,
             manualGrossValue = domain.manualGrossValue,
             manualValuedAt = domain.manualValuedAt,
+            comeCotasEnabled = domain.comeCotasEnabled,
             source = domain.source,
             providerInvestmentId = domain.providerInvestmentId,
             deletedAt = domain.deletedAt,
@@ -97,6 +99,7 @@ object HoldingMapper {
         entity.pricingMode = domain.pricingMode
         entity.manualGrossValue = domain.manualGrossValue
         entity.manualValuedAt = domain.manualValuedAt
+        entity.comeCotasEnabled = domain.comeCotasEnabled
         entity.providerInvestmentId = domain.providerInvestmentId
         entity.deletedAt = domain.deletedAt
         entity.closedAt = domain.closedAt

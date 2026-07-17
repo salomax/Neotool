@@ -29,6 +29,9 @@ interface HoldingRepository {
     /** All open positions (quantity > 0) across all custodian accounts for the tenant. */
     fun findOpenByAccount(accountId: UUID): List<Holding>
 
+    /** All open mutual-fund positions across tenants that may participate in scheduled come-cotas scans. */
+    fun findOpenComeCotasCandidates(): List<Holding>
+
     fun findById(
         id: UUID,
         accountId: UUID,

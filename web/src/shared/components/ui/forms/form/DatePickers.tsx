@@ -198,7 +198,7 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
       views={resolvedViews}
       openTo={openTo}
       value={draftValue}
-      onChange={(v: Dayjs | null, context: any) => {
+      onChange={(v: Dayjs | null) => {
         setDraftValue(v);
 
         if (!v) {
@@ -206,9 +206,10 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
           return;
         }
 
-        if (!context.validationError) {
-          field.onChange(toStartOfDayLocal((v as Dayjs).toDate()));
-        }
+        // Always sync parsed dates into RHF — including out-of-range values —
+        // so Zod / `isValid` can reject them on submit (e.g. future dates in edit mode).
+        // MUI still surfaces picker errors via `onError` / helper text.
+        field.onChange(toStartOfDayLocal((v as Dayjs).toDate()));
       }}
       onError={setPickerError}
       minDate={minDate ? dayjs(minDate) : undefined}

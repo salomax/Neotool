@@ -46,6 +46,22 @@ interface HoldingEntityRepository : JpaRepository<HoldingEntity, UUID> {
     )
     fun findOpenByAccount(accountId: UUID): List<HoldingEntity>
 
+    @Query(
+        """
+        SELECT h.* FROM banking.investment_holdings h
+        INNER JOIN banking.financial_accounts fa ON fa.id = h.financial_account_id
+        INNER JOIN banking.investment_assets a ON a.id = h.asset_id
+        WHERE h.deleted_at IS NULL
+          AND h.quantity > 0
+          AND h.close_reason IS NULL
+          AND fa.deleted_at IS NULL
+          AND fa.type = 'INVESTMENT'
+          AND a.asset_type = 'MUTUAL_FUND'
+        """,
+        nativeQuery = true,
+    )
+    fun findOpenComeCotasCandidates(): List<HoldingEntity>
+
     fun findByIdAndAccountIdAndDeletedAtIsNull(
         id: UUID,
         accountId: UUID,

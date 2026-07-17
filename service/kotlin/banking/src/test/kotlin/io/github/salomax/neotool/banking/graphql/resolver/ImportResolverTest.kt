@@ -208,6 +208,61 @@ class ImportResolverTest {
             assertThat(result.duplicateCandidates.first().rowIndex).isEqualTo(7)
             assertThat(result.duplicateCandidates.first().parsed.description).isEqualTo("Coffee 7")
         }
+
+        @Test
+        fun `maps review candidates that include full Transaction domain objects`() {
+            val existingTxId = UUID.randomUUID()
+            val existingTx =
+                io.github.salomax.neotool.banking.domain.transaction.Transaction(
+                    id = existingTxId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = io.github.salomax.neotool.banking.domain.transaction.TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("42.50"),
+                    date = LocalDate.of(2026, 2, 10),
+                    description = "Manual NFC-e candidate",
+                    source = io.github.salomax.neotool.banking.domain.transaction.TransactionSource.MANUAL,
+                    status = io.github.salomax.neotool.banking.domain.transaction.TransactionStatus.POSTED,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val candidate =
+                ImportDuplicateCandidate(
+                    rowIndex = 0,
+                    parsed =
+                        ParsedTransaction(
+                            providerTransactionId = "nfce-1",
+                            creditDebitType = CreditDebitType.DEBIT,
+                            amount = BigDecimal("42.50"),
+                            date = LocalDate.of(2026, 2, 10),
+                            description = "NFC-e purchase",
+                            currencyCode = "BRL",
+                        ),
+                    candidates = listOf(existingTx),
+                )
+            val reviewPayload =
+                ImportReviewPayloadMapper.toJson(
+                    objectMapper = objectMapper,
+                    duplicateCandidates = listOf(candidate),
+                    gate = mapOf("kind" to "nfce_manual_link"),
+                )
+            val job =
+                pendingJob().copy(
+                    status = ImportJobStatus.REVIEW_REQUIRED,
+                    duplicateReviewCount = 1,
+                    reviewPayload = reviewPayload,
+                )
+            whenever(importJobService.getJob(eq(jobId), eq(accountId))).thenReturn(job)
+
+            val result = resolver.transactionImport(jobId.toString(), principal())
+
+            assertThat(result).isNotNull
+            assertThat(result!!.duplicateCandidates).hasSize(1)
+            assertThat(result.duplicateCandidates.first().candidates).hasSize(1)
+            assertThat(result.duplicateCandidates.first().candidates.first().id).isEqualTo(existingTxId)
+        }
     }
 
     @Nested

@@ -51,7 +51,7 @@ if (existsSync(envPath)) {
 // Respect NODE_OPTIONS from the environment (e.g. devcontainer remoteEnv sets 1536 for
 // the 11GB DevPod). Only apply a default heap cap when none is configured.
 if (!/\bmax-old-space-size=\d+/i.test(env.NODE_OPTIONS ?? '')) {
-  env.NODE_OPTIONS = `${env.NODE_OPTIONS ?? ''} --max-old-space-size=2048`.trim();
+  env.NODE_OPTIONS = `${env.NODE_OPTIONS ?? ''} --max-old-space-size=6144`.trim();
 }
 const nextDev = spawn('next', ['dev'], {
   stdio: 'inherit',

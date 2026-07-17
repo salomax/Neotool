@@ -24,6 +24,7 @@ import { Label } from '@/shared/components/ui/primitives/Label';
 import { useTranslation } from '@/shared/i18n';
 import { formatTableDate } from '@/shared/utils/date';
 import { personalFinanceTranslations } from '../../../i18n';
+import { InvestmentTransactionType } from '@/lib/graphql/types/__generated__/graphql';
 import {
   financeTransactionBodyRowSx,
   financeTransactionHeadCellSx,
@@ -35,6 +36,7 @@ import {
 
 export interface MovimentacoesTransactionRow {
   id: string;
+  type?: InvestmentTransactionType | null;
   direction: 'INFLOW' | 'OUTFLOW';
   tradeDate: unknown;
   quantity?: number | null;
@@ -111,6 +113,15 @@ export function MovimentacoesTab({
   const tableAriaLabel = t('investments.detailDrawer.transactions.tableAriaLabel');
   const editLabel = t('investments.detailDrawer.transactions.editTransaction');
   const deleteLabel = t('investments.detailDrawer.transactions.deleteTransaction');
+  const formatDirectionLabel = React.useCallback(
+    (transaction: MovimentacoesTransactionRow) => {
+      if (transaction.type === InvestmentTransactionType.WithholdingTax) {
+        return t('investments.detailDrawer.transactionTypes.WITHHOLDING_TAX');
+      }
+      return transaction.direction === 'INFLOW' ? buyLabel : sellLabel;
+    },
+    [buyLabel, sellLabel, t],
+  );
 
   return (
     <Box>
@@ -195,7 +206,7 @@ export function MovimentacoesTab({
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" component="span">
-                        {transaction.direction === 'INFLOW' ? buyLabel : sellLabel}
+                        {formatDirectionLabel(transaction)}
                       </Typography>
                     </TableCell>
                     <TableCell align="right">

@@ -81,6 +81,7 @@ interface RecordFundHoldingDrawerProps {
 
 type ListingMode = "CVM" | "MANUAL";
 type ValueFlow = "BY_AMOUNT" | "BY_QUANTITY";
+type UnitPriceMode = "AUTO" | "MANUAL";
 
 type RecordFundFormData = {
   fund: FundAutocompleteValue | null;
@@ -141,10 +142,12 @@ export function RecordFundHoldingDrawer({
   const [resolvedFinancialAccountId, setResolvedFinancialAccountId] = React.useState<string | null>(null);
   const [valueFlow, setValueFlow] = React.useState<ValueFlow>("BY_AMOUNT");
   const [listingMode, setListingMode] = React.useState<ListingMode>("CVM");
+  const [unitPriceMode, setUnitPriceMode] = React.useState<UnitPriceMode>("AUTO");
   const isEdit = Boolean(editHolding && editTransaction);
   const isLockedGate = assetGate?.mode === "locked";
   const showListingSection = !isEdit && !isLockedGate;
   const lastEditSeedRef = React.useRef<{ holdingId: string | null; transactionId: string | null } | null>(null);
+  const lastListingModeRef = React.useRef<ListingMode>("CVM");
 
   const parseLocalizedNumber = React.useCallback(
     (value: unknown) => {
@@ -225,10 +228,8 @@ export function RecordFundHoldingDrawer({
   });
 
   const { reset, clearErrors, setError } = methods;
-  const { dirtyFields } = methods.formState;
   const selectedFund = methods.watch("fund");
   const selectedTradeDate = methods.watch("tradeDate");
-  const unitPriceValue = methods.watch("unitPrice");
   const tradeDateIso = React.useMemo(
     () => (selectedTradeDate ? formatDateOnly(selectedTradeDate) : null),
     [selectedTradeDate],
@@ -263,10 +264,15 @@ export function RecordFundHoldingDrawer({
   useEffect(() => {
     if (!open) return;
     if (!suggestedUnitPrice) return;
-    if (dirtyFields.unitPrice) return;
-    if (typeof unitPriceValue === "number" && unitPriceValue > 0) return;
+    if (unitPriceMode !== "AUTO") return;
     methods.setValue("unitPrice", suggestedUnitPrice, { shouldDirty: false, shouldTouch: true, shouldValidate: true });
-  }, [dirtyFields.unitPrice, methods, open, suggestedUnitPrice, unitPriceValue]);
+  }, [methods, open, suggestedUnitPrice, unitPriceMode]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (listingMode !== "CVM") return;
+    setUnitPriceMode("AUTO");
+  }, [listingMode, open, selectedFund?.id]);
 
   useEffect(() => {
     if (!open) {
@@ -274,6 +280,7 @@ export function RecordFundHoldingDrawer({
       reset(buildDefaultValues());
       setValueFlow("BY_AMOUNT");
       setListingMode("CVM");
+      setUnitPriceMode("AUTO");
     }
   }, [open, reset]);
 
@@ -287,6 +294,7 @@ export function RecordFundHoldingDrawer({
     const r = assetGate.result;
     if (r.kind === "fund_cvm") {
       setListingMode("CVM");
+      setUnitPriceMode("AUTO");
       reset({
         ...buildDefaultValues(),
         fund: r.fund,
@@ -295,6 +303,7 @@ export function RecordFundHoldingDrawer({
       });
     } else {
       setListingMode("MANUAL");
+      setUnitPriceMode("MANUAL");
       reset({
         ...buildDefaultValues(),
         manualFundName: r.manualFundName,
@@ -312,6 +321,7 @@ export function RecordFundHoldingDrawer({
     if (!prefillHolding) return;
 
     setListingMode("CVM");
+    setUnitPriceMode("AUTO");
     methods.setValue(
       "fund",
       {
@@ -327,9 +337,12 @@ export function RecordFundHoldingDrawer({
 
   useEffect(() => {
     if (isEdit || embedded || isLockedGate) return;
+    if (lastListingModeRef.current === listingMode) return;
+    lastListingModeRef.current = listingMode;
     clearErrors();
     methods.setValue("fund", null, { shouldDirty: false, shouldValidate: false });
     methods.setValue("unitPrice", undefined, { shouldDirty: false, shouldValidate: false });
+    setUnitPriceMode(listingMode === "CVM" ? "AUTO" : "MANUAL");
   }, [clearErrors, embedded, isEdit, isLockedGate, listingMode, methods]);
 
   const [createAsset, { loading: creatingAsset, error: createAssetError }] = useMutation<
@@ -551,6 +564,7 @@ export function RecordFundHoldingDrawer({
 
     const nextListingMode: ListingMode = editHolding!.pricingMode === HoldingPricingMode.Manual ? "MANUAL" : "CVM";
     setListingMode(nextListingMode);
+    setUnitPriceMode(nextListingMode === "CVM" ? "AUTO" : "MANUAL");
 
     const hasQuantity = editTransaction!.quantity != null && Number.isFinite(editTransaction!.quantity);
     const hasUnitPrice = editTransaction!.unitPrice != null && Number.isFinite(editTransaction!.unitPrice);
@@ -716,36 +730,31 @@ export function RecordFundHoldingDrawer({
 
               {valueFlow === "BY_AMOUNT" ? (
                 <FormStack spacing={1.5}>
-                  {listingMode !== "CVM" || !suggestedUnitPrice ? (
-                    <FormRowStack alignItems="flex-start">
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <MoneyInput
-                          name="grossValue"
-                          label="Valor aplicado"
-                          currency="BRL"
-                          size="medium"
-                          data-testid="record-fund-gross-value"
-                        />
-                      </Box>
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <FormRowStack alignItems="flex-start">
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <MoneyInput
+                        name="grossValue"
+                        label={t("investments.recordFund.fields.grossValue")}
+                        currency="BRL"
+                        size="medium"
+                        data-testid="record-fund-gross-value"
+                      />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
                         <MoneyInput
                           name="unitPrice"
                           label={t("investments.recordFund.fields.unitPrice")}
                           currency="BRL"
                           size="medium"
+                          fractionDigits={8}
+                          fixedDecimalScale={false}
+                          onNumericValueChange={(value) => {
+                            setUnitPriceMode(value == null ? "AUTO" : "MANUAL");
+                          }}
                           data-testid="record-fund-unit-price"
                         />
-                      </Box>
-                    </FormRowStack>
-                  ) : (
-                    <MoneyInput
-                      name="grossValue"
-                      label="Valor aplicado"
-                      currency="BRL"
-                      size="medium"
-                      data-testid="record-fund-gross-value"
-                    />
-                  )}
+                    </Box>
+                  </FormRowStack>
                 </FormStack>
               ) : (
                 <FormStack spacing={1.5}>
@@ -771,6 +780,11 @@ export function RecordFundHoldingDrawer({
                         label={t("investments.recordFund.fields.unitPrice")}
                         currency="BRL"
                         size="medium"
+                        fractionDigits={8}
+                        fixedDecimalScale={false}
+                        onNumericValueChange={(value) => {
+                          setUnitPriceMode(value == null ? "AUTO" : "MANUAL");
+                        }}
                         data-testid="record-fund-unit-price"
                       />
                     </Box>

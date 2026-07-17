@@ -75,6 +75,8 @@ open class HoldingEntity(
     open var manualGrossValue: BigDecimal? = null,
     @Column(name = "manual_valued_at")
     open var manualValuedAt: LocalDate? = null,
+    @Column(name = "come_cotas_enabled")
+    open var comeCotasEnabled: Boolean? = null,
     // ── Provenance ────────────────────────────────────────────────────────────
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

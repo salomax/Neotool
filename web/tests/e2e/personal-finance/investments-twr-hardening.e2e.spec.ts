@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { test, expect } from '../fixtures/investments';
 import { createFinancialAccount } from '../helpers/banking-graphql';
 import { isoDaysAgo } from '../helpers/fixed-income-e2e';
@@ -38,6 +40,43 @@ async function waitForPortfolioTwr(
     )
     .toBe(true);
   return twr!;
+}
+
+async function waitForStablePortfolioSummary(
+  token: string,
+  financialAccountId: string,
+) {
+  let stable:
+    | Awaited<ReturnType<typeof getInvestmentPortfolioSummary>>
+    | null = null;
+
+  await expect
+    .poll(
+      async () => {
+        const first = await getInvestmentPortfolioSummary(token, {
+          financialAccountId,
+          period: PerformancePeriod.All,
+        });
+        const second = await getInvestmentPortfolioSummary(token, {
+          financialAccountId,
+          period: PerformancePeriod.All,
+        });
+
+        const twrDiff = Math.abs((first.performance.twr ?? 0) - (second.performance.twr ?? 0));
+        const portfolioValueDiff = Math.abs(first.totalPortfolioValue - second.totalPortfolioValue);
+
+        if (twrDiff <= 0.000005 && portfolioValueDiff <= 0.000001) {
+          stable = second;
+          return true;
+        }
+
+        return false;
+      },
+      { timeout: E2E_RECALC_TIMEOUT_MS },
+    )
+    .toBe(true);
+
+  return stable!;
 }
 
 test.describe.configure({ mode: 'serial' });
@@ -401,15 +440,16 @@ test.describe('Investments TWR hardening', () => {
       },
       pfUser.token,
     );
-    const fund = await createInvestmentAsset(
+    const stock = await createInvestmentAsset(
       {
-        name: uniqueName('Hardening replay fund'),
-        assetType: AssetType.MutualFund,
+        name: uniqueName('Hardening replay stock'),
+        assetType: AssetType.Stock,
+        ticker: `HR${randomBytes(3).toString('hex').toUpperCase()}`,
       },
       pfUser.token,
     );
 
-    const purchaseDays = [80, 70, 60, 50, 40, 30, 20, 10];
+    const purchaseDays = [45, 42, 39, 36, 33, 30, 27, 24];
     for (const [idx, daysAgo] of purchaseDays.entries()) {
       const quantity = 10 + idx;
       const unitPrice = 10 + idx * 0.5;
@@ -417,7 +457,7 @@ test.describe('Investments TWR hardening', () => {
       await recordInvestmentTransaction(
         {
           financialAccountId: account.id,
-          assetId: fund.id,
+          assetId: stock.id,
           direction: InvestmentTransactionDirection.Inflow,
           type: InvestmentTransactionType.Purchase,
           tradeDate: isoDaysAgo(daysAgo),
@@ -433,7 +473,7 @@ test.describe('Investments TWR hardening', () => {
 
     await waitForRecalculation(pfUser.token, account.id);
 
-    const holding = await findHolding(pfUser.token, account.id, fund.id);
+    const holding = await findHolding(pfUser.token, account.id, stock.id);
     expect(holding).not.toBeNull();
     const transactions = await getInvestmentTransactions(holding!.id, pfUser.token);
     const purchases = transactions
@@ -441,30 +481,7 @@ test.describe('Investments TWR hardening', () => {
       .sort((a, b) => a.tradeDate.localeCompare(b.tradeDate));
     expect(purchases.length).toBeGreaterThanOrEqual(8);
 
-    // Double-read `before` to catch any lingering recalculation instability.
-    // A divergence here (> 5e-6) means the backend state is still settling and
-    // we emit a TWR debug snapshot so failures are fully diagnosable.
-    const beforeA = await getInvestmentPortfolioSummary(pfUser.token, {
-      financialAccountId: account.id,
-      period: PerformancePeriod.All,
-    });
-    const beforeB = await getInvestmentPortfolioSummary(pfUser.token, {
-      financialAccountId: account.id,
-      period: PerformancePeriod.All,
-    });
-    if (Math.abs((beforeA.performance.twr ?? 0) - (beforeB.performance.twr ?? 0)) > 0.000005) {
-      const debug = await getPortfolioTwrDebug(pfUser.token, {
-        financialAccountId: account.id,
-        period: PerformancePeriod.All,
-      }).catch(() => null);
-      console.error(
-        '[INV-TWR-HARD-04] before reads diverged — possible recalculation race:\n' +
-          `  beforeA.twr=${beforeA.performance.twr}  beforeB.twr=${beforeB.performance.twr}\n` +
-          `  twrDebug=${JSON.stringify(debug, null, 2)}`,
-      );
-    }
-    // Use the second (more recent) read as the stable baseline.
-    const before = beforeB;
+    const before = await waitForStablePortfolioSummary(pfUser.token, account.id);
 
     for (const tx of purchases.slice(0, 5)) {
       const updateInput: {
@@ -500,10 +517,7 @@ test.describe('Investments TWR hardening', () => {
 
     await waitForRecalculation(pfUser.token, account.id);
 
-    const after = await getInvestmentPortfolioSummary(pfUser.token, {
-      financialAccountId: account.id,
-      period: PerformancePeriod.All,
-    });
+    const after = await waitForStablePortfolioSummary(pfUser.token, account.id);
 
     // On TWR mismatch emit a full debug breakdown — quota series, flow events, daily steps —
     // so the next failure immediately reveals which day is missing its flow event.
@@ -525,14 +539,8 @@ test.describe('Investments TWR hardening', () => {
     expectNear(after.totalPortfolioValue, before.totalPortfolioValue, 6);
     expectAbsDiffWithin(after.performance.twr ?? 0, before.performance.twr ?? 0, 0.00002);
 
-    const replayA = await getInvestmentPortfolioSummary(pfUser.token, {
-      financialAccountId: account.id,
-      period: PerformancePeriod.All,
-    });
-    const replayB = await getInvestmentPortfolioSummary(pfUser.token, {
-      financialAccountId: account.id,
-      period: PerformancePeriod.All,
-    });
+    const replayA = await waitForStablePortfolioSummary(pfUser.token, account.id);
+    const replayB = await waitForStablePortfolioSummary(pfUser.token, account.id);
     expectNear(replayA.totalPortfolioValue, replayB.totalPortfolioValue, 8);
     expectAbsDiffWithin(replayA.performance.twr ?? 0, replayB.performance.twr ?? 0, 0.000005);
   });

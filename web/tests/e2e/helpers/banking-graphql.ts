@@ -343,6 +343,23 @@ const FINANCIAL_ACCOUNT_FIELDS = `
   createdAt
 `;
 
+const TRANSIENT_BANKING_ERROR_PATTERNS = [
+  /connection closed before message completed/i,
+  /http fetch failed from 'banking'/i,
+  /socket hang up/i,
+  /econnreset/i,
+  /temporarily unavailable/i,
+] as const;
+
+function isTransientBankingErrorMessage(message: string | undefined): boolean {
+  if (!message) return false;
+  return TRANSIENT_BANKING_ERROR_PATTERNS.some((pattern) => pattern.test(message));
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function createFinancialAccount(
   input: CreateFinancialAccountInput,
   token: string
@@ -355,17 +372,30 @@ export async function createFinancialAccount(
     }
   `;
 
-  const result = await executeGraphQL<{
-    createFinancialAccount: FinancialAccount;
-  }>(mutation, { input: normalizeCreateFinancialAccountInput(input) }, token);
+  const normalizedInput = normalizeCreateFinancialAccountInput(input);
+  const maxAttempts = 3;
+  let lastErrorMessage = 'Unknown error';
 
-  if (result.errors || !result.data?.createFinancialAccount) {
-    throw new Error(
-      `createFinancialAccount failed: ${result.errors?.[0]?.message ?? 'Unknown error'}`
-    );
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const result = await executeGraphQL<{
+      createFinancialAccount: FinancialAccount;
+    }>(mutation, { input: normalizedInput }, token);
+
+    if (!result.errors && result.data?.createFinancialAccount) {
+      return result.data.createFinancialAccount;
+    }
+
+    lastErrorMessage = result.errors?.[0]?.message ?? 'Unknown error';
+    const shouldRetry =
+      attempt < maxAttempts && isTransientBankingErrorMessage(lastErrorMessage);
+    if (!shouldRetry) {
+      break;
+    }
+
+    await sleep(300 * attempt);
   }
 
-  return result.data.createFinancialAccount;
+  throw new Error(`createFinancialAccount failed: ${lastErrorMessage}`);
 }
 
 export async function updateFinancialAccount(

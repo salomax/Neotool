@@ -293,6 +293,37 @@ class PortfolioRepositoriesIT : BankingPostgresIntegrationTest() {
     }
 
     @Test
+    fun `tryClaimJob does not allow concurrent processing jobs for the same account`() {
+        val firstPending =
+            portfolioRecalculationJobRepository.save(
+                PortfolioRecalculationJob(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    status = PortfolioRecalculationStatus.PENDING,
+                    recalculateFrom = LocalDate.of(2026, 1, 1),
+                    triggeredBy = "holding_created:${UUID.randomUUID()}",
+                ),
+            )
+        val secondPending =
+            portfolioRecalculationJobRepository.save(
+                PortfolioRecalculationJob(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    status = PortfolioRecalculationStatus.PENDING,
+                    recalculateFrom = LocalDate.of(2026, 1, 2),
+                    triggeredBy = "holding_created:${UUID.randomUUID()}",
+                ),
+            )
+
+        val firstClaim = portfolioRecalculationJobRepository.tryClaimJob(requireNotNull(firstPending.id), "node-a")
+        val secondClaimWhileFirstProcessing =
+            portfolioRecalculationJobRepository.tryClaimJob(requireNotNull(secondPending.id), "node-b")
+        requireNotNull(firstClaim)
+
+        assertThat(secondClaimWhileFirstProcessing).isNull()
+    }
+
+    @Test
     fun `benchmark daily upsert returns ordered series`() {
         marketBenchmarkDailyRepository.upsert(
             MarketBenchmarkDaily(

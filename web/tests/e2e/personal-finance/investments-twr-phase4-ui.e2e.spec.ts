@@ -66,6 +66,17 @@ function isInvestmentSummaryOperation(operation: GraphQLOperationPayload): boole
   return operationName === 'InvestmentPortfolioSummary' || query.includes('investmentPortfolioSummary');
 }
 
+function isOperation(
+  operation: GraphQLOperationPayload,
+  operationName: string,
+  fieldName: string,
+): boolean {
+  const candidateName =
+    typeof operation.operationName === 'string' ? operation.operationName : '';
+  const query = typeof operation.query === 'string' ? operation.query : '';
+  return candidateName === operationName || query.includes(fieldName);
+}
+
 function installCreateFinancialAccountCollector(page: import('@playwright/test').Page): {
   inputs: CreateFinancialAccountPayload[];
   dispose: () => void;
@@ -240,6 +251,9 @@ async function selectSubtype(
 
 async function openStocksDetailPanel(page: import('@playwright/test').Page): Promise<void> {
   await openGridClassDetailPanel(page, 'stocks');
+  const stocksTab = page.locator('#investment-grid-class-tab-stocks');
+  await expect(stocksTab).toBeVisible({ timeout: 60_000 });
+  await expect(stocksTab).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByPlaceholder(/Buscar ativos|Search holdings/i)).toBeVisible();
 }
 
@@ -269,6 +283,28 @@ async function openGridClassDetailPanel(
   await detailOpener.click();
 
   await expect(page.getByTestId('investment-grid-record-cta')).toBeVisible({ timeout: 30_000 });
+}
+
+async function openFundRecordForm(page: import('@playwright/test').Page): Promise<void> {
+  await openGridClassDetailPanel(page, 'funds');
+  const registerCta = page.getByTestId('investment-grid-record-cta');
+  await expect(registerCta).toBeEnabled();
+  await registerCta.click();
+  await expect(page.locator('#investment-grid-record-popover')).toBeVisible();
+  await page.getByTestId('investment-grid-record-option-funds').click();
+  await expect(page.locator('form#fund-asset-gate-form')).toBeVisible();
+}
+
+function normalizeDecimalInputValue(raw: string | null): string {
+  if (!raw) return '';
+  const normalized = raw.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '');
+  return normalized.replace(',', '.');
+}
+
+async function readNormalizedInputValue(
+  locator: import('@playwright/test').Locator,
+): Promise<string> {
+  return normalizeDecimalInputValue(await locator.inputValue().catch(() => ''));
 }
 
 async function readCurrencyByTestId(
@@ -801,6 +837,20 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     );
     await waitForRecalculation(pfUser.token, brokerageAccount.id);
 
+    await expect
+      .poll(
+        async () => {
+          const holdings = await getInvestmentHoldings(pfUser.token, {
+            financialAccountId: brokerageAccount.id,
+          });
+          return holdings.filter((h) =>
+            [stockA.id, stockB.id, crypto.id].includes(h.asset.id),
+          ).length;
+        },
+        { timeout: E2E_PENDING_ACTION_POLL_MS },
+      )
+      .toBe(3);
+
     const investmentsPage = await openInvestmentsPage(page);
     await investmentsPage.selectAccount(brokerageAccount.name, brokerageAccount.id);
     await openStocksDetailPanel(page);
@@ -812,12 +862,12 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
 
     await searchInput.fill('banco');
     const table = page.getByTestId('investment-table');
-    await expect(table.getByText(stockAName)).toBeVisible();
-    await expect(table.getByText(stockBName)).toHaveCount(0);
+    await expect(table.getByRole('row').filter({ hasText: stockAName })).toBeVisible();
+    await expect(table.getByRole('row').filter({ hasText: stockBName })).toHaveCount(0);
 
     await searchInput.fill('PETR');
-    await expect(table.getByText(stockBName)).toBeVisible();
-    await expect(table.getByText(stockAName)).toHaveCount(0);
+    await expect(table.getByRole('row').filter({ hasText: stockBName })).toBeVisible();
+    await expect(table.getByRole('row').filter({ hasText: stockAName })).toHaveCount(0);
 
     await searchInput.fill('bitcoin');
     await expect(page.getByText(/Nenhum ativo corresponde|No holdings match/i)).toBeVisible();
@@ -1721,9 +1771,9 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     await openGridClassDetailPanel(page, 'funds');
     await expectHoldingRowTradeActions(page, fundName);
     await openHoldingActionsMenu(page, fundName);
-    await expect(page.getByRole('menuitem', { name: /come-cotas/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Transferir custódia|Transfer custody/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Registrar aluguel|Record stock lending/i })).toHaveCount(0);
+    await expect(page.getByRole('menuitem', { name: /come-cotas/i })).toHaveCount(0);
     await page.keyboard.press('Escape');
 
     await openGridClassDetailPanel(page, 'fixed-income');
@@ -1978,6 +2028,166 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     await expect(drawer.getByText(/\(\d{1,2}\/\d{1,2}\/\d{2,4}\)/).first()).toBeVisible();
     await expect(drawer.getByText(/Linha do tempo|Timeline/i).first()).toBeVisible();
     await expect(drawer.getByText(/Aplicação|Purchase/i).first()).toBeVisible();
+  });
+
+  test('INV-TWR-P4-UI-29: fund form follows trade date NAV and accepts unit price with 2 to 8 decimal places', async ({
+    page,
+    brokerageAccount,
+  }) => {
+    const mockedFund = {
+      id: `fund-nav-${Date.now()}`,
+      name: uniqueName('P4 UI fund nav autocomplete'),
+      cnpj: '12345678000199',
+      assetType: 'MUTUAL_FUND',
+      isActive: true,
+    };
+    const navByDate: Record<string, number> = {
+      '2026-07-10': 3.45678901,
+      '2026-07-11': 3.78912345,
+    };
+    const recordedInputs: Array<Record<string, unknown>> = [];
+
+    const routeHandler = async (route: import('@playwright/test').Route): Promise<void> => {
+      const request = route.request();
+      if (request.method() !== 'POST') {
+        await route.continue();
+        return;
+      }
+
+      let body: unknown;
+      try {
+        body = request.postDataJSON();
+      } catch {
+        await route.continue();
+        return;
+      }
+
+      const operations = extractGraphQLOperations(body);
+      if (operations.length !== 1) {
+        await route.continue();
+        return;
+      }
+
+      const operation = operations[0] ?? {};
+      const variables =
+        operation.variables && typeof operation.variables === 'object'
+          ? (operation.variables as Record<string, unknown>)
+          : {};
+
+      if (isOperation(operation, 'SearchInvestmentFundsAutocomplete', 'searchInvestmentFundsAutocomplete')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            data: {
+              searchInvestmentFundsAutocomplete: {
+                suggestions: [mockedFund],
+              },
+            },
+          }),
+        });
+        return;
+      }
+
+      if (isOperation(operation, 'InvestmentFundNav', 'investmentFund')) {
+        const date = typeof variables.to === 'string' ? variables.to : '';
+        const closePrice = navByDate[date] ?? 3.12345678;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            data: {
+              investmentFund: {
+                id: mockedFund.id,
+                latestNav: {
+                  date: '2026-07-13',
+                  closePrice: 3.6929053,
+                  __typename: 'FundDailyNav',
+                },
+                priceHistory: [
+                  {
+                    date,
+                    closePrice,
+                    __typename: 'FundDailyNav',
+                  },
+                ],
+                __typename: 'InvestmentFund',
+              },
+            },
+          }),
+        });
+        return;
+      }
+
+      if (isOperation(operation, 'RecordInvestmentTransaction', 'recordInvestmentTransaction')) {
+        const input =
+          variables.input && typeof variables.input === 'object'
+            ? (variables.input as Record<string, unknown>)
+            : null;
+        if (input) recordedInputs.push(input);
+      }
+
+      await route.continue();
+    };
+
+    await page.route('**/graphql', routeHandler);
+    try {
+      const investmentsPage = await openInvestmentsPage(page);
+      await investmentsPage.selectAccount(brokerageAccount.name, brokerageAccount.id);
+
+      await openFundRecordForm(page);
+
+      const gateAutocomplete = page.getByTestId('new-holding-fund-autocomplete').locator('input').first();
+      await gateAutocomplete.fill(mockedFund.name.slice(0, 12));
+      await page.getByRole('option', { name: new RegExp(mockedFund.name, 'i') }).first().click();
+      await page.getByRole('button', { name: /Continuar|Continue/i }).click();
+
+      const recordForm = page.locator('form#record-fund-form');
+      await expect(recordForm).toBeVisible();
+
+      const tradeDateInput = page.getByTestId('record-fund-trade-date').locator('input').first();
+      const unitPriceInput = page.getByTestId('record-fund-unit-price').locator('input').first();
+      const grossValueInput = page.getByTestId('record-fund-gross-value').locator('input').first();
+
+      await expect(unitPriceInput).toBeVisible();
+
+      await tradeDateInput.fill('10/07/2026');
+      await page.keyboard.press('Tab');
+      await expect
+        .poll(() => readNormalizedInputValue(unitPriceInput), { timeout: 10000 })
+        .toBe('3.45678901');
+
+      await tradeDateInput.fill('11/07/2026');
+      await page.keyboard.press('Tab');
+      await expect
+        .poll(() => readNormalizedInputValue(unitPriceInput), { timeout: 10000 })
+        .toBe('3.78912345');
+
+      await unitPriceInput.fill('3,12');
+      await unitPriceInput.blur();
+      await expect
+        .poll(() => readNormalizedInputValue(unitPriceInput), { timeout: 5000 })
+        .toBe('3.12');
+
+      await unitPriceInput.fill('3,12345678');
+      await unitPriceInput.blur();
+      await expect
+        .poll(() => readNormalizedInputValue(unitPriceInput), { timeout: 5000 })
+        .toBe('3.12345678');
+
+      await grossValueInput.fill('31,2345678');
+      await recordForm.getByRole('button', { name: /Salvar|Registrar|Submit/i }).click();
+
+      await expect
+        .poll(() => recordedInputs.length, { timeout: 10000 })
+        .toBeGreaterThan(0);
+
+      const recordedInput = recordedInputs.at(-1) ?? {};
+      expect(Number(recordedInput.grossValue)).toBeCloseTo(31.2345678, 8);
+      expect(Number(recordedInput.unitPrice)).toBeCloseTo(3.12345678, 8);
+    } finally {
+      await page.unroute('**/graphql', routeHandler);
+    }
   });
 
   test('INV-TWR-P4-UI-28: crypto record flow uses crypto gate and keeps D+0 (no settlement field)', async ({

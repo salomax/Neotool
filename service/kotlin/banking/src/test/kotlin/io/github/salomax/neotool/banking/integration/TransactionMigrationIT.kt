@@ -108,7 +108,7 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
     @DisplayName("transaction_categories seed")
     inner class TransactionCategoriesSeedTests {
         @Test
-        fun `exactly 26 root categories subcategory parent_ids resolve`() {
+        fun `exactly 27 root categories subcategory parent_ids resolve`() {
             val container = getPgContainer()
             val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
             DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
@@ -117,7 +117,7 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                         "WHERE parent_id IS NULL AND deleted_at IS NULL",
                 ).use { rs ->
                     rs.next()
-                    assertThat(rs.getInt("cnt")).isEqualTo(26)
+                    assertThat(rs.getInt("cnt")).isEqualTo(27)
                 }
                 conn.createStatement().executeQuery(
                     """

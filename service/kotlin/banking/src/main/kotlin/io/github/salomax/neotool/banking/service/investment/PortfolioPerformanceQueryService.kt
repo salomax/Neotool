@@ -22,6 +22,7 @@ import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
 import io.github.salomax.neotool.banking.model.dto.investment.GridClassMapping
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointJobRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.portfolio.MarketBenchmarkDailyRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventRepository
@@ -39,6 +40,7 @@ class PortfolioPerformanceQueryService(
     private val portfolioQuotaRepository: PortfolioQuotaRepository,
     private val marketBenchmarkDailyRepository: MarketBenchmarkDailyRepository,
     private val portfolioRecalculationJobRepository: PortfolioRecalculationJobRepository,
+    private val comeCotasCheckpointJobRepository: ComeCotasCheckpointJobRepository,
     private val financialAccountRepository: FinancialAccountRepository,
     private val portfolioFlowEventRepository: PortfolioFlowEventRepository,
     private val holdingRepository: HoldingRepository,
@@ -340,15 +342,15 @@ class PortfolioPerformanceQueryService(
     }
 
     fun getRecalculationStatus(accountId: UUID): RecalculationStatusDTO {
-        val pendingJob = portfolioRecalculationJobRepository.findActiveByAccount(accountId)
-        if (pendingJob != null) {
+        val portfolioJob = portfolioRecalculationJobRepository.findActiveByAccount(accountId)
+        if (portfolioJob != null) {
             return RecalculationStatusDTO(
                 isCalculating = true,
-                jobId = pendingJob.id,
-                startedAt = pendingJob.startedAt ?: pendingJob.createdAt,
+                jobId = portfolioJob.id,
+                startedAt = portfolioJob.startedAt ?: portfolioJob.createdAt,
                 errorCode = null,
                 message =
-                    when (pendingJob.status) {
+                    when (portfolioJob.status) {
                         PortfolioRecalculationStatus.PENDING -> "Historical performance recalculation is queued."
                         PortfolioRecalculationStatus.PROCESSING ->
                             "Historical performance recalculation is in progress."
@@ -357,18 +359,50 @@ class PortfolioPerformanceQueryService(
             )
         }
 
+        val comeCotasJob = comeCotasCheckpointJobRepository.findActiveByAccount(accountId)
+        if (comeCotasJob != null) {
+            return RecalculationStatusDTO(
+                isCalculating = true,
+                jobId = comeCotasJob.id,
+                startedAt = comeCotasJob.startedAt ?: comeCotasJob.createdAt,
+                errorCode = null,
+                message =
+                    when (comeCotasJob.status.name) {
+                        "PENDING" -> "Come-cotas materialization is queued."
+                        "PROCESSING" -> "Come-cotas materialization is in progress."
+                        else -> null
+                    },
+            )
+        }
+
         val latestJob = portfolioRecalculationJobRepository.findLatestByAccount(accountId)
         val failed = latestJob?.takeIf { it.status == PortfolioRecalculationStatus.FAILED }
+        val latestComeCotasJob = comeCotasCheckpointJobRepository.findLatestByAccount(accountId)
+        val latestComeCotasFailure = latestComeCotasJob?.takeIf { it.status.name == "FAILED" }
+        val latestPortfolioFailureInstant = failed?.startedAt ?: failed?.createdAt
+        val latestComeCotasFailureInstant = latestComeCotasFailure?.startedAt ?: latestComeCotasFailure?.createdAt
+        val useComeCotasFailure =
+            latestComeCotasFailure != null &&
+                (
+                    latestPortfolioFailureInstant == null || latestComeCotasFailureInstant != null &&
+                        latestComeCotasFailureInstant.isAfter(
+                            latestPortfolioFailureInstant,
+                        )
+                )
         return RecalculationStatusDTO(
             isCalculating = false,
-            jobId = latestJob?.id,
-            startedAt = latestJob?.startedAt,
-            errorCode = failed?.errorCode,
+            jobId = if (useComeCotasFailure) latestComeCotasJob?.id else latestJob?.id,
+            startedAt = if (useComeCotasFailure) latestComeCotasJob?.startedAt else latestJob?.startedAt,
+            errorCode = if (useComeCotasFailure) latestComeCotasFailure?.errorCode else failed?.errorCode,
             message =
-                failed?.let {
-                    StoredRecalculationFailure.displayMessage(it.errorCode, it.errorDetails)
+                if (useComeCotasFailure) {
+                    latestComeCotasFailure?.errorDetails ?: "Come-cotas materialization failed."
+                } else {
+                    failed?.let {
+                        StoredRecalculationFailure.displayMessage(it.errorCode, it.errorDetails)
+                    }
                 },
-            errorDetails = failed?.errorDetails,
+            errorDetails = if (useComeCotasFailure) latestComeCotasFailure?.errorDetails else failed?.errorDetails,
         )
     }
 

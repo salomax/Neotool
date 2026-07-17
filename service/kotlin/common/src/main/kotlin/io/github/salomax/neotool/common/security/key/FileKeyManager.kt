@@ -61,7 +61,7 @@ class FileKeyManager(
                 try {
                     val key = jwksClient.getPublicKey(jwksUrl, keyId)
                     if (key != null) {
-                        logger.info { "Successfully fetched public key from JWKS for kid: $keyId" }
+                        logger.debug { "Successfully fetched public key from JWKS for kid: $keyId" }
                         return key
                     } else {
                         logger.warn { "Failed to fetch public key from JWKS for kid: $keyId from $jwksUrl" }

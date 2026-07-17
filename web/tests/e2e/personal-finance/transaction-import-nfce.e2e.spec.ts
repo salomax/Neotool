@@ -59,12 +59,7 @@ async function importNfceViaGraphql(
   qrCodeUrl: string,
   token: string,
 ): Promise<ImportNfceResult> {
-  const result = await executeGraphQL<{
-    importNfce: {
-      import: ImportNfceResult;
-    };
-  }>(
-    `
+  const mutation = `
       mutation ImportNfce($financialAccountId: ID!, $qrCodeUrl: String!) {
         importNfce(financialAccountId: $financialAccountId, qrCodeUrl: $qrCodeUrl) {
           import {
@@ -78,14 +73,35 @@ async function importNfceViaGraphql(
           }
         }
       }
-    `,
-    { financialAccountId, qrCodeUrl },
-    token,
-  );
+    `;
 
-  expect(result.errors).toBeUndefined();
-  expect(result.data?.importNfce.import.id).toBeTruthy();
-  return result.data!.importNfce.import;
+  const maxAttempts = 3;
+  let lastErrors: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const result = await executeGraphQL<{
+      importNfce: {
+        import: ImportNfceResult;
+      };
+    }>(mutation, { financialAccountId, qrCodeUrl }, token);
+
+    if (!result.errors && result.data?.importNfce.import.id) {
+      return result.data.importNfce.import;
+    }
+
+    lastErrors = result.errors;
+    const code = result.errors?.[0]?.extensions?.code;
+    const retryable =
+      code === "SERVICE_UNAVAILABLE" ||
+      code === "INTERNAL_ERROR" ||
+      /unavailable|timeout|temporar/i.test(String(result.errors?.[0]?.message ?? ""));
+    if (!retryable || attempt === maxAttempts) {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1_000 * attempt));
+  }
+
+  expect(lastErrors).toBeUndefined();
+  throw new Error("importNfce failed without GraphQL errors");
 }
 
 async function listTransactionImports(

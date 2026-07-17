@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.model.dto.investment
 
+import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingAction
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
@@ -28,6 +29,8 @@ data class ConfirmWithholdingTaxCommand(
     val tradeDate: LocalDate,
     val irValue: BigDecimal,
     val quotasDeducted: BigDecimal,
+    val source: InvestmentSource = InvestmentSource.MANUAL,
+    val providerTransactionId: String? = null,
 )
 
 data class ConfirmWithholdingTaxResult(

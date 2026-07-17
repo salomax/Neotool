@@ -14,6 +14,7 @@ import io.github.salomax.neotool.banking.service.investment.ConfirmCouponPayment
 import io.github.salomax.neotool.banking.service.investment.ConfirmWithholdingTaxService
 import io.github.salomax.neotool.banking.service.investment.InvestmentAssetService
 import io.github.salomax.neotool.banking.service.investment.InvestmentCashService
+import io.github.salomax.neotool.banking.service.investment.InvestmentHoldingOverrideService
 import io.github.salomax.neotool.banking.service.investment.InvestmentPortfolioSummaryService
 import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
 import io.github.salomax.neotool.banking.service.investment.InvestmentTransactionService
@@ -47,6 +48,7 @@ class InvestmentResolverTransferCustodyTest {
     private lateinit var investmentTransactionService: InvestmentTransactionService
     private lateinit var investmentAssetService: InvestmentAssetService
     private lateinit var investmentQueryService: InvestmentQueryService
+    private lateinit var investmentHoldingOverrideService: InvestmentHoldingOverrideService
     private lateinit var investmentPortfolioSummaryService: InvestmentPortfolioSummaryService
     private lateinit var portfolioPerformanceSeriesService: PortfolioPerformanceSeriesService
     private lateinit var assetRepository: AssetRepository
@@ -75,6 +77,7 @@ class InvestmentResolverTransferCustodyTest {
         investmentTransactionService = mock()
         investmentAssetService = mock()
         investmentQueryService = mock()
+        investmentHoldingOverrideService = mock()
         investmentPortfolioSummaryService = mock()
         portfolioPerformanceSeriesService = mock()
         assetRepository = mock()
@@ -93,6 +96,7 @@ class InvestmentResolverTransferCustodyTest {
                 investmentTransactionService = investmentTransactionService,
                 investmentAssetService = investmentAssetService,
                 investmentQueryService = investmentQueryService,
+                investmentHoldingOverrideService = investmentHoldingOverrideService,
                 investmentPortfolioSummaryService = investmentPortfolioSummaryService,
                 portfolioPerformanceSeriesService = portfolioPerformanceSeriesService,
                 assetRepository = assetRepository,

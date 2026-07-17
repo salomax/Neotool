@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.domain.investment.AssetType
-import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.model.dto.investment.ConfirmWithholdingTaxCommand
@@ -61,8 +60,9 @@ open class ConfirmWithholdingTaxService(
                         unitPrice = unitPrice,
                         tradeDate = command.tradeDate,
                         settlementDate = command.tradeDate,
-                        source = InvestmentSource.MANUAL,
+                        source = command.source,
                         providerInvestmentId = holding.providerInvestmentId,
+                        providerTransactionId = command.providerTransactionId,
                     ),
                 accountId = accountId,
                 userId = userId,

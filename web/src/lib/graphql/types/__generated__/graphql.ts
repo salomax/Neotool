@@ -1883,6 +1883,8 @@ export type InvestmentHolding = {
   averageCost: Scalars['Float']['output'];
   closeReason: Maybe<HoldingCloseReason>;
   closedAt: Maybe<Scalars['Date']['output']>;
+  /** Manual override for come-cotas eligibility. Null means profile default applies. */
+  comeCotasEnabled: Maybe<Scalars['Boolean']['output']>;
   /** Day of month (1–31) on which coupon cash settles. Null for AT_MATURITY and Tesouro Direto (system calendar). */
   couponDayOfMonth: Maybe<Scalars['Int']['output']>;
   /** Coupon payment frequency. Null and AT_MATURITY are equivalent — no scheduled payments. */
@@ -2055,7 +2057,8 @@ export type InvestmentPortfolioSummary = {
 export enum InvestmentSource {
   FileImport = 'FILE_IMPORT',
   Manual = 'MANUAL',
-  OpenFinance = 'OPEN_FINANCE'
+  OpenFinance = 'OPEN_FINANCE',
+  System = 'SYSTEM'
 }
 
 /**

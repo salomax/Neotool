@@ -57,6 +57,25 @@ interface InvestmentTransactionRepository {
         providerTransactionId: String,
     ): Boolean
 
+    fun findByProviderTransactionId(
+        financialAccountId: UUID,
+        accountId: UUID,
+        providerTransactionId: String,
+    ): InvestmentTransaction?
+
+    fun existsWithholdingTaxForHoldingOnTradeDate(
+        holdingId: UUID,
+        accountId: UUID,
+        tradeDate: LocalDate,
+    ): Boolean
+
+    fun existsWithholdingTaxForHoldingInDateRange(
+        holdingId: UUID,
+        accountId: UUID,
+        from: LocalDate,
+        to: LocalDate,
+    ): Boolean
+
     fun save(transaction: InvestmentTransaction): InvestmentTransaction
 
     fun update(transaction: InvestmentTransaction): InvestmentTransaction

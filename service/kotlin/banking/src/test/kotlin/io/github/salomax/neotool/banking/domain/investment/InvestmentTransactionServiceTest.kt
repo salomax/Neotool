@@ -584,6 +584,65 @@ class InvestmentTransactionServiceTest {
         }
 
         @Test
+        fun `deleteHolding allows manual holding with system withholding tax transactions`() {
+            val purchaseTxId = UUID.randomUUID()
+            val withholdingTxId = UUID.randomUUID()
+            val purchaseTx =
+                InvestmentTransaction(
+                    id = purchaseTxId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("100"),
+                    unitPrice = BigDecimal("10.00"),
+                    grossValue = BigDecimal("1000.00"),
+                    tradeDate = LocalDate.of(2025, 10, 22),
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now.minusSeconds(60),
+                    updatedAt = now.minusSeconds(60),
+                )
+            val withholdingTx =
+                InvestmentTransaction(
+                    id = withholdingTxId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.WITHHOLDING_TAX,
+                    quantity = BigDecimal("8.12345678"),
+                    unitPrice = BigDecimal("1.23456789"),
+                    grossValue = BigDecimal("10.03"),
+                    netValue = BigDecimal("10.03"),
+                    tradeDate = LocalDate.of(2026, 5, 29),
+                    source = InvestmentSource.SYSTEM,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+
+            whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(
+                holdingWith("91.87654322", "10.00"),
+            )
+            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(
+                listOf(withholdingTx, purchaseTx),
+            )
+            whenever(investmentTransactionRepository.softDelete(purchaseTxId, accountId)).thenReturn(true)
+            whenever(investmentTransactionRepository.softDelete(withholdingTxId, accountId)).thenReturn(true)
+            whenever(holdingRepository.softDelete(holdingId, accountId)).thenReturn(true)
+            whenever(assetRepository.findById(assetId)).thenReturn(fundAsset())
+
+            val deleted = service.deleteHolding(holdingId, accountId)
+
+            assertThat(deleted).isTrue()
+            verify(investmentTransactionRepository).softDelete(purchaseTxId, accountId)
+            verify(investmentTransactionRepository).softDelete(withholdingTxId, accountId)
+            verify(holdingRepository).softDelete(holdingId, accountId)
+        }
+
+        @Test
         fun `deleteHolding with no transactions triggers recalculation from holding issueDate`() {
             // BUG FIX: holdings imported without PURCHASE transactions (e.g. via B3/XP Excel import)
             // were leaving stale quotas because no recalculation was triggered.

@@ -39,6 +39,7 @@ dependencies {
     implementation("io.micronaut.kotlin:micronaut-kotlin-runtime")
     implementation("io.micronaut:micronaut-http-server-netty")
     implementation("io.micronaut:micronaut-http")
+    implementation("io.micronaut:micronaut-http-client")
     implementation("io.micronaut:micronaut-management")
 
     // GraphQL
