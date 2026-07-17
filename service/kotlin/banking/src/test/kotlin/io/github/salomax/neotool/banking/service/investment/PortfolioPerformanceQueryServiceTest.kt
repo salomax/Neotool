@@ -5,6 +5,8 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.AssetType
+import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpointJob
+import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpointJobStatus
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
@@ -20,6 +22,7 @@ import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
 import io.github.salomax.neotool.banking.model.dto.investment.GridClassMapping
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointJobRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.portfolio.MarketBenchmarkDailyRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventRepository
@@ -43,6 +46,7 @@ class PortfolioPerformanceQueryServiceTest {
     private val portfolioQuotaRepository: PortfolioQuotaRepository = mock()
     private val marketBenchmarkDailyRepository: MarketBenchmarkDailyRepository = mock()
     private val portfolioRecalculationJobRepository: PortfolioRecalculationJobRepository = mock()
+    private val comeCotasCheckpointJobRepository: ComeCotasCheckpointJobRepository = mock()
     private val financialAccountRepository: FinancialAccountRepository = mock()
     private val portfolioFlowEventRepository: PortfolioFlowEventRepository = mock()
     private val holdingRepository: HoldingRepository = mock()
@@ -53,11 +57,34 @@ class PortfolioPerformanceQueryServiceTest {
             portfolioQuotaRepository = portfolioQuotaRepository,
             marketBenchmarkDailyRepository = marketBenchmarkDailyRepository,
             portfolioRecalculationJobRepository = portfolioRecalculationJobRepository,
+            comeCotasCheckpointJobRepository = comeCotasCheckpointJobRepository,
             financialAccountRepository = financialAccountRepository,
             portfolioFlowEventRepository = portfolioFlowEventRepository,
             holdingRepository = holdingRepository,
             assetRepository = assetRepository,
         )
+
+    @Test
+    fun `reports come-cotas materialization as calculating when checkpoint job is active`() {
+        val accountId = UUID.randomUUID()
+        whenever(portfolioRecalculationJobRepository.findActiveByAccount(accountId)).thenReturn(null)
+        whenever(comeCotasCheckpointJobRepository.findActiveByAccount(accountId)).thenReturn(
+            ComeCotasCheckpointJob(
+                id = UUID.randomUUID(),
+                holdingId = UUID.randomUUID(),
+                financialAccountId = UUID.randomUUID(),
+                accountId = accountId,
+                checkpointDate = LocalDate.of(2026, 5, 30),
+                status = ComeCotasCheckpointJobStatus.PENDING,
+                createdAt = Instant.parse("2026-05-31T00:00:00Z"),
+            ),
+        )
+
+        val status = service.getRecalculationStatus(accountId)
+
+        assertThat(status.isCalculating).isTrue()
+        assertThat(status.message).isEqualTo("Come-cotas materialization is queued.")
+    }
 
     @Test
     fun `returns TWR and benchmarks when historical quotas exist for account`() {

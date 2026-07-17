@@ -120,6 +120,9 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
         props["kafka.bootstrap.servers"] = bootstrapServers
         props["kafka.producers.default.bootstrap.servers"] = bootstrapServers
         props["kafka.consumers.import-file.bootstrap.servers"] = bootstrapServers
+        props["kafka.consumers.come-cotas-checkpoint.enabled"] = "false"
+        props["banking.come-cotas.pending-dispatcher.enabled"] = "false"
+        props["banking.come-cotas.sweep.enabled"] = "false"
         props["graphql.router.url"] = "${assetsBaseUrl()}/graphql"
         props["banking.assets-service.url"] = assetsBaseUrl()
         return props

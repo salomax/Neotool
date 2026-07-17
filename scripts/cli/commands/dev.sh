@@ -976,6 +976,18 @@ Subcommands:
     Manage the Cloudflare Tunnel for DevPod N.
     Example: neotool dev tunnel start 1
 
+  $(log "forward" "$GREEN") [stop|status|add] [PORT|LOCAL:REMOTE ...]
+    Port-forward DevPod ports to the host via a Docker socat proxy.
+    No args: default service/infra ports.
+    With ports: default ports + those (PORT or LOCAL:REMOTE).
+    add: alias for adding ports to the default set.
+    Examples:
+      neotool dev forward
+      neotool dev forward 9323
+      neotool dev forward 15432:5432
+      neotool dev forward status
+      neotool dev forward stop
+
   $(log "gradle-reset" "$GREEN")
     Stop Kotlin dev services, Gradle daemons, build/ dirs, and stale build cache
     (use if kspKotlin fails with "Failed to load cache entry" or clean cannot delete build).
@@ -1013,64 +1025,250 @@ EOF
 # Forward — runs locally on the host (devpod CLI not available inside container)
 # =============================================================================
 
-dev_forward() {
-    local action="${1:-}"
-    local proxy_name="devpod-port-proxy"
+FORWARD_PROXY_NAME="devpod-port-proxy"
+FORWARD_DEFAULT_PORTS=(3000 4000 8080 8082 8083 8084 8091 8092 5432 6432 9092 9094 9000 9001 8200)
+FORWARD_EXTRA_PORTS_FILE="${TMPDIR:-/tmp}/devpod-forward-extra-ports"
 
-    if [[ "$action" == "stop" ]]; then
-        if docker ps -q --filter "name=${proxy_name}" 2>/dev/null | grep -q .; then
-            docker rm -f "$proxy_name" >/dev/null 2>&1
-            echo "✓ Port forwarding stopped"
-        else
-            echo "No active port forwarding found."
-        fi
+# Parse PORT or LOCAL:REMOTE into "local remote". Returns non-zero on invalid input.
+forward_parse_spec() {
+    local spec="$1"
+    local local_port remote_port
+    if [[ "$spec" =~ ^([0-9]+):([0-9]+)$ ]]; then
+        local_port="${BASH_REMATCH[1]}"
+        remote_port="${BASH_REMATCH[2]}"
+    elif [[ "$spec" =~ ^[0-9]+$ ]]; then
+        local_port="$spec"
+        remote_port="$spec"
+    else
+        echo "ERROR: Invalid port spec '$spec'. Use PORT or LOCAL:REMOTE" >&2
+        return 1
+    fi
+    if (( local_port < 1 || local_port > 65535 || remote_port < 1 || remote_port > 65535 )); then
+        echo "ERROR: Port out of range in '$spec' (1-65535)" >&2
+        return 1
+    fi
+    echo "${local_port} ${remote_port}"
+}
+
+forward_load_extra_specs() {
+    if [[ -f "$FORWARD_EXTRA_PORTS_FILE" ]]; then
+        # shellcheck disable=SC2002
+        cat "$FORWARD_EXTRA_PORTS_FILE" 2>/dev/null | tr ' ' '\n' | sed '/^$/d'
+    fi
+}
+
+forward_save_extra_specs() {
+    mkdir -p "$(dirname "$FORWARD_EXTRA_PORTS_FILE")"
+    printf '%s\n' "$@" > "$FORWARD_EXTRA_PORTS_FILE"
+}
+
+forward_merge_specs() {
+    # stdin: one "local remote" per line → stdout unique by local port (last wins)
+    awk 'NF == 2 { map[$1] = $2 } END { for (l in map) print l, map[l] }' | sort -n
+}
+
+forward_devpod_container() {
+    docker ps --filter "label=devpod.user" --format "{{.Names}}" 2>/dev/null | head -1
+}
+
+forward_devpod_ip() {
+    local container="$1"
+    local ip
+    ip=$(docker inspect "$container" --format "{{.NetworkSettings.IPAddress}}" 2>/dev/null)
+    if [[ -z "$ip" ]]; then
+        ip=$(docker inspect "$container" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' 2>/dev/null | awk '{print $1}')
+    fi
+    echo "$ip"
+}
+
+dev_forward_status() {
+    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$FORWARD_PROXY_NAME"; then
+        echo "○ Port forwarding not active"
+        echo "  Start with: neotool dev forward"
         return 0
     fi
+    local ports
+    ports=$(docker port "$FORWARD_PROXY_NAME" 2>/dev/null \
+        | awk -F'[/ ]' '{print $1}' | sort -n | uniq | tr '\n' ' ')
+    echo "✓ Port forwarding active (container: $FORWARD_PROXY_NAME)"
+    echo "  Published: ${ports:-?(none)}"
+    if [[ -f "$FORWARD_EXTRA_PORTS_FILE" ]] && [[ -s "$FORWARD_EXTRA_PORTS_FILE" ]]; then
+        echo "  Extra: $(tr '\n' ' ' < "$FORWARD_EXTRA_PORTS_FILE")"
+    fi
+    echo "  Stop with: neotool dev forward stop"
+}
 
-    # Remove existing proxy if running
-    docker rm -f "$proxy_name" >/dev/null 2>&1 || true
+dev_forward_stop() {
+    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "$FORWARD_PROXY_NAME"; then
+        docker rm -f "$FORWARD_PROXY_NAME" >/dev/null 2>&1
+        echo "✓ Port forwarding stopped"
+    else
+        echo "No active port forwarding found."
+    fi
+}
 
-    # Get DevPod container IP
-    local container
-    container=$(docker ps --filter "label=devpod.user" --format "{{.Names}}" 2>/dev/null | head -1)
+# Start (or recreate) the socat proxy with default ports + optional extra specs.
+# Extra specs are PORT or LOCAL:REMOTE strings.
+dev_forward_start() {
+    local -a extra_specs=()
+    local -a all_specs=()
+    local spec parsed local_port remote_port
+    local container container_ip
+    local publish_flags=()
+    local socat_script mappings display_ports
+
+    if [[ $# -gt 0 ]]; then
+        extra_specs=("$@")
+    fi
+
+    container=$(forward_devpod_container)
     if [[ -z "$container" ]]; then
         echo "ERROR: No DevPod container found. Run: neotool dev up"
         return 1
     fi
-    local container_ip
-    container_ip=$(docker inspect "$container" --format "{{.NetworkSettings.IPAddress}}" 2>/dev/null)
+    container_ip=$(forward_devpod_ip "$container")
+    if [[ -z "$container_ip" ]]; then
+        echo "ERROR: Could not resolve IP for DevPod container '$container'"
+        return 1
+    fi
     echo "  Container: $container ($container_ip)"
 
-    # Build port publish flags and socat commands
-    local ports=(3000 4000 8080 8082 8083 8084 8091 8092 5432 6432 9092 9094 9000 9001 8200)
-    local publish_flags=""
-    local socat_cmds=""
-    for p in "${ports[@]}"; do
-        publish_flags="$publish_flags -p ${p}:${p}"
+    # Defaults as LOCAL:REMOTE (same port)
+    for local_port in "${FORWARD_DEFAULT_PORTS[@]}"; do
+        all_specs+=("${local_port} ${local_port}")
     done
+
+    # Explicit extras from caller
+    if ((${#extra_specs[@]} > 0)); then
+        for spec in "${extra_specs[@]}"; do
+            parsed=$(forward_parse_spec "$spec") || return 1
+            all_specs+=("$parsed")
+        done
+        forward_save_extra_specs "${extra_specs[@]}"
+    elif [[ -f "$FORWARD_EXTRA_PORTS_FILE" ]]; then
+        # Reload previously saved extras on bare `forward`
+        while IFS= read -r spec; do
+            [[ -z "$spec" ]] && continue
+            parsed=$(forward_parse_spec "$spec") || continue
+            all_specs+=("$parsed")
+            extra_specs+=("$spec")
+        done < <(forward_load_extra_specs)
+    fi
+
+    if ((${#all_specs[@]} == 0)); then
+        echo "ERROR: No ports to forward"
+        return 1
+    fi
+
+    mappings=$(printf '%s\n' "${all_specs[@]}" | forward_merge_specs)
+    if [[ -z "$mappings" ]]; then
+        echo "ERROR: No ports to forward"
+        return 1
+    fi
+
+    display_ports=""
+    while read -r local_port remote_port; do
+        [[ -z "$local_port" ]] && continue
+        publish_flags+=(-p "${local_port}:${local_port}")
+        if [[ "$local_port" == "$remote_port" ]]; then
+            display_ports+="${local_port} "
+        else
+            display_ports+="${local_port}->${remote_port} "
+        fi
+    done <<< "$mappings"
 
     # Build entrypoint script that runs all socats in parallel
-    local socat_script="#!/bin/sh"$'
-'
-    for p in "${ports[@]}"; do
-        socat_script="${socat_script}socat TCP-LISTEN:${p},fork,reuseaddr TCP:${container_ip}:${p} &"$'
-'
-    done
-    socat_script="${socat_script}wait"
+    socat_script="#!/bin/sh"$'\n'
+    while read -r local_port remote_port; do
+        [[ -z "$local_port" ]] && continue
+        socat_script+="socat TCP-LISTEN:${local_port},fork,reuseaddr TCP:${container_ip}:${remote_port} &"$'\n'
+    done <<< "$mappings"
+    socat_script+="wait"
 
-    # Run proxy container (alpine/socat publishes ports via Docker = Colima exposes to Mac)
-    # shellcheck disable=SC2086
-    docker run -d         --name "$proxy_name"         $publish_flags         --entrypoint sh         alpine/socat         -c "$socat_script" >/dev/null 2>&1
+    docker rm -f "$FORWARD_PROXY_NAME" >/dev/null 2>&1 || true
+
+    # alpine/socat publishes ports via Docker = Colima/Docker Desktop exposes to Mac
+    if ! docker run -d \
+        --name "$FORWARD_PROXY_NAME" \
+        "${publish_flags[@]}" \
+        --entrypoint sh \
+        alpine/socat \
+        -c "$socat_script" >/dev/null; then
+        echo "⚠ Proxy container failed to start."
+        echo "  Check: docker logs $FORWARD_PROXY_NAME"
+        return 1
+    fi
 
     sleep 2
-    if docker ps -q --filter "name=${proxy_name}" 2>/dev/null | grep -q .; then
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$FORWARD_PROXY_NAME"; then
         echo "✓ Port forwarding active via proxy container"
-        echo "  Ports: ${ports[*]}"
+        echo "  Ports: ${display_ports}"
+        if ((${#extra_specs[@]} > 0)); then
+            echo "  Extra: ${extra_specs[*]}"
+        fi
         echo "  Stop with: neotool dev forward stop"
     else
-        echo "⚠ Proxy container failed to start."
-        echo "  Check: docker logs $proxy_name"
+        echo "⚠ Proxy container exited immediately."
+        echo "  Check: docker logs $FORWARD_PROXY_NAME"
+        return 1
     fi
+}
+
+dev_forward() {
+    local action="${1:-}"
+
+    case "$action" in
+        stop)
+            dev_forward_stop
+            ;;
+        status)
+            dev_forward_status
+            ;;
+        ""|start)
+            # Recreate with defaults + any saved extras
+            dev_forward_start
+            ;;
+        add)
+            shift
+            if [[ $# -eq 0 ]]; then
+                echo "Usage: neotool dev forward add <PORT|LOCAL:REMOTE> [...]"
+                return 1
+            fi
+            local -a merged=()
+            local -a unique=()
+            local spec s u seen
+            while IFS= read -r spec; do
+                [[ -n "$spec" ]] && merged+=("$spec")
+            done < <(forward_load_extra_specs)
+            merged+=("$@")
+            for s in "${merged[@]}"; do
+                seen=false
+                if ((${#unique[@]} > 0)); then
+                    for u in "${unique[@]}"; do
+                        [[ "$u" == "$s" ]] && seen=true && break
+                    done
+                fi
+                [[ "$seen" == false ]] && unique+=("$s")
+            done
+            dev_forward_start "${unique[@]}"
+            ;;
+        help|-h|--help)
+            cat << EOF
+Usage: neotool dev forward [stop|status|add] [PORT|LOCAL:REMOTE ...]
+
+  neotool dev forward              Forward default ports (+ saved extras)
+  neotool dev forward 9323         Default ports + 9323
+  neotool dev forward 15432:5432   Map host 15432 → DevPod 5432
+  neotool dev forward add 9323     Add port(s) to saved extras and recreate
+  neotool dev forward status       Show active proxy ports
+  neotool dev forward stop         Stop the proxy container
+EOF
+            ;;
+        *)
+            # Treat remaining args as port specs (replace saved extras with this set)
+            dev_forward_start "$@"
+            ;;
+    esac
 }
 
 # =============================================================================
@@ -1359,7 +1557,8 @@ main() {
         exit $?
     fi
     if [[ "${1:-}" == "forward" ]]; then
-        dev_forward "${2:-}"
+        shift
+        dev_forward "$@"
         exit $?
     fi
     if [[ "${1:-}" == "sync" ]]; then

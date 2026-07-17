@@ -35,11 +35,6 @@ const MaturityConfirmDrawer = dynamic(
   { loading: () => null },
 );
 
-const WithholdingTaxDrawer = dynamic(
-  () => import('../../WithholdingTaxDrawer').then((mod) => ({ default: mod.WithholdingTaxDrawer })),
-  { loading: () => null },
-);
-
 const RecordAmortizationDrawer = dynamic(
   () => import('../../RecordAmortizationDrawer').then((mod) => ({ default: mod.RecordAmortizationDrawer })),
   { loading: () => null },
@@ -120,10 +115,6 @@ export function InvestmentTable({
     maturityConfirmHolding,
     handleOpenMaturityConfirmDrawer,
     closeMaturityConfirmDrawer,
-    withholdingTaxOpen,
-    withholdingTaxHolding,
-    handleOpenWithholdingTaxDrawer,
-    closeWithholdingTaxDrawer,
     amortizationOpen,
     amortizationHolding,
     handleOpenAmortizationDrawer,
@@ -315,10 +306,6 @@ export function InvestmentTable({
           if (!actionMenu.holding) return;
           handleRecordCorporateEvent(actionMenu.holding, 'SUBSCRIPTION');
         }}
-        onRecordWithholdingTax={() => {
-          if (!actionMenu.holding) return;
-          handleOpenWithholdingTaxDrawer(actionMenu.holding);
-        }}
         onRecordAmortization={() => {
           if (!actionMenu.holding) return;
           handleOpenAmortizationDrawer(actionMenu.holding);
@@ -367,13 +354,6 @@ export function InvestmentTable({
         onClose={closeMaturityConfirmDrawer}
         holding={maturityConfirmHolding}
         investmentAccounts={investmentAccounts}
-        onSuccess={refreshInvestmentData}
-      />
-
-      <WithholdingTaxDrawer
-        open={withholdingTaxOpen}
-        onClose={closeWithholdingTaxDrawer}
-        holding={withholdingTaxHolding}
         onSuccess={refreshInvestmentData}
       />
 

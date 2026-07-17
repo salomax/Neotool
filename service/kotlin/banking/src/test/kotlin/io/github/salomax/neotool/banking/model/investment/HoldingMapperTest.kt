@@ -45,9 +45,11 @@ class HoldingMapperTest {
                 accountId = UUID.randomUUID(),
                 assetId = UUID.randomUUID(),
                 quantity = BigDecimal.ONE,
+                comeCotasEnabled = true,
             )
         val round = HoldingMapper.toDomain(HoldingMapper.toEntity(domain))
         assertThat(round.closedAt).isNull()
         assertThat(round.closeReason).isNull()
+        assertThat(round.comeCotasEnabled).isTrue()
     }
 }

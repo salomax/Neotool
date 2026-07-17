@@ -1295,6 +1295,7 @@ enum InvestmentSource {
   MANUAL
   OPEN_FINANCE
   FILE_IMPORT
+  SYSTEM
 }
 
 enum HoldingCloseReason {
@@ -1480,6 +1481,8 @@ type InvestmentHolding {
   quantity: Float!
   """Weighted average purchase price per unit (custo médio ponderado)."""
   averageCost: Float!
+  """Manual override for come-cotas eligibility. Null means profile default applies."""
+  comeCotasEnabled: Boolean
   # ── RF-specific contractual terms ──────────────────────────────────────────
   indexer: Indexer
   """Fraction of indexer applied (e.g. 1.15 = 115% CDI)."""

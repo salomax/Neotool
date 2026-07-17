@@ -64,6 +64,37 @@ class BankingGraphQLExceptionHandlerTest {
     }
 
     @Test
+    fun `maps NfceUnavailableException to SERVICE_UNAVAILABLE without leaking details`() {
+        val result =
+            handle(
+                io.github.salomax.neotool.banking.client.import.nfce.NfceUnavailableException(
+                    "SEFAZ timed out with token=secret",
+                ),
+            )
+        val error = result.errors.single()
+
+        assertThat(error.message).isEqualTo(CommonErrorCode.SERVICE_UNAVAILABLE.defaultMessage)
+        assertThat(error.extensions["code"]).isEqualTo(CommonErrorCode.SERVICE_UNAVAILABLE.code)
+        assertThat(error.extensions["service"]).isEqualTo("banking")
+        assertThat(error.message).doesNotContain("secret")
+    }
+
+    @Test
+    fun `maps NfceInvalidException to INVALID_INPUT for qrCodeUrl`() {
+        val result =
+            handle(
+                io.github.salomax.neotool.banking.client.import.nfce.NfceInvalidException(
+                    "cancelled NF-e",
+                ),
+            )
+        val error = result.errors.single()
+
+        assertThat(error.message).isEqualTo(CommonErrorCode.INVALID_INPUT.defaultMessage)
+        assertThat(error.extensions["code"]).isEqualTo(CommonErrorCode.INVALID_INPUT.code)
+        assertThat(error.extensions["field"]).isEqualTo(listOf("qrCodeUrl"))
+    }
+
+    @Test
     fun `maps NoSuchElementException to RESOURCE_NOT_FOUND without leaking id`() {
         val result = handle(NoSuchElementException("Transaction deadbeef not found"))
         val error = result.errors.single()

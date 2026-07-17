@@ -5,7 +5,6 @@ import type { MaturityDrawerHolding } from '../../MaturityConfirmDrawer';
 import type { AmortizationDrawerHolding } from '../../RecordAmortizationDrawer';
 import type { StockLendingDrawerHolding } from '../../RecordStockLendingDrawer';
 import type { TransferCustodyDrawerHolding } from '../../TransferCustodyDrawer';
-import type { WithholdingTaxDrawerHolding } from '../../WithholdingTaxDrawer';
 import type { InvestmentHoldingDetailKind } from '../InvestmentHoldingDetailDrawer';
 import type { CorporateEventType } from '../corporate-events/RecordCorporateEventDrawer';
 import {
@@ -61,10 +60,6 @@ export interface UseInvestmentTableDrawersReturn {
   maturityConfirmHolding: MaturityDrawerHolding | null;
   handleOpenMaturityConfirmDrawer: (holding: HoldingRow) => void;
   closeMaturityConfirmDrawer: () => void;
-  withholdingTaxOpen: boolean;
-  withholdingTaxHolding: WithholdingTaxDrawerHolding | null;
-  handleOpenWithholdingTaxDrawer: (holding: HoldingRow) => void;
-  closeWithholdingTaxDrawer: () => void;
   amortizationOpen: boolean;
   amortizationHolding: AmortizationDrawerHolding | null;
   handleOpenAmortizationDrawer: (holding: HoldingRow) => void;
@@ -102,8 +97,6 @@ export function useInvestmentTableDrawers(): UseInvestmentTableDrawersReturn {
   const [stockLendingHolding, setStockLendingHolding] = React.useState<StockLendingDrawerHolding | null>(null);
   const [transferCustodyOpen, setTransferCustodyOpen] = React.useState(false);
   const [transferCustodyHolding, setTransferCustodyHolding] = React.useState<TransferCustodyDrawerHolding | null>(null);
-  const [withholdingTaxOpen, setWithholdingTaxOpen] = React.useState(false);
-  const [withholdingTaxHolding, setWithholdingTaxHolding] = React.useState<WithholdingTaxDrawerHolding | null>(null);
   const [corporateEventState, setCorporateEventState] = React.useState<CorporateEventState>({ holding: null, eventType: null });
 
   const closeActionMenu = React.useCallback(() => {
@@ -176,11 +169,6 @@ export function useInvestmentTableDrawers(): UseInvestmentTableDrawersReturn {
     setMaturityConfirmHolding(null);
   }, []);
 
-  const closeWithholdingTaxDrawer = React.useCallback(() => {
-    setWithholdingTaxOpen(false);
-    setWithholdingTaxHolding(null);
-  }, []);
-
   const closeAmortizationDrawer = React.useCallback(() => {
     setAmortizationOpen(false);
     setAmortizationHolding(null);
@@ -215,29 +203,6 @@ export function useInvestmentTableDrawers(): UseInvestmentTableDrawersReturn {
       asset: { id: holding.asset.id, name: holding.asset.name, assetType: holding.asset.assetType ?? null },
     });
     setMaturityConfirmOpen(true);
-  }, []);
-
-  const handleOpenWithholdingTaxDrawer = React.useCallback((holding: HoldingRow) => {
-    if (!holding.asset?.id || holding.asset.assetType !== 'MUTUAL_FUND') return;
-
-    const currentNavPerQuota =
-      typeof holding.grossValue === 'number' && holding.quantity > 0
-        ? holding.grossValue / holding.quantity
-        : undefined;
-
-    setWithholdingTaxHolding({
-      id: holding.id,
-      financialAccountId: holding.financialAccountId,
-      quantity: holding.quantity,
-      averageCost: holding.averageCost,
-      currentNavPerQuota,
-      asset: {
-        id: holding.asset.id,
-        name: holding.asset.name,
-        assetType: holding.asset.assetType ?? null,
-      },
-    });
-    setWithholdingTaxOpen(true);
   }, []);
 
   const handleOpenAmortizationDrawer = React.useCallback((holding: HoldingRow) => {
@@ -325,10 +290,6 @@ export function useInvestmentTableDrawers(): UseInvestmentTableDrawersReturn {
     maturityConfirmHolding,
     handleOpenMaturityConfirmDrawer,
     closeMaturityConfirmDrawer,
-    withholdingTaxOpen,
-    withholdingTaxHolding,
-    handleOpenWithholdingTaxDrawer,
-    closeWithholdingTaxDrawer,
     amortizationOpen,
     amortizationHolding,
     handleOpenAmortizationDrawer,

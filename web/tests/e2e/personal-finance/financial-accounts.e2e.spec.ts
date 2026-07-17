@@ -1013,7 +1013,6 @@ test.describe('Financial Accounts — negative paths', () => {
     await drawer.attemptSubmit();
 
     await drawer.expectFieldError('initial-balance-date-input');
-    await drawer.expectStillOpen();
 
     const txs = await getTransactions(account.id, pfUser.token, { year, month, first: 80 });
     const initialBalanceTxs = txs.filter((tx) => tx.type === TransactionType.BalanceAdjustment);

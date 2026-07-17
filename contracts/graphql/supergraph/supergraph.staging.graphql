@@ -2276,6 +2276,7 @@ enum InvestmentSource @join__type(graph: BANKING) {
   MANUAL @join__enumValue(graph: BANKING)
   OPEN_FINANCE @join__enumValue(graph: BANKING)
   FILE_IMPORT @join__enumValue(graph: BANKING)
+  SYSTEM @join__enumValue(graph: BANKING)
 }
 
 enum HoldingCloseReason @join__type(graph: BANKING) {
@@ -2471,6 +2472,10 @@ type InvestmentHolding @join__type(graph: BANKING) {
   quantity: Float!
   """Weighted average purchase price per unit (custo médio ponderado)."""
   averageCost: Float!
+  """
+  Manual override for come-cotas eligibility. Null means profile default applies.
+  """
+  comeCotasEnabled: Boolean
   indexer: Indexer
   """Fraction of indexer applied (e.g. 1.15 = 115% CDI)."""
   indexerPercentage: Float

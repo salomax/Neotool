@@ -102,7 +102,8 @@ class InvestmentPortfolioSummaryService(
         val totalIof = holdings.sumOfBigDecimal { it.iof ?: 0.0 }
         val grossGain = totalGrossValue - totalCostBasis
         val netGain = totalNetValue - totalCostBasis
-        val totalPortfolioValue = totalGrossValue + cashBalance
+        val positiveCashBalance = cashBalance.max(BigDecimal.ZERO)
+        val totalPortfolioValue = totalGrossValue + positiveCashBalance
         val valuationReferenceDate = holdings.mapNotNull { it.valuationReferenceDate }.maxOrNull()
         val currencyCode =
             holdings.mapNotNull { it.asset?.currencyCode }.distinct().singleOrNull()
@@ -114,6 +115,7 @@ class InvestmentPortfolioSummaryService(
                 accountId = accountId,
                 holdings = holdings,
                 cashBalance = cashBalance,
+                positiveCashBalance = positiveCashBalance,
                 totalPortfolioValue = totalPortfolioValue,
                 period = period,
             )
@@ -173,6 +175,7 @@ class InvestmentPortfolioSummaryService(
         accountId: UUID,
         holdings: List<InvestmentHoldingDTO>,
         cashBalance: BigDecimal,
+        positiveCashBalance: BigDecimal,
         totalPortfolioValue: BigDecimal,
         period: PerformancePeriodDTO,
     ): List<AssetGroupSummaryDTO> {
@@ -202,7 +205,7 @@ class InvestmentPortfolioSummaryService(
                 }
 
         val cashGroup =
-            if (cashBalance.compareTo(BigDecimal.ZERO) == 0) {
+            if (positiveCashBalance.compareTo(BigDecimal.ZERO) == 0) {
                 emptyList()
             } else {
                 listOf(
@@ -211,10 +214,10 @@ class InvestmentPortfolioSummaryService(
                         label = AssetGroupMapping.labelFor(AssetGroupMapping.CASH),
                         count = 0,
                         totalCostBasis = 0.0,
-                        totalGrossValue = cashBalance.toDouble(),
+                        totalGrossValue = positiveCashBalance.toDouble(),
                         grossGainPercent = null,
                         twr = null,
-                        allocationPercent = percentOrZero(cashBalance, totalPortfolioValue),
+                        allocationPercent = percentOrZero(positiveCashBalance, totalPortfolioValue),
                         isCash = true,
                     ),
                 )

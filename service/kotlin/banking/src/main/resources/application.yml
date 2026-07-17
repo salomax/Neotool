@@ -138,6 +138,12 @@ banking:
       batch-size: ${BANKING_MARKET_DATA_SYNC_LISTED_PRICES_BATCH_SIZE:1000}
       connect-timeout-seconds: ${BANKING_MARKET_DATA_SYNC_LISTED_PRICES_CONNECT_TIMEOUT_SECONDS:10}
       read-timeout-seconds: ${BANKING_MARKET_DATA_SYNC_LISTED_PRICES_READ_TIMEOUT_SECONDS:600}
+  come-cotas:
+    inline-max-checkpoints: ${BANKING_COME_COTAS_INLINE_MAX_CHECKPOINTS:2}
+    inline-max-age-days: ${BANKING_COME_COTAS_INLINE_MAX_AGE_DAYS:370}
+    retry:
+      max-attempts: ${BANKING_COME_COTAS_RETRY_MAX_ATTEMPTS:5}
+      base-delay: ${BANKING_COME_COTAS_RETRY_BASE_DELAY:PT6H}
     fund-navs:
       bulk-enabled: ${BANKING_MARKET_DATA_SYNC_FUND_NAVS_BULK_ENABLED:true}
       batch-size: ${BANKING_MARKET_DATA_SYNC_FUND_NAVS_BATCH_SIZE:1000}
@@ -161,6 +167,7 @@ kafka:
     import-job-completed: banking.import.job-completed
     market-data-job-succeeded: financial-data.market-data.job-succeeded
     portfolio-recalculation-requested: banking.portfolio-recalculation.requested
+    come-cotas-checkpoint-requested: banking.come-cotas-checkpoint.requested
     pdf:
       extractor-submitted: ${KAFKA_TOPIC_PDF_EXTRACTOR_SUBMITTED:pdf-extractor.submitted}
       extractor-extracted: ${KAFKA_TOPIC_PDF_EXTRACTOR_EXTRACTED:pdf-extractor.extracted}
@@ -182,6 +189,9 @@ kafka:
     portfolio-recalculation:
       enabled: ${KAFKA_PORTFOLIO_RECALCULATION_ENABLED:true}
       group-id: ${KAFKA_PORTFOLIO_RECALCULATION_GROUP_ID:banking-portfolio-recalculation}
+    come-cotas-checkpoint:
+      enabled: ${KAFKA_COME_COTAS_CHECKPOINT_ENABLED:true}
+      group-id: ${KAFKA_COME_COTAS_CHECKPOINT_GROUP_ID:banking-come-cotas-checkpoint}
     pdf-status:
       enabled: ${KAFKA_PDF_STATUS_ENABLED:true}
       group-id: ${KAFKA_PDF_STATUS_GROUP_ID:banking-service-bill-import-status}

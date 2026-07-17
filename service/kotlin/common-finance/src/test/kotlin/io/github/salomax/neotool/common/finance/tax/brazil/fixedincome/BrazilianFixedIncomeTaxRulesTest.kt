@@ -51,7 +51,9 @@ class BrazilianFixedIncomeTaxRulesTest {
         assertThat(BrazilianFixedIncomeTaxRules.computeIof(gain, 30)).isEqualByComparingTo(BigDecimal.ZERO)
         assertThat(BrazilianFixedIncomeTaxRules.computeIof(gain, 45)).isEqualByComparingTo(BigDecimal.ZERO)
         assertThat(BrazilianFixedIncomeTaxRules.computeIof(BigDecimal.ZERO, 5)).isEqualByComparingTo(BigDecimal.ZERO)
-        assertThat(BrazilianFixedIncomeTaxRules.computeIof(BigDecimal("-1.00"), 5)).isEqualByComparingTo(BigDecimal.ZERO)
+        assertThat(
+            BrazilianFixedIncomeTaxRules.computeIof(BigDecimal("-1.00"), 5),
+        ).isEqualByComparingTo(BigDecimal.ZERO)
     }
 
     @Test

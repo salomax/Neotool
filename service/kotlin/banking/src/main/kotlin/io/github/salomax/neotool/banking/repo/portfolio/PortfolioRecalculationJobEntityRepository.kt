@@ -32,6 +32,13 @@ interface PortfolioRecalculationJobEntityRepository :
             updated_at          = NOW()
         WHERE id = :jobId
           AND status = 'PENDING'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM banking.investment_portfolio_recalculation_job other
+              WHERE other.account_id = banking.investment_portfolio_recalculation_job.account_id
+                AND other.status = 'PROCESSING'
+                AND other.id <> :jobId
+          )
         RETURNING *
         """,
         nativeQuery = true,

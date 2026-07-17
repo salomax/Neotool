@@ -78,19 +78,41 @@ export class InvestmentsPage {
       ? popover.locator(`[data-account-id="${accountId}"]`).first()
       : popover.getByText(accountName, { exact: true }).locator('xpath=ancestor::*[@role="button"][1]');
     await row.waitFor({ state: 'visible', timeout: 10000 });
+    const summaryResponse = this.waitForInvestmentSummaryResponse();
     await row.click({ force: true });
     if (await popover.isVisible().catch(() => false)) {
       await this.page.keyboard.press('Escape');
     }
+    await expect
+      .poll(
+        async () => ((await selector.textContent()) ?? '').includes(accountName),
+        { timeout: 10000 },
+      )
+      .toBe(true);
+    await summaryResponse.catch(() => null);
     await this.summary.waitForMetricsReady();
   }
 
   async selectConsolidatedView(): Promise<void> {
-    await this.page.getByTestId('account-selector').click();
+    const selector = this.page.getByTestId('account-selector');
+    await selector.click();
     const popover = this.page.getByTestId('account-selector-popover');
     await popover.waitFor({ state: 'visible', timeout: 10000 });
+    const summaryResponse = this.waitForInvestmentSummaryResponse();
     await popover.locator('[role="button"]:not([data-account-id])').first().click({ force: true });
+    await summaryResponse.catch(() => null);
     await this.summary.waitForMetricsReady();
   }
-}
 
+  private waitForInvestmentSummaryResponse(): Promise<void> {
+    return this.page
+      .waitForResponse(
+        (response) =>
+          response.request().method() === 'POST' &&
+          response.ok() &&
+          response.request().postData()?.includes('InvestmentPortfolioSummary') === true,
+        { timeout: 10000 },
+      )
+      .then(() => undefined);
+  }
+}

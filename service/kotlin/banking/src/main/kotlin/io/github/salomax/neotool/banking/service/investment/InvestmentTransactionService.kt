@@ -45,6 +45,8 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
+import java.time.Month
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /** Same eligibility as [RecordStockLendingService] for manual `recordInvestmentTransaction` paths. */
@@ -162,9 +164,17 @@ open class InvestmentTransactionService(
         val now = Instant.now()
 
         val holding = existingHolding ?: createHolding(effectiveCommand, asset, accountId, now)
+        val holdingAfterSyntheticComeCotasReconciliation =
+            reconcileSyntheticComeCotasIfNeeded(
+                holding = holding,
+                asset = asset,
+                command = effectiveCommand,
+                accountId = accountId,
+                now = now,
+            )
 
         // Apply the transaction effect: update quantity and average cost
-        val updatedHolding = applyEffect(holding, effectiveCommand, now, asset)
+        val updatedHolding = applyEffect(holdingAfterSyntheticComeCotasReconciliation, effectiveCommand, now, asset)
 
         // Persist the updated (or newly created) holding first to get its id
         val savedHolding =
@@ -359,7 +369,7 @@ open class InvestmentTransactionService(
         }
 
         val transactions = investmentTransactionRepository.findByHolding(id, accountId)
-        if (!transactions.all { it.source == InvestmentSource.MANUAL }) {
+        if (!transactions.all(::isHoldingDeletionAllowedTransaction)) {
             throw ConflictException(
                 errorCode = BankingErrorCode.INVESTMENT_HOLDING_DELETE_NOT_ALLOWED,
                 field = "id",
@@ -419,6 +429,10 @@ open class InvestmentTransactionService(
 
         return holdingRepository.softDelete(id, accountId)
     }
+
+    private fun isHoldingDeletionAllowedTransaction(transaction: InvestmentTransaction): Boolean =
+        transaction.source == InvestmentSource.MANUAL ||
+            (transaction.source == InvestmentSource.SYSTEM && transaction.type == WITHHOLDING_TAX)
 
     // ── Custo médio ponderado ─────────────────────────────────────────────────
 
@@ -521,6 +535,93 @@ open class InvestmentTransactionService(
         return HoldingPositionEvolution.evolve(effectiveHolding, PositionEvolutionInput.from(command))
             .copy(updatedAt = now)
     }
+
+    private fun reconcileSyntheticComeCotasIfNeeded(
+        holding: Holding,
+        asset: Asset,
+        command: RecordInvestmentTransactionCommand,
+        accountId: UUID,
+        now: Instant,
+    ): Holding {
+        if (command.type != WITHHOLDING_TAX || command.source == InvestmentSource.SYSTEM) return holding
+        if (asset.assetType != AssetType.MUTUAL_FUND) return holding
+        val holdingId = holding.id ?: return holding
+
+        val syntheticTransaction =
+            findSyntheticComeCotasTransaction(
+                holding = holding,
+                accountId = accountId,
+                importedTradeDate = command.tradeDate,
+            ) ?: return holding
+
+        lifecycleOrchestrator.onDelete(
+            InvestmentTransactionContext(
+                transaction = syntheticTransaction,
+                holding = holding,
+                asset = asset,
+                command = null,
+                accountId = accountId,
+                userId = syntheticTransaction.createdByUserId,
+            ),
+        )
+
+        val syntheticId =
+            requireNotNull(syntheticTransaction.id) { "Synthetic come-cotas transaction id must not be null" }
+        val deleted = investmentTransactionRepository.softDelete(syntheticId, accountId)
+        check(deleted) { "Failed to soft-delete synthetic come-cotas transaction $syntheticId" }
+
+        portfolioFlowEventService.requestRecalculation(
+            financialAccountId = syntheticTransaction.financialAccountId,
+            accountId = accountId,
+            recalculateFrom = syntheticTransaction.tradeDate,
+            triggeredBy = "come_cotas_reconcile:$syntheticId",
+        )
+
+        return recomputeHoldingState(holding, accountId, null, now) ?: holding.copy(id = holdingId)
+    }
+
+    private fun findSyntheticComeCotasTransaction(
+        holding: Holding,
+        accountId: UUID,
+        importedTradeDate: LocalDate,
+    ): InvestmentTransaction? {
+        val holdingId = requireNotNull(holding.id) { "Holding id must not be null for come-cotas reconciliation" }
+        return syntheticCheckpointCandidates(importedTradeDate)
+            .asSequence()
+            .mapNotNull { checkpointDate ->
+                investmentTransactionRepository.findByProviderTransactionId(
+                    financialAccountId = holding.financialAccountId,
+                    accountId = accountId,
+                    providerTransactionId = syntheticComeCotasProviderTransactionId(holdingId, checkpointDate),
+                )
+            }
+            .firstOrNull { tx ->
+                tx.holdingId == holdingId &&
+                    tx.type == WITHHOLDING_TAX &&
+                    tx.source == InvestmentSource.SYSTEM
+            }
+    }
+
+    private fun syntheticCheckpointCandidates(importedTradeDate: LocalDate): List<LocalDate> =
+        (importedTradeDate.year - 1..importedTradeDate.year + 1)
+            .flatMap { year ->
+                listOf(
+                    ComeCotasSupport.checkpointDateForMonth(year, Month.MAY),
+                    ComeCotasSupport.checkpointDateForMonth(year, Month.NOVEMBER),
+                )
+            }
+            .distinct()
+            .sortedBy { checkpoint -> kotlin.math.abs(ChronoUnit.DAYS.between(checkpoint, importedTradeDate)) }
+            .filter { checkpoint ->
+                kotlin.math.abs(
+                    ChronoUnit.DAYS.between(checkpoint, importedTradeDate),
+                ) <= ComeCotasSupport.RECONCILIATION_WINDOW_DAYS
+            }
+
+    private fun syntheticComeCotasProviderTransactionId(
+        holdingId: UUID,
+        checkpointDate: LocalDate,
+    ): String = "comecotas:$holdingId:$checkpointDate"
 
     // ── Private helpers ───────────────────────────────────────────────────────
 

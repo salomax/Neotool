@@ -371,4 +371,5 @@ private fun InvestmentSource.toLedgerTransactionSource(): TransactionSource =
         InvestmentSource.MANUAL -> TransactionSource.MANUAL
         InvestmentSource.OPEN_FINANCE -> TransactionSource.OPEN_FINANCE
         InvestmentSource.FILE_IMPORT -> TransactionSource.CSV
+        InvestmentSource.SYSTEM -> TransactionSource.MANUAL
     }

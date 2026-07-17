@@ -37,6 +37,7 @@ export const FUND_HOLDING_DETAIL = gql`
         name
         assetType
         issuerName
+        fundCnpj
         currencyCode
         logoAsset {
           id

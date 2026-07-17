@@ -39,6 +39,9 @@ open class DefaultHoldingRepository(
             .findOpenByAccount(accountId)
             .map(HoldingMapper::toDomain)
 
+    override fun findOpenComeCotasCandidates(): List<Holding> =
+        entityRepository.findOpenComeCotasCandidates().map(HoldingMapper::toDomain)
+
     override fun findById(
         id: UUID,
         accountId: UUID,

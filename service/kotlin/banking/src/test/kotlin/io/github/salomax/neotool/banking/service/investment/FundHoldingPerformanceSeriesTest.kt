@@ -129,6 +129,47 @@ class FundHoldingPerformanceSeriesTest {
     }
 
     @Test
+    fun `withholding tax reduces quantity and gross at month end`() {
+        val holding = baseHolding()
+        val buy = purchase(holding, LocalDate.of(2025, 1, 5), qty = BigDecimal("100"), price = BigDecimal.ONE)
+        val withholdingTax =
+            InvestmentTransaction(
+                id = UUID.randomUUID(),
+                holdingId = holding.id!!,
+                financialAccountId = holding.financialAccountId,
+                accountId = holding.accountId,
+                createdByUserId = UUID.randomUUID(),
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                type = InvestmentTransactionType.WITHHOLDING_TAX,
+                quantity = BigDecimal("40"),
+                unitPrice = BigDecimal("1.20"),
+                grossValue = BigDecimal("48.00"),
+                netValue = BigDecimal("48.00"),
+                tradeDate = LocalDate.of(2025, 2, 15),
+                source = InvestmentSource.SYSTEM,
+                createdAt = Instant.parse("2025-02-15T12:00:00Z"),
+                updatedAt = Instant.parse("2025-02-15T12:00:00Z"),
+            )
+        val nav =
+            listOf(
+                LocalDate.of(2025, 1, 1) to BigDecimal.ONE,
+                LocalDate.of(2025, 2, 28) to BigDecimal("2.00"),
+            )
+        val points =
+            buildFundNavPerformancePoints(
+                holding = holding,
+                transactions = listOf(buy, withholdingTax),
+                navSeries = nav,
+                taxSnapshot = snapshotUnknownTax,
+                fundValuationService = fundValuationService,
+                today = LocalDate.of(2025, 2, 28),
+            )
+        val last = points.last()
+        assertThat(last.quantity).isEqualByComparingTo(BigDecimal("60"))
+        assertThat(last.grossValue).isEqualByComparingTo(BigDecimal("120.00"))
+    }
+
+    @Test
     fun `uses latest NAV on or before point date when gap in series`() {
         val holding = baseHolding()
         val tx = purchase(holding, LocalDate.of(2025, 1, 5), qty = BigDecimal("10"), price = BigDecimal.ONE)

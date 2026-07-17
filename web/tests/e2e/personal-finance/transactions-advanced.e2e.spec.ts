@@ -189,32 +189,31 @@ test("TX-A-13: deleting one installment does not affect the remaining installmen
   creditCardAccount,
 }) => {
   // Create 2 separate transactions simulating installments (manual, since installment
-  // auto-generation may not be implemented yet).
+  // auto-generation may not be implemented yet). Sequential creates avoid racing the
+  // credit-card bill / month-snapshot recompute path.
   const desc = uniqueDesc("Parcela Manual A13");
-  const [tx1, tx2] = await Promise.all([
-    createTransaction(
-      {
-        financialAccountId: creditCardAccount.id,
-        description: `${desc} 1/2`,
-        amount: 150,
-        creditDebitType: CreditDebitType.Debit,
-        status: TransactionStatus.Posted,
-        date: today(),
-      },
-      pfUser.token,
-    ),
-    createTransaction(
-      {
-        financialAccountId: creditCardAccount.id,
-        description: `${desc} 2/2`,
-        amount: 150,
-        creditDebitType: CreditDebitType.Debit,
-        status: TransactionStatus.Posted,
-        date: today(),
-      },
-      pfUser.token,
-    ),
-  ]);
+  const tx1 = await createTransaction(
+    {
+      financialAccountId: creditCardAccount.id,
+      description: `${desc} 1/2`,
+      amount: 150,
+      creditDebitType: CreditDebitType.Debit,
+      status: TransactionStatus.Posted,
+      date: today(),
+    },
+    pfUser.token,
+  );
+  const tx2 = await createTransaction(
+    {
+      financialAccountId: creditCardAccount.id,
+      description: `${desc} 2/2`,
+      amount: 150,
+      creditDebitType: CreditDebitType.Debit,
+      status: TransactionStatus.Posted,
+      date: today(),
+    },
+    pfUser.token,
+  );
 
   const { year, month } = currentYM();
   const before = await getMonthSummary(

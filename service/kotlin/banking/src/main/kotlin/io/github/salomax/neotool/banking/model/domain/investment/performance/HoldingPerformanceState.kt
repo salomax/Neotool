@@ -48,6 +48,11 @@ internal fun Holding.applyPerformanceTransaction(transaction: InvestmentTransact
             copy(quantity = (this.quantity - quantity).coerceAtLeast(BigDecimal.ZERO))
         }
 
+        InvestmentTransactionType.WITHHOLDING_TAX -> {
+            if (quantity == null || quantity <= BigDecimal.ZERO) return this
+            copy(quantity = (this.quantity - quantity).coerceAtLeast(BigDecimal.ZERO))
+        }
+
         InvestmentTransactionType.MATURITY -> {
             val closingQuantity = quantity ?: this.quantity
             copy(quantity = (this.quantity - closingQuantity).coerceAtLeast(BigDecimal.ZERO))

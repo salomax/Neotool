@@ -1442,6 +1442,17 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "setHoldingComeCotasOverride",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        investmentResolver.setHoldingComeCotasOverride(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "triggerPortfolioRecalculation",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->

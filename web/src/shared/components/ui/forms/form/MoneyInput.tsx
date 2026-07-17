@@ -36,6 +36,12 @@ export interface MoneyInputProps {
   allowNegative?: boolean;
   /** Optional styles for the clear (×) icon button when the field has a value. */
   clearButtonSx?: SxProps<Theme>;
+  /** Maximum decimal places accepted/rendered. Default 2. */
+  fractionDigits?: number;
+  /** Pads trailing decimal zeros up to `fractionDigits`. Default true. */
+  fixedDecimalScale?: boolean;
+  /** Notified only for direct user edits on the numeric field. */
+  onNumericValueChange?: (value: number | undefined) => void;
 }
 
 export const MoneyInput: React.FC<MoneyInputProps> = (props) => {
@@ -89,6 +95,9 @@ export function BaseMoneyInput({
   'data-testid': dataTestId,
   allowNegative = false,
   clearButtonSx,
+  fractionDigits = 2,
+  fixedDecimalScale = true,
+  onNumericValueChange,
 }: BaseMoneyInputProps) {
   // Determine locale and separators
   const currentLocale = locale || i18n.language || "pt-BR";
@@ -139,17 +148,19 @@ export function BaseMoneyInput({
       placeholder={placeholder}
       disabled={disabled}
       value={localValue}
-      onValueChange={(values) => {
+      onValueChange={(values, sourceInfo) => {
         setLocalValue(values.value);
-        // Update parent form value immediately
         const numVal = values.floatValue;
-        onChange(numVal);
+        if (sourceInfo.source === "event") {
+          onChange(numVal);
+          onNumericValueChange?.(numVal);
+        }
       }}
       onBlur={onBlur}
       thousandSeparator={group ?? false}
       decimalSeparator={decimal}
-      decimalScale={2}
-      fixedDecimalScale
+      decimalScale={fractionDigits}
+      fixedDecimalScale={fixedDecimalScale}
       allowNegative={allowNegative}
       InputProps={{
         ...InputProps,
@@ -177,6 +188,7 @@ export function BaseMoneyInput({
                   onClick={() => {
                     setLocalValue("");
                     onChange(undefined);
+                    onNumericValueChange?.(undefined);
                   }}
                   edge="end"
                   sx={

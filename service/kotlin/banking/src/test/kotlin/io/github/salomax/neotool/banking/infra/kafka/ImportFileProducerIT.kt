@@ -54,6 +54,9 @@ class ImportFileProducerIT : BaseIntegrationTest(), KafkaIntegrationTest {
         props["kafka.consumers.bill-import-status.enabled"] = "false"
         props["kafka.consumers.portfolio-recalculation.enabled"] = "false"
         props["kafka.consumers.market-data-sync.enabled"] = "false"
+        props["kafka.consumers.come-cotas-checkpoint.enabled"] = "false"
+        props["banking.come-cotas.pending-dispatcher.enabled"] = "false"
+        props["banking.come-cotas.sweep.enabled"] = "false"
         props["kafka.consumers.banking-import-file-producer-it.key-deserializer"] =
             StringDeserializer::class.java.name
         props["kafka.consumers.banking-import-file-producer-it.value-deserializer"] =

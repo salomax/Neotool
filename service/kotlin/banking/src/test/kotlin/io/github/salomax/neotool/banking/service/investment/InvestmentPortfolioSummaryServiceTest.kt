@@ -127,6 +127,70 @@ class InvestmentPortfolioSummaryServiceTest {
         verify(portfolioPerformanceQueryService).getRecalculationStatus(accountId)
     }
 
+    @Test
+    fun `negative cash balance does not reduce displayed portfolio patrimony`() {
+        val accountId = UUID.randomUUID()
+        val financialAccountId = UUID.randomUUID()
+
+        whenever(investmentQueryService.getHoldings(financialAccountId, accountId)).thenReturn(
+            listOf(
+                holding(
+                    assetType = AssetType.MUTUAL_FUND,
+                    quantity = 100.0,
+                    averageCost = 10.0,
+                    grossValue = 1050.0,
+                    netValue = 1050.0,
+                    valuationSource = ValuationSource.PROVIDER,
+                    valuationReferenceDate = LocalDate.of(2026, 4, 3),
+                ),
+            ),
+        )
+        whenever(
+            investmentQueryService.getInvestmentCashBalance(financialAccountId, accountId),
+        ).thenReturn(BigDecimal("-1000.00"))
+        whenever(
+            portfolioPerformanceQueryService.getPortfolioPerformance(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                period = PerformancePeriodDTO.YTD,
+                hasEstimatedValuesFallback = false,
+            ),
+        ).thenReturn(
+            PortfolioPerformanceDTO(
+                twr = 0.05,
+                twrSince = LocalDate.of(2026, 1, 1),
+                twrAbsolute = null,
+                period = PerformancePeriodDTO.YTD,
+                benchmarks = emptyList(),
+                hasEstimatedValues = false,
+            ),
+        )
+        whenever(
+            portfolioPerformanceQueryService.getAssetGroupPerformance(
+                financialAccountId,
+                accountId,
+                "mutualFunds",
+                PerformancePeriodDTO.YTD,
+            ),
+        ).thenReturn(0.05)
+        whenever(portfolioPerformanceQueryService.getRecalculationStatus(accountId)).thenReturn(
+            RecalculationStatusDTO(
+                isCalculating = false,
+                jobId = null,
+                startedAt = null,
+                message = null,
+            ),
+        )
+
+        val summary = service.getSummary(financialAccountId, accountId, PerformancePeriodDTO.YTD)
+
+        assertThat(summary.totalCostBasis).isEqualTo(1000.0)
+        assertThat(summary.cashBalance).isEqualTo(-1000.0)
+        assertThat(summary.grossGain).isEqualTo(50.0)
+        assertThat(summary.totalPortfolioValue).isEqualTo(1050.0)
+        assertThat(summary.byAssetGroup.map { it.groupKey }).containsExactly("mutualFunds")
+    }
+
     private fun holding(
         assetType: AssetType,
         quantity: Double,
@@ -179,6 +243,7 @@ class InvestmentPortfolioSummaryServiceTest {
             iof = null,
             lastValuedAt = null,
             pricingMode = null,
+            comeCotasEnabled = null,
             valuationSource = valuationSource,
             valuationReferenceDate = valuationReferenceDate,
             isExpired = false,

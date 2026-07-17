@@ -2,7 +2,10 @@
 
 import * as React from 'react';
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
-import { DELETE_INVESTMENT_HOLDING, DELETE_INVESTMENT_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
+import {
+  DELETE_INVESTMENT_HOLDING,
+  DELETE_INVESTMENT_TRANSACTION,
+} from '@/lib/graphql/operations/banking/mutations';
 import { INVESTMENT_CASH_BALANCE, INVESTMENT_CASH_TRANSACTIONS } from '@/lib/graphql/operations/banking/queries';
 import {
   InvestmentHoldingsDocument,

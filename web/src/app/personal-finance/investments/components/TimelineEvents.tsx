@@ -9,6 +9,7 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { CurrencyAmountParts } from '@/shared/components/ui/data-display';
 import { EmptyState } from '@/shared/components/ui/feedback';
 import { Label } from '@/shared/components/ui/primitives/Label';
+import type { InvestmentSource } from '@/lib/graphql/types/__generated__/graphql';
 import { InvestmentSectionLabel } from './InvestmentSectionLabel';
 
 const DEFAULT_TIMELINE_ICON = <EventNoteIcon sx={{ fontSize: 16 }} />;
@@ -31,7 +32,7 @@ export interface TimelineEventsItem {
   incomeTax?: number | null;
   iof?: number | null;
   direction: TimelineDirection;
-  source?: 'MANUAL' | 'OPEN_FINANCE' | 'FILE_IMPORT';
+  source?: InvestmentSource;
   isEditable?: boolean;
 }
 

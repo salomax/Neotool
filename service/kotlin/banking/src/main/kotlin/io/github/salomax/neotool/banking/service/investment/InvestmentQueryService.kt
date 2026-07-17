@@ -50,6 +50,8 @@ import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRe
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.repo.portfolio.AssetDailyPriceRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.investment.recalculation.HoldingPositionEvolution
+import io.github.salomax.neotool.banking.service.investment.recalculation.PositionEvolutionInput
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
 import jakarta.inject.Singleton
@@ -726,21 +728,31 @@ class InvestmentQueryService(
         monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>>,
         includeCouponSchedule: Boolean,
     ): InvestmentHoldingDTO {
+        val effectiveHolding =
+            id
+                ?.let { holdingId ->
+                    reconcileDerivedHoldingState(holdingTransactionsById[holdingId].orEmpty())
+                } ?: this
         val financialAccount = accountsById[financialAccountId]
         val asset = assetsById[assetId]
         val isExpired = maturityDate != null && !maturityDate!!.isAfter(today)
         val isClosed = closeReason != null
         val isExpiredPending =
             isExpired &&
-                quantity > BigDecimal.ZERO &&
+                effectiveHolding.quantity > BigDecimal.ZERO &&
                 closeReason == null
 
         val valuation =
-            manualValuation()
-                ?: marketDataValuation(asset, marketSnapshotsByCnpj, holdingTransactionsById)
-                ?: listedAssetMarketValuation(asset, listedAssetPricesByTicker)
-                ?: providerValuation()
-                ?: estimatedFixedIncomeValuation(rateMap, fixedIncomeRefDate, monthlySeries, holdingTransactionsById)
+            effectiveHolding.manualValuation()
+                ?: effectiveHolding.marketDataValuation(asset, marketSnapshotsByCnpj, holdingTransactionsById)
+                ?: effectiveHolding.listedAssetMarketValuation(asset, listedAssetPricesByTicker)
+                ?: effectiveHolding.providerValuation()
+                ?: effectiveHolding.estimatedFixedIncomeValuation(
+                    rateMap,
+                    fixedIncomeRefDate,
+                    monthlySeries,
+                    holdingTransactionsById,
+                )
                 ?: Valuation(null, null, null, null, ValuationSource.UNAVAILABLE, null)
         val scheduleTransactions = id?.let { holdingId -> holdingTransactionsById[holdingId].orEmpty() }.orEmpty()
         val couponSchedule =
@@ -769,17 +781,17 @@ class InvestmentQueryService(
             assetId = assetId,
             asset = asset?.toDTO(asset.listedAssetLogoAssetId(listedAssetDataByTicker)),
             financialAccount = financialAccount?.toDTO(issuersById[financialAccount.issuerId]),
-            quantity = quantity.toDouble(),
-            averageCost = averageCost.toDouble(),
-            indexer = indexer,
-            indexerPercentage = indexerPercentage?.toDouble(),
-            fixedAnnualRate = fixedAnnualRate?.toDouble(),
-            issueDate = issueDate,
-            maturityDate = maturityDate,
-            gracePeriodDate = gracePeriodDate,
-            isTaxExempt = isTaxExempt,
-            couponFrequency = couponFrequency,
-            couponDayOfMonth = couponDayOfMonth,
+            quantity = effectiveHolding.quantity.toDouble(),
+            averageCost = effectiveHolding.averageCost.toDouble(),
+            indexer = effectiveHolding.indexer,
+            indexerPercentage = effectiveHolding.indexerPercentage?.toDouble(),
+            fixedAnnualRate = effectiveHolding.fixedAnnualRate?.toDouble(),
+            issueDate = effectiveHolding.issueDate,
+            maturityDate = effectiveHolding.maturityDate,
+            gracePeriodDate = effectiveHolding.gracePeriodDate,
+            isTaxExempt = effectiveHolding.isTaxExempt,
+            couponFrequency = effectiveHolding.couponFrequency,
+            couponDayOfMonth = effectiveHolding.couponDayOfMonth,
             couponSchedule = couponSchedule,
             grossValue = valuation.grossValue,
             netValue = valuation.netValue,
@@ -788,24 +800,39 @@ class InvestmentQueryService(
             accruedInterest =
                 run {
                     val gv = valuation.grossValue ?: return@run null
-                    val principal = quantity.multiply(averageCost, mathContext).toDouble()
+                    val principal =
+                        effectiveHolding.quantity
+                            .multiply(effectiveHolding.averageCost, mathContext)
+                            .toDouble()
                     if (principal <= 0.0) return@run null
                     val interest = gv - principal
                     if (interest <= 0.0) null else interest
                 },
-            lastValuedAt = lastValuedAt,
-            pricingMode = pricingMode,
+            lastValuedAt = effectiveHolding.lastValuedAt,
+            pricingMode = effectiveHolding.pricingMode,
+            comeCotasEnabled = effectiveHolding.comeCotasEnabled,
             valuationSource = valuation.source,
             valuationReferenceDate = valuation.refDate,
             isExpired = isExpired,
             isClosed = isClosed,
             isExpiredPending = isExpiredPending,
-            closedAt = closedAt,
-            closeReason = closeReason,
-            source = source,
-            createdAt = createdAt,
-            updatedAt = updatedAt,
+            closedAt = effectiveHolding.closedAt,
+            closeReason = effectiveHolding.closeReason,
+            source = effectiveHolding.source,
+            createdAt = effectiveHolding.createdAt,
+            updatedAt = effectiveHolding.updatedAt,
         )
+    }
+
+    private fun Holding.reconcileDerivedHoldingState(transactions: List<InvestmentTransaction>): Holding {
+        if (transactions.isEmpty()) return this
+        val replayed =
+            transactions
+                .sortedWith(compareBy<InvestmentTransaction>({ it.tradeDate }, { it.createdAt }, { it.id.toString() }))
+                .fold(copy(quantity = BigDecimal.ZERO, averageCost = BigDecimal.ZERO)) { state, transaction ->
+                    HoldingPositionEvolution.evolve(state, PositionEvolutionInput.from(transaction))
+                }
+        return copy(quantity = replayed.quantity, averageCost = replayed.averageCost)
     }
 
     private fun Holding.manualValuation(): Valuation? {

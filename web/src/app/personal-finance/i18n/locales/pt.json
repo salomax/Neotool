@@ -739,6 +739,17 @@
       "actions": {
         "moreActions": "Mais ações"
       },
+      "comeCotas": {
+        "label": "Come-cotas",
+        "description": "Escolha se esta posição deve seguir a classificação do fundo ou forçar a incidência.",
+        "options": {
+          "default": "Derivado do fundo",
+          "enabled": "Habilitado",
+          "disabled": "Desabilitado"
+        },
+        "updateSuccess": "Configuração de come-cotas atualizada.",
+        "updateError": "Não foi possível atualizar a configuração de come-cotas."
+      },
       "transactions": {
         "tabs": {
           "summary": "Resumo",

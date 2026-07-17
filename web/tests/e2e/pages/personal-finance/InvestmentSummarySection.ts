@@ -3,9 +3,11 @@ import { parseCurrencyBr, parsePercentBr } from '../../helpers/currency-dom';
 
 export class InvestmentSummarySection {
   private readonly root: Locator;
+  private readonly totalPortfolioValue: Locator;
 
   constructor(private readonly page: Page) {
     this.root = page.getByTestId('investment-summary-section');
+    this.totalPortfolioValue = page.getByTestId('investment-summary-total-portfolio-value');
   }
 
   async waitForLoad(): Promise<void> {
@@ -14,11 +16,15 @@ export class InvestmentSummarySection {
 
   async waitForMetricsReady(): Promise<void> {
     await expect(this.root.locator('.MuiSkeleton-root')).toHaveCount(0, { timeout: 30000 });
+    await expect(this.totalPortfolioValue).toBeVisible({ timeout: 30000 });
+  }
+
+  async getTotalPortfolioValueText(): Promise<string> {
+    return (await this.totalPortfolioValue.textContent()) ?? '';
   }
 
   async getTotalPortfolioValue(): Promise<number> {
-    const text = await this.page.getByTestId('investment-summary-total-portfolio-value').textContent();
-    return parseCurrencyBr(text ?? '0');
+    return parseCurrencyBr(await this.getTotalPortfolioValueText());
   }
 
   async getGrossGainAmount(): Promise<number> {
@@ -47,4 +53,3 @@ export class InvestmentSummarySection {
     await this.waitForMetricsReady();
   }
 }
-

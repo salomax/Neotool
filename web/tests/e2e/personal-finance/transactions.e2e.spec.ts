@@ -848,9 +848,9 @@ test.describe("Transactions — happy path", () => {
     await expect.poll(countH15Rows, { timeout: 15_000 }).toBe(30);
 
     // Cleanup
-    await Promise.all(
-      transactions.map((tx) => deleteTransaction(tx.id, pfUser.token)),
-    );
+    for (const tx of transactions) {
+      await deleteTransaction(tx.id, pfUser.token);
+    }
   });
 
   test("TX-H-16: creates transaction with a past date inside the rolling window — API date matches", async ({

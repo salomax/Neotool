@@ -38,6 +38,7 @@ import io.github.salomax.neotool.banking.service.investment.ConfirmWithholdingTa
 import io.github.salomax.neotool.banking.service.investment.InvestmentAssetService
 import io.github.salomax.neotool.banking.service.investment.InvestmentCashService
 import io.github.salomax.neotool.banking.service.investment.InvestmentCashTransactionType
+import io.github.salomax.neotool.banking.service.investment.InvestmentHoldingOverrideService
 import io.github.salomax.neotool.banking.service.investment.InvestmentPortfolioSummaryService
 import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
 import io.github.salomax.neotool.banking.service.investment.InvestmentTransactionService
@@ -62,6 +63,7 @@ class InvestmentResolver(
     private val investmentTransactionService: InvestmentTransactionService,
     private val investmentAssetService: InvestmentAssetService,
     private val investmentQueryService: InvestmentQueryService,
+    private val investmentHoldingOverrideService: InvestmentHoldingOverrideService,
     private val investmentPortfolioSummaryService: InvestmentPortfolioSummaryService,
     private val portfolioPerformanceSeriesService: PortfolioPerformanceSeriesService,
     private val assetRepository: AssetRepository,
@@ -436,6 +438,17 @@ class InvestmentResolver(
     ): Boolean {
         val accountId = requireAccountId(principal)
         return investmentTransactionService.deleteHolding(UUID.fromString(id), accountId)
+    }
+
+    fun setHoldingComeCotasOverride(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): InvestmentHoldingDTO {
+        val accountId = requireAccountId(principal)
+        val holdingId = UUID.fromString(input["holdingId"] as String)
+        val enabled = input["comeCotasEnabled"] as Boolean?
+        investmentHoldingOverrideService.setComeCotasEnabled(holdingId, accountId, enabled)
+        return requireNotNull(investmentQueryService.getHolding(holdingId, accountId))
     }
 
     fun confirmCouponPayment(

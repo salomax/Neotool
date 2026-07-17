@@ -131,6 +131,26 @@ class ConfirmWithholdingTaxServiceTest {
     }
 
     @Test
+    fun `propagates system source and deterministic provider transaction id`() {
+        val command =
+            ConfirmWithholdingTaxCommand(
+                holdingId = holdingId,
+                tradeDate = today,
+                irValue = BigDecimal("150.00"),
+                quotasDeducted = BigDecimal("10.000000"),
+                source = InvestmentSource.SYSTEM,
+                providerTransactionId = "comecotas:$holdingId:$today",
+            )
+
+        service.confirm(command, accountId, userId)
+
+        val recordedCommandCaptor = argumentCaptor<RecordInvestmentTransactionCommand>()
+        verify(investmentTransactionService).record(recordedCommandCaptor.capture(), eq(accountId), eq(userId))
+        assertThat(recordedCommandCaptor.firstValue.source).isEqualTo(InvestmentSource.SYSTEM)
+        assertThat(recordedCommandCaptor.firstValue.providerTransactionId).isEqualTo("comecotas:$holdingId:$today")
+    }
+
+    @Test
     fun `throws when quotas deducted exceeds holding quantity`() {
         val command =
             ConfirmWithholdingTaxCommand(

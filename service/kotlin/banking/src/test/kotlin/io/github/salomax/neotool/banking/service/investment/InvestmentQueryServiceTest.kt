@@ -22,6 +22,7 @@ import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketData
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketDataProvider
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceResolution
+import io.github.salomax.neotool.banking.model.dto.investment.FundValuationResult
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
@@ -142,6 +143,225 @@ class InvestmentQueryServiceTest {
         assertThat(result.first().valuationSource).isEqualTo(ValuationSource.MARKET_DATA)
         assertThat(result.first().valuationReferenceDate).isEqualTo(LocalDate.of(2025, 12, 1))
         assertThat(result.first().asset?.logoAsset).containsEntry("id", "asset-logo-petr4")
+    }
+
+    @Test
+    fun `market-data fund holding uses estimated fund valuation in holdings query`() {
+        val accountId = UUID.randomUUID()
+        val financialAccountId = UUID.randomUUID()
+        val assetId = UUID.randomUUID()
+        val holdingId = UUID.randomUUID()
+        val now = Instant.parse("2025-12-02T12:00:00Z")
+        val fundCnpj = "12345678000199"
+
+        val holding =
+            Holding(
+                id = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                assetId = assetId,
+                quantity = BigDecimal("100"),
+                averageCost = BigDecimal("10.00"),
+                pricingMode = HoldingPricingMode.MARKET_DATA,
+                createdAt = now,
+                updatedAt = now,
+            )
+        val asset =
+            Asset(
+                id = assetId,
+                name = "Fund Test",
+                assetType = AssetType.MUTUAL_FUND,
+                fundCnpj = fundCnpj,
+                currencyCode = "BRL",
+                createdAt = now,
+                updatedAt = now,
+            )
+        val financialAccount =
+            FinancialAccount(
+                id = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                type = FinancialAccountType.INVESTMENT,
+                subtype = FinancialAccountSubtype.BROKERAGE,
+                name = "Broker",
+                createdAt = now,
+                updatedAt = now,
+            )
+        val purchase =
+            InvestmentTransaction(
+                id = UUID.randomUUID(),
+                holdingId = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.PURCHASE,
+                quantity = BigDecimal("100"),
+                unitPrice = BigDecimal("10.00"),
+                grossValue = BigDecimal("1000.00"),
+                tradeDate = LocalDate.of(2025, 1, 1),
+                source = InvestmentSource.MANUAL,
+            )
+        val snapshot =
+            FundMarketSnapshot(
+                fundCnpj = fundCnpj,
+                assetType = "FUNDO DE RENDA FIXA",
+                taxProfile = FundTaxProfile.UNKNOWN,
+                latestNav = FundMarketNav(LocalDate.of(2025, 12, 1), BigDecimal("10.50")),
+            )
+
+        whenever(holdingRepository.findOpenByAccount(accountId)).thenReturn(listOf(holding))
+        whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(financialAccount))
+        whenever(issuerRepository.findByIds(emptySet())).thenReturn(emptyList())
+        whenever(assetRepository.findByIds(setOf(assetId))).thenReturn(listOf(asset))
+        whenever(fundMarketDataProvider.getSnapshotsByCnpj(setOf(fundCnpj))).thenReturn(mapOf(fundCnpj to snapshot))
+        whenever(listedAssetMarketDataProvider.getAssetsByTicker(emptySet())).thenReturn(emptyMap())
+        whenever(
+            investmentTransactionRepository.findByHoldingIds(listOf(holdingId), accountId),
+        ).thenReturn(listOf(purchase))
+        whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
+        whenever(indicatorRateProvider.getReferenceDate()).thenReturn(null)
+        whenever(fundValuationService.estimate(eq(holding), eq(snapshot), eq(listOf(purchase)))).thenReturn(
+            FundValuationResult(
+                grossValue = BigDecimal("1050.00"),
+                incomeTax = BigDecimal("0.00"),
+                iof = BigDecimal("0.00"),
+                netValue = BigDecimal("1050.00"),
+                valuationSource = ValuationSource.MARKET_DATA,
+                valuationReferenceDate = LocalDate.of(2025, 12, 1),
+            ),
+        )
+
+        val result = service.getHoldings(financialAccountId = null, accountId = accountId)
+
+        assertThat(result).hasSize(1)
+        assertThat(result.first().grossValue).isEqualTo(1050.0)
+        assertThat(result.first().netValue).isEqualTo(1050.0)
+        assertThat(result.first().incomeTax).isEqualTo(0.0)
+        assertThat(result.first().iof).isEqualTo(0.0)
+        assertThat(result.first().valuationSource).isEqualTo(ValuationSource.MARKET_DATA)
+        assertThat(result.first().valuationReferenceDate).isEqualTo(LocalDate.of(2025, 12, 1))
+    }
+
+    @Test
+    fun `market-data fund holding derives quantity and valuation from system withholding tax transactions`() {
+        val accountId = UUID.randomUUID()
+        val financialAccountId = UUID.randomUUID()
+        val assetId = UUID.randomUUID()
+        val holdingId = UUID.randomUUID()
+        val now = Instant.parse("2025-12-02T12:00:00Z")
+        val fundCnpj = "12345678000199"
+
+        val staleHolding =
+            Holding(
+                id = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                assetId = assetId,
+                quantity = BigDecimal("100"),
+                averageCost = BigDecimal("10.00"),
+                pricingMode = HoldingPricingMode.MARKET_DATA,
+                createdAt = now,
+                updatedAt = now,
+            )
+        val asset =
+            Asset(
+                id = assetId,
+                name = "Fund Test",
+                assetType = AssetType.MUTUAL_FUND,
+                fundCnpj = fundCnpj,
+                currencyCode = "BRL",
+                createdAt = now,
+                updatedAt = now,
+            )
+        val financialAccount =
+            FinancialAccount(
+                id = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                type = FinancialAccountType.INVESTMENT,
+                subtype = FinancialAccountSubtype.BROKERAGE,
+                name = "Broker",
+                createdAt = now,
+                updatedAt = now,
+            )
+        val purchase =
+            InvestmentTransaction(
+                id = UUID.randomUUID(),
+                holdingId = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.PURCHASE,
+                quantity = BigDecimal("100"),
+                unitPrice = BigDecimal("10.00"),
+                grossValue = BigDecimal("1000.00"),
+                tradeDate = LocalDate.of(2025, 1, 1),
+                source = InvestmentSource.MANUAL,
+                createdAt = now.minusSeconds(60),
+                updatedAt = now.minusSeconds(60),
+            )
+        val withholdingTax =
+            InvestmentTransaction(
+                id = UUID.randomUUID(),
+                holdingId = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                type = InvestmentTransactionType.WITHHOLDING_TAX,
+                quantity = BigDecimal("5"),
+                unitPrice = BigDecimal("10.50"),
+                grossValue = BigDecimal("52.50"),
+                netValue = BigDecimal("52.50"),
+                tradeDate = LocalDate.of(2025, 5, 30),
+                source = InvestmentSource.SYSTEM,
+                createdAt = now,
+                updatedAt = now,
+            )
+        val snapshot =
+            FundMarketSnapshot(
+                fundCnpj = fundCnpj,
+                assetType = "FUNDO DE RENDA FIXA",
+                taxProfile = FundTaxProfile.COME_COTAS_LONG,
+                latestNav = FundMarketNav(LocalDate.of(2025, 12, 1), BigDecimal("10.50")),
+            )
+
+        whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(staleHolding)
+        whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(financialAccount))
+        whenever(issuerRepository.findByIds(emptySet())).thenReturn(emptyList())
+        whenever(assetRepository.findByIds(setOf(assetId))).thenReturn(listOf(asset))
+        whenever(assetRepository.findById(assetId)).thenReturn(asset)
+        whenever(fundMarketDataProvider.getSnapshotsByCnpj(setOf(fundCnpj))).thenReturn(mapOf(fundCnpj to snapshot))
+        whenever(listedAssetMarketDataProvider.getAssetsByTicker(emptySet())).thenReturn(emptyMap())
+        whenever(investmentTransactionRepository.findByHolding(holdingId, accountId))
+            .thenReturn(listOf(purchase, withholdingTax))
+        whenever(investmentTransactionRepository.findByHoldingIds(listOf(holdingId), accountId))
+            .thenReturn(listOf(purchase, withholdingTax))
+        whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
+        whenever(indicatorRateProvider.getReferenceDate()).thenReturn(null)
+        whenever(fundValuationService.estimate(any(), eq(snapshot), eq(listOf(purchase, withholdingTax))))
+            .thenAnswer { invocation ->
+                val effectiveHolding = invocation.arguments[0] as Holding
+                val grossValue = effectiveHolding.quantity.multiply(BigDecimal("10.50"))
+                FundValuationResult(
+                    grossValue = grossValue,
+                    incomeTax = BigDecimal("0.00"),
+                    iof = BigDecimal("0.00"),
+                    netValue = grossValue,
+                    valuationSource = ValuationSource.MARKET_DATA,
+                    valuationReferenceDate = LocalDate.of(2025, 12, 1),
+                )
+            }
+
+        val result = service.getHolding(holdingId, accountId)
+
+        assertThat(result).isNotNull
+        assertThat(result!!.quantity).isEqualTo(95.0)
+        assertThat(result.averageCost).isEqualTo(10.0)
+        assertThat(result.grossValue).isEqualTo(997.5)
+        assertThat(result.netValue).isEqualTo(997.5)
     }
 
     @Test

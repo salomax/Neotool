@@ -1,0 +1,5 @@
+allowBuilds:
+  '@parcel/watcher': set this to true or false
+  less: set this to true or false
+  nx: set this to true or false
+  sharp: set this to true or false

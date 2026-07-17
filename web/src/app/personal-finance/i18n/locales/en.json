@@ -739,6 +739,17 @@
       "actions": {
         "moreActions": "More actions"
       },
+      "comeCotas": {
+        "label": "Come-cotas",
+        "description": "Choose whether this holding should inherit the fund classification or force withholding.",
+        "options": {
+          "default": "Derived from fund",
+          "enabled": "Enabled",
+          "disabled": "Disabled"
+        },
+        "updateSuccess": "Come-cotas setting updated.",
+        "updateError": "Could not update the come-cotas setting."
+      },
       "transactions": {
         "tabs": {
           "summary": "Summary",

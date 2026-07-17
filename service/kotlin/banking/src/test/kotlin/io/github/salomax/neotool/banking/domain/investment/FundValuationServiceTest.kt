@@ -174,4 +174,68 @@ class FundValuationServiceTest {
         assertThat(result.incomeTax).isEqualByComparingTo("4.00")
         assertThat(result.netValue).isEqualByComparingTo("86.00")
     }
+
+    @Test
+    fun `estimated and realized come-cotas do not double count after checkpoint materialization`() {
+        val holding =
+            Holding(
+                id = UUID.randomUUID(),
+                financialAccountId = UUID.randomUUID(),
+                accountId = UUID.randomUUID(),
+                assetId = UUID.randomUUID(),
+                quantity = BigDecimal("95"),
+                averageCost = BigDecimal("1.00"),
+            )
+        val snapshot =
+            FundMarketSnapshot(
+                fundCnpj = "12345678000199",
+                assetType = "MUTUAL_FUND",
+                taxProfile = FundTaxProfile.COME_COTAS_LONG,
+                latestNav =
+                    FundMarketNav(
+                        date = LocalDate.of(2025, 12, 1),
+                        closePrice = BigDecimal("1.20"),
+                    ),
+            )
+        val transactions =
+            listOf(
+                InvestmentTransaction(
+                    id = UUID.randomUUID(),
+                    holdingId = holding.id!!,
+                    financialAccountId = holding.financialAccountId,
+                    accountId = holding.accountId,
+                    createdByUserId = UUID.randomUUID(),
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("100"),
+                    unitPrice = BigDecimal("1.00"),
+                    grossValue = BigDecimal("100.00"),
+                    tradeDate = LocalDate.of(2025, 1, 2),
+                    createdAt = Instant.parse("2025-01-02T12:00:00Z"),
+                    updatedAt = Instant.parse("2025-01-02T12:00:00Z"),
+                ),
+                InvestmentTransaction(
+                    id = UUID.randomUUID(),
+                    holdingId = holding.id,
+                    financialAccountId = holding.financialAccountId,
+                    accountId = holding.accountId,
+                    createdByUserId = UUID.randomUUID(),
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.WITHHOLDING_TAX,
+                    quantity = BigDecimal("5"),
+                    unitPrice = BigDecimal("0.60"),
+                    grossValue = BigDecimal("3.00"),
+                    incomeTax = BigDecimal("3.00"),
+                    tradeDate = LocalDate.of(2025, 5, 30),
+                    createdAt = Instant.parse("2025-05-30T12:00:00Z"),
+                    updatedAt = Instant.parse("2025-05-30T12:00:00Z"),
+                ),
+            )
+
+        val result = service.estimate(holding, snapshot, transactions)
+
+        assertThat(result.incomeTax).isNotNull
+        assertThat(result.incomeTax!!).isGreaterThanOrEqualTo(BigDecimal.ZERO)
+        assertThat(result.incomeTax!!).isLessThan(BigDecimal("4.00"))
+    }
 }

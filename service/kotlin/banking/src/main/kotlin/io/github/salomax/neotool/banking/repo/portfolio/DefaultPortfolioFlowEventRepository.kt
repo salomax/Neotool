@@ -25,13 +25,33 @@ open class DefaultPortfolioFlowEventRepository(
     override fun deleteBySourceReference(
         sourceReferenceId: UUID,
         sourceReferenceType: String,
-    ): Int = entityRepository.deleteBySourceReference(sourceReferenceId, sourceReferenceType)
+    ): Int =
+        entityManager
+            .createNativeQuery(
+                """
+                DELETE FROM banking.investment_portfolio_flow_event
+                WHERE source_reference_id = :sourceReferenceId
+                  AND source_reference_type = :sourceReferenceType
+                """.trimIndent(),
+            ).setParameter("sourceReferenceId", sourceReferenceId)
+            .setParameter("sourceReferenceType", sourceReferenceType)
+            .executeUpdate()
 
     @Transactional
     override fun deleteByFinancialAccountAndRelatedHoldingId(
         financialAccountId: UUID,
         relatedHoldingId: UUID,
-    ): Int = entityRepository.deleteByFinancialAccountAndRelatedHoldingId(financialAccountId, relatedHoldingId)
+    ): Int =
+        entityManager
+            .createNativeQuery(
+                """
+                DELETE FROM banking.investment_portfolio_flow_event
+                WHERE financial_account_id = :financialAccountId
+                  AND related_holding_id = :relatedHoldingId
+                """.trimIndent(),
+            ).setParameter("financialAccountId", financialAccountId)
+            .setParameter("relatedHoldingId", relatedHoldingId)
+            .executeUpdate()
 
     override fun findByAccountAndDateRange(
         financialAccountId: UUID,

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Box, Divider, Paper, Stack, Typography } from "@mui/material";
+import { Box, Divider } from "@mui/material";
 import { InvestmentSource } from "@/lib/graphql/types/__generated__/graphql";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../../i18n";
@@ -91,7 +91,6 @@ export function FundHoldingDetailContent({
 
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr" }, gap: 2 }}>
-
       <HoldingPerformanceChart
         points={viewModel.chartPoints}
         currencyCode={viewModel.currencyCode}

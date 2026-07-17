@@ -18,7 +18,7 @@ set +a
 cd "$SCRIPT_DIR"
 
 echo "==> Building cvm_funds_job..."
-go build -o bin/cronjob ./cmd/cronjob
+go build -buildvcs=false -o bin/cronjob ./cmd/cronjob
 
 echo "==> Running cvm_funds_job..."
 exec ./bin/cronjob
