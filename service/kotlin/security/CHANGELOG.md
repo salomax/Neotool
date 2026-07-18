@@ -1,3 +1,13 @@
+## 0.6.0 (2026-07-18)
+
+### 🚀 Features
+
+- **security:** configure JWT issuer URL ([#427](https://github.com/invistus/invistus/pull/427))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.5.0 (2026-07-17)
 
 ### 🚀 Features
