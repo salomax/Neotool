@@ -21,6 +21,8 @@
 
 The NeoTool Security Module provides a complete, production-ready security infrastructure that combines authentication (AuthN), authorization (AuthZ), and user management into a cohesive system designed for enterprise applications.
 
+> **External AI agent access:** exposing Invistus to third-party agents (Claude, ChatGPT, Gemini) over MCP introduces its own tool catalog, scope taxonomy, threat model and confirmation policy. See [ADR-0015: MCP Tool Surface and Agent Threat Model](../../92-adr/0015-mcp-tool-surface-and-agent-threat-model.md).
+
 ### Design Philosophy
 
 - **Security by Default**: All endpoints and resources are protected unless explicitly made public

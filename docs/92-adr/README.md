@@ -27,6 +27,7 @@ search_keywords: [adr, architecture, decisions, index]
 - [ADR-0010: React Native + Expo Mobile](./0010-react-native-expo-mobile.md)
 - [ADR-0011: LLM Orchestrator Service](./0011-llm-orchestrator-service.md)
 - [ADR-0014: Web/Mobile Code-Sharing Strategy](./0014-web-mobile-code-sharing-strategy.md)
+- [ADR-0015: MCP Tool Surface and Agent Threat Model](./0015-mcp-tool-surface-and-agent-threat-model.md)
 
 ## Related Documentation
 
