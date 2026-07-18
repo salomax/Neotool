@@ -54,6 +54,7 @@ class RequestPrincipalProviderTest {
                 RequestPrincipal(
                     userId = UUID.randomUUID(),
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf("p1"),
                 )
             whenever(principalDecoder.fromToken(token)).thenReturn(principal)
@@ -95,6 +96,7 @@ class RequestPrincipalProviderTest {
                 RequestPrincipal(
                     userId = userId,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = emptyList(),
                 )
             val env = mock<DataFetchingEnvironment>()
@@ -129,6 +131,7 @@ class RequestPrincipalProviderTest {
                 RequestPrincipal(
                     userId = userId,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = permissions,
                 ),
             )

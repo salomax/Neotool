@@ -34,6 +34,7 @@ class PermissionCheckerTest {
                     userId = userId,
                     serviceId = null,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf("assets:asset:view", "assets:asset:edit"),
                     userPermissions = null,
                 )
@@ -54,6 +55,7 @@ class PermissionCheckerTest {
                     userId = userId,
                     serviceId = null,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf("assets:asset:view", "assets:asset:edit"),
                     userPermissions = null,
                 )
@@ -76,6 +78,7 @@ class PermissionCheckerTest {
                     userId = userId,
                     serviceId = null,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = emptyList(),
                     userPermissions = null,
                 )
@@ -102,6 +105,7 @@ class PermissionCheckerTest {
                     userId = null,
                     serviceId = serviceId,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf("assets:asset:view", "assets:asset:edit"),
                     userPermissions = null,
                 )
@@ -122,6 +126,7 @@ class PermissionCheckerTest {
                     userId = null,
                     serviceId = serviceId,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf("assets:asset:view", "assets:asset:edit"),
                     userPermissions = null,
                 )
@@ -144,6 +149,7 @@ class PermissionCheckerTest {
                     userId = null,
                     serviceId = serviceId,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = emptyList(),
                     userPermissions = null,
                 )
@@ -173,6 +179,7 @@ class PermissionCheckerTest {
                     userId = userId,
                     serviceId = serviceId,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = servicePermissions,
                     userPermissions = userPermissions,
                 )
@@ -204,6 +211,7 @@ class PermissionCheckerTest {
                     userId = userId,
                     serviceId = serviceId,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = servicePermissions,
                     userPermissions = userPermissions,
                 )
@@ -228,6 +236,7 @@ class PermissionCheckerTest {
                     userId = userId,
                     serviceId = serviceId,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = servicePermissions,
                     // No user permissions provided
                     userPermissions = null,
@@ -256,6 +265,7 @@ class PermissionCheckerTest {
                     userId = userId,
                     serviceId = serviceId,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf("service:admin"),
                     userPermissions = listOf("assets:asset:view"),
                 )
@@ -278,6 +288,7 @@ class PermissionCheckerTest {
                     userId = null,
                     serviceId = serviceId,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf("service:admin"),
                     userPermissions = null,
                 )
@@ -303,6 +314,7 @@ class PermissionCheckerTest {
                     userId = userId,
                     serviceId = null,
                     token = "token",
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf(""),
                     userPermissions = null,
                 )
@@ -322,6 +334,7 @@ class PermissionCheckerTest {
                     userId = userId,
                     serviceId = null,
                     token = "token",
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf(permission),
                     userPermissions = null,
                 )
@@ -340,6 +353,7 @@ class PermissionCheckerTest {
                     userId = userId,
                     serviceId = null,
                     token = "token",
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf("assets:asset:view"),
                     userPermissions = null,
                 )

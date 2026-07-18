@@ -31,6 +31,7 @@ class TestTokenPrincipalDecoder : TokenPrincipalDecoder {
         return RequestPrincipal(
             userId = TEST_USER_ID,
             token = token,
+            tokenId = "test-token-id",
             permissionsFromToken =
                 listOf(
                     "comms:email:send",

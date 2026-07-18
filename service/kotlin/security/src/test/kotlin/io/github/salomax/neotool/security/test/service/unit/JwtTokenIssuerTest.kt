@@ -1,10 +1,14 @@
 package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.common.security.config.JwtConfig
+import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 import io.github.salomax.neotool.common.security.key.KeyManager
+import io.github.salomax.neotool.common.security.key.KeyManagerFactory
 import io.github.salomax.neotool.common.security.principal.AuthContext
+import io.github.salomax.neotool.common.security.principal.JwtPrincipalDecoder
 import io.github.salomax.neotool.security.key.SecurityKeyManagerFactory
 import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
+import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -24,20 +28,28 @@ class JwtTokenIssuerTest {
             initialize(2048)
         }.generateKeyPair()
     private lateinit var issuer: JwtTokenIssuer
+    private lateinit var validator: JwtTokenValidator
+    private lateinit var decoder: JwtPrincipalDecoder
 
     @BeforeEach
     fun setUp() {
         val keyManager = mock<KeyManager>()
         val keyManagerFactory = mock<SecurityKeyManagerFactory>()
+        val commonKeyManagerFactory = mock<KeyManagerFactory>()
 
         whenever(keyManager.getPrivateKey(any())).thenReturn(keyPair.private)
+        whenever(keyManager.getPublicKey(any())).thenReturn(keyPair.public)
         whenever(keyManagerFactory.getKeyManager()).thenReturn(keyManager)
+        whenever(commonKeyManagerFactory.getKeyManager()).thenReturn(keyManager)
 
+        val jwtConfig = JwtConfig(issuer = configuredIssuer, keyId = "kid-1")
         issuer =
             JwtTokenIssuer(
-                jwtConfig = JwtConfig(issuer = configuredIssuer, keyId = "kid-1"),
+                jwtConfig = jwtConfig,
                 keyManagerFactory = keyManagerFactory,
             )
+        validator = JwtTokenValidator(jwtConfig, commonKeyManagerFactory)
+        decoder = JwtPrincipalDecoder(validator)
     }
 
     @Test
@@ -101,7 +113,102 @@ class JwtTokenIssuerTest {
         assertThat(parseIssuer(token)).isEqualTo(configuredIssuer)
     }
 
-    private fun parseIssuer(token: String): String =
+    @Test
+    fun `should issue unique jwt id for every token type`() {
+        val userId = UUID.randomUUID()
+        val serviceId = UUID.randomUUID()
+        val issuedTokenIds =
+            listOf(
+                issuer.generateAccessToken(
+                    userId = userId,
+                    email = "test@example.com",
+                    permissions = listOf("security:user:view"),
+                ),
+                issuer.generateAccessToken(
+                    AuthContext(
+                        userId = userId,
+                        email = "test@example.com",
+                        displayName = "Test User",
+                        roles = emptyList(),
+                        permissions = listOf("security:user:view"),
+                    ),
+                ),
+                issuer.generateRefreshToken(userId),
+                issuer.generateServiceToken(
+                    serviceId = serviceId,
+                    targetAudience = "banking",
+                    permissions = listOf("banking:transaction:read"),
+                ),
+                issuer.generateServiceTokenWithUserContext(
+                    serviceId = serviceId,
+                    targetAudience = "banking",
+                    permissions = listOf("banking:transaction:read"),
+                    userId = userId,
+                    userPermissions = listOf("banking:transaction:read"),
+                ),
+            ).map(::parseJwtId)
+
+        assertThat(issuedTokenIds).doesNotContainNull()
+        assertThat(issuedTokenIds.toSet()).hasSize(issuedTokenIds.size)
+    }
+
+    @Test
+    fun `should issue unique jwt ids across repeated access and refresh tokens`() {
+        val userId = UUID.randomUUID()
+        val accessTokenIds =
+            (1..5).map {
+                parseJwtId(
+                    issuer.generateAccessToken(
+                        userId = userId,
+                        email = "test@example.com",
+                        permissions = listOf("security:user:view"),
+                    ),
+                )
+            }
+        val refreshTokenIds =
+            (1..5).map {
+                parseJwtId(issuer.generateRefreshToken(userId))
+            }
+
+        assertThat(accessTokenIds.toSet()).hasSize(accessTokenIds.size)
+        assertThat(refreshTokenIds.toSet()).hasSize(refreshTokenIds.size)
+        assertThat(accessTokenIds).doesNotContainNull()
+        assertThat(refreshTokenIds).doesNotContainNull()
+    }
+
+    @Test
+    fun `should round trip access token jwt id through validator and decoder`() {
+        val userId = UUID.randomUUID()
+        val token =
+            issuer.generateAccessToken(
+                userId = userId,
+                email = "test@example.com",
+                permissions = listOf("security:user:view"),
+            )
+
+        val tokenId = validator.getJwtIdFromToken(token)
+        val principal = decoder.fromToken(token)
+
+        assertThat(tokenId).isNotBlank()
+        assertThat(principal.tokenId).isEqualTo(tokenId)
+        assertThat(principal.userId).isEqualTo(userId)
+    }
+
+    @Test
+    fun `should expose refresh token jwt id for rotation reuse detection`() {
+        val token = issuer.generateRefreshToken(UUID.randomUUID())
+
+        val tokenId = validator.getJwtIdFromToken(token)
+
+        assertThat(tokenId).isNotBlank()
+        assertThat(tokenId).isEqualTo(parseJwtId(token))
+    }
+
+    private fun parseIssuer(token: String): String = parseClaims(token).issuer
+
+    private fun parseJwtId(token: String): String? = parseClaims(token).id
+
+    private fun parseClaims(token: String): Claims =
         Jwts
             .parser()
             .verifyWith(keyPair.public as RSAPublicKey)
@@ -109,5 +216,4 @@ class JwtTokenIssuerTest {
             .build()
             .parseSignedClaims(token)
             .payload
-            .issuer
 }

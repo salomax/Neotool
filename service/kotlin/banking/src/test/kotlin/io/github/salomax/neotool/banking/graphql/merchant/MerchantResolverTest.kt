@@ -33,6 +33,7 @@ class MerchantResolverTest {
             userId = UUID.randomUUID(),
             serviceId = null,
             token = "token",
+            tokenId = "test-token-id",
             permissionsFromToken = emptyList(),
             currentAccountId = accountId,
         )

@@ -31,6 +31,7 @@ class BankingTestTokenPrincipalDecoder : TokenPrincipalDecoder {
             userId = TEST_USER_ID,
             serviceId = null,
             token = token,
+            tokenId = "test-token-id",
             permissionsFromToken = listOf(BankingPermissions.BANKING_ACCOUNT_VIEW),
             currentAccountId = TEST_ACCOUNT_ID,
         )

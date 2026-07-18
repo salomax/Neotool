@@ -32,12 +32,14 @@ class JwtPrincipalDecoderTest {
             val userId = UUID.randomUUID()
             val servicePerms = listOf("svc:a")
             val userPerms = listOf("user:a")
+            val tokenId = UUID.randomUUID().toString()
 
             whenever(jwtTokenValidator.isServiceToken(token)).thenReturn(true)
             whenever(jwtTokenValidator.getServiceIdFromToken(token)).thenReturn(serviceId)
             whenever(jwtTokenValidator.getPermissionsFromToken(token)).thenReturn(servicePerms)
             whenever(jwtTokenValidator.getUserIdFromServiceToken(token)).thenReturn(userId)
             whenever(jwtTokenValidator.getUserPermissionsFromServiceToken(token)).thenReturn(userPerms)
+            whenever(jwtTokenValidator.getJwtIdFromToken(token)).thenReturn(tokenId)
 
             val principal = decoder.fromToken(token)
 
@@ -47,6 +49,7 @@ class JwtPrincipalDecoderTest {
                     userId = userId,
                     serviceId = serviceId,
                     token = token,
+                    tokenId = tokenId,
                     permissionsFromToken = servicePerms,
                     userPermissions = userPerms,
                 ),
@@ -95,6 +98,7 @@ class JwtPrincipalDecoderTest {
             val token = "access-token"
             val userId = UUID.randomUUID()
             val perms = listOf("p1", "p2")
+            val tokenId = UUID.randomUUID().toString()
 
             whenever(jwtTokenValidator.isServiceToken(token)).thenReturn(false)
             whenever(jwtTokenValidator.isAccessToken(token)).thenReturn(true)
@@ -103,11 +107,13 @@ class JwtPrincipalDecoderTest {
             whenever(jwtTokenValidator.getCurrentAccountIdFromToken(token)).thenReturn(null)
             whenever(jwtTokenValidator.getAccountsFromToken(token)).thenReturn(null)
             whenever(jwtTokenValidator.getSessionVersionFromToken(token)).thenReturn(null)
+            whenever(jwtTokenValidator.getJwtIdFromToken(token)).thenReturn(tokenId)
 
             val principal = decoder.fromToken(token)
 
             assertThat(principal.principalType).isEqualTo(PrincipalType.USER)
             assertThat(principal.userId).isEqualTo(userId)
+            assertThat(principal.tokenId).isEqualTo(tokenId)
             assertThat(principal.permissionsFromToken).isEqualTo(perms)
             assertThat(principal.currentAccountId).isNull()
             assertThat(principal.accounts).isNull()
@@ -120,6 +126,7 @@ class JwtPrincipalDecoderTest {
             val token = "access-token"
             val userId = UUID.randomUUID()
             val accountId = UUID.randomUUID()
+            val tokenId = UUID.randomUUID().toString()
             val accounts =
                 listOf(
                     AccountSummary(
@@ -139,6 +146,7 @@ class JwtPrincipalDecoderTest {
             whenever(jwtTokenValidator.getCurrentAccountIdFromToken(token)).thenReturn(accountId)
             whenever(jwtTokenValidator.getAccountsFromToken(token)).thenReturn(accounts)
             whenever(jwtTokenValidator.getSessionVersionFromToken(token)).thenReturn(1L)
+            whenever(jwtTokenValidator.getJwtIdFromToken(token)).thenReturn(tokenId)
 
             val principal = decoder.fromToken(token)
 
@@ -154,11 +162,13 @@ class JwtPrincipalDecoderTest {
         fun `should default permissions to empty list`() {
             val token = "access-token"
             val userId = UUID.randomUUID()
+            val tokenId = UUID.randomUUID().toString()
 
             whenever(jwtTokenValidator.isServiceToken(token)).thenReturn(false)
             whenever(jwtTokenValidator.isAccessToken(token)).thenReturn(true)
             whenever(jwtTokenValidator.getUserIdFromToken(token)).thenReturn(userId)
             whenever(jwtTokenValidator.getPermissionsFromToken(token)).thenReturn(null)
+            whenever(jwtTokenValidator.getJwtIdFromToken(token)).thenReturn(tokenId)
 
             val principal = decoder.fromToken(token)
 

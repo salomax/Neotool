@@ -159,6 +159,20 @@ class JwtTokenValidatorTest {
 
             assertThat(exception.message).contains("Token validation failed")
         }
+
+        @Test
+        fun `should reject access token without jwt id`() {
+            // Arrange
+            val token = JwtTestFixture.createToken(type = "access", jwtId = null)
+
+            // Act & Assert
+            val exception =
+                assertThrows<AuthenticationRequiredException> {
+                    validator.validateToken(token)
+                }
+
+            assertThat(exception.message).contains("Access token is missing required JWT ID")
+        }
     }
 
     @Nested
@@ -509,6 +523,31 @@ class JwtTokenValidatorTest {
     @Nested
     @DisplayName("Token Type and Metadata")
     inner class TokenTypeAndMetadataTests {
+        @Test
+        fun `should extract jwt id from token`() {
+            // Arrange
+            val jwtId = UUID.randomUUID().toString()
+            val token = JwtTestFixture.createToken(jwtId = jwtId)
+
+            // Act
+            val result = validator.getJwtIdFromToken(token)
+
+            // Assert
+            assertThat(result).isEqualTo(jwtId)
+        }
+
+        @Test
+        fun `should return null jwt id when absent from service token`() {
+            // Arrange
+            val token = JwtTestFixture.createServiceToken(jwtId = null)
+
+            // Act
+            val result = validator.getJwtIdFromToken(token)
+
+            // Assert
+            assertThat(result).isNull()
+        }
+
         @Test
         fun `should return true for access token`() {
             // Arrange

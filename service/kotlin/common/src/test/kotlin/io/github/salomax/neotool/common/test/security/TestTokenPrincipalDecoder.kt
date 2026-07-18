@@ -33,6 +33,7 @@ class TestTokenPrincipalDecoder : TokenPrincipalDecoder {
         return RequestPrincipal(
             userId = TEST_USER_ID,
             token = token,
+            tokenId = "test-token-id",
             permissionsFromToken =
                 listOf(
                     // Asset permissions (using the correct format from AssetPermissions)

@@ -62,6 +62,7 @@ class ImportSseControllerTest {
                 userId = UUID.randomUUID(),
                 serviceId = null,
                 token = "test-token",
+                tokenId = "test-token-id",
                 permissionsFromToken = listOf("banking:account:view"),
                 currentAccountId = accountId,
             )
