@@ -1,3 +1,14 @@
+## 0.8.3 (2026-07-18)
+
+### 🩹 Fixes
+
+- prevent invalid trade dates from crashing fund drawer ([#406](https://github.com/invistus/invistus/pull/406), [#405](https://github.com/invistus/invistus/issues/405))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Marcos Salomão @salomax
+
 ## 0.8.2 (2026-07-17)
 
 ### 🚀 Features
