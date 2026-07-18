@@ -89,6 +89,7 @@ class JwtTokenValidator(
                 Jwts
                     .parser()
                     .verifyWith(publicKey as RSAPublicKey)
+                    .requireIssuer(jwtConfig.issuer)
                     .build()
                     .parseSignedClaims(token)
                     .payload
@@ -334,6 +335,19 @@ class JwtTokenValidator(
     fun getEmailFromToken(token: String): String? {
         val claims = validateToken(token)
         return claims["email"]?.toString()
+    }
+
+    /**
+     * Extract issuer from a validated JWT token.
+     *
+     * @param token The JWT token string
+     * @return Issuer if token is valid
+     * @throws AuthenticationRequiredException if token validation fails
+     */
+    @Throws(AuthenticationRequiredException::class)
+    fun getIssuerFromToken(token: String): String? {
+        val claims = validateToken(token)
+        return claims.issuer
     }
 
     /**

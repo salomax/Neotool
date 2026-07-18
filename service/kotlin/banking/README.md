@@ -1,5 +1,13 @@
 # Banking Service
 
+## Configuration
+
+### JWT Authentication
+
+- `MICRONAUT_ENVIRONMENTS`: Use `local` for local runs that set `JWT_ISSUER=http://localhost:8080`
+- `JWT_ISSUER`: Absolute issuer URL expected in incoming tokens (required)
+- `JWT_JWKS_URL`: URL to the security service's JWKS endpoint (required)
+
 ## GraphQL Investments
 
 - `holdingPerformance`: performance series for a single holding.

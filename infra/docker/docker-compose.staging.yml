@@ -162,7 +162,7 @@ services:
       dockerfile: security/Dockerfile
     container_name: neotool-security-service
     environment:
-      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_ENVIRONMENTS: local,docker
       MICRONAUT_SERVER_PORT: 8080
       POSTGRES_HOST: neotool-pgbouncer
       POSTGRES_PORT: ${PGBOUNCER_PORT:-6432} 
@@ -176,6 +176,7 @@ services:
       VAULT_ENGINE_VERSION: ${VAULT_ENGINE_VERSION:-2}
       JWT_KEY_ID: ${JWT_KEY_ID:-kid-1}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
+      JWT_ISSUER: ${JWT_ISSUER}
       JWT_JWKS_ENABLED: ${JWT_JWKS_ENABLED:-true}
       JWT_ACCESS_TOKEN_EXPIRATION_SECONDS: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:-900}
       JWT_REFRESH_TOKEN_EXPIRATION_SECONDS: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:-604800}
@@ -203,7 +204,7 @@ services:
       dockerfile: assets/Dockerfile
     container_name: neotool-assets-service
     environment:
-      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_ENVIRONMENTS: local,docker
       MICRONAUT_SERVER_PORT: 8080
       POSTGRES_HOST: neotool-pgbouncer
       POSTGRES_PORT: ${PGBOUNCER_PORT:-6432} 
@@ -216,6 +217,7 @@ services:
       UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
       UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-security-service}
       JWT_JWKS_URL: http://neotool-security-service:8080/.well-known/jwks.json
+      JWT_ISSUER: ${JWT_ISSUER}
       STORAGE_HOSTNAME: minio
       STORAGE_PORT: 9000
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-minioadmin}
@@ -246,7 +248,7 @@ services:
       dockerfile: financialdata/Dockerfile
     container_name: neotool-financial-data-service
     environment:
-      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_ENVIRONMENTS: local,docker
       MICRONAUT_SERVER_PORT: 8080
       POSTGRES_HOST: neotool-pgbouncer
       POSTGRES_PORT: ${PGBOUNCER_PORT:-6432} 
@@ -259,6 +261,7 @@ services:
       UNLEASH_API_TOKEN: ${UNLEASH_API_TOKEN:-}
       UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-neotool-security-service}
       JWT_JWKS_URL: http://neotool-security-service:8080/.well-known/jwks.json
+      JWT_ISSUER: ${JWT_ISSUER}
     depends_on:
       pgbouncer:
         condition: service_healthy
@@ -281,7 +284,7 @@ services:
       dockerfile: assistant/Dockerfile
     container_name: neotool-assistant-service
     environment:
-      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_ENVIRONMENTS: local,docker
       MICRONAUT_SERVER_PORT: 8080
       POSTGRES_HOST: neotool-pgbouncer
       POSTGRES_PORT: ${PGBOUNCER_PORT:-6432}
@@ -290,6 +293,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       VAULT_ADDRESS: http://vault:8200
       JWT_JWKS_URL: http://neotool-security-service:8080/.well-known/jwks.json
+      JWT_ISSUER: ${JWT_ISSUER}
     depends_on:
       pgbouncer:
         condition: service_healthy

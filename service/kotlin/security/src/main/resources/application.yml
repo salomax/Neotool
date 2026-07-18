@@ -70,6 +70,9 @@ jwt:
   # JWKS URL for validators (not used by issuer service)
   # Can be set via JWT_JWKS_URL environment variable
   jwks-url: ${JWT_JWKS_URL:}
+  # Issuer URL written to the iss claim and required during validation
+  # Can be set via JWT_ISSUER environment variable
+  issuer: ${JWT_ISSUER}
   # Access token expiration in seconds (default: 900 = 15 minutes)
   access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
   # Refresh token expiration in seconds (default: 604800 = 7 days)

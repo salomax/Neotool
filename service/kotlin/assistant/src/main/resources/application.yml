@@ -82,6 +82,8 @@ jwt:
   # Algorithm: RS256 (RSA-SHA256) - only supported algorithm
   # Can be set via JWT_ALGORITHM environment variable
   algorithm: ${JWT_ALGORITHM:RS256}
+  # Can be set via JWT_ISSUER environment variable
+  issuer: ${JWT_ISSUER}
   # RSA public key path (PEM format) - for RS256 validation
   # Can be set via JWT_PUBLIC_KEY_PATH environment variable
   public-key-path: ${JWT_PUBLIC_KEY_PATH:}

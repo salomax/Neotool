@@ -26,6 +26,8 @@ import java.util.UUID
  * ```
  */
 object JwtTestFixture {
+    const val ISSUER = "https://issuer.example.test"
+
     /**
      * Lazily initialized 2048-bit RSA key pair for testing.
      * Shared across all tests for consistency and performance.
@@ -74,6 +76,7 @@ object JwtTestFixture {
         userId: UUID? = null,
         email: String? = null,
         audience: String? = null,
+        issuer: String? = ISSUER,
         expirationSeconds: Long = 900,
         issuedAt: Instant = Instant.now(),
         currentAccountId: UUID? = null,
@@ -90,6 +93,7 @@ object JwtTestFixture {
                 .expiration(Date.from(issuedAt.plusSeconds(expirationSeconds)))
 
         // Add optional claims
+        issuer?.let { builder.issuer(it) }
         permissions?.let { builder.claim("permissions", it) }
         userPermissions?.let { builder.claim("user_permissions", it) }
         userId?.let { builder.claim("user_id", it.toString()) }
@@ -116,6 +120,7 @@ object JwtTestFixture {
     fun createExpiredToken(
         subject: String = UUID.randomUUID().toString(),
         type: String = "access",
+        issuer: String? = ISSUER,
         expirationSecondsAgo: Long = 3600,
     ): String {
         val now = Instant.now()
@@ -126,6 +131,9 @@ object JwtTestFixture {
             .builder()
             .subject(subject)
             .claim("type", type)
+            .apply {
+                issuer?.let { issuer(it) }
+            }
             .issuedAt(Date.from(issuedAt))
             .expiration(Date.from(expiration))
             .signWith(privateKey as RSAPrivateKey)

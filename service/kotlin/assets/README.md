@@ -29,6 +29,8 @@ All configuration is done via environment variables or `application.yml`.
 The assets service validates JWT tokens but does not issue them. Public keys for validation are fetched from the security service via JWKS.
 
 **Required Configuration:**
+- `MICRONAUT_ENVIRONMENTS`: Use `local` for local runs that set `JWT_ISSUER=http://localhost:8080`
+- `JWT_ISSUER`: Absolute issuer URL expected in incoming tokens (required)
 - `JWT_JWKS_URL`: URL to the security service's JWKS endpoint (required)
   - Example: `http://security-service:8080/.well-known/jwks.json`
   - The service will automatically fetch and cache public keys from this endpoint

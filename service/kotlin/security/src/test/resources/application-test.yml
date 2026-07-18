@@ -61,6 +61,7 @@ jwt:
   # Algorithm: RS256 (RSA-SHA256) - only supported algorithm
   # Can be set via JWT_ALGORITHM environment variable
   algorithm: ${JWT_ALGORITHM:RS256}
+  issuer: http://localhost:8080
   # Access token expiration in seconds (default: 900 = 15 minutes)
   access-token-expiration-seconds: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:900}
   # Refresh token expiration in seconds (default: 604800 = 7 days)
