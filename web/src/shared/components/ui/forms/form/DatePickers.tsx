@@ -44,6 +44,16 @@ function resolveMaxDateForDisableFuture(
 /** Same outlined input as `MoneyInput` / `FormTextField` (PickersTextField is a few px taller). */
 const DATE_PICKER_TEXT_FIELD_SLOTS = { textField: TextField } as const;
 
+/**
+ * Maps a Dayjs picker value into RHF form state.
+ * - cleared or invalid / partial Dayjs → `null` (never write Invalid Date; clears stale valid values)
+ * - valid Dayjs → local start-of-day Date (including out-of-range, so Zod can reject on submit)
+ */
+export function toFormDateValue(value: Dayjs | null): Date | null {
+  if (!value || !value.isValid()) return null;
+  return toStartOfDayLocal(value.toDate());
+}
+
 export type DatePickerTextFieldSize = NonNullable<TextFieldProps["size"]>;
 
 /**
@@ -154,8 +164,14 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
   setPickerError,
 }) => {
   const [draftValue, setDraftValue] = React.useState<Dayjs | null>(field.value ? dayjs(field.value) : null);
+  // When invalid typing clears RHF to null, skip the next field→draft sync so the typed draft stays visible.
+  const skipNextFieldSyncRef = React.useRef(false);
 
   React.useEffect(() => {
+    if (skipNextFieldSyncRef.current) {
+      skipNextFieldSyncRef.current = false;
+      return;
+    }
     setDraftValue(field.value ? dayjs(field.value) : null);
   }, [field.value]);
 
@@ -200,16 +216,12 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
       value={draftValue}
       onChange={(v: Dayjs | null) => {
         setDraftValue(v);
-
-        if (!v) {
-          field.onChange(null);
-          return;
+        // Sync valid dates into RHF (including out-of-range) so Zod can reject on submit.
+        // Invalid/partial Dayjs clears RHF to null — never Invalid Date, never a stale prior date.
+        if (v != null && !v.isValid()) {
+          skipNextFieldSyncRef.current = true;
         }
-
-        // Always sync parsed dates into RHF — including out-of-range values —
-        // so Zod / `isValid` can reject them on submit (e.g. future dates in edit mode).
-        // MUI still surfaces picker errors via `onError` / helper text.
-        field.onChange(toStartOfDayLocal((v as Dayjs).toDate()));
+        field.onChange(toFormDateValue(v));
       }}
       onError={setPickerError}
       minDate={minDate ? dayjs(minDate) : undefined}

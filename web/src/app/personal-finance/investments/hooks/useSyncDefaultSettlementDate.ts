@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import type { FieldPath, FieldValues, UseFormSetValue } from 'react-hook-form';
+import { isValidDate } from '@/shared/utils/date/dateOnly';
 import {
   coerceInvestmentSettlementDate,
   type InvestmentSettlementAssetKind,
@@ -27,7 +28,7 @@ export function useSyncDefaultSettlementDate<TFieldValues extends FieldValues>({
   setValue,
 }: Params<TFieldValues>): void {
   React.useEffect(() => {
-    if (!enabled || !tradeDate) return;
+    if (!enabled || !isValidDate(tradeDate)) return;
     const next = coerceInvestmentSettlementDate(assetKind, tradeDate, undefined);
     setValue(settlementField, next as never, {
       shouldDirty: false,

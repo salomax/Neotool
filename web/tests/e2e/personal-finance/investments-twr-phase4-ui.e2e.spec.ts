@@ -2151,11 +2151,27 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
 
       await expect(unitPriceInput).toBeVisible();
 
+      // Empty → invalid must not crash the drawer (GH-405).
+      await tradeDateInput.fill('99/99/9999');
+      await page.keyboard.press('Tab');
+      await expect(recordForm).toBeVisible();
+      await expect(page.getByText('formatDateOnly requires a valid Date')).toHaveCount(0);
+
       await tradeDateInput.fill('10/07/2026');
       await page.keyboard.press('Tab');
       await expect
         .poll(() => readNormalizedInputValue(unitPriceInput), { timeout: 10000 })
         .toBe('3.45678901');
+
+      // Valid → invalid must clear RHF trade date so submit cannot persist the stale day.
+      const recordedBeforeInvalidEdit = recordedInputs.length;
+      await tradeDateInput.fill('99/99/9999');
+      await page.keyboard.press('Tab');
+      await expect(recordForm).toBeVisible();
+      await expect(page.getByText('formatDateOnly requires a valid Date')).toHaveCount(0);
+      await grossValueInput.fill('31,2345678');
+      await recordForm.getByRole('button', { name: /Salvar|Registrar|Submit/i }).click();
+      await expect.poll(() => recordedInputs.length, { timeout: 3000 }).toBe(recordedBeforeInvalidEdit);
 
       await tradeDateInput.fill('11/07/2026');
       await page.keyboard.press('Tab');
