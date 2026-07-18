@@ -53,7 +53,7 @@ import { FormTabs } from "@/shared/components/ui/forms/components/FormTabs";
 import { MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
-import { formatDateOnly, parseDateOnly } from "@/shared/utils/date/dateOnly";
+import { formatDateOnly, isValidDate, parseDateOnly } from "@/shared/utils/date/dateOnly";
 import { coerceInvestmentSettlementDate, validateInvestmentSettlementDates } from "@/shared/utils/investment/settlementDatePolicy";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
@@ -336,7 +336,7 @@ export function RecordEquityHoldingDrawer({
   }, [displayVariant, t]);
 
   const tradeDateIso = React.useMemo(
-    () => (selectedTradeDate ? formatDateOnly(selectedTradeDate) : null),
+    () => (isValidDate(selectedTradeDate) ? formatDateOnly(selectedTradeDate) : null),
     [selectedTradeDate],
   );
 
