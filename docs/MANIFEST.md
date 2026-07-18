@@ -256,6 +256,7 @@ Quick lookup and reference materials:
 | ADR-0007: Asset Service with R2 | `92-adr/0007-asset-service-cloudflare-r2.md` | adr | backend | assets, storage, cdn, cloudflare-r2, s3 |
 | ADR-0008: Interservice Security | `92-adr/0008-interservice-security.md` | adr | security | interservice, security, authentication |
 | ADR-0008: Interservice Security Migration | `92-adr/0008-interservice-security-migration-plan.md` | adr | security | interservice, security, migration |
+| ADR-0015: MCP Tool Surface and Agent Threat Model | `92-adr/0015-mcp-tool-surface-and-agent-threat-model.md` | adr | security | mcp, ai-agents, tool-catalog, threat-model, oauth, scopes |
 
 ## Reference (93-reference)
 
