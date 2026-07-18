@@ -91,7 +91,7 @@ class JwtTokenIssuer(
                 .claim("type", "access")
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
-                .issuer("neotool-security-service")
+                .issuer(jwtConfig.issuer)
 
         // Always include permissions claim as array (empty [] when no permissions)
         builder.claim("permissions", permissions ?: emptyList<String>())
@@ -122,7 +122,7 @@ class JwtTokenIssuer(
                 .claim("type", "access")
                 .issuedAt(Date.from(Instant.now()))
                 .expiration(Date.from(Instant.now().plusSeconds(jwtConfig.accessTokenExpirationSeconds)))
-                .issuer("neotool-security-service")
+                .issuer(jwtConfig.issuer)
                 .claim("permissions", authContext.permissions ?: emptyList<String>())
 
         if (authContext.currentAccountId != null) {
@@ -167,7 +167,7 @@ class JwtTokenIssuer(
                 .id(UUID.randomUUID().toString()) // Add unique JTI to ensure token uniqueness
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
-                .issuer("neotool-security-service"),
+                .issuer(jwtConfig.issuer),
         ).compact()
     }
 
@@ -200,7 +200,7 @@ class JwtTokenIssuer(
                 .claim("permissions", permissions)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
-                .issuer("neotool-security-service")
+                .issuer(jwtConfig.issuer)
 
         if (!delegatedBy.isNullOrBlank()) {
             builder.claim("delegated_by", delegatedBy)
@@ -243,7 +243,7 @@ class JwtTokenIssuer(
                 .claim("user_permissions", userPermissions)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
-                .issuer("neotool-security-service"),
+                .issuer(jwtConfig.issuer),
         ).compact()
     }
 }

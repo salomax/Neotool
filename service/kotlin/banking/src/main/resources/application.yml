@@ -209,6 +209,8 @@ jwt:
   # Algorithm: RS256 (RSA-SHA256) - only supported algorithm
   # Can be set via JWT_ALGORITHM environment variable
   algorithm: ${JWT_ALGORITHM:RS256}
+  # Can be set via JWT_ISSUER environment variable
+  issuer: ${JWT_ISSUER}
   # Can be set via JWT_JWKS_URL environment variable
   # Example: http://security-service:8080/.well-known/jwks.json
   # When configured, the service will fetch public keys from the JWKS endpoint for JWT validation

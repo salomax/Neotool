@@ -66,7 +66,9 @@ Keys will be fetched from Vault at: `{VAULT_SECRET_PATH}/{JWT_KEY_ID}/private` a
 
 #### JWT Configuration Variables
 
+- `MICRONAUT_ENVIRONMENTS`: Use `local` for local runs that set `JWT_ISSUER=http://localhost:8080`
 - `JWT_ALGORITHM`: Algorithm (default: `RS256`, **only supported algorithm**)
+- `JWT_ISSUER`: Absolute issuer URL used in generated and validated tokens (required)
 - `JWT_KEY_ID`: Key ID for JWKS (default: `kid-1`)
 - `JWT_JWKS_ENABLED`: Enable JWKS endpoint (default: `true`)
 - `JWT_ACCESS_TOKEN_EXPIRATION_SECONDS`: Access token TTL (default: `900` / 15min)

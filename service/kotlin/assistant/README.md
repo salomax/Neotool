@@ -39,6 +39,7 @@ cd service/kotlin
 
 # required today for repository-backed features
 export JPA_DEFAULT_ENABLED=true
+export MICRONAUT_ENVIRONMENTS=local
 
 # provider selection
 export LLM_PROVIDER=gemini            # or openai
@@ -48,6 +49,7 @@ export GEMINI_API_KEY=<your-gemini-key>
 # export OPENAI_API_KEY=<your-openai-key>
 
 # optional JWT validation source for authenticated GraphQL operations
+export JWT_ISSUER=http://localhost:8080
 # export JWT_JWKS_URL=http://localhost:8080/.well-known/jwks.json
 
 ./gradlew :assistant:run --no-daemon

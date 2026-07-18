@@ -27,7 +27,7 @@ class JwtTokenValidatorTest {
     fun setUp() {
         keyManagerFactory = mock()
         keyManager = mock()
-        jwtConfig = JwtConfig(keyId = "kid-1")
+        jwtConfig = JwtConfig(keyId = "kid-1", issuer = JwtTestFixture.ISSUER)
 
         whenever(keyManagerFactory.getKeyManager()).thenReturn(keyManager)
         whenever(keyManager.getPublicKey(any())).thenReturn(JwtTestFixture.publicKey)
@@ -104,6 +104,32 @@ class JwtTokenValidatorTest {
                 }
 
             assertThat(exception.message).contains("Token validation failed")
+        }
+
+        @Test
+        fun `should reject token with mismatched issuer`() {
+            // Arrange
+            val token = JwtTestFixture.createToken(issuer = "neotool-security-service")
+
+            // Act & Assert
+            val exception =
+                assertThrows<AuthenticationRequiredException> {
+                    validator.validateToken(token)
+                }
+
+            assertThat(exception.message).contains("Token validation failed")
+        }
+
+        @Test
+        fun `should accept token with configured issuer`() {
+            // Arrange
+            val token = JwtTestFixture.createToken(issuer = jwtConfig.issuer)
+
+            // Act
+            val claims = validator.validateToken(token)
+
+            // Assert
+            assertThat(claims.issuer).isEqualTo(jwtConfig.issuer)
         }
 
         @Test
@@ -602,6 +628,18 @@ class JwtTokenValidatorTest {
 
             // Assert
             assertThat(email).isNull()
+        }
+
+        @Test
+        fun `should extract issuer from token`() {
+            // Arrange
+            val token = JwtTestFixture.createToken(issuer = jwtConfig.issuer)
+
+            // Act
+            val issuer = validator.getIssuerFromToken(token)
+
+            // Assert
+            assertThat(issuer).isEqualTo(jwtConfig.issuer)
         }
     }
 }

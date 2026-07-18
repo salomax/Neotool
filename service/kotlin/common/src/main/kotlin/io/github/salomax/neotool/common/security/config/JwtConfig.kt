@@ -2,6 +2,8 @@ package io.github.salomax.neotool.common.security.config
 
 import io.micronaut.context.annotation.ConfigurationProperties
 import jakarta.validation.constraints.Min
+import java.net.URI
+import java.net.URISyntaxException
 
 /**
  * JWT signing algorithm.
@@ -22,6 +24,7 @@ enum class JwtAlgorithm {
  * - jwt.key-id: Key identifier for JWKS (e.g., "kid-1")
  * - jwt.jwks-enabled: Enable JWKS endpoint (default: true)
  * - jwt.jwks-url: URL to fetch JWKS from (for validators)
+ * - jwt.issuer: Absolute issuer URL for issued and accepted tokens (required)
  * - jwt.access-token-expiration-seconds: Access token expiration in seconds (default: 900 = 15 minutes)
  * - jwt.refresh-token-expiration-seconds: Refresh token expiration in seconds (default: 604800 = 7 days)
  */
@@ -93,6 +96,13 @@ data class JwtConfig(
      */
     val jwksUrl: String? = System.getenv("JWT_JWKS_URL"),
     /**
+     * Issuer URL written to the JWT `iss` claim and required during validation.
+     * Must be an absolute HTTPS URL. Local/test profiles may use http://localhost:* or http://127.0.0.1:*.
+     * Can be set via JWT_ISSUER environment variable. SECURITY_SERVICE_URL is accepted as a constructor fallback
+     * when the property is not bound by application configuration.
+     */
+    val issuer: String = defaultIssuer(),
+    /**
      * Access token expiration time in seconds.
      * Default: 900 seconds (15 minutes)
      * Can be set via JWT_ACCESS_TOKEN_EXPIRATION_SECONDS environment variable.
@@ -110,4 +120,51 @@ data class JwtConfig(
     @get:Min(3600)
     val refreshTokenExpirationSeconds: Long =
         System.getenv("JWT_REFRESH_TOKEN_EXPIRATION_SECONDS")?.toLongOrNull() ?: 604800L,
-)
+) {
+    fun validateIssuer(activeEnvironmentNames: Collection<String> = emptySet()) {
+        validateIssuer(issuer, activeEnvironmentNames)
+    }
+
+    companion object {
+        fun validateIssuer(
+            issuer: String,
+            activeEnvironmentNames: Collection<String>,
+        ) {
+            require(issuer.isNotBlank()) {
+                "JWT issuer must be configured"
+            }
+
+            val uri =
+                try {
+                    URI(issuer)
+                } catch (e: URISyntaxException) {
+                    throw IllegalArgumentException("JWT issuer must be an absolute HTTPS URL: $issuer", e)
+                }
+
+            require(uri.isAbsolute && !uri.host.isNullOrBlank()) {
+                "JWT issuer must be an absolute HTTPS URL: $issuer"
+            }
+
+            if (uri.scheme == "https") {
+                return
+            }
+
+            val isLocalOrTest =
+                activeEnvironmentNames.any { name ->
+                    name == "local" || name == "test"
+                }
+            val isLocalhost =
+                uri.scheme == "http" &&
+                    (uri.host == "localhost" || uri.host == "127.0.0.1")
+
+            require(isLocalOrTest && isLocalhost) {
+                "JWT issuer must be an absolute HTTPS URL: $issuer"
+            }
+        }
+
+        fun defaultIssuer(): String =
+            System.getenv("JWT_ISSUER")?.takeIf { it.isNotBlank() }
+                ?: System.getenv("SECURITY_SERVICE_URL")?.takeIf { it.isNotBlank() }
+                ?: ""
+    }
+}

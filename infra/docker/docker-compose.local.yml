@@ -390,7 +390,7 @@ services:
     container_name: neotool-security-service
     restart: unless-stopped
     environment:
-      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_ENVIRONMENTS: local,docker
       MICRONAUT_SERVER_PORT: 8080
       JAVA_TOOL_OPTIONS: -Xmx512m
       POSTGRES_HOST: neotool-pgbouncer
@@ -403,6 +403,7 @@ services:
       VAULT_TOKEN: ${VAULT_TOKEN}
       JWT_KEY_ID: ${JWT_KEY_ID:-kid-1}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
+      JWT_ISSUER: ${JWT_ISSUER}
       JWT_JWKS_ENABLED: ${JWT_JWKS_ENABLED}
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
       JWT_PUBLIC_KEY_PATH: ${JWT_PUBLIC_KEY_PATH}
@@ -430,7 +431,7 @@ services:
     container_name: neotool-assets-service
     restart: unless-stopped
     environment:
-      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_ENVIRONMENTS: local,docker
       MICRONAUT_SERVER_PORT: 8080
       JAVA_TOOL_OPTIONS: -Xmx512m
       POSTGRES_HOST: neotool-pgbouncer
@@ -439,6 +440,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       JWT_JWKS_URL: http://neotool-security-service:8080/.well-known/jwks.json
+      JWT_ISSUER: ${JWT_ISSUER}
       STORAGE_HOSTNAME: ${STORAGE_HOSTNAME:-minio}
       STORAGE_PORT: ${STORAGE_PORT:-9000}
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-minioadmin}
@@ -462,7 +464,7 @@ services:
     container_name: neotool-assistant-service
     restart: unless-stopped
     environment:
-      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_ENVIRONMENTS: local,docker
       MICRONAUT_SERVER_PORT: 8080
       JAVA_TOOL_OPTIONS: -Xmx512m
       POSTGRES_HOST: neotool-pgbouncer
@@ -471,6 +473,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       JWT_JWKS_URL: ${ASSISTANT_JWT_JWKS_URL}
+      JWT_ISSUER: ${JWT_ISSUER}
       LLM_PROVIDER: ${ASSISTANT_LLM_PROVIDER}
       GEMINI_MODEL: ${ASSISTANT_GEMINI_MODEL}
       GEMINI_API_KEY: ${ASSISTANT_GEMINI_API_KEY}
@@ -492,7 +495,7 @@ services:
     container_name: neotool-financialdata-service
     restart: unless-stopped
     environment:
-      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_ENVIRONMENTS: local,docker
       MICRONAUT_SERVER_PORT: 8080
       JAVA_TOOL_OPTIONS: -Xmx512m
       POSTGRES_HOST: neotool-pgbouncer
