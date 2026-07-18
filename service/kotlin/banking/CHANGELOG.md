@@ -1,3 +1,13 @@
+## 0.10.0 (2026-07-18)
+
+### 🚀 Features
+
+- **banking:** add new Kafka topic for come-cotas-checkpoint requests ([539de3d2](https://github.com/invistus/invistus/commit/539de3d2))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.9.4 (2026-07-17)
 
 ### 🚀 Features
