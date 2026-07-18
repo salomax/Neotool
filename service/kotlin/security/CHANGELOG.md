@@ -1,3 +1,13 @@
+## 0.7.0 (2026-07-18)
+
+### 🚀 Features
+
+- **security:** add jwt token ids ([#428](https://github.com/invistus/invistus/pull/428))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.6.0 (2026-07-18)
 
 ### 🚀 Features
