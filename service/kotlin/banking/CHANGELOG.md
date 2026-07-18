@@ -1,3 +1,13 @@
+## 0.11.0 (2026-07-18)
+
+### 🚀 Features
+
+- **banking:** add come-cotas checkpoint job and refine job handling ([1775297d](https://github.com/invistus/invistus/commit/1775297d))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.10.0 (2026-07-18)
 
 ### 🚀 Features
