@@ -30,6 +30,8 @@ class KafkaTopicInitializer(
     private val marketDataJobSucceeded: String,
     @Property(name = "kafka.topics.portfolio-recalculation-requested")
     private val portfolioRecalculationRequested: String,
+    @Property(name = "kafka.topics.come-cotas-checkpoint-requested")
+    private val comeCotasCheckpointRequested: String,
     @Property(name = "kafka.topics.pdf.extractor-submitted")
     private val pdfExtractorSubmitted: String,
     @Property(name = "kafka.topics.pdf.extractor-extracted")
@@ -90,6 +92,13 @@ class KafkaTopicInitializer(
                             ),
                         ),
                     NewTopic(portfolioRecalculationRequested, 6, 1)
+                        .configs(
+                            mapOf(
+                                TopicConfig.RETENTION_MS_CONFIG to (7L * 24 * 60 * 60 * 1000).toString(),
+                                TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                            ),
+                        ),
+                    NewTopic(comeCotasCheckpointRequested, 6, 1)
                         .configs(
                             mapOf(
                                 TopicConfig.RETENTION_MS_CONFIG to (7L * 24 * 60 * 60 * 1000).toString(),
