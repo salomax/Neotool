@@ -42,6 +42,7 @@ class AssistantTestSecurityBeans {
                 userId = TEST_USER_ID,
                 serviceId = null,
                 token = token,
+                tokenId = "test-token-id",
                 permissionsFromToken = listOf("assistant:completion:generate"),
                 currentAccountId = accountId,
                 accounts = listOf(AccountSummary(accountId = accountId, role = "OWNER")),

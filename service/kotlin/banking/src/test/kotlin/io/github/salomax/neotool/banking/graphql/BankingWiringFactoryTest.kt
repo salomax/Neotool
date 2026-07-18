@@ -98,6 +98,7 @@ class BankingWiringFactoryTest {
                     userId = userId,
                     serviceId = null,
                     token = token,
+                    tokenId = "test-token-id",
                     permissionsFromToken = emptyList(),
                 )
             }

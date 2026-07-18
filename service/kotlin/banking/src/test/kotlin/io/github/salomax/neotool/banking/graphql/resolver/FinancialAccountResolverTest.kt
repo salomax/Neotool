@@ -127,6 +127,7 @@ class FinancialAccountResolverTest {
             userId = userId,
             serviceId = null,
             token = "test-token",
+            tokenId = "test-token-id",
             permissionsFromToken = emptyList(),
             currentAccountId = accountId,
         )

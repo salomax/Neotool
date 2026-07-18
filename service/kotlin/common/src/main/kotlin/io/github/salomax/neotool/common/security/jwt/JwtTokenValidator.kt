@@ -93,8 +93,13 @@ class JwtTokenValidator(
                     .build()
                     .parseSignedClaims(token)
                     .payload
+            if (claims["type"] == "access" && claims.id.isNullOrBlank()) {
+                throw AuthenticationRequiredException("Access token is missing required JWT ID (jti) claim")
+            }
             logger.debug { "Token validated successfully with RS256 (kid: $keyId)" }
             return claims
+        } catch (e: AuthenticationRequiredException) {
+            throw e
         } catch (e: JwtException) {
             throw AuthenticationRequiredException("Token validation failed: ${e.message}")
         } catch (e: Exception) {
@@ -322,6 +327,19 @@ class JwtTokenValidator(
     fun getTokenType(token: String): String? {
         val claims = validateToken(token)
         return claims["type"]?.toString()
+    }
+
+    /**
+     * Extract JWT ID from a validated token (claim: jti).
+     *
+     * @param token The JWT token string
+     * @return JWT ID if present, null otherwise
+     * @throws AuthenticationRequiredException if token validation fails
+     */
+    @Throws(AuthenticationRequiredException::class)
+    fun getJwtIdFromToken(token: String): String? {
+        val claims = validateToken(token)
+        return claims.id
     }
 
     /**

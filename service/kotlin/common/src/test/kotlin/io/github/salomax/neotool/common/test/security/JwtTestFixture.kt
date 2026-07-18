@@ -65,6 +65,7 @@ object JwtTestFixture {
      * @param currentAccountId Current account UUID (claim: current_account)
      * @param accounts List of maps with "id" and "role" (claim: accounts)
      * @param sessionVersion Session version number (claim: session_version)
+     * @param jwtId JWT ID (claim: jti); null creates a token without the claim
      * @param customClaims Additional custom claims to include
      * @return Signed JWT token as compact string
      */
@@ -82,6 +83,7 @@ object JwtTestFixture {
         currentAccountId: UUID? = null,
         accounts: List<Map<String, String>>? = null,
         sessionVersion: Long? = null,
+        jwtId: String? = UUID.randomUUID().toString(),
         customClaims: Map<String, Any> = emptyMap(),
     ): String {
         val builder =
@@ -102,6 +104,7 @@ object JwtTestFixture {
         currentAccountId?.let { builder.claim("current_account", it.toString()) }
         accounts?.let { builder.claim("accounts", it) }
         sessionVersion?.let { builder.claim("session_version", it) }
+        jwtId?.let { builder.id(it) }
 
         // Add custom claims
         customClaims.forEach { (key, value) ->
@@ -154,6 +157,7 @@ object JwtTestFixture {
         permissions: List<String> = emptyList(),
         userId: UUID? = null,
         userPermissions: List<String>? = null,
+        jwtId: String? = UUID.randomUUID().toString(),
     ): String =
         createToken(
             subject = serviceId.toString(),
@@ -161,6 +165,7 @@ object JwtTestFixture {
             permissions = permissions,
             userId = userId,
             userPermissions = userPermissions,
+            jwtId = jwtId,
         )
 
     /**

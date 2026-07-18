@@ -111,6 +111,7 @@ class AuthorizationManagerTest {
                 RequestPrincipal(
                     userId = userId,
                     token = "valid-token",
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf("security:user:view"),
                 )
             val action = "security:user:view"
@@ -135,6 +136,7 @@ class AuthorizationManagerTest {
                 RequestPrincipal(
                     userId = userId,
                     token = "valid-token",
+                    tokenId = "test-token-id",
                     permissionsFromToken = emptyList(),
                 )
             val action = "security:user:view"
@@ -158,6 +160,7 @@ class AuthorizationManagerTest {
                 RequestPrincipal(
                     userId = userId,
                     token = "valid-token",
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf("security:user:view"),
                 )
             val action = "security:user:view"
@@ -190,6 +193,7 @@ class AuthorizationManagerTest {
                 RequestPrincipal(
                     userId = userId,
                     token = "valid-token",
+                    tokenId = "test-token-id",
                     permissionsFromToken = listOf("security:user:view"),
                 )
             val action = "security:user:view"

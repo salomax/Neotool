@@ -49,6 +49,7 @@ class AccountResolverTest {
                 userId = userId,
                 serviceId = null,
                 token = "token",
+                tokenId = "test-token-id",
                 permissionsFromToken = emptyList(),
             )
 
@@ -105,6 +106,7 @@ class AccountResolverTest {
                 userId = userId,
                 serviceId = null,
                 token = "token",
+                tokenId = "test-token-id",
                 permissionsFromToken = emptyList(),
             )
         whenever(accountService.update(any<AccountManagement.UpdateAccountCommand>()))
@@ -148,6 +150,7 @@ class AccountResolverTest {
                 userId = UUID.randomUUID(),
                 serviceId = null,
                 token = "token",
+                tokenId = "test-token-id",
                 permissionsFromToken = emptyList(),
             )
 
