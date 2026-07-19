@@ -40,6 +40,9 @@ dependencies {
     implementation("com.google.auth:google-auth-library-oauth2-http:1.23.0")
     implementation("com.google.oauth-client:google-oauth-client:1.39.0")
     implementation("com.google.api-client:google-api-client:2.2.0")
+
+    // Server-rendered OAuth authorization pages
+    implementation("com.github.spullara.mustache.java:compiler:0.9.14")
 }
 
 application {

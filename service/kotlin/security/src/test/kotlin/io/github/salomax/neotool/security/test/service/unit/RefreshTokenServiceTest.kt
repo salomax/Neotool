@@ -197,6 +197,48 @@ class RefreshTokenServiceTest {
         }
 
         @Test
+        fun `should refresh OAuth token with granted scopes only`() {
+            val userId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(id = userId, email = "test@example.com")
+            val familyId = UUID.randomUUID()
+            val oldRefreshToken = "oauth-refresh-token"
+            val tokenHash = hashToken(oldRefreshToken)
+            val grantedScopes = listOf("finance:cashflow:read")
+            val oldTokenRecord =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = tokenHash,
+                    familyId = familyId,
+                    clientId = "test-agent",
+                    grantedScopes = grantedScopes.joinToString(" "),
+                    resource = "https://api.invistus.test",
+                    issuedAt = Instant.now().minusSeconds(3600),
+                    expiresAt = Instant.now().plusSeconds(604800L),
+                )
+
+            whenever(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(oldTokenRecord)
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+            mockEnabledPrincipal(userId)
+            whenever(
+                jwtTokenIssuer.generateOAuthAccessToken(
+                    userId = userId,
+                    email = user.email,
+                    clientId = "test-agent",
+                    scopes = grantedScopes,
+                    resource = "https://api.invistus.test",
+                ),
+            ).thenReturn("oauth-access-token")
+            whenever(jwtTokenIssuer.generateRefreshToken(userId)).thenReturn("new-oauth-refresh-token")
+            whenever(refreshTokenRepository.save(any())).thenAnswer { it.arguments[0] as RefreshTokenEntity }
+
+            val result = refreshTokenService.refreshAccessToken(oldRefreshToken)
+
+            assertThat(result.accessToken).isEqualTo("oauth-access-token")
+            verify(authContextFactory, never()).build(any())
+            verify(jwtTokenIssuer, never()).generateAccessToken(any<AuthContext>())
+        }
+
+        @Test
         fun `should throw exception for invalid token hash`() {
             // Arrange
             val invalidToken = "invalid.token.here"

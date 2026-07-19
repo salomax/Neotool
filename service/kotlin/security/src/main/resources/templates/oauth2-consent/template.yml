@@ -1,0 +1,23 @@
+key: oauth2-consent
+channel: http
+variables:
+  requestId:
+    required: true
+  csrfToken:
+    required: true
+  clientName:
+    required: true
+  account:
+    required: true
+  scopes:
+    required: true
+  action:
+    required: true
+locales:
+  en:
+    bodyPath: body.en.html
+  pt:
+    bodyPath: body.pt.html
+  pt-BR:
+    bodyPath: body.pt-BR.html
+defaultLocale: en

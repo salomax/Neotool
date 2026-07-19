@@ -38,6 +38,12 @@ open class RefreshTokenEntity(
     open val tokenHash: String,
     @Column(name = "family_id", nullable = false, columnDefinition = "uuid")
     open val familyId: UUID,
+    @Column(name = "client_id")
+    open var clientId: String? = null,
+    @Column(name = "granted_scopes")
+    open var grantedScopes: String? = null,
+    @Column(name = "resource")
+    open var resource: String? = null,
     @Column(name = "issued_at", nullable = false)
     open val issuedAt: Instant = Instant.now(),
     @Column(name = "expires_at", nullable = false)

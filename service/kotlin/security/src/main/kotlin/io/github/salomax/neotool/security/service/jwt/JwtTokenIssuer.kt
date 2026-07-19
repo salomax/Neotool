@@ -149,6 +149,40 @@ class JwtTokenIssuer(
     }
 
     /**
+     * Generate an OAuth-issued access token from an authorization grant.
+     *
+     * OAuth grants carry scopes, not the user's complete permission set. The `permissions`
+     * claim is intentionally set to the granted scopes for compatibility with existing
+     * downstream JWT permission checks until the MCP audience work lands.
+     */
+    fun generateOAuthAccessToken(
+        userId: UUID,
+        email: String,
+        clientId: String,
+        scopes: List<String>,
+        resource: String,
+    ): String {
+        val now = Instant.now()
+        val expiration = now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
+        val scope = scopes.joinToString(" ")
+
+        return signBuilder(
+            Jwts
+                .builder()
+                .subject(userId.toString())
+                .claim("email", email)
+                .claim("type", "access")
+                .claim("client_id", clientId)
+                .claim("scope", scope)
+                .claim("permissions", scopes)
+                .claim("resource", resource)
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiration))
+                .issuer(jwtConfig.issuer),
+        ).compact()
+    }
+
+    /**
      * Generate a JWT refresh token for a user.
      *
      * Refresh tokens are long-lived (default: 7 days) and used to obtain new access tokens.

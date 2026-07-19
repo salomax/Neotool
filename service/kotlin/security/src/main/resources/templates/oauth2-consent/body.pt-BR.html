@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Autorizar {{clientName}}</title>
+</head>
+<body>
+  <main>
+    <h1>Autorizar {{clientName}}</h1>
+    <p>Conectado como {{account}}.</p>
+    <form method="post" action="{{action}}">
+      <input type="hidden" name="request_id" value="{{requestId}}">
+      <input type="hidden" name="csrf_token" value="{{csrfToken}}">
+      <fieldset>
+        <legend>Permissões solicitadas</legend>
+        {{#scopes}}
+        <label>
+          <input type="checkbox" name="scope" value="{{name}}" checked>
+          <strong>{{name}}</strong> {{description}}
+        </label><br>
+        {{/scopes}}
+      </fieldset>
+      <button type="submit">Permitir</button>
+    </form>
+  </main>
+</body>
+</html>
