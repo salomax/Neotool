@@ -47,7 +47,7 @@ open class RefreshTokenService(
      * @return TokenPair containing new access token and new refresh token
      * @throws AuthenticationRequiredException if token is invalid, expired, reused, or user is disabled
      */
-    @Transactional
+    @Transactional(dontRollbackOn = [AuthenticationRequiredException::class])
     open fun refreshAccessToken(refreshToken: String): TokenPair {
         // Hash the incoming token
         val tokenHash = hashToken(refreshToken)
@@ -98,11 +98,24 @@ open class RefreshTokenService(
             throw AuthenticationRequiredException("User disabled")
         }
 
-        // Build authentication context (loads current roles and permissions)
-        val authContext = authContextFactory.build(user)
+        val grantedScopes = tokenRecord.grantedScopes?.split(" ")?.filter { it.isNotBlank() }
+        val clientId = tokenRecord.clientId
 
         // Generate new token pair
-        val newAccessToken = jwtTokenIssuer.generateAccessToken(authContext)
+        val newAccessToken =
+            if (clientId != null && grantedScopes != null) {
+                jwtTokenIssuer.generateOAuthAccessToken(
+                    userId = user.id!!,
+                    email = user.email,
+                    clientId = clientId,
+                    scopes = grantedScopes,
+                    resource = tokenRecord.resource ?: "oauth2",
+                )
+            } else {
+                // First-party app refresh tokens still rehydrate the full user auth context.
+                val authContext = authContextFactory.build(user)
+                jwtTokenIssuer.generateAccessToken(authContext)
+            }
         val newRefreshToken = jwtTokenIssuer.generateRefreshToken(user.id!!)
         val newRefreshTokenHash = hashToken(newRefreshToken)
 
@@ -114,6 +127,9 @@ open class RefreshTokenService(
                 tokenHash = newRefreshTokenHash,
                 // Same family
                 familyId = tokenRecord.familyId,
+                clientId = tokenRecord.clientId,
+                grantedScopes = tokenRecord.grantedScopes,
+                resource = tokenRecord.resource,
                 issuedAt = now,
                 expiresAt = now.plusSeconds(jwtConfig.refreshTokenExpirationSeconds),
             )
@@ -129,6 +145,7 @@ open class RefreshTokenService(
         return TokenPair(
             accessToken = newAccessToken,
             refreshToken = newRefreshToken,
+            scope = tokenRecord.grantedScopes,
         )
     }
 
@@ -174,6 +191,34 @@ open class RefreshTokenService(
         return refreshToken
     }
 
+    @Transactional
+    open fun createOAuthRefreshToken(
+        userId: UUID,
+        clientId: String,
+        grantedScopes: List<String>,
+        resource: String,
+    ): Pair<String, UUID> {
+        userRepository.findById(userId).orElseThrow {
+            IllegalStateException("User not found with id: $userId")
+        }
+        val refreshToken = jwtTokenIssuer.generateRefreshToken(userId)
+        val familyId = UUID.randomUUID()
+        val now = Instant.now()
+        refreshTokenRepository.save(
+            RefreshTokenEntity(
+                userId = userId,
+                tokenHash = hashToken(refreshToken),
+                familyId = familyId,
+                clientId = clientId,
+                grantedScopes = grantedScopes.joinToString(" "),
+                resource = resource,
+                issuedAt = now,
+                expiresAt = now.plusSeconds(jwtConfig.refreshTokenExpirationSeconds),
+            ),
+        )
+        return refreshToken to familyId
+    }
+
     /**
      * Revoke a specific refresh token by its hash.
      *
@@ -216,7 +261,7 @@ open class RefreshTokenService(
      *
      * @param familyId The token family ID
      */
-    @Transactional
+    @Transactional(Transactional.TxType.REQUIRES_NEW)
     open fun revokeFamily(familyId: UUID) {
         val tokens = refreshTokenRepository.findByFamilyId(familyId)
         val now = Instant.now()
@@ -254,6 +299,14 @@ open class RefreshTokenService(
      */
     fun tokenExists(tokenHash: String): Boolean {
         return refreshTokenRepository.findByTokenHash(tokenHash) != null
+    }
+
+    /**
+     * Check whether a plaintext refresh token belongs to an OAuth grant.
+     */
+    fun isOAuthRefreshToken(refreshToken: String): Boolean {
+        val tokenRecord = refreshTokenRepository.findByTokenHash(hashToken(refreshToken))
+        return tokenRecord?.clientId != null
     }
 
     /**

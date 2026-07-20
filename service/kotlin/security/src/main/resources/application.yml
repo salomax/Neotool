@@ -156,6 +156,17 @@ oauth:
     # Google OAuth client ID (required for Google sign-in)
     client-id: ${GOOGLE_CLIENT_ID:}
     issuer: ${GOOGLE_ISSUER:}
+  authorization-server:
+    session:
+      # Prefer OAUTH2_SESSION_SIGNING_SECRET. JWT_PRIVATE_KEY is only a deployment
+      # compatibility fallback and couples session-cookie rotation to JWT key rotation.
+      signing-secret: ${OAUTH2_SESSION_SIGNING_SECRET:${JWT_PRIVATE_KEY:}}
+      ttl-seconds: ${OAUTH2_SESSION_TTL_SECONDS:900}
+      cookie-name: ${OAUTH2_SESSION_COOKIE_NAME:INVISTUS_AUTH_SESSION}
+      secure: ${OAUTH2_SESSION_COOKIE_SECURE:true}
+    authorization-request-ttl-seconds: ${OAUTH2_AUTHORIZATION_REQUEST_TTL_SECONDS:600}
+    authorization-code-ttl-seconds: ${OAUTH2_AUTHORIZATION_CODE_TTL_SECONDS:60}
+    clients: []
 
 datasources:
   default:

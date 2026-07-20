@@ -221,21 +221,24 @@ class RefreshTokenServiceIntegrationTest :
         fun `should revoke entire family when token reuse detected`() {
             // Arrange
             val user = createTestUser()
-            val refreshToken = refreshTokenService.createRefreshToken(user.id!!)
+            val refreshToken = entityManager.runTransaction { refreshTokenService.createRefreshToken(user.id!!) }
             val originalHash = hashToken(refreshToken)
             val originalTokenRecord = refreshTokenRepository.findByTokenHash(originalHash)!!
             val familyId = originalTokenRecord.familyId
 
             // Use token once (creates new token in family)
-            val firstPair = refreshTokenService.refreshAccessToken(refreshToken)
+            val firstPair = entityManager.runTransaction { refreshTokenService.refreshAccessToken(refreshToken) }
             val newTokenHash = hashToken(firstPair.refreshToken)
 
             // Try to use old token again (should trigger family revocation)
-            assertThrows<AuthenticationRequiredException> {
-                refreshTokenService.refreshAccessToken(refreshToken)
+            entityManager.runTransaction {
+                assertThrows<AuthenticationRequiredException> {
+                    refreshTokenService.refreshAccessToken(refreshToken)
+                }
             }
 
             // Assert - All tokens in family should be revoked
+            entityManager.clear()
             val familyTokens = refreshTokenRepository.findByFamilyId(familyId)
             assertThat(familyTokens).isNotEmpty()
             familyTokens.forEach { token ->
@@ -316,19 +319,20 @@ class RefreshTokenServiceIntegrationTest :
         fun `should revoke entire token family`() {
             // Arrange
             val user = createTestUser()
-            val refreshToken = refreshTokenService.createRefreshToken(user.id!!)
+            val refreshToken = entityManager.runTransaction { refreshTokenService.createRefreshToken(user.id!!) }
             val originalHash = hashToken(refreshToken)
             val originalTokenRecord = refreshTokenRepository.findByTokenHash(originalHash)!!
             val familyId = originalTokenRecord.familyId
 
             // Use token to create another in the family
-            val tokenPair = refreshTokenService.refreshAccessToken(refreshToken)
+            val tokenPair = entityManager.runTransaction { refreshTokenService.refreshAccessToken(refreshToken) }
             val newHash = hashToken(tokenPair.refreshToken)
 
             // Act
-            refreshTokenService.revokeFamily(familyId)
+            entityManager.runTransaction { refreshTokenService.revokeFamily(familyId) }
 
             // Assert
+            entityManager.clear()
             val familyTokens = refreshTokenRepository.findByFamilyId(familyId)
             assertThat(familyTokens).isNotEmpty()
             familyTokens.forEach { token ->
@@ -368,20 +372,23 @@ class RefreshTokenServiceIntegrationTest :
         fun `should allow only one use per token`() {
             // Arrange
             val user = createTestUser()
-            val token1 = refreshTokenService.createRefreshToken(user.id!!)
+            val token1 = entityManager.runTransaction { refreshTokenService.createRefreshToken(user.id!!) }
 
             // Act - Use token once
-            val pair1 = refreshTokenService.refreshAccessToken(token1)
+            val pair1 = entityManager.runTransaction { refreshTokenService.refreshAccessToken(token1) }
             assertThat(pair1.accessToken).isNotBlank()
             assertThat(pair1.refreshToken).isNotBlank()
 
             // Assert - Original token cannot be used again (reuse detection triggers family revocation)
-            assertThrows<AuthenticationRequiredException> {
-                refreshTokenService.refreshAccessToken(token1)
+            entityManager.runTransaction {
+                assertThrows<AuthenticationRequiredException> {
+                    refreshTokenService.refreshAccessToken(token1)
+                }
             }
 
             // After reuse detection, the entire token family is revoked (including the new token)
             // This is the security best practice to prevent token theft
+            entityManager.clear()
             assertThrows<AuthenticationRequiredException> {
                 refreshTokenService.refreshAccessToken(pair1.refreshToken)
             }

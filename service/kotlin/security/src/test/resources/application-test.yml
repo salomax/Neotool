@@ -57,6 +57,26 @@ security:
     id: security
     secret: service-token-secret
 
+oauth:
+  authorization-server:
+    session:
+      signing-secret: test-oauth2-session-secret
+      ttl-seconds: 900
+      cookie-name: INVISTUS_AUTH_SESSION
+      secure: true
+    authorization-request-ttl-seconds: 600
+    authorization-code-ttl-seconds: 60
+    clients:
+      - client-id: test-agent
+        client-name: Test Agent
+        redirect-uris:
+          - http://client.example/callback
+        scopes:
+          - finance:cashflow:read
+          - finance:transactions:read
+        resources:
+          - https://api.invistus.test
+
 jwt:
   # Algorithm: RS256 (RSA-SHA256) - only supported algorithm
   # Can be set via JWT_ALGORITHM environment variable

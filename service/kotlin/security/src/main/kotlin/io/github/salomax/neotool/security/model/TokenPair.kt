@@ -8,4 +8,5 @@ package io.github.salomax.neotool.security.model
 data class TokenPair(
     val accessToken: String,
     val refreshToken: String,
+    val scope: String? = null,
 )

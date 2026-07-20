@@ -1,0 +1,17 @@
+key: oauth2-login
+channel: http
+variables:
+  requestId:
+    required: true
+  error:
+    required: false
+  action:
+    required: true
+locales:
+  en:
+    bodyPath: body.en.html
+  pt:
+    bodyPath: body.pt.html
+  pt-BR:
+    bodyPath: body.pt-BR.html
+defaultLocale: en

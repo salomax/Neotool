@@ -10,6 +10,7 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException
 import io.micronaut.serde.annotation.Serdeable
 import io.opentelemetry.api.trace.Span
 import jakarta.inject.Singleton
+import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 
 /**
@@ -98,7 +99,7 @@ open class GraphQLServiceClient(
     /**
      * Execute GraphQL request with service token.
      */
-    private suspend fun executeGraphQL(
+    private fun executeGraphQL(
         query: String,
         variables: Map<String, Any>?,
         targetAudience: String,
@@ -106,7 +107,7 @@ open class GraphQLServiceClient(
         traceHeaders: Map<String, String>,
     ): GraphQLResponse {
         // Get service token
-        val token = serviceTokenClient.getServiceToken(targetAudience, delegatedBy)
+        val token = runBlocking { serviceTokenClient.getServiceToken(targetAudience, delegatedBy) }
 
         // Build GraphQL request
         val request = GraphQLRequest(query = query, variables = variables)
@@ -127,7 +128,7 @@ open class GraphQLServiceClient(
             if (e.status.code == 401) {
                 logger.warn { "Received 401, clearing token cache and retrying" }
                 serviceTokenClient.clearCache()
-                val newToken = serviceTokenClient.getServiceToken(targetAudience, delegatedBy)
+                val newToken = runBlocking { serviceTokenClient.getServiceToken(targetAudience, delegatedBy) }
 
                 val httpRequest =
                     HttpRequest

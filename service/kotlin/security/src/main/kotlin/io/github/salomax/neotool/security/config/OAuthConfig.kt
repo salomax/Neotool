@@ -23,6 +23,7 @@ data class OAuthConfig(
      * Google OAuth configuration
      */
     val google: GoogleOAuthConfig = GoogleOAuthConfig(),
+    val authorizationServer: AuthorizationServerConfig = AuthorizationServerConfig(),
 ) {
     /**
      * Check if any OAuth provider is configured
@@ -75,5 +76,20 @@ data class OAuthConfig(
         fun resolveIssuer(): String {
             return System.getenv("GOOGLE_ISSUER") ?: issuer
         }
+    }
+
+    @ConfigurationProperties("authorization-server")
+    data class AuthorizationServerConfig(
+        val session: SessionConfig = SessionConfig(),
+        val authorizationRequestTtlSeconds: Long = 600,
+        val authorizationCodeTtlSeconds: Long = 60,
+    ) {
+        @ConfigurationProperties("session")
+        data class SessionConfig(
+            val signingSecret: String = "",
+            val ttlSeconds: Long = 900,
+            val cookieName: String = "INVISTUS_AUTH_SESSION",
+            val secure: Boolean = true,
+        )
     }
 }
