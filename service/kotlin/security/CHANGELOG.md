@@ -1,3 +1,13 @@
+## 0.8.0 (2026-07-20)
+
+### 🚀 Features
+
+- **security:** add OAuth 2.1 authorization server ([#431](https://github.com/invistus/invistus/pull/431))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.0 (2026-07-18)
 
 ### 🚀 Features
