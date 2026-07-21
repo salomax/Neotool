@@ -210,6 +210,7 @@ services:
       - --web.enable-lifecycle
     volumes:
       - ../observability/prometheus/prometheus.local.yml:/etc/prometheus/prometheus.yml:ro
+      - ../observability/alerts:/etc/prometheus/alerts:ro
     ports:
       - "9090:9090"
     profiles:
