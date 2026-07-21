@@ -84,6 +84,7 @@ data class OAuthConfig(
     data class AuthorizationServerConfig(
         val session: SessionConfig = SessionConfig(),
         val metadata: MetadataConfig = MetadataConfig(),
+        val registration: RegistrationConfig = RegistrationConfig(),
         val authorizationRequestTtlSeconds: Long = 600,
         val authorizationCodeTtlSeconds: Long = 60,
     ) {
@@ -108,6 +109,7 @@ data class OAuthConfig(
             val grantTypes: List<String> = listOf("authorization_code", "refresh_token"),
             val tokenEndpointAuthMethods: List<String> = listOf("none"),
             val codeChallengeMethods: List<String> = listOf("S256"),
+            val supportedResources: List<String> = emptyList(),
             val cacheMaxAgeSeconds: Long = 3600,
         ) {
             fun validate() {
@@ -128,6 +130,9 @@ data class OAuthConfig(
                 }
                 require(codeChallengeMethods.all { it.isNotBlank() }) {
                     "oauth.authorization-server.metadata.code-challenge-methods must not contain blank values"
+                }
+                require(supportedResources.all { it.isNotBlank() }) {
+                    "oauth.authorization-server.metadata.supported-resources must not contain blank values"
                 }
                 require(cacheMaxAgeSeconds > 0) {
                     "oauth.authorization-server.metadata.cache-max-age-seconds must be positive"
@@ -170,5 +175,17 @@ data class OAuthConfig(
             val cookieName: String = "INVISTUS_AUTH_SESSION",
             val secure: Boolean = true,
         )
+
+        @ConfigurationProperties("registration")
+        data class RegistrationConfig(
+            val garbageCollection: GarbageCollectionConfig = GarbageCollectionConfig(),
+        ) {
+            @ConfigurationProperties("garbage-collection")
+            data class GarbageCollectionConfig(
+                val enabled: Boolean = true,
+                val fixedDelay: String = "PT24H",
+                val unusedTtlSeconds: Long = 30L * 24 * 60 * 60,
+            )
+        }
     }
 }

@@ -180,7 +180,13 @@ oauth:
         - none
       code-challenge-methods:
         - S256
+      supported-resources: []
       cache-max-age-seconds: ${OAUTH2_METADATA_CACHE_MAX_AGE_SECONDS:3600}
+    registration:
+      garbage-collection:
+        enabled: ${OAUTH2_CLIENT_GC_ENABLED:true}
+        fixed-delay: ${OAUTH2_CLIENT_GC_FIXED_DELAY:PT24H}
+        unused-ttl-seconds: ${OAUTH2_CLIENT_GC_UNUSED_TTL_SECONDS:2592000}
     session:
       # Prefer OAUTH2_SESSION_SIGNING_SECRET. JWT_PRIVATE_KEY is only a deployment
       # compatibility fallback and couples session-cookie rotation to JWT key rotation.
