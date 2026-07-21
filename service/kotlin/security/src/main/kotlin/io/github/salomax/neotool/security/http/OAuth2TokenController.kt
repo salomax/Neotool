@@ -5,6 +5,7 @@ import io.github.salomax.neotool.security.http.dto.OAuth2ErrorResponse
 import io.github.salomax.neotool.security.http.dto.OAuth2TokenRequest
 import io.github.salomax.neotool.security.service.oauth2.OAuth2InvalidGrantException
 import io.github.salomax.neotool.security.service.oauth2.OAuth2InvalidRequestException
+import io.github.salomax.neotool.security.service.oauth2.OAuth2RateLimitException
 import io.github.salomax.neotool.security.service.oauth2.OAuth2TokenService
 import io.micronaut.http.HttpResponse
 import io.micronaut.http.HttpStatus
@@ -33,6 +34,9 @@ class OAuth2TokenController(
         } catch (e: OAuth2InvalidGrantException) {
             HttpResponse.status<OAuth2ErrorResponse>(HttpStatus.BAD_REQUEST)
                 .body(OAuth2ErrorResponse(e.error, e.message ?: "Invalid grant"))
+        } catch (e: OAuth2RateLimitException) {
+            HttpResponse.status<OAuth2ErrorResponse>(HttpStatus.TOO_MANY_REQUESTS)
+                .body(OAuth2ErrorResponse(e.error, e.message ?: "Rate limit exceeded"))
         } catch (e: AuthenticationRequiredException) {
             HttpResponse.status<OAuth2ErrorResponse>(HttpStatus.BAD_REQUEST)
                 .body(OAuth2ErrorResponse("invalid_grant", e.message ?: "Invalid refresh token"))

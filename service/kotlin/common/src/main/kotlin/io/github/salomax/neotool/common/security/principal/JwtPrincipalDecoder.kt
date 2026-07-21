@@ -23,6 +23,7 @@ class JwtPrincipalDecoder(
                 val userId = jwtTokenValidator.getUserIdFromServiceToken(token)
                 val userPermissions = jwtTokenValidator.getUserPermissionsFromServiceToken(token)
                 val delegatedBy = jwtTokenValidator.getDelegatedByFromServiceToken(token)
+                val currentAccountId = jwtTokenValidator.getCurrentAccountIdFromToken(token)
                 val tokenId =
                     jwtTokenValidator.getJwtIdFromToken(token)
                         ?: throw AuthenticationRequiredException("Invalid service token: missing token ID")
@@ -36,6 +37,7 @@ class JwtPrincipalDecoder(
                     permissionsFromToken = servicePermissions,
                     userPermissions = userPermissions,
                     delegatedBy = delegatedBy,
+                    currentAccountId = currentAccountId,
                 )
             }
 

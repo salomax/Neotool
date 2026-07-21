@@ -85,6 +85,7 @@ data class OAuthConfig(
         val session: SessionConfig = SessionConfig(),
         val metadata: MetadataConfig = MetadataConfig(),
         val registration: RegistrationConfig = RegistrationConfig(),
+        val tokenExchange: TokenExchangeConfig = TokenExchangeConfig(),
         val authorizationRequestTtlSeconds: Long = 600,
         val authorizationCodeTtlSeconds: Long = 60,
     ) {
@@ -174,6 +175,11 @@ data class OAuthConfig(
             val ttlSeconds: Long = 900,
             val cookieName: String = "INVISTUS_AUTH_SESSION",
             val secure: Boolean = true,
+        )
+
+        @ConfigurationProperties("token-exchange")
+        data class TokenExchangeConfig(
+            val serviceResourceIdentifiers: Map<String, String> = emptyMap(),
         )
 
         @ConfigurationProperties("registration")

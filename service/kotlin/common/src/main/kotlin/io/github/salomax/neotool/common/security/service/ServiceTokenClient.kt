@@ -10,7 +10,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import mu.KotlinLogging
-import java.util.UUID
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -57,6 +57,8 @@ class ServiceTokenClient(
         val client_id: String,
         val client_secret: String,
         val audience: String? = null,
+        val subject_token: String? = null,
+        val subject_token_type: String? = null,
     )
 
     /**
@@ -146,26 +148,57 @@ class ServiceTokenClient(
     /**
      * Get a service token with propagated user context.
      *
-     * Note: This feature is not yet implemented. User context propagation requires
-     * a separate OAuth2 endpoint that accepts both service credentials and user tokens.
-     *
      * @param targetAudience The target service identifier
-     * @param userId The user ID being propagated
-     * @param userPermissions List of user permission names
+     * @param subjectToken The user's OAuth access token being exchanged
      * @return JWT service token with user context
-     * @throws UnsupportedOperationException until implementation is complete
      */
     suspend fun getServiceTokenWithUserContext(
         targetAudience: String,
-        userId: UUID,
-        userPermissions: List<String>,
-    ): String {
-        throw UnsupportedOperationException(
-            "User context propagation is not yet implemented. " +
-                "This requires a separate OAuth2 endpoint that accepts both service credentials and user tokens. " +
-                "Use getServiceToken() for service-only tokens.",
-        )
-    }
+        subjectToken: String,
+    ): String =
+        withContext(Dispatchers.IO) {
+            val cacheKey = "obo|$targetAudience|${sha256Hex(subjectToken)}"
+            val cached = tokenCache[cacheKey]
+            if (cached != null && !cached.isExpired()) {
+                return@withContext cached.token
+            }
+            evictExpiredTokens()
+
+            val inFlightDeferred = inFlightFetches[cacheKey]
+            if (inFlightDeferred != null) {
+                val token = inFlightDeferred.await()
+                val cachedAfterWait = tokenCache[cacheKey]
+                if (cachedAfterWait != null && !cachedAfterWait.isExpired()) {
+                    return@withContext cachedAfterWait.token
+                }
+                return@withContext token
+            }
+
+            val fetchDeferred = CompletableDeferred<String>()
+            val existingDeferred = inFlightFetches.putIfAbsent(cacheKey, fetchDeferred)
+            if (existingDeferred != null) {
+                val token = existingDeferred.await()
+                val cachedAfterWait = tokenCache[cacheKey]
+                if (cachedAfterWait != null && !cachedAfterWait.isExpired()) {
+                    return@withContext cachedAfterWait.token
+                }
+                return@withContext token
+            }
+
+            try {
+                val (token, expiresIn) = fetchUserContextTokenFromSecurityService(targetAudience, subjectToken)
+                cacheLock.withLock {
+                    tokenCache[cacheKey] = CachedToken(token, System.currentTimeMillis() + expiresIn * 1000)
+                }
+                fetchDeferred.complete(token)
+                inFlightFetches.remove(cacheKey)
+                token
+            } catch (e: Exception) {
+                fetchDeferred.completeExceptionally(e)
+                inFlightFetches.remove(cacheKey)
+                throw e
+            }
+        }
 
     /**
      * Fetch token from Security Service.
@@ -206,6 +239,47 @@ class ServiceTokenClient(
         }
     }
 
+    private suspend fun fetchUserContextTokenFromSecurityService(
+        audience: String,
+        subjectToken: String,
+    ): Pair<String, Long> {
+        val serviceId = this.serviceId ?: throw IllegalStateException("Service ID not configured")
+        val clientSecret =
+            this.clientSecret ?: throw IllegalStateException("Client secret not configured")
+
+        val request =
+            TokenRequest(
+                grant_type = "urn:ietf:params:oauth:grant-type:token-exchange",
+                client_id = serviceId,
+                client_secret = clientSecret,
+                audience = audience,
+                subject_token = subjectToken,
+                subject_token_type = "urn:ietf:params:oauth:token-type:access_token",
+            )
+
+        try {
+            val httpRequest =
+                HttpRequest.POST("$securityServiceUrl/oauth2/token", request)
+                    .contentType(MediaType.APPLICATION_JSON)
+
+            val response = httpClient.toBlocking().exchange(httpRequest, TokenResponse::class.java)
+            val tokenResponse = response.body()
+
+            if (tokenResponse == null) {
+                throw IllegalStateException("Empty token response from Security Service")
+            }
+
+            logger.debug { "User-context token obtained successfully for audience: $audience" }
+            return Pair(tokenResponse.access_token, tokenResponse.expires_in)
+        } catch (e: HttpClientResponseException) {
+            logger.error(e) { "Failed to exchange user-context token: ${e.message}" }
+            throw IllegalStateException("Failed to obtain user-context service token: ${e.message}", e)
+        } catch (e: Exception) {
+            logger.error(e) { "Unexpected error exchanging user-context token: ${e.message}" }
+            throw IllegalStateException("Failed to obtain user-context service token: ${e.message}", e)
+        }
+    }
+
     /**
      * Clear token cache (useful for testing or credential rotation).
      */
@@ -213,5 +287,16 @@ class ServiceTokenClient(
         cacheLock.withLock {
             tokenCache.clear()
         }
+    }
+
+    private fun evictExpiredTokens() {
+        cacheLock.withLock {
+            tokenCache.entries.removeIf { (_, cachedToken) -> cachedToken.isExpired(bufferSeconds = 0) }
+        }
+    }
+
+    private fun sha256Hex(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
     }
 }

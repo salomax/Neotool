@@ -369,16 +369,15 @@ class JwtTokenValidator(
     }
 
     /**
-     * Extract current account ID from a validated access token (claim: current_account).
+     * Extract current account ID from a validated access or service token (claim: current_account).
      *
      * @param token The JWT token string
-     * @return Current account UUID if token is access token and contains the claim, null otherwise
+     * @return Current account UUID if token contains the claim, null otherwise
      * @throws AuthenticationRequiredException if token validation fails
      */
     @Throws(AuthenticationRequiredException::class)
     fun getCurrentAccountIdFromToken(token: String): UUID? {
         val claims = validateToken(token)
-        if (claims["type"] != "access") return null
         val value = claims["current_account"] ?: return null
         return try {
             UUID.fromString(value.toString())

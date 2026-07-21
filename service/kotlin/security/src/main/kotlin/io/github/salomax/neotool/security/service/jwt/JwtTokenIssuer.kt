@@ -161,12 +161,14 @@ class JwtTokenIssuer(
         clientId: String,
         scopes: List<String>,
         resource: String,
+        currentAccountId: UUID? = null,
+        expiresAt: Instant? = null,
     ): String {
         val now = Instant.now()
-        val expiration = now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
+        val expiration = expiresAt ?: now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
         val scope = scopes.joinToString(" ")
 
-        return signBuilder(
+        val builder =
             Jwts
                 .builder()
                 .subject(userId.toString())
@@ -180,8 +182,13 @@ class JwtTokenIssuer(
                 .and()
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
-                .issuer(jwtConfig.issuer),
-        ).compact()
+                .issuer(jwtConfig.issuer)
+
+        currentAccountId?.let {
+            builder.claim("current_account", it.toString())
+        }
+
+        return signBuilder(builder).compact()
     }
 
     /**
@@ -233,8 +240,10 @@ class JwtTokenIssuer(
                 .builder()
                 .subject(serviceId.toString())
                 .claim("type", "service")
-                .claim("aud", targetAudience)
                 .claim("permissions", permissions)
+                .audience()
+                .add(targetAudience)
+                .and()
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
                 .issuer(jwtConfig.issuer)
@@ -265,22 +274,31 @@ class JwtTokenIssuer(
         permissions: List<String>,
         userId: UUID,
         userPermissions: List<String>,
+        currentAccountId: UUID? = null,
+        expiresAt: Instant? = null,
     ): String {
         val now = Instant.now()
-        val expiration = now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
+        val expiration = expiresAt ?: now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
 
-        return signBuilder(
+        val builder =
             Jwts
                 .builder()
                 .subject(serviceId.toString())
                 .claim("type", "service")
-                .claim("aud", targetAudience)
                 .claim("permissions", permissions)
                 .claim("user_id", userId.toString())
                 .claim("user_permissions", userPermissions)
+                .audience()
+                .add(targetAudience)
+                .and()
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
-                .issuer(jwtConfig.issuer),
-        ).compact()
+                .issuer(jwtConfig.issuer)
+
+        currentAccountId?.let {
+            builder.claim("current_account", it.toString())
+        }
+
+        return signBuilder(builder).compact()
     }
 }

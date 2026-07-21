@@ -8,8 +8,13 @@ data class OAuth2TokenRequest(
     val code: String? = null,
     val redirect_uri: String? = null,
     val client_id: String? = null,
+    val client_secret: String? = null,
     val code_verifier: String? = null,
     val refresh_token: String? = null,
+    val audience: String? = null,
+    val subject_token: String? = null,
+    val subject_token_type: String? = null,
+    val requested_token_type: String? = null,
 )
 
 @Serdeable
