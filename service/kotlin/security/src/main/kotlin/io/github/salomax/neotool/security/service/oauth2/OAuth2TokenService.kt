@@ -8,6 +8,7 @@ import io.github.salomax.neotool.security.model.OAuth2AuthorizationRequestStatus
 import io.github.salomax.neotool.security.repo.OAuth2AuthorizationCodeRepository
 import io.github.salomax.neotool.security.repo.OAuth2AuthorizationRequestRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.authentication.AuthContextFactory
 import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
 import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
 import jakarta.inject.Singleton
@@ -25,12 +26,15 @@ open class OAuth2TokenService(
     private val tokenHashing: OAuth2TokenHashing,
     private val clientRegistry: OAuth2ClientRegistry,
     private val jwtConfig: JwtConfig,
+    private val tokenExchangeService: OAuth2TokenExchangeService,
+    private val authContextFactory: AuthContextFactory,
 ) {
     @Transactional
     open fun issue(request: OAuth2TokenRequest): OAuth2TokenResponse =
         when (request.grant_type) {
             "authorization_code" -> exchangeAuthorizationCode(request)
             "refresh_token" -> refresh(request)
+            OAuth2TokenExchangeService.TOKEN_EXCHANGE_GRANT_TYPE -> tokenExchangeService.exchange(request)
             else -> throw OAuth2InvalidRequestException("Unsupported grant_type")
         }
 
@@ -92,6 +96,7 @@ open class OAuth2TokenService(
                 clientId = clientId,
                 scopes = grantedScopes,
                 resource = authorizationRequest.resource,
+                currentAccountId = authContextFactory.build(user).currentAccountId,
             )
         val (refreshToken, familyId) =
             refreshTokenService.createOAuthRefreshToken(

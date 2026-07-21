@@ -331,22 +331,80 @@ class ServiceTokenClientTest {
     @DisplayName("User Context Propagation")
     inner class UserContextPropagationTests {
         @Test
-        fun `should throw UnsupportedOperationException for user context propagation`() {
+        fun `should exchange subject token for user context service token`() {
             runBlocking {
-                // Arrange
+                val tokenResponse = createTokenResponse("delegated-token", expiresIn = 120L)
+                val httpResponse: HttpResponse<Any> = mock()
+                whenever(httpResponse.body()).thenReturn(tokenResponse)
+                whenever(blockingHttpClient.exchange(any<HttpRequest<Any>>(), any<Class<*>>()))
+                    .thenReturn(httpResponse)
                 serviceTokenClient = createClient()
 
-                // Act & Assert
-                assertThatThrownBy {
-                    runBlocking {
-                        serviceTokenClient.getServiceTokenWithUserContext(
-                            targetAudience = "target-service",
-                            userId = java.util.UUID.randomUUID(),
-                            userPermissions = listOf("read", "write"),
-                        )
+                val token =
+                    serviceTokenClient.getServiceTokenWithUserContext(
+                        targetAudience = "target-service",
+                        subjectToken = "subject-token",
+                    )
+
+                assertThat(token).isEqualTo("delegated-token")
+                val requestCaptor = argumentCaptor<HttpRequest<Any>>()
+                verify(blockingHttpClient).exchange(requestCaptor.capture(), any<Class<*>>())
+                assertThat(requestCaptor.firstValue.uri.toString()).contains("/oauth2/token")
+            }
+        }
+
+        @Test
+        fun `should cache user context tokens by subject token hash and audience`() {
+            runBlocking {
+                val tokenResponse = createTokenResponse("delegated-token", expiresIn = 120L)
+                val httpResponse: HttpResponse<Any> = mock()
+                whenever(httpResponse.body()).thenReturn(tokenResponse)
+                whenever(blockingHttpClient.exchange(any<HttpRequest<Any>>(), any<Class<*>>()))
+                    .thenReturn(httpResponse)
+                serviceTokenClient = createClient()
+
+                val token1 =
+                    serviceTokenClient.getServiceTokenWithUserContext(
+                        targetAudience = "target-service",
+                        subjectToken = "subject-token",
+                    )
+                val token2 =
+                    serviceTokenClient.getServiceTokenWithUserContext(
+                        targetAudience = "target-service",
+                        subjectToken = "subject-token",
+                    )
+
+                assertThat(token1).isEqualTo("delegated-token")
+                assertThat(token2).isEqualTo("delegated-token")
+                verify(blockingHttpClient, times(1)).exchange(any<HttpRequest<Any>>(), any<Class<*>>())
+            }
+        }
+
+        @Test
+        fun `should deduplicate concurrent user context token exchanges`() {
+            runBlocking {
+                val tokenResponse = createTokenResponse("delegated-token", expiresIn = 120L)
+                val httpResponse: HttpResponse<Any> = mock()
+                whenever(httpResponse.body()).thenReturn(tokenResponse)
+                whenever(blockingHttpClient.exchange(any<HttpRequest<Any>>(), any<Class<*>>()))
+                    .thenReturn(httpResponse)
+                serviceTokenClient = createClient()
+
+                val results =
+                    coroutineScope {
+                        (1..10)
+                            .map {
+                                async {
+                                    serviceTokenClient.getServiceTokenWithUserContext(
+                                        targetAudience = "target-service",
+                                        subjectToken = "subject-token",
+                                    )
+                                }
+                            }.awaitAll()
                     }
-                }.isInstanceOf(UnsupportedOperationException::class.java)
-                    .hasMessageContaining("User context propagation is not yet implemented")
+
+                assertThat(results).allMatch { it == "delegated-token" }
+                verify(blockingHttpClient, atMost(2)).exchange(any<HttpRequest<Any>>(), any<Class<*>>())
             }
         }
     }

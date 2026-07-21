@@ -32,6 +32,7 @@ class JwtPrincipalDecoderTest {
             val userId = UUID.randomUUID()
             val servicePerms = listOf("svc:a")
             val userPerms = listOf("user:a")
+            val accountId = UUID.randomUUID()
             val tokenId = UUID.randomUUID().toString()
 
             whenever(jwtTokenValidator.isServiceToken(token)).thenReturn(true)
@@ -39,6 +40,7 @@ class JwtPrincipalDecoderTest {
             whenever(jwtTokenValidator.getPermissionsFromToken(token)).thenReturn(servicePerms)
             whenever(jwtTokenValidator.getUserIdFromServiceToken(token)).thenReturn(userId)
             whenever(jwtTokenValidator.getUserPermissionsFromServiceToken(token)).thenReturn(userPerms)
+            whenever(jwtTokenValidator.getCurrentAccountIdFromToken(token)).thenReturn(accountId)
             whenever(jwtTokenValidator.getJwtIdFromToken(token)).thenReturn(tokenId)
 
             val principal = decoder.fromToken(token)
@@ -52,6 +54,7 @@ class JwtPrincipalDecoderTest {
                     tokenId = tokenId,
                     permissionsFromToken = servicePerms,
                     userPermissions = userPerms,
+                    currentAccountId = accountId,
                 ),
             )
         }

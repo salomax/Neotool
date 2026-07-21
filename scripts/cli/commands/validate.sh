@@ -174,10 +174,10 @@ build_task_registry() {
     # The `security` subcommand rebuilds this task from its own flags.
     if command -v trivy >/dev/null 2>&1; then
         add_task "security:fs" "security" "scan" "$PROJECT_ROOT" "-" \
-            "trivy fs --format table --severity CRITICAL,HIGH --exit-code 1 ."
+            "trivy fs --config trivy.yaml --timeout 15m --format table --severity CRITICAL,HIGH --exit-code 1 ."
     elif command -v docker >/dev/null 2>&1; then
         add_task "security:fs" "security" "scan" "$PROJECT_ROOT" "-" \
-            "docker run --rm -v '$PROJECT_ROOT:/src' aquasec/trivy fs --format table --severity CRITICAL,HIGH --exit-code 1 /src"
+            "docker run --rm -v '$PROJECT_ROOT:/src' -w /src aquasec/trivy fs --config /src/trivy.yaml --timeout 15m --format table --severity CRITICAL,HIGH --exit-code 1 /src"
     else
         # Warn loudly rather than failing the whole local run. `validate
         # security` (explicit intent) still hard-fails in parse_security_flags.
@@ -608,7 +608,7 @@ parse_security_flags() {
     for scan_type in "${scan_types[@]}"; do
         scan_type="${scan_type# }"  # trim leading space
         local task_id="security:$scan_type"
-        local cmd_args="$scan_type --format $format --severity $severity --exit-code $exit_code"
+        local cmd_args="$scan_type --format $format --severity $severity --exit-code $exit_code --timeout 15m"
 
         if [[ "$ignore_unfixed" == "true" ]]; then
             cmd_args="$cmd_args --ignore-unfixed"
@@ -623,11 +623,16 @@ parse_security_flags() {
 
         # Add to task registry
         if [[ "$trivy_cmd" == "trivy" ]]; then
-            add_task "$task_id" "security" "scan" "$PROJECT_ROOT" "-" "trivy $cmd_args ."
+            local config_arg=""
+            [[ -f "$PROJECT_ROOT/trivy.yaml" ]] && config_arg="--config trivy.yaml"
+            add_task "$task_id" "security" "scan" "$PROJECT_ROOT" "-" "trivy $config_arg $cmd_args ."
         else
-            # For docker-based trivy, rewrite paths
+            # For docker-based trivy, rewrite paths and pin workdir so trivy.yaml resolves.
             cmd_args="${cmd_args//\$PROJECT_ROOT/\/src}"
-            add_task "$task_id" "security" "scan" "$PROJECT_ROOT" "-" "$trivy_cmd $cmd_args /src"
+            local config_arg=""
+            [[ -f "$PROJECT_ROOT/trivy.yaml" ]] && config_arg="--config /src/trivy.yaml"
+            add_task "$task_id" "security" "scan" "$PROJECT_ROOT" "-" \
+                "docker run --rm -v '$PROJECT_ROOT:/src' -w /src aquasec/trivy $config_arg $cmd_args /src"
         fi
     done
 }

@@ -182,6 +182,8 @@ oauth:
         - S256
       supported-resources: []
       cache-max-age-seconds: ${OAUTH2_METADATA_CACHE_MAX_AGE_SECONDS:3600}
+    token-exchange:
+      service-resource-identifiers: {}
     registration:
       garbage-collection:
         enabled: ${OAUTH2_CLIENT_GC_ENABLED:true}

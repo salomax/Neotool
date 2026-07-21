@@ -114,6 +114,27 @@ class JwtTokenIssuerTest {
     }
 
     @Test
+    fun `service token with user context carries real audience and current account`() {
+        val accountId = UUID.randomUUID()
+        val token =
+            issuer.generateServiceTokenWithUserContext(
+                serviceId = UUID.randomUUID(),
+                targetAudience = "banking",
+                permissions = listOf("banking:transaction:view"),
+                userId = UUID.randomUUID(),
+                userPermissions = listOf("banking:transaction:view"),
+                currentAccountId = accountId,
+            )
+
+        val claims = parseClaims(token)
+        val principal = decoder.fromToken(token)
+
+        assertThat(claims.audience).containsExactly("banking")
+        assertThat(validator.getAudienceFromToken(token)).isEqualTo("banking")
+        assertThat(principal.currentAccountId).isEqualTo(accountId)
+    }
+
+    @Test
     fun `should issue OAuth access token with requested resource as audience`() {
         val resource = "https://api.invistus.test"
         val token =

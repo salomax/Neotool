@@ -36,16 +36,13 @@ class PermissionChecker : AuthorizationChecker {
     ) {
         val permissions =
             when {
-                principal.principalType == PrincipalType.SERVICE && principal.userId != null &&
-                    principal.userPermissions != null -> {
+                principal.principalType == PrincipalType.SERVICE && principal.userId != null -> {
                     // Service token with user context: use user permissions
-                    // Only use user permissions if explicitly provided (aligns with AuthorizationService behavior)
-                    principal.userPermissions
+                    principal.userPermissions ?: emptyList()
                 }
 
                 else -> {
-                    // User token or service token (with or without user context): use principal permissions
-                    // For service tokens with user_id but no user_permissions, fall back to service permissions
+                    // User token or service token without user context: use principal permissions.
                     principal.permissionsFromToken
                 }
             }

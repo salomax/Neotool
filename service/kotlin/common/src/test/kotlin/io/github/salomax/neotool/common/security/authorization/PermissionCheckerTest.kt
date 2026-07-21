@@ -223,7 +223,7 @@ class PermissionCheckerTest {
         }
 
         @Test
-        fun `should fall back to service permissions when service token has user_id but no user_permissions`() {
+        fun `should fail closed when service token has user id but no user permissions`() {
             // Arrange
             val serviceId = UUID.randomUUID()
             val userId = UUID.randomUUID()
@@ -242,14 +242,10 @@ class PermissionCheckerTest {
                     userPermissions = null,
                 )
 
-            // Act & Assert - Should use service permissions (fallback)
-            permissionChecker.require(principal, permission)
-
-            // Verify it used service permissions by checking that a permission not in service perms would fail
-            val userOnlyPermission = "assets:asset:view"
-            assertThatThrownBy { permissionChecker.require(principal, userOnlyPermission) }
+            // Act & Assert - Must not fall back to service permissions for delegated calls.
+            assertThatThrownBy { permissionChecker.require(principal, permission) }
                 .isInstanceOf(AuthorizationDeniedException::class.java)
-                .hasMessageContaining("Service $serviceId (with user $userId) lacks permission '$userOnlyPermission'")
+                .hasMessageContaining("Service $serviceId (with user $userId) lacks permission '$permission'")
         }
 
         @Test

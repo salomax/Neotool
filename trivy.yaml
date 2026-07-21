@@ -1,0 +1,32 @@
+# Trivy config — kept in sync with `neotool validate security` / CI security-scan.
+#
+# Local workspaces contain multi-GB install trees (node_modules, .pnpm-store,
+# Gradle caches). CI never has them (clean checkout), and dependency CVEs are
+# already detected via lockfiles (pnpm-lock.yaml, go.mod, etc.). Skipping these
+# dirs keeps a local scan aligned with CI and under the default timeout.
+timeout: 15m
+
+scan:
+  skip-dirs:
+    - "**/.git"
+    - "**/node_modules"
+    - "**/.pnpm-store"
+    - "**/.gradle"
+    - "**/.gradle-home"
+    - "**/.gradle-local"
+    - "**/build"
+    - "**/.next"
+    - "**/.neotool"
+    - "**/coverage"
+    - "**/dist"
+    - "**/out"
+    - "**/.venv"
+    - "**/venv"
+
+# Local `.env` / `.env.*` files are gitignored and may hold development secrets
+# (Vault tokens, JWT material, etc.). CI never sees them; skip them here so a
+# local scan matches what CI would report on the committed tree.
+secret:
+  skip-files:
+    - "**/.env"
+    - "**/.env.*"
