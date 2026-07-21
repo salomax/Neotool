@@ -114,6 +114,24 @@ class JwtTokenIssuerTest {
     }
 
     @Test
+    fun `should issue OAuth access token with requested resource as audience`() {
+        val resource = "https://api.invistus.test"
+        val token =
+            issuer.generateOAuthAccessToken(
+                userId = UUID.randomUUID(),
+                email = "test@example.com",
+                clientId = "test-agent",
+                scopes = listOf("finance:cashflow:read"),
+                resource = resource,
+            )
+
+        val claims = parseClaims(token)
+
+        assertThat(claims.audience).containsExactly(resource)
+        assertThat(claims["resource"]).isNull()
+    }
+
+    @Test
     fun `should issue unique jwt id for every token type`() {
         val userId = UUID.randomUUID()
         val serviceId = UUID.randomUUID()

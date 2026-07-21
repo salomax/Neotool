@@ -153,7 +153,7 @@ class JwtTokenIssuer(
      *
      * OAuth grants carry scopes, not the user's complete permission set. The `permissions`
      * claim is intentionally set to the granted scopes for compatibility with existing
-     * downstream JWT permission checks until the MCP audience work lands.
+     * downstream JWT permission checks until the MCP permission mapping work lands.
      */
     fun generateOAuthAccessToken(
         userId: UUID,
@@ -175,7 +175,9 @@ class JwtTokenIssuer(
                 .claim("client_id", clientId)
                 .claim("scope", scope)
                 .claim("permissions", scopes)
-                .claim("resource", resource)
+                .audience()
+                .add(resource)
+                .and()
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
                 .issuer(jwtConfig.issuer),

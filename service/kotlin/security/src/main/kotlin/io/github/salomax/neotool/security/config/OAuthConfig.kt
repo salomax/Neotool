@@ -2,6 +2,8 @@ package io.github.salomax.neotool.security.config
 
 import io.micronaut.context.annotation.ConfigurationProperties
 import jakarta.validation.constraints.NotBlank
+import java.net.URI
+import java.net.URISyntaxException
 
 /**
  * Configuration properties for OAuth2 providers.
@@ -81,9 +83,86 @@ data class OAuthConfig(
     @ConfigurationProperties("authorization-server")
     data class AuthorizationServerConfig(
         val session: SessionConfig = SessionConfig(),
+        val metadata: MetadataConfig = MetadataConfig(),
         val authorizationRequestTtlSeconds: Long = 600,
         val authorizationCodeTtlSeconds: Long = 60,
     ) {
+        @ConfigurationProperties("metadata")
+        data class MetadataConfig(
+            val authorizationEndpoint: String = "/oauth2/authorize",
+            val tokenEndpoint: String = "/oauth2/token",
+            val jwksUri: String = "/.well-known/jwks.json",
+            val supportedScopes: List<String> =
+                listOf(
+                    "finance:transactions:read",
+                    "finance:transactions:write",
+                    "finance:cashflow:read",
+                    "finance:accounts:read",
+                    "finance:bills:read",
+                    "finance:categories:read",
+                    "finance:categories:write",
+                    "finance:rules:read",
+                    "finance:rules:write",
+                ),
+            val responseTypes: List<String> = listOf("code"),
+            val grantTypes: List<String> = listOf("authorization_code", "refresh_token"),
+            val tokenEndpointAuthMethods: List<String> = listOf("none"),
+            val codeChallengeMethods: List<String> = listOf("S256"),
+            val cacheMaxAgeSeconds: Long = 3600,
+        ) {
+            fun validate() {
+                validateEndpoint("authorization-endpoint", authorizationEndpoint)
+                validateEndpoint("token-endpoint", tokenEndpoint)
+                validateEndpoint("jwks-uri", jwksUri)
+                require(supportedScopes.all { it.isNotBlank() }) {
+                    "oauth.authorization-server.metadata.supported-scopes must not contain blank values"
+                }
+                require(responseTypes.all { it.isNotBlank() }) {
+                    "oauth.authorization-server.metadata.response-types must not contain blank values"
+                }
+                require(grantTypes.all { it.isNotBlank() }) {
+                    "oauth.authorization-server.metadata.grant-types must not contain blank values"
+                }
+                require(tokenEndpointAuthMethods.all { it.isNotBlank() }) {
+                    "oauth.authorization-server.metadata.token-endpoint-auth-methods must not contain blank values"
+                }
+                require(codeChallengeMethods.all { it.isNotBlank() }) {
+                    "oauth.authorization-server.metadata.code-challenge-methods must not contain blank values"
+                }
+                require(cacheMaxAgeSeconds > 0) {
+                    "oauth.authorization-server.metadata.cache-max-age-seconds must be positive"
+                }
+            }
+
+            private fun validateEndpoint(
+                property: String,
+                endpoint: String,
+            ) {
+                require(endpoint.isNotBlank()) {
+                    "oauth.authorization-server.metadata.$property must not be blank"
+                }
+                val uri =
+                    try {
+                        URI(endpoint)
+                    } catch (e: URISyntaxException) {
+                        throw IllegalArgumentException(
+                            absoluteEndpointMessage(property, endpoint),
+                            e,
+                        )
+                    }
+                require(uri.isAbsolute || endpoint.startsWith("/")) {
+                    absoluteEndpointMessage(property, endpoint)
+                }
+            }
+
+            private fun absoluteEndpointMessage(
+                property: String,
+                endpoint: String,
+            ): String =
+                "oauth.authorization-server.metadata.$property " +
+                    "must be an absolute URI or absolute path: $endpoint"
+        }
+
         @ConfigurationProperties("session")
         data class SessionConfig(
             val signingSecret: String = "",
