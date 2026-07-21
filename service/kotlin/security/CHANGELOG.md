@@ -1,3 +1,13 @@
+## 0.9.0 (2026-07-21)
+
+### 🚀 Features
+
+- **security:** add oauth metadata discovery ([#432](https://github.com/invistus/invistus/pull/432))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.8.0 (2026-07-20)
 
 ### 🚀 Features

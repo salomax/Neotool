@@ -157,6 +157,30 @@ oauth:
     client-id: ${GOOGLE_CLIENT_ID:}
     issuer: ${GOOGLE_ISSUER:}
   authorization-server:
+    metadata:
+      authorization-endpoint: ${OAUTH2_AUTHORIZATION_ENDPOINT:/oauth2/authorize}
+      token-endpoint: ${OAUTH2_TOKEN_ENDPOINT:/oauth2/token}
+      jwks-uri: ${OAUTH2_JWKS_URI:/.well-known/jwks.json}
+      supported-scopes:
+        - finance:transactions:read
+        - finance:transactions:write
+        - finance:cashflow:read
+        - finance:accounts:read
+        - finance:bills:read
+        - finance:categories:read
+        - finance:categories:write
+        - finance:rules:read
+        - finance:rules:write
+      response-types:
+        - code
+      grant-types:
+        - authorization_code
+        - refresh_token
+      token-endpoint-auth-methods:
+        - none
+      code-challenge-methods:
+        - S256
+      cache-max-age-seconds: ${OAUTH2_METADATA_CACHE_MAX_AGE_SECONDS:3600}
     session:
       # Prefer OAUTH2_SESSION_SIGNING_SECRET. JWT_PRIVATE_KEY is only a deployment
       # compatibility fallback and couples session-cookie rotation to JWT key rotation.
