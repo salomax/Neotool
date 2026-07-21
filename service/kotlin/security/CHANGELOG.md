@@ -1,3 +1,13 @@
+## 0.11.0 (2026-07-21)
+
+### 🚀 Features
+
+- **security:** implement user-context token exchange ([#438](https://github.com/invistus/invistus/pull/438))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.10.0 (2026-07-21)
 
 ### 🚀 Features
