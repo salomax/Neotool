@@ -6,6 +6,7 @@ import io.github.salomax.neotool.common.test.http.exchangeAsString
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
+import io.github.salomax.neotool.security.http.AuthorizationServerMetadataController.AuthorizationServerMetadata
 import io.github.salomax.neotool.security.http.dto.OAuth2TokenResponse
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
@@ -119,6 +120,75 @@ open class OAuth2AuthorizationServerIntegrationTest :
         assertThat(jwtTokenValidator.getUserIdFromToken(tokenResponse.access_token)).isEqualTo(userId)
         assertThat(jwtTokenValidator.getJwtIdFromToken(tokenResponse.access_token)).isNotBlank()
         assertThat(jwtTokenValidator.getIssuerFromToken(tokenResponse.access_token)).isEqualTo("http://localhost:8080")
+        assertThat(jwtTokenValidator.getAudienceFromToken(tokenResponse.access_token))
+            .isEqualTo("https://api.invistus.test")
+    }
+
+    @Test
+    fun `authorization server metadata is public and advertises configured endpoints`() {
+        val response =
+            httpClient.exchangeAsString(
+                HttpRequest.GET<Any>("/.well-known/oauth-authorization-server"),
+            )
+        val metadata = json.readValue(response.body(), AuthorizationServerMetadata::class.java)
+
+        assertThat(response.status()).isEqualTo(HttpStatus.OK)
+        assertThat(response.header("Cache-Control")).isEqualTo("public, max-age=3600")
+        assertThat(metadata.issuer).isEqualTo("http://localhost:8080")
+        assertThat(metadata.authorization_endpoint).isEqualTo("http://localhost:8080/oauth2/authorize")
+        assertThat(metadata.token_endpoint).isEqualTo("http://localhost:8080/oauth2/token")
+        assertThat(metadata.jwks_uri).isEqualTo("http://localhost:8080/.well-known/jwks.json")
+        assertThat(metadata.scopes_supported)
+            .containsExactly(
+                "finance:transactions:read",
+                "finance:transactions:write",
+                "finance:cashflow:read",
+                "finance:accounts:read",
+                "finance:bills:read",
+                "finance:categories:read",
+                "finance:categories:write",
+                "finance:rules:read",
+                "finance:rules:write",
+            )
+        assertThat(metadata.response_types_supported).containsExactly("code")
+        assertThat(metadata.grant_types_supported).containsExactly("authorization_code", "refresh_token")
+        assertThat(metadata.token_endpoint_auth_methods_supported).containsExactly("none")
+        assertThat(metadata.code_challenge_methods_supported).containsExactly("S256")
+        assertThat(metadata.resource_indicators_supported).isTrue()
+        assertThat(response.body()).doesNotContain("registration_endpoint")
+    }
+
+    @Test
+    fun `metadata issuer matches issued token issuer`() {
+        val verifier = "correct-horse-battery-staple-0123456789"
+        val (_, code) = createApprovedAuthorizationCode(verifier)
+        val tokenResponse =
+            json.readValue(
+                exchangeAuthorizationCode(code, verifier).body(),
+                OAuth2TokenResponse::class.java,
+            )
+        val metadataResponse =
+            httpClient.exchangeAsString(
+                HttpRequest.GET<Any>("/.well-known/oauth-authorization-server"),
+            )
+        val metadata = json.readValue(metadataResponse.body(), AuthorizationServerMetadata::class.java)
+
+        assertThat(metadata.issuer).isEqualTo(jwtTokenValidator.getIssuerFromToken(tokenResponse.access_token))
+    }
+
+    @Test
+    fun `token audience is bound to authorization request resource`() {
+        val verifier = "correct-horse-battery-staple-0123456789"
+        val (_, code) = createApprovedAuthorizationCode(verifier, resource = "https://api.invistus.test")
+        val response =
+            postToken(
+                authorizationCodeTokenRequest(code, verifier) +
+                    ("resource" to "https://other-resource.example"),
+            )
+        val tokenResponse = json.readValue(response.body(), OAuth2TokenResponse::class.java)
+
+        assertThat(jwtTokenValidator.getAudienceFromToken(tokenResponse.access_token))
+            .isEqualTo("https://api.invistus.test")
     }
 
     @Test
@@ -364,7 +434,10 @@ open class OAuth2AuthorizationServerIntegrationTest :
         assertThat(exception.status).isEqualTo(HttpStatus.BAD_REQUEST)
     }
 
-    private fun createApprovedAuthorizationCode(verifier: String): Pair<UUID, String> =
+    private fun createApprovedAuthorizationCode(
+        verifier: String,
+        resource: String = "https://api.invistus.test",
+    ): Pair<UUID, String> =
         entityManager.runTransaction {
             val savedUserId = createUser()
             val authorizationRequest =
@@ -377,7 +450,7 @@ open class OAuth2AuthorizationServerIntegrationTest :
                         state = "state-123",
                         codeChallenge = tokenHashing.pkceS256(verifier),
                         codeChallengeMethod = "S256",
-                        resource = "https://api.invistus.test",
+                        resource = resource,
                     ),
                 )
             val requestId = requireNotNull(authorizationRequest.id)
