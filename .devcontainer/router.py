@@ -103,13 +103,13 @@ Intent rules:
 - "check_config" = user asks which agents/models are configured per stage, routing config, orchestrator model
 - "fast_track" = user asks to run multiple pipeline stages at once: "de uma vez", "tudo junto", "em uma etapa", "#fast-track", "faça essa/a issue de uma vez", "execute tudo", "rode o pipeline completo". IMPORTANT: "Faça/execute essa issue de uma vez" = fast_track, NOT stage_issue.
 - "stage_issue" = create or enrich a GitHub issue: "abra/crie uma issue", "open an issue", "nova issue". NEVER use stage_issue when the user says "de uma vez" or "fast-track" — that is always fast_track.
-- "stage_design" = solution design, technical analysis, viability, impact
+- "stage_design" = solution design, technical analysis, viability, impact. ALSO use when user says "trabalhe na issue", "resolva a issue", "analise a issue", "quero que trabalhe", "faça a análise", "quero a análise", "work on issue", "handle issue", "tackle issue" + a GitHub issue URL or number — these always mean start the pipeline from design, NOT question.
 - "stage_backlog" = generate task backlog
 - "stage_impl" = ONLY when user explicitly asks to write/implement NEW code or apply backlog tasks. The word "implementação" as a noun referring to past work does NOT trigger this.
 - "stage_pr" = commit changes and open pull request (default agent: cursor, model: auto). NEVER merge — merge is always human on GitHub
 - "stage_validate" = run tests, lint, typecheck (default agent: cursor, model: auto)
 - "stage_review" = code review of EXISTING implementation: "revise o código", "faz um review", "faça a revisão", "analise a implementação", "review", "já implementei" + pedido de revisão, link para comentário de implementação na issue (default agent: claude)
-- "question" = everything else: questions, instructions to an agent that are not a pipeline stage, "poste um comentário", "crie um comentário", "verifique", "o que acha", "sumarize", "explique" (default agent: claude)
+- "question" = everything else: questions, instructions to an agent that are not a pipeline stage, "poste um comentário", "crie um comentário", "verifique", "o que acha", "sumarize", "explique" (default agent: claude). NEVER classify as question when user provides a GitHub issue URL/number and says "trabalhe", "resolva", "analise", "faça" — that is stage_design.
 - IMPORTANT: GitHub issue URLs (…/issues/123) or issuecomment links do NOT mean stage_issue — use stage_review when the user asks for review of existing work
 - IMPORTANT: If user says work was already done outside the pipeline ("já implementei") and asks for review → stage_review, NOT stage_impl or stage_design
 - IMPORTANT: Use thread state (next_pipeline_stage_if_user_says_sim, last_checkpoint) to disambiguate resume vs new stage requests
@@ -247,7 +247,7 @@ _STAGE_ISSUE_RE = re.compile(
 )
 
 _STAGE_DESIGN_RE = re.compile(
-    r"(?:design|análise\s+técnica|viabilidade|impacto|como\s+(?:implementar|resolver))",
+    r"(?:design|análise\s+técnica|viabilidade|impacto|como\s+(?:implementar|resolver)|trabalhe\s+na|resolva\s+a|analise\s+a|work\s+on\s+(?:issue|the))",
     re.IGNORECASE,
 )
 
