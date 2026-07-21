@@ -2,24 +2,16 @@
 
 set -euo pipefail
 
-# Validate Command
-# 
-# Runs all validations for web, mobile, and backend:
-# Backend validation order:
-# - Compile (classes - compiles main sources, runs KSP processing, catches type errors)
-# - Tests (test - includes unit and integration)
-# - Lint (ktlint)
-# - Coverage (kover)
-# - Security scan (trivy fs, if available)
-# Web/mobile validation order:
-# - Typecheck (tsc)
-# - Tests (vitest/jest)
-# - Lint (eslint)
-# - Coverage (vitest/jest coverage)
+# Validate Command - Rewritten
+#
+# Runs code validation with a declarative task registry and scheduler.
+# Supports parallel execution with dependency graph, multiple reporters,
+# and sophisticated filtering.
 
 # Get script directory and project root
-COMMAND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLI_DIR="$(cd "$COMMAND_DIR/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLI_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+LIB_DIR="$CLI_DIR/lib"
 SCRIPTS_DIR="$(cd "$CLI_DIR/.." && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 
@@ -27,23 +19,84 @@ PROJECT_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 # shellcheck source=../utils.sh
 source "$CLI_DIR/utils.sh"
 
+# Source runner (scheduler)
+# shellcheck source=../lib/runner.sh
+source "$LIB_DIR/runner.sh"
+
+# Source renderer
+# shellcheck source=../lib/render.sh
+source "$LIB_DIR/render.sh"
+
 # Paths
 WEB_DIR="$PROJECT_ROOT/web"
 MOBILE_DIR="$PROJECT_ROOT/mobile"
 BACKEND_DIR="$PROJECT_ROOT/service/kotlin"
 
-# Track validation results
-VALIDATION_FAILED=false
-
-# UI state tracking
-declare -a TASK_NAMES=()
-declare -a TASK_STATUSES=()
-declare -a TASK_START_TIMES=()
-declare -a TASK_ELAPSED_TIMES=()
+# ============================================================================
+# TASK REGISTRY
+# ============================================================================
+# Parallel arrays: TASK_IDS, TASK_TARGETS, TASK_STEPS, TASK_WORKDIRS, TASK_NEEDS, TASK_COMMANDS
+declare -a TASK_IDS=()
+declare -a TASK_TARGETS=()
+declare -a TASK_STEPS=()
+declare -a TASK_WORKDIRS=()
+declare -a TASK_NEEDS=()
 declare -a TASK_COMMANDS=()
-declare -a TASK_HEADER_INITIALIZED=()  # Track if header (status + command) has been displayed
-CURRENT_TASK_INDEX=-1
-UI_INITIALIZED=false
+
+# Set when neither trivy nor docker is present, so the summary can say plainly
+# that nothing was scanned instead of implying a clean result.
+SECURITY_TOOLING_MISSING=false
+
+# Set once the run directory exists; consumed by _validate_cleanup.
+VALIDATE_LOG_DIR=""
+
+# Terminate every process this run started, and nothing else.
+#
+# Reads the .pid files written by run_task plus scheduler.pid. Each task is a
+# process-group leader (runner.sh enables job control), so killing the negated
+# PID takes down its whole tree. Sends TERM, gives it a moment, then KILL.
+VALIDATE_CLEANUP_DONE=false
+
+_validate_cleanup() {
+    local rc=$?
+    [[ "$VALIDATE_CLEANUP_DONE" == "true" ]] && return $rc
+    VALIDATE_CLEANUP_DONE=true
+    [[ -z "$VALIDATE_LOG_DIR" ]] && return $rc
+    [[ -d "$VALIDATE_LOG_DIR" ]] || return $rc
+
+    local pid_file pid survivors=()
+
+    for pid_file in "$VALIDATE_LOG_DIR"/*.pid; do
+        [[ -f "$pid_file" ]] || continue
+        pid=$(cat "$pid_file" 2>/dev/null || true)
+        # Only numeric, still-alive PIDs. A stale file whose process already
+        # exited must never be killed: the number may have been recycled.
+        [[ "$pid" =~ ^[0-9]+$ ]] || continue
+        kill -0 "$pid" 2>/dev/null || continue
+
+        kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+        survivors+=("$pid")
+    done
+
+    if [[ ${#survivors[@]} -gt 0 ]]; then
+        # Safe to do real work here: the EXIT trap runs during normal exit
+        # processing, not from inside a signal handler.
+        printf '\033[?25h' 2>/dev/null || true
+        echo ""
+        log "⚠️  Interrupted — stopping ${#survivors[@]} running task(s)..." "$YELLOW"
+        sleep 0.3
+        for pid in "${survivors[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -9 -- "-$pid" 2>/dev/null || kill -9 "$pid" 2>/dev/null || true
+            fi
+        done
+        log "   Stopped. Partial logs: ${VALIDATE_LOG_DIR}" "$GRAY"
+    fi
+
+    rm -f "$VALIDATE_LOG_DIR"/*.pid 2>/dev/null || true
+    printf '\033[?25h' 2>/dev/null || true
+    return $rc
+}
 
 # Get available services from settings.gradle.kts
 get_available_services() {
@@ -52,10 +105,7 @@ get_available_services() {
         log_error "Error: settings.gradle.kts not found at $settings_file"
         return 1
     fi
-    
-    # Extract service names from include() statement
-    # Example: include(":common", ":security", ":app", ":assistant", ":financialdata")
-    # We'll extract: common, security, app, assistant, financialdata
+
     grep -E '^\s*include\(' "$settings_file" | \
         sed -E 's/.*include\(//' | \
         sed -E 's/\).*//' | \
@@ -65,1095 +115,816 @@ get_available_services() {
         sort
 }
 
-# Show help text
-show_help() {
+# Add task to registry
+add_task() {
+    local id="$1"
+    local target="$2"
+    local step="$3"
+    local workdir="$4"
+    local needs="$5"
+    local cmd="$6"
+
+    TASK_IDS+=("$id")
+    TASK_TARGETS+=("$target")
+    TASK_STEPS+=("$step")
+    TASK_WORKDIRS+=("$workdir")
+    TASK_NEEDS+=("$needs")
+    TASK_COMMANDS+=("$cmd")
+}
+
+# Build complete task registry
+build_task_registry() {
+    # Web tasks
+    add_task "web:typecheck" "web" "typecheck" "$WEB_DIR" "-" "pnpm run typecheck"
+    add_task "web:lint" "web" "lint" "$WEB_DIR" "-" "pnpm run lint"
+    add_task "web:test" "web" "test" "$WEB_DIR" "web:typecheck" "pnpm run test"
+    add_task "web:coverage" "web" "coverage" "$WEB_DIR" "web:test" "pnpm run test:coverage"
+
+    # Mobile tasks
+    add_task "mobile:typecheck" "mobile" "typecheck" "$MOBILE_DIR" "-" "pnpm run typecheck"
+    add_task "mobile:lint" "mobile" "lint" "$MOBILE_DIR" "-" "pnpm run lint"
+    add_task "mobile:test" "mobile" "test" "$MOBILE_DIR" "mobile:typecheck" "pnpm run test"
+    add_task "mobile:coverage" "mobile" "coverage" "$MOBILE_DIR" "mobile:test" "pnpm run test:coverage"
+
+    # Service tasks (all services)
+    add_task "service:compile" "service" "compile" "$BACKEND_DIR" "-" "./gradlew classes --console=plain"
+    add_task "service:lint" "service" "lint" "$BACKEND_DIR" "-" "./gradlew ktlintCheck --console=plain"
+    add_task "service:test" "service" "test" "$BACKEND_DIR" "service:compile" "./gradlew test --console=plain"
+    add_task "service:coverage" "service" "coverage" "$BACKEND_DIR" "service:test" "./gradlew koverRootReport koverVerify --console=plain"
+
+    # Service tasks (per-service versions, added if service filter is used)
     local available_services
-    available_services=$(get_available_services 2>/dev/null | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
-    
+    # sort -u: settings.gradle.kts can list a module more than once, which
+    # previously registered its four tasks once per occurrence.
+    available_services=$(get_available_services 2>/dev/null | sort -u || echo "")
+    for svc in $available_services; do
+        add_task "service:$svc:compile" "service:$svc" "compile" "$BACKEND_DIR" "-" "./gradlew :${svc}:classes --console=plain"
+        add_task "service:$svc:lint" "service:$svc" "lint" "$BACKEND_DIR" "-" "./gradlew :${svc}:ktlintCheck --console=plain"
+        add_task "service:$svc:test" "service:$svc" "test" "$BACKEND_DIR" "service:$svc:compile" "./gradlew :${svc}:test --console=plain"
+        add_task "service:$svc:coverage" "service:$svc" "coverage" "$BACKEND_DIR" "service:$svc:test" "./gradlew :${svc}:koverXmlReport :${svc}:koverVerify --console=plain"
+    done
+
+    # Default security task, matching .github/workflows/ci.yml's security-scan
+    # job exactly (fs / CRITICAL,HIGH / exit-code 1 / table).
+    #
+    # This must live in the default registry: previously security tasks were
+    # only created by parse_security_flags, so `neotool validate` reported a
+    # green run having never invoked trivy at all, while CI still gated on it.
+    #
+    # The `security` subcommand rebuilds this task from its own flags.
+    if command -v trivy >/dev/null 2>&1; then
+        add_task "security:fs" "security" "scan" "$PROJECT_ROOT" "-" \
+            "trivy fs --format table --severity CRITICAL,HIGH --exit-code 1 ."
+    elif command -v docker >/dev/null 2>&1; then
+        add_task "security:fs" "security" "scan" "$PROJECT_ROOT" "-" \
+            "docker run --rm -v '$PROJECT_ROOT:/src' aquasec/trivy fs --format table --severity CRITICAL,HIGH --exit-code 1 /src"
+    else
+        # Warn loudly rather than failing the whole local run. `validate
+        # security` (explicit intent) still hard-fails in parse_security_flags.
+        SECURITY_TOOLING_MISSING=true
+    fi
+
+    # E2E tasks
+    # Note: Preferentially uses prepush.txt manifest if it exists, otherwise falls back to --grep @prepush.
+    # The manifest approach is temporary; eventually specs should be tagged with @prepush and this can be removed.
+    local e2e_cmd
+    if [[ -f "$WEB_DIR/tests/e2e/prepush.txt" ]]; then
+        # Use explicit manifest of spec files
+        e2e_cmd="pnpm exec playwright test $(cat "$WEB_DIR/tests/e2e/prepush.txt" | tr '\n' ' ') --project=chromium"
+    else
+        # Fallback to grep for @prepush tag
+        e2e_cmd="pnpm exec playwright test --grep @prepush --project=chromium"
+    fi
+    add_task "e2e" "e2e" "test" "$WEB_DIR" "-" "$e2e_cmd"
+}
+
+# Filter task registry by target selection
+# Removes tasks not in the selected targets
+filter_by_targets() {
+    local -a selected_targets=("$@")
+
+    # Default / "all" deliberately EXCLUDE e2e: the Playwright suite is slow
+    # and needs a running stack, so it must stay opt-in (`validate e2e`).
+    if [[ ${#selected_targets[@]} -eq 0 ]]; then
+        selected_targets=("web" "mobile" "service" "security")
+    fi
+
+    # Handle "all" target
+    local -a expanded_targets=()
+    for sel_target in "${selected_targets[@]}"; do
+        if [[ "$sel_target" == "all" ]]; then
+            expanded_targets=("web" "mobile" "service" "security")
+            break
+        else
+            expanded_targets+=("$sel_target")
+        fi
+    done
+    selected_targets=("${expanded_targets[@]}")
+
+    # Build new arrays with only selected tasks
+    local -a new_ids=() new_targets=() new_steps=() new_workdirs=() new_needs=() new_commands=()
+
+    for i in "${!TASK_IDS[@]}"; do
+        local task_target="${TASK_TARGETS[$i]}"
+        local matched=false
+
+        for sel_target in "${selected_targets[@]}"; do
+            # Exact match only. Prefix-matching "service" against
+            # "service:banking" made the plain `service` target pull in every
+            # per-service task as well, running the whole gradle build once
+            # for the aggregate plus once more per service.
+            if [[ "$task_target" == "$sel_target" ]]; then
+                matched=true
+                break
+            fi
+        done
+
+        if [[ "$matched" == "true" ]]; then
+            new_ids+=("${TASK_IDS[$i]}")
+            new_targets+=("${TASK_TARGETS[$i]}")
+            new_steps+=("${TASK_STEPS[$i]}")
+            new_workdirs+=("${TASK_WORKDIRS[$i]}")
+            new_needs+=("${TASK_NEEDS[$i]}")
+            new_commands+=("${TASK_COMMANDS[$i]}")
+        fi
+    done
+
+    TASK_IDS=("${new_ids[@]}")
+    TASK_TARGETS=("${new_targets[@]}")
+    TASK_STEPS=("${new_steps[@]}")
+    TASK_WORKDIRS=("${new_workdirs[@]}")
+    TASK_NEEDS=("${new_needs[@]}")
+    TASK_COMMANDS=("${new_commands[@]}")
+}
+
+# Filter task registry by step (--only or --skip)
+# Steps vocabulary: typecheck, lint, test, coverage
+filter_by_steps() {
+    local filter_type="$1"  # "only" or "skip"
+    local -a steps=()
+
+    # Parse comma-separated step list
+    IFS=',' read -ra steps <<< "$2"
+
+    local -a new_ids=() new_targets=() new_steps=() new_workdirs=() new_needs=() new_commands=()
+
+    for i in "${!TASK_IDS[@]}"; do
+        local task_step="${TASK_STEPS[$i]}"
+        local matched=false
+
+        for step in "${steps[@]}"; do
+            step="${step# }"  # trim leading space
+            if [[ "$task_step" == "$step" ]]; then
+                matched=true
+                break
+            fi
+        done
+
+        # Decide to include: include if matched AND filter is "only", OR NOT matched AND filter is "skip"
+        local should_include=false
+        if [[ "$filter_type" == "only" && "$matched" == "true" ]]; then
+            should_include=true
+        elif [[ "$filter_type" == "skip" && "$matched" != "true" ]]; then
+            should_include=true
+        fi
+
+        if [[ "$should_include" == "true" ]]; then
+            new_ids+=("${TASK_IDS[$i]}")
+            new_targets+=("${TASK_TARGETS[$i]}")
+            new_steps+=("${TASK_STEPS[$i]}")
+            new_workdirs+=("${TASK_WORKDIRS[$i]}")
+            new_needs+=("${TASK_NEEDS[$i]}")
+            new_commands+=("${TASK_COMMANDS[$i]}")
+        fi
+    done
+
+    TASK_IDS=("${new_ids[@]}")
+    TASK_TARGETS=("${new_targets[@]}")
+    TASK_STEPS=("${new_steps[@]}")
+    TASK_WORKDIRS=("${new_workdirs[@]}")
+    TASK_NEEDS=("${new_needs[@]}")
+    TASK_COMMANDS=("${new_commands[@]}")
+
+    # Prune tasks that depend on pruned tasks (transitively)
+    prune_orphaned_tasks
+}
+
+# Prune tasks whose dependencies are not in the registry
+prune_orphaned_tasks() {
+    local changed=true
+    while [[ "$changed" == "true" ]]; do
+        changed=false
+        local -a new_ids=() new_targets=() new_steps=() new_workdirs=() new_needs=() new_commands=()
+
+        for i in "${!TASK_IDS[@]}"; do
+            local task_id="${TASK_IDS[$i]}"
+            local needs="${TASK_NEEDS[$i]}"
+            local should_keep=true
+
+            # Check if all dependencies are present
+            if [[ "$needs" != "-" && -n "$needs" ]]; then
+                for dep in $needs; do
+                    # Check if dep is in the remaining tasks
+                    local dep_found=false
+                    for j in "${!TASK_IDS[@]}"; do
+                        if [[ "${TASK_IDS[$j]}" == "$dep" ]]; then
+                            dep_found=true
+                            break
+                        fi
+                    done
+
+                    if [[ "$dep_found" != "true" ]]; then
+                        should_keep=false
+                        changed=true
+                        break
+                    fi
+                done
+            fi
+
+            if [[ "$should_keep" == "true" ]]; then
+                new_ids+=("${TASK_IDS[$i]}")
+                new_targets+=("${TASK_TARGETS[$i]}")
+                new_steps+=("${TASK_STEPS[$i]}")
+                new_workdirs+=("${TASK_WORKDIRS[$i]}")
+                new_needs+=("${TASK_NEEDS[$i]}")
+                new_commands+=("${TASK_COMMANDS[$i]}")
+            fi
+        done
+
+        TASK_IDS=("${new_ids[@]}")
+        TASK_TARGETS=("${new_targets[@]}")
+        TASK_STEPS=("${new_steps[@]}")
+        TASK_WORKDIRS=("${new_workdirs[@]}")
+        TASK_NEEDS=("${new_needs[@]}")
+        TASK_COMMANDS=("${new_commands[@]}")
+    done
+}
+
+# Filter by changed files (--changed)
+filter_by_changed() {
+    # Get changed files
+    local changed_files
+    changed_files=$(git diff --name-only origin/main...HEAD 2>/dev/null || true)
+    changed_files="$changed_files"$(git diff --name-only HEAD 2>/dev/null || true)
+
+    if [[ -z "$changed_files" ]]; then
+        log "Warning: Could not determine changed files, running all targets" "$YELLOW"
+        return 0
+    fi
+
+    # Map files to targets
+    local -a touched_targets=()
+    local has_other_changes=false
+
+    while IFS= read -r file; do
+        if [[ "$file" == web/* ]]; then
+            touched_targets+=("web")
+        elif [[ "$file" == mobile/* ]]; then
+            touched_targets+=("mobile")
+        elif [[ "$file" == service/kotlin/* ]]; then
+            touched_targets+=("service")
+        else
+            # Conservative: run everything for infra/root changes
+            has_other_changes=true
+        fi
+    done <<< "$changed_files"
+
+    # Deduplicate
+    local -a unique_targets=()
+    for target in "${touched_targets[@]}"; do
+        local found=false
+        for unique in "${unique_targets[@]}"; do
+            if [[ "$unique" == "$target" ]]; then
+                found=true
+                break
+            fi
+        done
+        if [[ "$found" != "true" ]]; then
+            unique_targets+=("$target")
+        fi
+    done
+
+    # If there are other changes, run all; otherwise filter to touched
+    if [[ "$has_other_changes" != "true" && ${#unique_targets[@]} -gt 0 ]]; then
+        filter_by_targets "${unique_targets[@]}"
+        # Always include security
+        unique_targets+=("security")
+    fi
+}
+
+# Print task registry in a readable format
+print_task_list() {
+    echo ""
+    log "Task Graph:" "$BRIGHT"
+    echo ""
+
+    for i in "${!TASK_IDS[@]}"; do
+        local id="${TASK_IDS[$i]}"
+        local target="${TASK_TARGETS[$i]}"
+        local step="${TASK_STEPS[$i]}"
+        local needs="${TASK_NEEDS[$i]}"
+        local cmd="${TASK_COMMANDS[$i]}"
+
+        printf "  %-25s | target=%-12s | needs=%s\n" "$id" "$target" "$needs"
+        printf "    $ %s\n" "$cmd"
+        echo ""
+    done
+}
+
+# ============================================================================
+# CLI PARSING
+# ============================================================================
+
+show_help() {
     cat << EOF
-$(log "Validation Command" "$BRIGHT")
+$(log "neotool validate" "$BRIGHT")
 
-Usage: $0 [options]
-Usage: $0 e2e
+Run code validations for web, mobile, services, security, and E2E.
 
-Runs all validations for web, mobile, and backend:
-  - Lint (web/mobile: eslint, backend: ktlint)
-  - Typecheck (web/mobile: tsc, backend: compile classes)
-  - Tests (web: vitest, mobile: jest, backend: test - includes unit and integration)
-  - Coverage (web: vitest coverage, mobile: jest coverage, backend: kover)
-  - Security scan (trivy fs, same as CI, when trivy is installed)
+$(log "Usage:" "$BRIGHT")
+  neotool validate [target...] [options]
+  neotool validate security [options]
 
-Modes:
-  (default)          Full code validation (web + mobile + backend + security)
-  e2e                Pre-push E2E bundle for investments TWR:
-                     - tests/e2e/personal-finance/investments-twr.e2e.spec.ts
-                     - tests/e2e/personal-finance/investments-twr-phase2.e2e.spec.ts
-                     - tests/e2e/personal-finance/investments-twr-phase3-fixed-income.e2e.spec.ts
-                     - tests/e2e/personal-finance/investments-twr-phase3-funds.e2e.spec.ts
-                     - tests/e2e/personal-finance/investments-twr-phase3-equities.e2e.spec.ts
-                     - tests/e2e/personal-finance/investments-twr-phase3-reits.e2e.spec.ts
-                     - tests/e2e/personal-finance/investments-twr-phase3-crypto.e2e.spec.ts
-                     - tests/e2e/personal-finance/investments-twr-phase4-ui.e2e.spec.ts
-                     - tests/e2e/personal-finance/investments-twr-ui.e2e.spec.ts
-                     - tests/e2e/personal-finance/investments-twr-stress.e2e.spec.ts
-                     - tests/e2e/personal-finance/investments-twr-hardening.e2e.spec.ts
+$(log "Targets (default: all):" "$BRIGHT")
+  web                 Web frontend validations
+  mobile              Mobile app validations
+  service             All backend services
+  service:NAME        Specific backend service
+  security            Security scan (Trivy)
+  e2e                 E2E tests (Playwright)
+  all                 All targets (same as default)
 
-Options:
-  --web              Run only web (frontend) validations
-  --mobile           Run only mobile validations
-  --service [name]   Run only service (backend) validations
-                     If service name is provided, validate only that service
-                     Available services: ${available_services:-app, assistant, security, common}
-                     If no name provided, validate all services
-  --skip-coverage    Skip coverage checks (faster validation)
-  --no-parallel      Run web/mobile/service/security validations sequentially (default is parallel when running full validation)
-  --help             Show this help message
+$(log "Options:" "$BRIGHT")
+  -j, --jobs N        Max concurrent tasks (default: $(( $(nproc || echo 4) / 2 )))
+      --only STEPS    Run only these steps: typecheck,lint,test,coverage (comma-separated)
+      --skip STEPS    Skip these steps (comma-separated)
+      --changed       Only validate changed targets vs origin/main
+      --fail-fast     Cancel remaining work on first failure
+      --reporter R    live|plain|json|github (default: auto based on TTY)
+      --log-dir DIR   Output directory (default: .neotool/validate/<run-id>/)
+  -l, --list          Print resolved task graph and exit
+  -h, --help          Show this help message
 
-Examples:
-  $0                      # Run all validations
-  $0 e2e                  # Run pre-push investments TWR E2E bundle
-  $0 --web                # Run only web validations
-  $0 --mobile             # Run only mobile validations
-  $0 --service             # Run all service validations
-  $0 --service security    # Run only security service validations
-  $0 --service app         # Run only app service validations
-  $0 --skip-coverage       # Run validations without coverage checks
-  $0 --no-parallel         # Run full validation sequentially
+$(log "Security Subcommand:" "$BRIGHT")
+  neotool validate security [--scan fs,config,secret]
+                             [--severity LIST]
+                             [--ignore-unfixed]
+                             [--exit-code N]
+                             [--format table|json|sarif]
+
+$(log "Deprecated flags (will be removed):" "$BRIGHT")
+  --web              -> use: neotool validate web
+  --mobile           -> use: neotool validate mobile
+  --service [NAME]   -> use: neotool validate service or service:NAME
+  --skip-coverage    -> use: neotool validate --skip coverage
+  --parallel         -> now the default (tune with -j N)
+  --no-parallel      -> use: neotool validate -j 1
+
+$(log "Examples:" "$BRIGHT")
+  neotool validate                    # Run all validations
+  neotool validate web                # Web only
+  neotool validate web mobile         # Web and mobile
+  neotool validate service:banking    # Specific service
+  neotool validate --only lint        # Only lint step
+  neotool validate --skip coverage    # Skip coverage
+  neotool validate --changed -j 4     # Changed targets, 4 jobs
+  neotool validate --list             # Print task graph
+  neotool validate security           # Security scan only
 EOF
 }
 
-# Format elapsed time for display
-format_elapsed_time() {
-    local seconds="$1"
-    # Normalize decimal separator to dot (handle locale issues)
-    seconds="${seconds//,/.}"
-    # Convert to integer seconds for comparison
-    local int_seconds=${seconds%.*}
-    # Ensure int_seconds is numeric (remove any non-numeric characters)
-    int_seconds="${int_seconds//[^0-9]/}"
-    # Default to 0 if empty
-    int_seconds="${int_seconds:-0}"
-    local decimal_part="${seconds#*.}"
-    decimal_part="${decimal_part:0:1}"  # First decimal digit
-    # Ensure decimal_part is numeric
-    decimal_part="${decimal_part//[^0-9]/}"
-    
-    if [[ $int_seconds -lt 1 ]]; then
-        printf "0.%ss" "${decimal_part:-0}"
-    elif [[ $int_seconds -lt 60 ]]; then
-        if [[ -n "$decimal_part" ]] && [[ "$decimal_part" != "0" ]]; then
-            printf "%d.%ss" "$int_seconds" "$decimal_part"
-        else
-            printf "%ds" "$int_seconds"
-        fi
-    else
-        local mins=$(( int_seconds / 60 ))
-        local secs=$(( int_seconds % 60 ))
-        printf "%dm %ds" "$mins" "$secs"
-    fi
+show_security_help() {
+    cat << EOF
+$(log "neotool validate security" "$BRIGHT")
+
+Run security scans using Trivy.
+
+$(log "Usage:" "$BRIGHT")
+  neotool validate security [options]
+
+$(log "Options:" "$BRIGHT")
+  --scan TYPE         Scan types: fs, config, secret (comma-separated, default: fs)
+  --severity LIST     CRITICAL,HIGH,MEDIUM,LOW (default: CRITICAL,HIGH)
+  --ignore-unfixed    Ignore unfixed vulnerabilities
+  --exit-code N       Exit code on findings (default: 1)
+  --format FORMAT     Output format: table|json|sarif (default: table)
+  --allow-missing-tools  Warn instead of fail if tools are missing
+  -h, --help          Show this help
+
+$(log "Examples:" "$BRIGHT")
+  neotool validate security
+  neotool validate security --severity CRITICAL
+  neotool validate security --scan fs,config
+  neotool validate security --format json --exit-code 0
+EOF
 }
 
-# Initialize validation UI
-init_validation_ui() {
-    if [[ "$UI_INITIALIZED" == true ]]; then
-        return
-    fi
-    
-    # Only use advanced UI if we're in a TTY
-    if [[ ! -t 1 ]]; then
-        # Not a TTY, use simple output
-        log "\n🔍 Starting Validation Process\n" "$BRIGHT"
-        UI_INITIALIZED=true
-        CURRENT_TASK_INDEX=-1
-        return
-    fi
-    
-    # Show header
-    log "\n🔍 Starting Validation Process\n" "$BRIGHT"
-    echo ""
-    
-    UI_INITIALIZED=true
-    CURRENT_TASK_INDEX=-1
-}
-
-# Add a new task to the display
-add_new_task() {
-    local task_name="$1"
-    local command="${2:-}"
-    
-    CURRENT_TASK_INDEX=$((CURRENT_TASK_INDEX + 1))
-    TASK_NAMES+=("$task_name")
-    TASK_STATUSES+=("running")
-    TASK_COMMANDS+=("$command")
-    TASK_HEADER_INITIALIZED+=(false)  # Initialize header as not displayed yet
-    
-    # Get start time
-    if command -v gdate >/dev/null 2>&1; then
-        TASK_START_TIMES+=("$(gdate +%s.%N)")
-    else
-        TASK_START_TIMES+=("$(date +%s.%N 2>/dev/null || date +%s)")
-    fi
-    
-    TASK_ELAPSED_TIMES+=("")
-    
-    # Display the new task with running status and command
-    update_task_status "$CURRENT_TASK_INDEX" "running" "" "$command"
-}
-
-# Update task status display
-update_task_status() {
-    local task_idx="$1"
-    local status="$2"
-    local elapsed_time="${3:-}"
-    local command="${4:-}"
-    
-    if [[ $task_idx -lt 0 ]] || [[ $task_idx -ge ${#TASK_NAMES[@]} ]]; then
-        return
-    fi
-    
-    # Store command if provided
-    if [[ -n "$command" ]]; then
-        TASK_COMMANDS[$task_idx]="$command"
-    fi
-    
-    # If not a TTY, use simple output
-    if [[ ! -t 1 ]]; then
-        local task_name="${TASK_NAMES[$task_idx]}"
-        case "$status" in
-            running)
-                log "  ⏳ $task_name..." "$BLUE"
-                ;;
-            success)
-                log "  ✅ $task_name passed" "$GREEN"
-                if [[ -n "${TASK_COMMANDS[$task_idx]}" ]]; then
-                    log "    Command: ${TASK_COMMANDS[$task_idx]}" "$CYAN"
-                fi
-                ;;
-            failure)
-                log_error "  ❌ $task_name failed"
-                if [[ -n "${TASK_COMMANDS[$task_idx]}" ]]; then
-                    log "    Command: ${TASK_COMMANDS[$task_idx]}" "$CYAN"
-                fi
-                ;;
-        esac
-        return
-    fi
-    
-    local previous_status="${TASK_STATUSES[$task_idx]}"
-    
-    # Check if this is the initial display (header not shown yet)
-    local header_initialized="${TASK_HEADER_INITIALIZED[$task_idx]:-false}"
-    
-    TASK_STATUSES[$task_idx]="$status"
-    if [[ -n "$elapsed_time" ]]; then
-        TASK_ELAPSED_TIMES[$task_idx]="$elapsed_time"
-    fi
-    
-    # Determine emoji and status text
-    local emoji=""
-    local status_text=""
-    case "$status" in
-        running)
-            emoji="⏳"
-            status_text="[running]"
-            ;;
-        success)
-            emoji="✅"
-            if [[ -n "${TASK_ELAPSED_TIMES[$task_idx]}" ]]; then
-                status_text="[${TASK_ELAPSED_TIMES[$task_idx]}]"
-            else
-                status_text="[done]"
-            fi
-            ;;
-        failure)
-            emoji="❌"
-            if [[ -n "${TASK_ELAPSED_TIMES[$task_idx]}" ]]; then
-                status_text="[${TASK_ELAPSED_TIMES[$task_idx]}]"
-            else
-                status_text="[failed]"
-            fi
-            ;;
-    esac
-    
-    local task_name="${TASK_NAMES[$task_idx]}"
-    local cmd="${command:-${TASK_COMMANDS[$task_idx]}}"
-    if [[ -n "$cmd" ]]; then
-        TASK_COMMANDS[$task_idx]="$cmd"
-    fi
-    
-    # If header not initialized, display it now (status + command lines)
-    if [[ "$header_initialized" == "false" ]]; then
-        # Display status line
-        printf "%s %-40s %s" "$emoji" "$task_name" "$status_text"
-        if command -v tput >/dev/null 2>&1; then
-            tput el 2>/dev/null || printf "\033[K"
-        else
-            printf "\033[K"
-        fi
-        printf "\n"
-        
-        # Display command line
-        if [[ -n "$cmd" ]]; then
-            printf "${CYAN}    $ %s${RESET}" "$cmd"
-            if command -v tput >/dev/null 2>&1; then
-                tput el 2>/dev/null || printf "\033[K"
-            else
-                printf "\033[K"
-            fi
-            printf "\n"
-        fi
-        
-        TASK_HEADER_INITIALIZED[$task_idx]="true"
-    fi
-    
-    # Handle status change from running to success/failure
-    if [[ "$previous_status" == "running" && "$status" != "running" ]]; then
-        # Move up to status line (1 line for command if exists, or 0)
-        local lines_to_status=1  # Always at least 1 (status line itself)
-        if [[ -n "$cmd" ]]; then
-            lines_to_status=2  # Status + command
-        fi
-        
-        # Move to status line
-        local i=0
-        while [[ $i -lt $lines_to_status ]]; do
-            if command -v tput >/dev/null 2>&1; then
-                tput cuu1 2>/dev/null || printf "\033[1A"
-            else
-                printf "\033[1A"
-            fi
-            i=$((i + 1))
-        done
-        
-        # Update status line
-        printf "%s %-40s %s" "$emoji" "$task_name" "$status_text"
-        if command -v tput >/dev/null 2>&1; then
-            tput el 2>/dev/null || printf "\033[K"
-        else
-            printf "\033[K"
-        fi
-        printf "\n"
-        
-        # Move back down to after command line
-        if [[ -n "$cmd" ]]; then
-            printf "\n"
-        fi
-        return
-    fi
-}
-
-# Cleanup UI on exit
-cleanup_ui() {
-    if [[ "$UI_INITIALIZED" == true ]]; then
-        # Move cursor to end
-        echo ""
-        echo ""
-    fi
-}
-
-# Run command silently in background
-run_command_silently() {
-    local command="$1"
-    local task_name="$2"
-    local task_idx="$3"
-    
-    local start_time
-    local end_time
-    local exit_code=0
-    
-    # Temporarily disable job control monitoring
-    local job_control_state="disabled"
-    if [[ -o monitor ]] 2>/dev/null; then
-        job_control_state="enabled"
-        set +m 2>/dev/null || true
-    fi
-    
-    # Get start time
-    if command -v gdate >/dev/null 2>&1; then
-        start_time=$(gdate +%s.%N)
-    else
-        start_time=$(date +%s.%N 2>/dev/null || date +%s)
-    fi
-    
-    # Execute command in background, redirecting all output to /dev/null
-    eval "$command" > /dev/null 2>&1 &
-    local cmd_pid=$!
-    
-    # Wait for command to finish
-    wait "$cmd_pid" 2>/dev/null
-    exit_code=$?
-    
-    # Restore job control state
-    if [[ "$job_control_state" == "enabled" ]]; then
-        set -m
-    fi
-    
-    # Get end time and calculate elapsed
-    if command -v gdate >/dev/null 2>&1; then
-        end_time=$(gdate +%s.%N)
-    else
-        end_time=$(date +%s.%N 2>/dev/null || date +%s)
-    fi
-    
-    # Calculate elapsed time
-    local elapsed
-    if command -v awk >/dev/null 2>&1; then
-        elapsed=$(awk "BEGIN {printf \"%.2f\", $end_time - $start_time}")
-    else
-        local start_int=${start_time%.*}
-        local end_int=${end_time%.*}
-        elapsed=$((end_int - start_int))
-    fi
-    
-    local formatted_time=$(format_elapsed_time "$elapsed")
-    
-    # Update final status
-    if [[ $exit_code -eq 0 ]]; then
-        update_task_status "$task_idx" "success" "$formatted_time" "$command"
-    else
-        update_task_status "$task_idx" "failure" "$formatted_time" "$command"
-    fi
-    
-    return $exit_code
-}
-
-# Run frontend validations
-run_frontend_validations() {
-    local skip_coverage="${1:-false}"
-    
-    if [[ ! -d "$WEB_DIR" ]]; then
-        log_error "Error: Frontend directory not found at $WEB_DIR"
-        return 1
-    fi
-    
-    cd "$WEB_DIR"
-    
-    # Check if pnpm is available
-    if ! command -v pnpm &> /dev/null; then
-        log_error "Error: pnpm is not installed or not in PATH"
-        return 1
-    fi
-    
-    # Typecheck
-    add_new_task "web typecheck" "pnpm run typecheck"
-    local task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "pnpm run typecheck" "web typecheck" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-    
-    # Tests
-    add_new_task "web test" "pnpm run test"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "pnpm run test" "web test" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-    
-    # Lint
-    add_new_task "web lint" "pnpm run lint"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "pnpm run lint" "web lint" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-    
-    # Coverage (if not skipped)
-    if [[ "$skip_coverage" == "false" ]]; then
-        add_new_task "web coverage" "pnpm run test:coverage"
-        task_idx=$CURRENT_TASK_INDEX
-        if ! run_command_silently "pnpm run test:coverage" "web coverage" "$task_idx"; then
-            VALIDATION_FAILED=true
-        fi
-    fi
-}
-
-# Run frontend validations without interactive UI (used for parallel mode)
-run_frontend_validations_simple() {
-    local skip_coverage="${1:-false}"
-    local first_failed_step=""
-    local first_failed_cmd=""
-
-    if [[ ! -d "$WEB_DIR" ]]; then
-        log_error "Error: Frontend directory not found at $WEB_DIR"
-        return 1
-    fi
-
-    cd "$WEB_DIR"
-
-    if ! command -v pnpm &> /dev/null; then
-        log_error "Error: pnpm is not installed or not in PATH"
-        return 1
-    fi
-
-    local cmd=""
-    echo "==> web: typecheck"
-    cmd="pnpm run typecheck"
-    $cmd || {
-        first_failed_step="${first_failed_step:-web: typecheck}"
-        first_failed_cmd="${first_failed_cmd:-$cmd}"
-    }
-
-    echo ""
-    echo "==> web: test"
-    cmd="pnpm run test"
-    $cmd || {
-        first_failed_step="${first_failed_step:-web: test}"
-        first_failed_cmd="${first_failed_cmd:-$cmd}"
-    }
-
-    echo ""
-    echo "==> web: lint"
-    cmd="pnpm run lint"
-    $cmd || {
-        first_failed_step="${first_failed_step:-web: lint}"
-        first_failed_cmd="${first_failed_cmd:-$cmd}"
-    }
-
-    if [[ "$skip_coverage" == "false" ]]; then
-        echo ""
-        echo "==> web: coverage"
-        cmd="pnpm run test:coverage"
-        $cmd || {
-            first_failed_step="${first_failed_step:-web: coverage}"
-            first_failed_cmd="${first_failed_cmd:-$cmd}"
-        }
-    fi
-
-    if [[ -n "$first_failed_step" ]]; then
-        echo ""
-        echo "FAILED STEP: $first_failed_step"
-        echo "FAILED COMMAND: $first_failed_cmd"
-        return 1
-    fi
-    return 0
-}
-
-# Run mobile validations
-run_mobile_validations() {
-    local skip_coverage="${1:-false}"
-
-    if [[ ! -d "$MOBILE_DIR" ]]; then
-        log_error "Error: Mobile directory not found at $MOBILE_DIR"
-        return 1
-    fi
-
-    cd "$MOBILE_DIR"
-
-    if ! command -v pnpm &> /dev/null; then
-        log_error "Error: pnpm is not installed or not in PATH"
-        return 1
-    fi
-
-    add_new_task "mobile typecheck" "pnpm run typecheck"
-    local task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "pnpm run typecheck" "mobile typecheck" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    add_new_task "mobile test" "pnpm run test"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "pnpm run test" "mobile test" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    add_new_task "mobile lint" "pnpm run lint"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "pnpm run lint" "mobile lint" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    if [[ "$skip_coverage" == "false" ]]; then
-        add_new_task "mobile coverage" "pnpm run test:coverage"
-        task_idx=$CURRENT_TASK_INDEX
-        if ! run_command_silently "pnpm run test:coverage" "mobile coverage" "$task_idx"; then
-            VALIDATION_FAILED=true
-        fi
-    fi
-}
-
-# Run mobile validations without interactive UI (used for parallel mode)
-run_mobile_validations_simple() {
-    local skip_coverage="${1:-false}"
-    local first_failed_step=""
-    local first_failed_cmd=""
-
-    if [[ ! -d "$MOBILE_DIR" ]]; then
-        log_error "Error: Mobile directory not found at $MOBILE_DIR"
-        return 1
-    fi
-
-    cd "$MOBILE_DIR"
-
-    if ! command -v pnpm &> /dev/null; then
-        log_error "Error: pnpm is not installed or not in PATH"
-        return 1
-    fi
-
-    local cmd=""
-    echo "==> mobile: typecheck"
-    cmd="pnpm run typecheck"
-    $cmd || {
-        first_failed_step="${first_failed_step:-mobile: typecheck}"
-        first_failed_cmd="${first_failed_cmd:-$cmd}"
-    }
-
-    echo ""
-    echo "==> mobile: test"
-    cmd="pnpm run test"
-    $cmd || {
-        first_failed_step="${first_failed_step:-mobile: test}"
-        first_failed_cmd="${first_failed_cmd:-$cmd}"
-    }
-
-    echo ""
-    echo "==> mobile: lint"
-    cmd="pnpm run lint"
-    $cmd || {
-        first_failed_step="${first_failed_step:-mobile: lint}"
-        first_failed_cmd="${first_failed_cmd:-$cmd}"
-    }
-
-    if [[ "$skip_coverage" == "false" ]]; then
-        echo ""
-        echo "==> mobile: coverage"
-        cmd="pnpm run test:coverage"
-        $cmd || {
-            first_failed_step="${first_failed_step:-mobile: coverage}"
-            first_failed_cmd="${first_failed_cmd:-$cmd}"
-        }
-    fi
-
-    if [[ -n "$first_failed_step" ]]; then
-        echo ""
-        echo "FAILED STEP: $first_failed_step"
-        echo "FAILED COMMAND: $first_failed_cmd"
-        return 1
-    fi
-    return 0
-}
-
-# Run backend validations
-run_backend_validations() {
-    local skip_coverage="${1:-false}"
-    local service_name="${2:-}"
-    
-    if [[ ! -d "$BACKEND_DIR" ]]; then
-        log_error "Error: Backend directory not found at $BACKEND_DIR"
-        return 1
-    fi
-    
-    cd "$BACKEND_DIR"
-    
-    # Check if gradlew exists and is executable
-    if [[ ! -f "./gradlew" ]]; then
-        log_error "Error: gradlew not found at $BACKEND_DIR/gradlew"
-        return 1
-    fi
-    
-    if [[ ! -x "./gradlew" ]]; then
-        chmod +x ./gradlew
-    fi
-    
-    # Build Gradle task prefix for specific service or all services
-    local task_prefix=""
-    local task_label_prefix=""
-    if [[ -n "$service_name" ]]; then
-        task_prefix=":${service_name}:"
-        task_label_prefix="backend ${service_name} "
-    else
-        task_label_prefix="backend "
-    fi
-    
-    # Compilation validation (classes - compiles main sources and catches type errors)
-    add_new_task "${task_label_prefix}compile" "./gradlew ${task_prefix}classes --no-daemon"
-    local task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "./gradlew ${task_prefix}classes --no-daemon" "${task_label_prefix}compile" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-    
-    # Tests (unit and integration - test task runs both)
-    add_new_task "${task_label_prefix}test" "./gradlew ${task_prefix}test --no-daemon"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "./gradlew ${task_prefix}test --no-daemon" "${task_label_prefix}test" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-    
-    # Lint (ktlint)
-    add_new_task "${task_label_prefix}lint" "./gradlew ${task_prefix}ktlintCheck --no-daemon"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "./gradlew ${task_prefix}ktlintCheck --no-daemon" "${task_label_prefix}lint" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-    
-    # Coverage (if not skipped)
-    if [[ "$skip_coverage" == "false" ]]; then
-        # For specific service, use service-specific kover tasks
-        # For all services, use root kover tasks
-        local coverage_cmd
-        if [[ -n "$service_name" ]]; then
-            coverage_cmd="./gradlew ${task_prefix}koverXmlReport ${task_prefix}koverVerify --no-daemon"
-        else
-            coverage_cmd="./gradlew koverRootReport koverVerify --no-daemon"
-        fi
-        add_new_task "${task_label_prefix}coverage" "$coverage_cmd"
-        task_idx=$CURRENT_TASK_INDEX
-        if ! run_command_silently "$coverage_cmd" "${task_label_prefix}coverage" "$task_idx"; then
-            VALIDATION_FAILED=true
-        fi
-    fi
-}
-
-# Run backend validations without interactive UI (used for parallel mode)
-run_backend_validations_simple() {
-    local skip_coverage="${1:-false}"
-    local service_name="${2:-}"
-    local first_failed_step=""
-    local first_failed_cmd=""
-
-    if [[ ! -d "$BACKEND_DIR" ]]; then
-        log_error "Error: Backend directory not found at $BACKEND_DIR"
-        return 1
-    fi
-
-    cd "$BACKEND_DIR"
-
-    if [[ ! -f "./gradlew" ]]; then
-        log_error "Error: gradlew not found at $BACKEND_DIR/gradlew"
-        return 1
-    fi
-
-    if [[ ! -x "./gradlew" ]]; then
-        chmod +x ./gradlew
-    fi
-
-    local task_prefix=""
-    if [[ -n "$service_name" ]]; then
-        task_prefix=":${service_name}:"
-    fi
-
-    echo "==> service: compile (classes)"
-    local cmd=""
-    cmd="./gradlew ${task_prefix}classes --no-daemon --console=plain"
-    eval "$cmd" || {
-        first_failed_step="${first_failed_step:-service: compile (classes)}"
-        first_failed_cmd="${first_failed_cmd:-$cmd}"
-    }
-
-    echo ""
-    echo "==> service: test"
-    cmd="./gradlew ${task_prefix}test --no-daemon --console=plain"
-    eval "$cmd" || {
-        first_failed_step="${first_failed_step:-service: test}"
-        first_failed_cmd="${first_failed_cmd:-$cmd}"
-    }
-
-    echo ""
-    echo "==> service: lint (ktlintCheck)"
-    cmd="./gradlew ${task_prefix}ktlintCheck --no-daemon --console=plain"
-    eval "$cmd" || {
-        first_failed_step="${first_failed_step:-service: lint (ktlintCheck)}"
-        first_failed_cmd="${first_failed_cmd:-$cmd}"
-    }
-
-    if [[ "$skip_coverage" == "false" ]]; then
-        local coverage_cmd=""
-        if [[ -n "$service_name" ]]; then
-            coverage_cmd="./gradlew ${task_prefix}koverXmlReport ${task_prefix}koverVerify --no-daemon --console=plain"
-        else
-            coverage_cmd="./gradlew koverRootReport koverVerify --no-daemon --console=plain"
-        fi
-        echo ""
-        echo "==> service: coverage"
-        cmd="$coverage_cmd"
-        eval "$cmd" || {
-            first_failed_step="${first_failed_step:-service: coverage}"
-            first_failed_cmd="${first_failed_cmd:-$cmd}"
-        }
-    fi
-
-    if [[ -n "$first_failed_step" ]]; then
-        echo ""
-        echo "FAILED STEP: $first_failed_step"
-        echo "FAILED COMMAND: $first_failed_cmd"
-        return 1
-    fi
-    return 0
-}
-
-# Run security validation (same baseline as CI)
-run_security_validation() {
-    cd "$PROJECT_ROOT"
-
-    if ! command -v trivy >/dev/null 2>&1; then
-        log "⚠️  trivy command not found in PATH - skipping security scan" "$YELLOW"
-        return 0
-    fi
-
-    local trivy_cmd="trivy fs --format table --severity CRITICAL,HIGH --exit-code 1 ."
-    add_new_task "security scan (trivy)" "$trivy_cmd"
-    local task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "$trivy_cmd" "security scan (trivy)" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-}
-
-# Run security validation without interactive UI (used for parallel mode)
-run_security_validation_simple() {
-    cd "$PROJECT_ROOT"
-
-    if ! command -v trivy >/dev/null 2>&1; then
-        return 0
-    fi
-
-    echo "==> security: trivy fs"
-    local cmd="trivy fs --format table --severity CRITICAL,HIGH --exit-code 1 ."
-    $cmd || {
-        echo ""
-        echo "FAILED STEP: security: trivy fs"
-        echo "FAILED COMMAND: $cmd"
-        return 1
-    }
-}
-
-# Run full validation (web + mobile + backend + security scan) in parallel.
-# Keeps sequential (UI) execution available via --no-parallel.
-run_full_validations_parallel() {
-    local skip_coverage="${1:-false}"
-
-    log "\n🔍 Starting Validation Process (parallel)\n" "$BRIGHT"
-
-    local web_log mobile_log backend_log security_log
-    web_log="$(mktemp -t neotool-validate-web.XXXXXX)"
-    mobile_log="$(mktemp -t neotool-validate-mobile.XXXXXX)"
-    backend_log="$(mktemp -t neotool-validate-backend.XXXXXX)"
-    security_log="$(mktemp -t neotool-validate-security.XXXXXX)"
-
-    log "Logs:" "$GRAY"
-    log "  web:      $web_log" "$GRAY"
-    log "  mobile:   $mobile_log" "$GRAY"
-    log "  service:  $backend_log" "$GRAY"
-    log "  security: $security_log\n" "$GRAY"
-
-    local web_pid mobile_pid backend_pid security_pid
-    ( run_frontend_validations_simple "$skip_coverage" ) >"$web_log" 2>&1 & web_pid=$!
-    ( run_mobile_validations_simple "$skip_coverage" ) >"$mobile_log" 2>&1 & mobile_pid=$!
-    ( run_backend_validations_simple "$skip_coverage" "" ) >"$backend_log" 2>&1 & backend_pid=$!
-    ( run_security_validation_simple ) >"$security_log" 2>&1 & security_pid=$!
-
-    local web_rc=0
-    local mobile_rc=0
-    local backend_rc=0
-    local security_rc=0
-
-    wait "$web_pid" || web_rc=$?
-    wait "$mobile_pid" || mobile_rc=$?
-    wait "$backend_pid" || backend_rc=$?
-    wait "$security_pid" || security_rc=$?
-
-    if [[ $web_rc -ne 0 ]]; then
-        VALIDATION_FAILED=true
-        log_error "❌ web validation failed"
-        local summary
-        summary=$(grep -E '^FAILED (STEP|COMMAND):' "$web_log" 2>/dev/null | tail -n 2 || true)
-        if [[ -n "$summary" ]]; then
-            log "$summary" "$YELLOW"
-            echo ""
-        fi
-        log "Last output (web):" "$YELLOW"
-        tail -n 50 "$web_log" 2>/dev/null || true
-        echo ""
-    else
-        log "✅ web validation passed" "$GREEN"
-    fi
-
-    if [[ $mobile_rc -ne 0 ]]; then
-        VALIDATION_FAILED=true
-        log_error "❌ mobile validation failed"
-        local summary
-        summary=$(grep -E '^FAILED (STEP|COMMAND):' "$mobile_log" 2>/dev/null | tail -n 2 || true)
-        if [[ -n "$summary" ]]; then
-            log "$summary" "$YELLOW"
-            echo ""
-        fi
-        log "Last output (mobile):" "$YELLOW"
-        tail -n 50 "$mobile_log" 2>/dev/null || true
-        echo ""
-    else
-        log "✅ mobile validation passed" "$GREEN"
-    fi
-
-    if [[ $backend_rc -ne 0 ]]; then
-        VALIDATION_FAILED=true
-        log_error "❌ service validation failed"
-        local summary
-        summary=$(grep -E '^FAILED (STEP|COMMAND):' "$backend_log" 2>/dev/null | tail -n 2 || true)
-        if [[ -n "$summary" ]]; then
-            log "$summary" "$YELLOW"
-            echo ""
-        fi
-        log "Last output (service):" "$YELLOW"
-        tail -n 200 "$backend_log" 2>/dev/null || true
-        echo ""
-        log "Tip: open full log at $backend_log" "$GRAY"
-        echo ""
-    else
-        log "✅ service validation passed" "$GREEN"
-    fi
-
-    if [[ $security_rc -ne 0 ]]; then
-        VALIDATION_FAILED=true
-        log_error "❌ security scan failed"
-        local summary
-        summary=$(grep -E '^FAILED (STEP|COMMAND):' "$security_log" 2>/dev/null | tail -n 2 || true)
-        if [[ -n "$summary" ]]; then
-            log "$summary" "$YELLOW"
-            echo ""
-        fi
-        log "Last output (security):" "$YELLOW"
-        tail -n 50 "$security_log" 2>/dev/null || true
-        echo ""
-    else
-        log "✅ security scan passed" "$GREEN"
-    fi
-
-    # Only cleanup logs if everything passed.
-    # On failures, keep logs so users can inspect full output.
-    if [[ "$VALIDATION_FAILED" != true ]]; then
-        rm -f "$web_log" "$mobile_log" "$backend_log" "$security_log" 2>/dev/null || true
-    fi
-}
-
-# Run pre-push E2E bundle for investments TWR suites.
-run_investments_twr_e2e_validations() {
-    if [[ ! -d "$WEB_DIR" ]]; then
-        log_error "Error: Web directory not found at $WEB_DIR"
-        return 1
-    fi
-
-    cd "$WEB_DIR"
-
-    if ! command -v pnpm &> /dev/null; then
-        log_error "Error: pnpm is not installed or not in PATH"
-        return 1
-    fi
-
-    local cmd_api="pnpm exec playwright test tests/e2e/personal-finance/investments-twr.e2e.spec.ts --project=chromium"
-    local cmd_phase2="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase2.e2e.spec.ts --project=chromium"
-    local cmd_phase3_fixed_income="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase3-fixed-income.e2e.spec.ts --project=chromium"
-    local cmd_phase3_funds="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase3-funds.e2e.spec.ts --project=chromium"
-    local cmd_phase3_equities="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase3-equities.e2e.spec.ts --project=chromium"
-    local cmd_phase3_reits="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase3-reits.e2e.spec.ts --project=chromium"
-    local cmd_phase3_crypto="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase3-crypto.e2e.spec.ts --project=chromium"
-    local cmd_phase4_ui="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase4-ui.e2e.spec.ts --project=chromium"
-    local cmd_ui="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-ui.e2e.spec.ts --project=chromium"
-    local cmd_stress="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-stress.e2e.spec.ts --project=chromium"
-    local cmd_hardening="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-hardening.e2e.spec.ts --project=chromium"
-
-    add_new_task "e2e twr api" "$cmd_api"
-    local task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "$cmd_api" "e2e twr api" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    add_new_task "e2e twr phase2" "$cmd_phase2"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "$cmd_phase2" "e2e twr phase2" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    add_new_task "e2e twr phase3 fixed income" "$cmd_phase3_fixed_income"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "$cmd_phase3_fixed_income" "e2e twr phase3 fixed income" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    add_new_task "e2e twr phase3 funds" "$cmd_phase3_funds"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "$cmd_phase3_funds" "e2e twr phase3 funds" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    add_new_task "e2e twr phase3 equities" "$cmd_phase3_equities"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "$cmd_phase3_equities" "e2e twr phase3 equities" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    add_new_task "e2e twr phase3 reits" "$cmd_phase3_reits"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "$cmd_phase3_reits" "e2e twr phase3 reits" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    add_new_task "e2e twr phase3 crypto" "$cmd_phase3_crypto"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "$cmd_phase3_crypto" "e2e twr phase3 crypto" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    add_new_task "e2e twr phase4 ui" "$cmd_phase4_ui"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "$cmd_phase4_ui" "e2e twr phase4 ui" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    add_new_task "e2e twr ui" "$cmd_ui"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "$cmd_ui" "e2e twr ui" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    add_new_task "e2e twr stress" "$cmd_stress"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "$cmd_stress" "e2e twr stress" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-
-    add_new_task "e2e twr hardening" "$cmd_hardening"
-    task_idx=$CURRENT_TASK_INDEX
-    if ! run_command_silently "$cmd_hardening" "e2e twr hardening" "$task_idx"; then
-        VALIDATION_FAILED=true
-    fi
-}
-
-# Main function
-main() {
-    local validation_mode="default"
-    local web_only=false
-    local mobile_only=false
-    local service_only=false
-    local service_name=""
-    local skip_coverage=false
-    local parallel=true
-    
-    # Parse arguments
+# Parse security-specific flags and build security tasks
+parse_security_flags() {
+    local -a scan_types=("fs")
+    local severity="CRITICAL,HIGH"
+    local ignore_unfixed=false
+    local exit_code=1
+    local format="table"
+    local allow_missing_tools=false
+
+    # Parse security-specific arguments (remaining args after 'security')
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            e2e)
-                validation_mode="e2e"
-                shift
-                ;;
-            --web)
-                web_only=true
-                shift
-                ;;
-            --mobile)
-                mobile_only=true
-                shift
-                ;;
-            --service)
-                service_only=true
-                # Check if next argument is a service name (not another flag)
-                if [[ $# -gt 1 && ! "$2" =~ ^-- ]]; then
-                    service_name="$2"
-                    shift 2
-                else
-                    shift
+            --scan)
+                if [[ $# -lt 2 ]]; then
+                    log_error "Error: --scan requires an argument"
+                    exit 1
                 fi
+                IFS=',' read -ra scan_types <<< "$2"
+                shift 2
                 ;;
-            --skip-coverage)
-                skip_coverage=true
+            --severity)
+                if [[ $# -lt 2 ]]; then
+                    log_error "Error: --severity requires an argument"
+                    exit 1
+                fi
+                severity="$2"
+                shift 2
+                ;;
+            --ignore-unfixed)
+                ignore_unfixed=true
                 shift
                 ;;
-            --no-parallel)
-                parallel=false
+            --exit-code)
+                if [[ $# -lt 2 ]]; then
+                    log_error "Error: --exit-code requires an argument"
+                    exit 1
+                fi
+                exit_code="$2"
+                shift 2
+                ;;
+            --format)
+                if [[ $# -lt 2 ]]; then
+                    log_error "Error: --format requires an argument"
+                    exit 1
+                fi
+                format="$2"
+                shift 2
+                ;;
+            --allow-missing-tools)
+                allow_missing_tools=true
                 shift
                 ;;
-            --help|-h)
-                show_help
+            -h|--help)
+                show_security_help
                 exit 0
                 ;;
             *)
-                log_error "Unknown option: $1"
+                log_error "Error: Unknown security option: $1"
+                exit 1
+                ;;
+        esac
+    done
+
+    # Check if trivy is available, fall back to docker
+    local trivy_cmd
+    if command -v trivy >/dev/null 2>&1; then
+        trivy_cmd="trivy"
+    elif command -v docker >/dev/null 2>&1; then
+        trivy_cmd="docker run --rm -v '$PROJECT_ROOT:/src' aquasec/trivy"
+    else
+        # Neither tool exists. Falling back to a docker command here would just
+        # fail at exec time with "docker: command not found" and be reported as
+        # a scan failure, which is misleading.
+        if [[ "$allow_missing_tools" == "true" ]]; then
+            log "⚠️  Warning: neither trivy nor docker found — SKIPPING security scan" "$YELLOW"
+            log "   Nothing was scanned. Do not read this run as a clean bill of health." "$YELLOW"
+            return 0
+        fi
+        log_error "Error: trivy not found and docker is not available"
+        log_error "Install trivy: https://github.com/aquasecurity/trivy"
+        log_error "Or install docker for container-based scanning"
+        log_error "(pass --allow-missing-tools to downgrade this to a warning)"
+        exit 1
+    fi
+
+    # Build tasks for each scan type
+    for scan_type in "${scan_types[@]}"; do
+        scan_type="${scan_type# }"  # trim leading space
+        local task_id="security:$scan_type"
+        local cmd_args="$scan_type --format $format --severity $severity --exit-code $exit_code"
+
+        if [[ "$ignore_unfixed" == "true" ]]; then
+            cmd_args="$cmd_args --ignore-unfixed"
+        fi
+
+        # Honour .trivyignore. Note this is --ignorefile (a list of CVE IDs to
+        # suppress), NOT --skip-files (paths to exclude from scanning) —
+        # they're different flags with very different consequences.
+        if [[ -f "$PROJECT_ROOT/.trivyignore" ]]; then
+            cmd_args="$cmd_args --ignorefile '$PROJECT_ROOT/.trivyignore'"
+        fi
+
+        # Add to task registry
+        if [[ "$trivy_cmd" == "trivy" ]]; then
+            add_task "$task_id" "security" "scan" "$PROJECT_ROOT" "-" "trivy $cmd_args ."
+        else
+            # For docker-based trivy, rewrite paths
+            cmd_args="${cmd_args//\$PROJECT_ROOT/\/src}"
+            add_task "$task_id" "security" "scan" "$PROJECT_ROOT" "-" "$trivy_cmd $cmd_args /src"
+        fi
+    done
+}
+
+main() {
+    local -a targets=()
+    local max_jobs=0
+    local only_steps=""
+    local skip_steps=""
+    local use_changed=false
+    local fail_fast=false
+    local reporter="auto"
+    local log_dir=""
+    local list_only=false
+    local security_mode=false
+
+    # Default max jobs = min(8, max(2, cores/2))
+    local cores
+    cores=$(nproc 2>/dev/null || echo 4)
+    max_jobs=$(( cores / 2 ))
+    [[ $max_jobs -lt 2 ]] && max_jobs=2
+    [[ $max_jobs -gt 8 ]] && max_jobs=8
+
+    # Check if first argument is 'security' (before parsing other args)
+    if [[ $# -gt 0 && "$1" == "security" ]]; then
+        security_mode=true
+        shift
+        # Parse security-specific flags and build only security tasks
+        # NOTE: We do NOT call build_task_registry here, only parse_security_flags
+        parse_security_flags "$@"
+        # Set targets to security so it won't be filtered out
+        targets=("security")
+    else
+        # Parse arguments (bash 3.2 compatible, using shift)
+        while [[ $# -gt 0 ]]; do
+            local arg="$1"
+
+            case "$arg" in
+                # Targets (including service:NAME format)
+                web|mobile|security|e2e|all)
+                    targets+=("$arg")
+                    shift
+                    ;;
+                service:*)
+                    # service:NAME format (e.g., service:banking)
+                    targets+=("$arg")
+                    shift
+                    ;;
+                service)
+                    # Check if next arg is a service name (not a flag)
+                    if [[ $# -gt 1 && ! "$2" =~ ^- ]]; then
+                        targets+=("service:$2")
+                        shift 2
+                    else
+                        targets+=("service")
+                        shift
+                    fi
+                    ;;
+
+            # Options
+            -j|--jobs)
+                if [[ $# -lt 2 ]]; then
+                    log_error "Error: $arg requires an argument"
+                    exit 1
+                fi
+                max_jobs="$2"
+                shift 2
+                ;;
+            --only)
+                if [[ $# -lt 2 ]]; then
+                    log_error "Error: $arg requires an argument"
+                    exit 1
+                fi
+                only_steps="$2"
+                shift 2
+                ;;
+            --skip)
+                if [[ $# -lt 2 ]]; then
+                    log_error "Error: $arg requires an argument"
+                    exit 1
+                fi
+                skip_steps="$2"
+                shift 2
+                ;;
+            --changed)
+                use_changed=true
+                shift
+                ;;
+            --fail-fast)
+                fail_fast=true
+                shift
+                ;;
+            --reporter)
+                if [[ $# -lt 2 ]]; then
+                    log_error "Error: $arg requires an argument"
+                    exit 1
+                fi
+                reporter="$2"
+                shift 2
+                ;;
+            --log-dir)
+                if [[ $# -lt 2 ]]; then
+                    log_error "Error: $arg requires an argument"
+                    exit 1
+                fi
+                log_dir="$2"
+                shift 2
+                ;;
+            -l|--list)
+                list_only=true
+                shift
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+
+            # Deprecated flags with helpful messages
+            --web)
+                log_error "Error: --web is removed; use: neotool validate web"
+                exit 2
+                ;;
+            --mobile)
+                log_error "Error: --mobile is removed; use: neotool validate mobile"
+                exit 2
+                ;;
+            --service)
+                if [[ $# -gt 1 && ! "$2" =~ ^- ]]; then
+                    log_error "Error: --service is removed; use: neotool validate service:$2"
+                else
+                    log_error "Error: --service is removed; use: neotool validate service"
+                fi
+                exit 2
+                ;;
+            --skip-coverage)
+                log_error "Error: --skip-coverage is removed; use: neotool validate --skip coverage"
+                exit 2
+                ;;
+            --parallel)
+                log_error "Error: --parallel is removed; parallel execution is now the default (use -j N to tune)"
+                exit 2
+                ;;
+            --no-parallel)
+                log_error "Error: --no-parallel is removed; use: neotool validate -j 1"
+                exit 2
+                ;;
+
+            *)
+                log_error "Error: Unknown option: $arg"
                 echo ""
                 show_help
                 exit 1
                 ;;
         esac
     done
-    
-    # Validate mutually exclusive options
-    if [[ "$web_only" == true && "$mobile_only" == true ]]; then
-        log_error "Error: --web and --mobile cannot be used together"
-        exit 1
+    fi  # End of if/else for security_mode
+
+    # Build task registry (if not already built in security mode)
+    if [[ "$security_mode" != "true" ]]; then
+        build_task_registry
     fi
 
-    if [[ "$web_only" == true && "$service_only" == true ]]; then
-        log_error "Error: --web and --service cannot be used together"
-        exit 1
+    # Apply filters in order: target -> --changed -> --only -> --skip
+    #
+    # Always filter, even with no targets given. Skipping this call on the
+    # default path meant a bare `neotool validate` ran the ENTIRE registry:
+    # the e2e Playwright suite plus every per-service gradle task on top of the
+    # aggregate ones. filter_by_targets supplies the default set itself.
+    filter_by_targets ${targets[@]+"${targets[@]}"}
+
+    if [[ "$use_changed" == "true" ]]; then
+        filter_by_changed
     fi
 
-    if [[ "$mobile_only" == true && "$service_only" == true ]]; then
-        log_error "Error: --mobile and --service cannot be used together"
-        exit 1
+    if [[ -n "$only_steps" ]]; then
+        filter_by_steps "only" "$only_steps"
     fi
 
-    if [[ "$validation_mode" == "e2e" ]]; then
-        if [[ "$web_only" == true || "$mobile_only" == true || "$service_only" == true || "$skip_coverage" == true || "$parallel" == false ]]; then
-            log_error "Error: e2e mode does not accept --web, --mobile, --service, --skip-coverage, or --no-parallel"
-            exit 1
-        fi
-
-        init_validation_ui
-        trap cleanup_ui EXIT
-        run_investments_twr_e2e_validations
-    else
-        # Validate service name if provided
-        if [[ -n "$service_name" ]]; then
-            local available_services
-            available_services=$(get_available_services)
-            if [[ $? -ne 0 ]]; then
-                log_error "Error: Failed to read available services from settings.gradle.kts"
-                exit 1
-            fi
-            
-            # Check if service_name is in the list of available services
-            if ! echo "$available_services" | grep -qFx "$service_name"; then
-                local services_list
-                services_list=$(echo "$available_services" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
-                log_error "Error: Invalid service name: $service_name"
-                log_error "Available services: $services_list"
-                exit 1
-            fi
-        fi
-    
-        # Run validations
-        if [[ "$web_only" == true ]]; then
-            init_validation_ui
-            trap cleanup_ui EXIT
-            run_frontend_validations "$skip_coverage"
-        elif [[ "$mobile_only" == true ]]; then
-            init_validation_ui
-            trap cleanup_ui EXIT
-            run_mobile_validations "$skip_coverage"
-        elif [[ "$service_only" == true ]]; then
-            init_validation_ui
-            trap cleanup_ui EXIT
-            run_backend_validations "$skip_coverage" "$service_name"
-        else
-            if [[ "$parallel" == true ]]; then
-                run_full_validations_parallel "$skip_coverage"
-            else
-                # Run full validation set sequentially (web, mobile, backend, and security scan)
-                init_validation_ui
-                trap cleanup_ui EXIT
-                run_frontend_validations "$skip_coverage"
-                run_mobile_validations "$skip_coverage"
-                run_backend_validations "$skip_coverage" "$service_name"
-                run_security_validation
-            fi
-        fi
+    if [[ -n "$skip_steps" ]]; then
+        filter_by_steps "skip" "$skip_steps"
     fi
-    
-    # Summary
-    echo ""
-    echo ""
-    if [[ "$VALIDATION_FAILED" == true ]]; then
-        log_error "❌ Validation failed - some checks did not pass"
-        exit 1
-    else
-        log "✅ All validations passed!" "$GREEN"
+
+    # Create log directory
+    if [[ -z "$log_dir" ]]; then
+        local run_id
+        run_id=$(date +%Y%m%d-%H%M%S)
+        log_dir="$PROJECT_ROOT/.neotool/validate/$run_id"
+    fi
+
+    # Handle --list before creating anything on disk: it runs nothing, so it
+    # should not litter .neotool/validate/ with empty run directories.
+    if [[ "$list_only" == "true" ]]; then
+        print_task_list
         exit 0
     fi
+
+    mkdir -p "$log_dir"
+
+    # Reap this run's processes on ANY exit, including an unexpected one.
+    #
+    # The scheduler is backgrounded, so if the foreground renderer dies the
+    # script can exit while tasks keep running detached — that is how a crashed
+    # repaint left orphaned tsc/eslint/gradle processes behind.
+    #
+    # Cleanup is driven by PID files this run wrote, never by process name:
+    # `pgrep -f gradle` would match daemons from unrelated sessions.
+    VALIDATE_LOG_DIR="$log_dir"
+    trap _validate_cleanup EXIT
+    # Override runner.sh's INT/TERM handler, which does `kill -9 -$$`. That
+    # SIGKILLs this shell before the EXIT trap can run, AND job control puts
+    # each task in its own process group, so -$$ never reached them anyway:
+    # Ctrl-C left the whole task tree orphaned. Reap explicitly, then exit.
+    # Keep these handlers TRIVIAL — just exit. `exit` runs the EXIT trap, so
+    # _validate_cleanup still does the reaping.
+    #
+    # Doing the cleanup inline here instead was a mistake: the renderer sits
+    # inside command substitutions almost continuously, and a SIGINT landing
+    # mid-`$(` leaves bash's parser in a broken state. It then choked trying to
+    # parse a multi-statement handler:
+    #   render.sh: interrupt trap: line 2: unexpected EOF while looking for matching `)'
+    # A bare `exit N` gives the parser nothing to trip over.
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    log "Starting validation (${#TASK_IDS[@]} tasks, $max_jobs concurrent)" "$BRIGHT"
+    echo ""
+
+    RUNNER_LOG_DIR="$log_dir"
+    RUNNER_JOBS_MAX="$max_jobs"
+    RUNNER_FAIL_FAST="$fail_fast"
+
+    # Capture start time and build task ID list for renderer
+    if command -v gdate >/dev/null 2>&1; then
+        RUN_START=$(gdate +%s)
+    else
+        RUN_START=$(date +%s)
+    fi
+    RENDER_TASK_IDS="${TASK_IDS[*]}"
+    export RUN_START RENDER_TASK_IDS RENDER_LOG_DIR="$log_dir"
+
+    # Run scheduler in background
+    run_scheduler &
+    local scheduler_pid=$!
+    # Recorded so _validate_cleanup reaps the scheduler itself, not just the
+    # tasks — otherwise it would survive and keep launching queued work.
+    echo "$scheduler_pid" > "$log_dir/scheduler.pid"
+
+    # Resolve the reporter. "auto" picks live on a TTY, plain otherwise; an
+    # explicit --reporter always wins.
+    local active_reporter="$reporter"
+    if [[ "$active_reporter" == "auto" ]]; then
+        if [[ -t 1 ]]; then
+            active_reporter="live"
+        else
+            active_reporter="plain"
+        fi
+    fi
+
+    RENDER_REPORTER="$active_reporter"
+    case "$active_reporter" in
+        live)   render_live ;;
+        plain)  render_plain ;;
+        json)   render_json ;;
+        github) render_github ;;
+        *)
+            log_error "Unknown reporter: $active_reporter"
+            exit 2
+            ;;
+    esac
+
+    # Wait for scheduler to complete
+    local scheduler_exit=0
+    wait $scheduler_pid 2>/dev/null || scheduler_exit=$?
+
+    if [[ $scheduler_exit -ne 0 ]]; then
+        # json/github reporters already encode failures in their own format;
+        # the human-readable report would corrupt machine-parsed output.
+        if [[ "$active_reporter" == "live" || "$active_reporter" == "plain" ]]; then
+            render_failure_report "$log_dir" "$PROJECT_ROOT"
+        fi
+        log_error "❌ Validation failed"
+        exit 1
+    fi
+
+    if [[ ${#TASK_IDS[@]} -eq 0 ]]; then
+        # Never render a green check for a run that executed nothing — that is
+        # indistinguishable from a real pass at a glance.
+        log "⚠️  Nothing ran: no tasks matched this selection." "$YELLOW"
+        exit 0
+    fi
+
+    log "✅ All validations passed! (${#TASK_IDS[@]} checks)" "$GREEN"
+    if [[ "$SECURITY_TOOLING_MISSING" == "true" ]]; then
+        log "⚠️  Security scan was SKIPPED — neither trivy nor docker found." "$YELLOW"
+        log "   CI still gates on it; this run proves nothing about vulnerabilities." "$YELLOW"
+    fi
+    exit 0
 }
 
-# Run main function
+# Main entry point
 main "$@"

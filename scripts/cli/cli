@@ -29,10 +29,10 @@ Commands:
     Subcommands: sync, validate, generate, all
     Run '$0 graphql --help' for more information.
 
-  $(log "validate" "$GREEN") [options | e2e]
-    Run code validations (web/mobile/services/security) or the investments TWR E2E pre-push bundle.
-    Default includes: lint, typecheck, test/testIntegration, coverage, and Trivy scan (if installed).
-    Options: --web, --mobile, --service [name], --skip-coverage, --no-parallel, e2e
+  $(log "validate" "$GREEN") [target...] [options]
+    Run code validations with parallel execution and flexible filtering.
+    Targets: web, mobile, service, service:NAME, security, e2e, all (default: all except e2e)
+    Options: -j N, --only STEPS, --skip STEPS, --changed, --fail-fast, --reporter TYPE, -l, --help
     Run '$0 validate --help' for more information.
 
   $(log "deploy" "$GREEN") <namespace> --tag <tag>
@@ -82,11 +82,12 @@ Examples:
   $0 graphql sync
   $0 graphql generate
   $0 validate
-  $0 validate e2e
-  $0 validate --web
-  $0 validate --mobile
-  $0 validate --service security
-  $0 validate --no-parallel
+  $0 validate web
+  $0 validate web mobile
+  $0 validate service:banking
+  $0 validate --only lint
+  $0 validate --changed -j 4
+  $0 validate --list
   $0 deploy production --tag v0.1.49
   $0 kafka --topic
   $0 kafka --topic swapi.people.v1

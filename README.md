@@ -216,6 +216,83 @@ echo $GH_TOKEN | docker login ghcr.io -u <your-github-username> --password-stdin
 
 ---
 
+### Validating changes
+
+```bash
+./neotool validate                      # web + mobile + service + security
+./neotool validate web                  # a single target
+./neotool validate web mobile           # several targets
+./neotool validate service:banking      # one backend service
+./neotool validate security             # Trivy only
+./neotool validate e2e                  # Playwright pre-push bundle (opt-in)
+```
+
+Checks run **in parallel across a dependency graph**, not in fixed lanes. Anything
+whose prerequisites are met starts immediately — `lint` doesn't wait behind `test`,
+and web/mobile/service/security all progress at once. On a TTY you get a live frame
+showing each task's status, elapsed time, and current output line:
+
+```
+neotool validate · 7/14 done · 2 running · 1 failed · 1m 48s
+
+  ✔ web:typecheck     6s
+  ✖ web:test         22s        ▸ 3 failing
+  ⠹ web:coverage     18s        ▸ transactions/summary.test.tsx (142/310)
+  ⠿ service:coverage  queued (needs service:test)
+```
+
+| Option | Effect |
+|--------|--------|
+| `-j N` | Max concurrent tasks (default: cores/2, clamped 2–8). `-j 1` = fully sequential |
+| `--only STEPS` | Restrict to `typecheck,lint,test,coverage` |
+| `--skip STEPS` | Drop steps; dependents are pruned transitively |
+| `--changed` | Only targets touched vs `origin/main` |
+| `--fail-fast` | Cancel in-flight work on first failure |
+| `--reporter R` | `auto` (default) · `live` · `plain` · `json` · `github` |
+| `--log-dir DIR` | Defaults to `.neotool/validate/<run-id>/` |
+| `--list` | Print the resolved task graph and exit without running |
+
+Logs for every task persist (passing ones too). On failure you get a tool-aware
+excerpt — `error TS` for tsc, `FAILURE:` / `e:` for gradle, and so on — plus a
+copy-pasteable repro:
+
+```
+  ✖ web:typecheck failed (rc 2)
+
+    src/features/transactions/summary.ts(88,7): error TS2322: ...
+
+    reproduce:  cd web && pnpm run typecheck
+    full log:   .neotool/validate/20260719-104233/web-typecheck.log
+```
+
+**Security** mirrors the `security-scan` job in `.github/workflows/ci.yml`
+(`fs`, `CRITICAL,HIGH`, exit code 1). It falls back to `docker run aquasec/trivy`
+when `trivy` isn't on `PATH`, honours a repo-root `.trivyignore` via `--ignorefile`,
+and **fails rather than silently skipping** when neither tool is available — pass
+`--allow-missing-tools` to downgrade that to a warning.
+
+```bash
+./neotool validate security --scan fs,config,secret
+./neotool validate security --severity CRITICAL --format json
+```
+
+> **Note:** `e2e` is excluded from the default run — it's slow and needs a running
+> stack. The spec list lives in `web/tests/e2e/prepush.txt`; the long-term plan is
+> to tag specs `@prepush` and drop the manifest.
+
+**Migrating from the old flags** — these were removed in favour of subcommands and
+now exit with the replacement rather than "unknown option":
+
+| Old | New |
+|-----|-----|
+| `--web` / `--mobile` | `validate web` / `validate mobile` |
+| `--service NAME` | `validate service:NAME` |
+| `--skip-coverage` | `--skip coverage` |
+| `--parallel` | (now the default; tune with `-j N`) |
+| `--no-parallel` | `-j 1` |
+
+---
+
 ### Port reference
 
 | Service | Port |

@@ -1,0 +1,11 @@
+tests/e2e/personal-finance/investments-twr.e2e.spec.ts
+tests/e2e/personal-finance/investments-twr-phase2.e2e.spec.ts
+tests/e2e/personal-finance/investments-twr-phase3-fixed-income.e2e.spec.ts
+tests/e2e/personal-finance/investments-twr-phase3-funds.e2e.spec.ts
+tests/e2e/personal-finance/investments-twr-phase3-equities.e2e.spec.ts
+tests/e2e/personal-finance/investments-twr-phase3-reits.e2e.spec.ts
+tests/e2e/personal-finance/investments-twr-phase3-crypto.e2e.spec.ts
+tests/e2e/personal-finance/investments-twr-phase4-ui.e2e.spec.ts
+tests/e2e/personal-finance/investments-twr-ui.e2e.spec.ts
+tests/e2e/personal-finance/investments-twr-stress.e2e.spec.ts
+tests/e2e/personal-finance/investments-twr-hardening.e2e.spec.ts

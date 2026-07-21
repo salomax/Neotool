@@ -139,5 +139,7 @@ graph.json
 web/tsconfig.vitest.tsbuildinfo
 web/core 
 
+.neotool/
+
 *_stderr.txt
 *_stdout.txt
