@@ -1,3 +1,13 @@
+## 0.10.0 (2026-07-21)
+
+### 🚀 Features
+
+- **security:** add OAuth2 dynamic client registration ([#437](https://github.com/invistus/invistus/pull/437))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.9.0 (2026-07-21)
 
 ### 🚀 Features
