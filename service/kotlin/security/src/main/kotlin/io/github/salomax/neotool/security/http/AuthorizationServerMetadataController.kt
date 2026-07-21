@@ -29,6 +29,7 @@ class AuthorizationServerMetadataController(
         val token_endpoint_auth_methods_supported: List<String>,
         val code_challenge_methods_supported: List<String>,
         val resource_indicators_supported: Boolean,
+        val registration_endpoint: String,
     )
 
     @Get("/oauth-authorization-server")
@@ -47,6 +48,7 @@ class AuthorizationServerMetadataController(
                 token_endpoint_auth_methods_supported = metadataConfig.tokenEndpointAuthMethods,
                 code_challenge_methods_supported = metadataConfig.codeChallengeMethods,
                 resource_indicators_supported = true,
+                registration_endpoint = resolveEndpoint("/oauth2/register"),
             )
 
         return HttpResponse

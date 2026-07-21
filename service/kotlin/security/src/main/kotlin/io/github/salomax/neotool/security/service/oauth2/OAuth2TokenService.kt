@@ -23,6 +23,7 @@ open class OAuth2TokenService(
     private val jwtTokenValidator: JwtTokenValidator,
     private val refreshTokenService: RefreshTokenService,
     private val tokenHashing: OAuth2TokenHashing,
+    private val clientRegistry: OAuth2ClientRegistry,
     private val jwtConfig: JwtConfig,
 ) {
     @Transactional
@@ -105,6 +106,7 @@ open class OAuth2TokenService(
             refreshTokenFamilyId = familyId,
             updatedAt = Instant.now(),
         )
+        clientRegistry.markUsed(clientId)
         return OAuth2TokenResponse(
             access_token = accessToken,
             expires_in = jwtConfig.accessTokenExpirationSeconds,

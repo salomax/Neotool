@@ -7,11 +7,14 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.http.AuthorizationServerMetadataController.AuthorizationServerMetadata
+import io.github.salomax.neotool.security.http.dto.OAuth2ClientRegistrationResponse
 import io.github.salomax.neotool.security.http.dto.OAuth2TokenResponse
+import io.github.salomax.neotool.security.model.OAuth2ClientStatus
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.repo.OAuth2AuthorizationCodeRepository
 import io.github.salomax.neotool.security.repo.OAuth2AuthorizationRequestRepository
+import io.github.salomax.neotool.security.repo.OAuth2ClientRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.UserRepository
@@ -72,6 +75,9 @@ open class OAuth2AuthorizationServerIntegrationTest :
     lateinit var authorizationRequestRepository: OAuth2AuthorizationRequestRepository
 
     @Inject
+    lateinit var oauth2ClientRepository: OAuth2ClientRepository
+
+    @Inject
     lateinit var refreshTokenService: RefreshTokenService
 
     @Inject
@@ -93,6 +99,7 @@ open class OAuth2AuthorizationServerIntegrationTest :
         entityManager.runTransaction {
             authorizationCodeRepository.deleteAll()
             authorizationRequestRepository.deleteAll()
+            oauth2ClientRepository.deleteAll()
             refreshTokenRepository.deleteAll()
             if (createdUserIds.isNotEmpty()) {
                 principalRepository.deleteAll(
@@ -155,7 +162,76 @@ open class OAuth2AuthorizationServerIntegrationTest :
         assertThat(metadata.token_endpoint_auth_methods_supported).containsExactly("none")
         assertThat(metadata.code_challenge_methods_supported).containsExactly("S256")
         assertThat(metadata.resource_indicators_supported).isTrue()
-        assertThat(response.body()).doesNotContain("registration_endpoint")
+        assertThat(metadata.registration_endpoint).isEqualTo("http://localhost:8080/oauth2/register")
+    }
+
+    @Test
+    fun `dynamic client registration returns public client metadata unchanged`() {
+        val registration = registerRuntimeClient()
+
+        assertThat(registration.client_id).startsWith("dcr_")
+        assertThat(registration.client_id_issued_at).isPositive()
+        assertThat(registration.client_name).isEqualTo("Runtime Agent")
+        assertThat(registration.redirect_uris).containsExactly("https://runtime.example/callback")
+        assertThat(registration.scope).isEqualTo("finance:cashflow:read")
+        assertThat(registration.resources).containsExactly("https://api.invistus.test")
+        assertThat(registration.grant_types).containsExactly("authorization_code", "refresh_token")
+        assertThat(registration.response_types).containsExactly("code")
+        assertThat(registration.token_endpoint_auth_method).isEqualTo("none")
+    }
+
+    @Test
+    fun `dynamically registered client is immediately usable at authorize endpoint`() {
+        val registration = registerRuntimeClient()
+
+        val response =
+            noRedirectClient().use { client ->
+                client.toBlocking().exchange(
+                    HttpRequest.GET<Any>(
+                        "/oauth2/authorize" +
+                            "?response_type=code" +
+                            "&client_id=${registration.client_id}" +
+                            "&redirect_uri=https://runtime.example/callback" +
+                            "&scope=finance:cashflow:read" +
+                            "&code_challenge=valid-s256-challenge" +
+                            "&code_challenge_method=S256" +
+                            "&resource=https://api.invistus.test",
+                    ),
+                    String::class.java,
+                )
+            }
+
+        assertThat(response.status()).isEqualTo(HttpStatus.SEE_OTHER)
+        assertThat(response.headers[HttpHeaders.LOCATION]).startsWith("/oauth2/login?request_id=")
+    }
+
+    @Test
+    fun `garbage collected dynamic client is rejected at authorize endpoint`() {
+        val registration = registerRuntimeClient()
+        entityManager.runTransaction {
+            val client = oauth2ClientRepository.findById(registration.client_id).orElseThrow()
+            client.status = OAuth2ClientStatus.DELETED
+            client.updatedAt = Instant.now()
+            oauth2ClientRepository.update(client)
+        }
+
+        val exception =
+            assertThrows<HttpClientResponseException> {
+                httpClient.exchangeAsString(
+                    HttpRequest.GET<Any>(
+                        "/oauth2/authorize" +
+                            "?response_type=code" +
+                            "&client_id=${registration.client_id}" +
+                            "&redirect_uri=https://runtime.example/callback" +
+                            "&scope=finance:cashflow:read" +
+                            "&code_challenge=valid-s256-challenge" +
+                            "&code_challenge_method=S256" +
+                            "&resource=https://api.invistus.test",
+                    ),
+                )
+            }
+
+        assertThat(exception.status).isEqualTo(HttpStatus.BAD_REQUEST)
     }
 
     @Test
@@ -524,6 +600,24 @@ open class OAuth2AuthorizationServerIntegrationTest :
                     body,
                 ).contentType(MediaType.APPLICATION_JSON),
         )
+
+    private fun registerRuntimeClient(): OAuth2ClientRegistrationResponse {
+        val response =
+            httpClient.exchangeAsString(
+                HttpRequest
+                    .POST(
+                        "/oauth2/register",
+                        mapOf(
+                            "client_name" to "Runtime Agent",
+                            "redirect_uris" to listOf("https://runtime.example/callback"),
+                            "scope" to "finance:cashflow:read",
+                            "resources" to listOf("https://api.invistus.test"),
+                        ),
+                    ).contentType(MediaType.APPLICATION_JSON),
+            )
+        assertThat(response.status()).isEqualTo(HttpStatus.CREATED)
+        return json.readValue(response.body(), OAuth2ClientRegistrationResponse::class.java)
+    }
 
     private fun createUser(): UUID {
         val user =

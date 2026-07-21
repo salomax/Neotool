@@ -66,6 +66,9 @@ oauth:
       secure: true
     authorization-request-ttl-seconds: 600
     authorization-code-ttl-seconds: 60
+    metadata:
+      supported-resources:
+        - https://api.invistus.test
     clients:
       - client-id: test-agent
         client-name: Test Agent

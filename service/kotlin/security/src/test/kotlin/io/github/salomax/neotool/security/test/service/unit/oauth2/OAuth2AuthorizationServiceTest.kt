@@ -6,8 +6,10 @@ import io.github.salomax.neotool.security.model.OAuth2AuthorizationRequestEntity
 import io.github.salomax.neotool.security.model.OAuth2AuthorizationRequestStatus
 import io.github.salomax.neotool.security.repo.OAuth2AuthorizationCodeRepository
 import io.github.salomax.neotool.security.repo.OAuth2AuthorizationRequestRepository
+import io.github.salomax.neotool.security.repo.OAuth2ClientRepository
 import io.github.salomax.neotool.security.service.oauth2.OAuth2AuthorizationService
 import io.github.salomax.neotool.security.service.oauth2.OAuth2AuthorizeInput
+import io.github.salomax.neotool.security.service.oauth2.OAuth2ClientMetadataCodec
 import io.github.salomax.neotool.security.service.oauth2.OAuth2ClientRegistry
 import io.github.salomax.neotool.security.service.oauth2.OAuth2InvalidRequestException
 import io.github.salomax.neotool.security.service.oauth2.OAuth2TokenHashing
@@ -26,13 +28,16 @@ import java.util.UUID
 class OAuth2AuthorizationServiceTest {
     private lateinit var requestRepository: OAuth2AuthorizationRequestRepository
     private lateinit var codeRepository: OAuth2AuthorizationCodeRepository
+    private lateinit var clientRepository: OAuth2ClientRepository
     private lateinit var service: OAuth2AuthorizationService
     private val tokenHashing = OAuth2TokenHashing()
+    private val clientMetadataCodec = OAuth2ClientMetadataCodec()
 
     @BeforeEach
     fun setUp() {
         requestRepository = mock()
         codeRepository = mock()
+        clientRepository = mock()
         val oauthConfig =
             OAuthConfig(
                 authorizationServer =
@@ -51,7 +56,7 @@ class OAuth2AuthorizationServiceTest {
         whenever(codeRepository.save(any())).thenAnswer { invocation -> invocation.arguments[0] }
         service =
             OAuth2AuthorizationService(
-                OAuth2ClientRegistry(listOf(clientConfig)),
+                OAuth2ClientRegistry(listOf(clientConfig), clientRepository, clientMetadataCodec),
                 requestRepository,
                 codeRepository,
                 tokenHashing,
