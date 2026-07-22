@@ -48,6 +48,8 @@ export interface FundHoldingDetailViewModel {
   pricingModeLabel: string | null;
   latestNavPerQuota: number | null;
   latestNavReferenceDateLabel: string | null;
+  showManualApproximationNotice: boolean;
+  manualApproximationReferenceDateLabel: string | null;
   principal: number | null;
   currentCostBasis: number | null;
   grossValue: number | null;
@@ -362,6 +364,8 @@ export function buildFundHoldingDetailViewModel(
     pricingModeLabel,
     latestNavPerQuota,
     latestNavReferenceDateLabel,
+    showManualApproximationNotice: holding.pricingMode === "MANUAL",
+    manualApproximationReferenceDateLabel: holding.valuationReferenceDate ? formatDate(holding.valuationReferenceDate, locale) : null,
     principal,
     currentCostBasis,
     grossValue,

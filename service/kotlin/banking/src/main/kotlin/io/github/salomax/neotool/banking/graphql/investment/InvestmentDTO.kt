@@ -93,6 +93,7 @@ data class InvestmentHoldingDTO(
     val lastValuedAt: Instant?,
     val pricingMode: HoldingPricingMode?,
     val comeCotasEnabled: Boolean?,
+    val administrationFeeAnnualPercent: Double?,
     val valuationSource: ValuationSource,
     val valuationReferenceDate: LocalDate?,
     val isExpired: Boolean,

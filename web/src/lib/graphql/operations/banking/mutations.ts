@@ -181,6 +181,18 @@ export const UPDATE_INVESTMENT_TRANSACTION = gql`
   }
 `;
 
+export const UPDATE_FUND_HOLDING_PARAMS = gql`
+  mutation UpdateFundHoldingParams($input: UpdateFundHoldingParamsInput!) {
+    updateFundHoldingParams(input: $input) {
+      id
+      pricingMode
+      comeCotasEnabled
+      administrationFeeAnnualPercent
+      valuationReferenceDate
+    }
+  }
+`;
+
 /** Manual cash on an investment/benefit custodian account (aporte, saque, ajuste). */
 export const CREATE_INVESTMENT_CASH_TRANSACTION = gql`
   mutation CreateInvestmentCashTransaction($input: CreateInvestmentCashTransactionInput!) {

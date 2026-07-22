@@ -30,6 +30,7 @@ import io.github.salomax.neotool.banking.model.dto.investment.RecordAmortization
 import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.model.dto.investment.RecordStockLendingCommand
 import io.github.salomax.neotool.banking.model.dto.investment.TransferCustodyCommand
+import io.github.salomax.neotool.banking.model.dto.investment.UpdateFundHoldingParamsCommand
 import io.github.salomax.neotool.banking.model.dto.investment.UpdateInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
@@ -440,14 +441,25 @@ class InvestmentResolver(
         return investmentTransactionService.deleteHolding(UUID.fromString(id), accountId)
     }
 
-    fun setHoldingComeCotasOverride(
+    fun updateFundHoldingParams(
         input: Map<String, Any?>,
         principal: RequestPrincipal,
     ): InvestmentHoldingDTO {
         val accountId = requireAccountId(principal)
         val holdingId = UUID.fromString(input["holdingId"] as String)
-        val enabled = input["comeCotasEnabled"] as Boolean?
-        investmentHoldingOverrideService.setComeCotasEnabled(holdingId, accountId, enabled)
+        val administrationFeeAnnualPercent =
+            (input["administrationFeeAnnualPercent"] as? Number)?.let { BigDecimal(it.toString()) }
+        val comeCotasEnabled = input["comeCotasEnabled"] as? Boolean
+        investmentHoldingOverrideService.updateFundHoldingParams(
+            UpdateFundHoldingParamsCommand(
+                holdingId = holdingId,
+                administrationFeeAnnualPercent = administrationFeeAnnualPercent,
+                hasAdministrationFeeAnnualPercent = input.containsKey("administrationFeeAnnualPercent"),
+                comeCotasEnabled = comeCotasEnabled,
+                hasComeCotasEnabled = input.containsKey("comeCotasEnabled"),
+            ),
+            accountId,
+        )
         return requireNotNull(investmentQueryService.getHolding(holdingId, accountId))
     }
 
@@ -764,6 +776,8 @@ class InvestmentResolver(
             providerInvestmentId = this["providerInvestmentId"] as? String,
             pricingMode = (this["pricingMode"] as? String)?.let(HoldingPricingMode::valueOf),
             manualValuation = manualValuationMap?.toManualFundValuation(),
+            administrationFeeAnnualPercent =
+                (this["administrationFeeAnnualPercent"] as? Number)?.let { BigDecimal(it.toString()) },
         )
     }
 

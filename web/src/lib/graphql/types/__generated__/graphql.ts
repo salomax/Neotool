@@ -1907,6 +1907,8 @@ export type InvestmentHolding = {
    * Use this as the pre-fill gross amount when registering a coupon payment.
    */
   accruedInterest: Maybe<Scalars['Float']['output']>;
+  /** Annual administration fee percentage declared by the user (e.g. 1.50 = 1.5% a.a.). */
+  administrationFeeAnnualPercent: Maybe<Scalars['Float']['output']>;
   asset: InvestmentAsset;
   /** Attached files (corretagem, contracts, etc.). Max 3. */
   attachments: Array<HoldingAttachment>;
@@ -2606,6 +2608,8 @@ export type Mutation = {
   updateAccountPreferences: AccountPreferences;
   updateBankingUserPreferences: BankingUserPreferences;
   updateFinancialAccount: FinancialAccount;
+  /** Updates mutable fund holding parameters such as administration fee and come-cotas override. */
+  updateFundHoldingParams: InvestmentHolding;
   updateGroup: Group;
   /** Updates an existing investment asset metadata. */
   updateInvestmentAsset: InvestmentAsset;
@@ -3126,6 +3130,11 @@ export type MutationUpdateBankingUserPreferencesArgs = {
 export type MutationUpdateFinancialAccountArgs = {
   id: Scalars['ID']['input'];
   input: UpdateFinancialAccountInput;
+};
+
+
+export type MutationUpdateFundHoldingParamsArgs = {
+  input: UpdateFundHoldingParamsInput;
 };
 
 
@@ -4466,6 +4475,7 @@ export type RecalculationStatus = {
  * RF-specific terms (indexer, maturityDate, etc.) are only used when creating a brand-new holding.
  */
 export type RecordInvestmentTransactionInput = {
+  administrationFeeAnnualPercent?: InputMaybe<Scalars['Float']['input']>;
   assetId: Scalars['ID']['input'];
   brokerNote?: InputMaybe<BrokerNoteInput>;
   couponDayOfMonth?: InputMaybe<Scalars['Int']['input']>;
@@ -5134,6 +5144,12 @@ export type UpdateFinancialAccountInput = {
   subtype: FinancialAccountSubtype;
   themeColor?: InputMaybe<Scalars['String']['input']>;
   type: FinancialAccountType;
+};
+
+export type UpdateFundHoldingParamsInput = {
+  administrationFeeAnnualPercent?: InputMaybe<Scalars['Float']['input']>;
+  comeCotasEnabled?: InputMaybe<Scalars['Boolean']['input']>;
+  holdingId: Scalars['ID']['input'];
 };
 
 export type UpdateGroupInput = {

@@ -46,10 +46,12 @@ class HoldingMapperTest {
                 assetId = UUID.randomUUID(),
                 quantity = BigDecimal.ONE,
                 comeCotasEnabled = true,
+                administrationFeeAnnualPercent = BigDecimal("1.50"),
             )
         val round = HoldingMapper.toDomain(HoldingMapper.toEntity(domain))
         assertThat(round.closedAt).isNull()
         assertThat(round.closeReason).isNull()
         assertThat(round.comeCotasEnabled).isTrue()
+        assertThat(round.administrationFeeAnnualPercent).isEqualByComparingTo("1.50")
     }
 }

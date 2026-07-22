@@ -63,6 +63,7 @@ data class Holding(
     val manualGrossValue: BigDecimal? = null,
     val manualValuedAt: LocalDate? = null,
     val comeCotasEnabled: Boolean? = null,
+    val administrationFeeAnnualPercent: BigDecimal? = null,
     // ── Provenance ────────────────────────────────────────────────────────────
     val source: InvestmentSource = InvestmentSource.MANUAL,
     // OFB investmentId / Pluggy id / Belvo id

@@ -713,6 +713,7 @@
         "principal": "Principal",
         "grossTotal": "Gross total",
         "netTotal": "Net total",
+        "administrationFeeAnnualPercent": "Administration fee",
         "grossEarnings": "Gross earnings",
         "totalReturn": "Total return",
         "totalGain": "Total gain",
@@ -750,10 +751,20 @@
         "updateSuccess": "Come-cotas setting updated.",
         "updateError": "Could not update the come-cotas setting."
       },
+      "manualApproximation": {
+        "withDate": "These values are approximate and based on market data as of {{date}}.",
+        "withoutDate": "These values are approximate and based on the latest market data available."
+      },
+      "parameters": {
+        "administrationFeeAnnualPercent": "Administration fee (% p.a.)",
+        "updateSuccess": "Fund parameters updated.",
+        "updateError": "Could not update fund parameters."
+      },
       "transactions": {
         "tabs": {
           "summary": "Summary",
-          "transactions": "Transactions"
+          "transactions": "Transactions",
+          "parameters": "Parameters"
         },
         "add": "New transaction",
         "emptyTitle": "No transactions yet",
@@ -1064,6 +1075,7 @@
         "fund": "Fund",
         "listing": "How is this fund registered?",
         "manualFund": "Manual fund",
+        "dates": "Dates",
         "applicationData": "Application data",
         "values": "Values",
         "currentValue": "Current value",
@@ -1089,7 +1101,8 @@
         "settlementDate": "Settlement date",
         "grossValue": "Amount to invest",
         "manualCurrentGrossValue": "Current value",
-        "manualValuedAt": "Current value date"
+        "manualValuedAt": "Current value date",
+        "administrationFeeAnnualPercent": "Administration fee (% p.a.)"
       },
       "assetTypes": {
         "MUTUAL_FUND": "Fund",

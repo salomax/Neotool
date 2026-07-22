@@ -244,6 +244,7 @@ class InvestmentPortfolioSummaryServiceTest {
             lastValuedAt = null,
             pricingMode = null,
             comeCotasEnabled = null,
+            administrationFeeAnnualPercent = null,
             valuationSource = valuationSource,
             valuationReferenceDate = valuationReferenceDate,
             isExpired = false,

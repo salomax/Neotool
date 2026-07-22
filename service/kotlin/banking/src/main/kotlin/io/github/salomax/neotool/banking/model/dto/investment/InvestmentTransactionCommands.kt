@@ -47,6 +47,7 @@ data class RecordInvestmentTransactionCommand(
     val providerInvestmentId: String? = null,
     val pricingMode: HoldingPricingMode? = null,
     val manualValuation: ManualFundValuation? = null,
+    val administrationFeeAnnualPercent: BigDecimal? = null,
 )
 
 data class ManualFundValuation(

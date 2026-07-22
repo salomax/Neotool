@@ -15,6 +15,9 @@ export const FUND_HOLDING_DETAIL = gql`
       netValue
       incomeTax
       iof
+      pricingMode
+      comeCotasEnabled
+      administrationFeeAnnualPercent
       valuationSource
       valuationReferenceDate
       isTaxExempt

@@ -13,6 +13,7 @@ import {
   DialogTitle,
   Divider,
   IconButton,
+  Skeleton,
   Tab,
   Tabs,
   Tooltip,
@@ -20,7 +21,15 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
+import { useApolloClient, useMutation } from "@apollo/client/react";
+import { FormProvider, useForm, useWatch } from "react-hook-form";
 import { AssetType } from "@/lib/graphql/types/__generated__/graphql";
+import { UPDATE_FUND_HOLDING_PARAMS } from "@/lib/graphql/operations/banking/mutations";
+import {
+  INVESTMENT_CASH_BALANCE,
+  INVESTMENT_CASH_TRANSACTIONS,
+  INVESTMENT_PORTFOLIO_SUMMARY,
+} from "@/lib/graphql/operations/banking/queries";
 import { Drawer, DrawerDeleteButton } from "@/shared/components/ui/layout/Drawer";
 import { ConfirmationDialog } from "@/shared/components/ui/feedback/dialogs/ConfirmationDialog";
 import { useTranslation } from "@/shared/i18n";
@@ -35,6 +44,7 @@ import { MaturityConfirmDrawer } from "../MaturityConfirmDrawer";
 import { CouponPaymentConfirmDrawer } from "../CouponPaymentConfirmDrawer";
 import { FundHoldingDetailContent } from "./fund/FundHoldingDetailContent";
 import { buildFundHoldingDetailViewModel } from "./fund/fundHoldingDetailAdapter";
+import type { FundHoldingDetailQuery } from "./fund/api/queries.generated";
 import { getAssetGroupKey } from "./table/investmentTableHelpers";
 import type { HoldingRow } from "./table/investmentTableHelpers";
 import { HoldingDetailHeader } from "./HoldingDetailHeader";
@@ -48,8 +58,15 @@ import {
 } from "./transaction-editor/intent";
 import { ManagementHeaderActionButton } from "@/shared/components/management/ManagementHeaderActions";
 import { MovimentacoesTab } from "./InvestmentHoldingDetailDrawer/MovimentacoesTab";
+import { FormStack } from "@/shared/components/ui/forms/components/FormStack";
+import { PercentField } from "@/shared/components/ui/forms/form";
+import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
+import { useMutationWithRefetch } from "@/shared/hooks/mutations";
+import { useToast } from "@/shared/providers";
+import { extractErrorMessage } from "@/shared/utils/error";
 
 export type InvestmentHoldingDetailKind = "fixedIncome" | "fund" | "equity";
+type DetailTab = "summary" | "transactions" | "parameters";
 
 const DAILY_PRICED_ASSET_TYPES = new Set<AssetType>([
   AssetType.Stock,
@@ -67,7 +84,7 @@ interface InvestmentHoldingDetailDrawerProps {
   open: boolean;
   holdingId: string | null;
   kind: InvestmentHoldingDetailKind | null;
-  initialTab?: "summary" | "transactions";
+  initialTab?: DetailTab;
   refreshNonce?: number;
   initialTitle?: string | null;
   initialAssetType?: string | null;
@@ -82,7 +99,7 @@ interface HoldingDetailSummaryCardViewModel {
   label: string;
   value: number | null;
   /** default: monetary amount; percent: annualized IRR / XIRR; number: quantity / units */
-  valueKind?: "currency" | "percent" | "number";
+  valueKind?: "currency" | "percent" | "number" | "percentagePoints";
   currencyCode?: string;
   /** Shown under the main value (e.g. period start for TIR). */
   caption?: string | null;
@@ -122,15 +139,17 @@ interface HoldingDetailDrawerShellProps {
   totalValue: number | null;
   currencyCode: string;
   gainPercent: number | null;
-  activeTab: "summary" | "transactions";
-  onTabChange: (tab: "summary" | "transactions") => void;
+  activeTab: DetailTab;
+  onTabChange: (tab: DetailTab) => void;
   summaryTabLabel: string;
   transactionsTabLabel: string;
+  parametersTabLabel?: string | null;
   /** Shown on the right of the tab row when the transactions tab is active (e.g. add transaction). */
   transactionsTabAction?: React.ReactNode;
   summaryCards: HoldingDetailSummaryCardViewModel[];
   body: React.ReactNode;
   transactionsContent: React.ReactNode;
+  parametersContent?: React.ReactNode;
 }
 
 function formatDetailQuantityValue(value: number, locale: string): string {
@@ -182,10 +201,12 @@ function HoldingDetailDrawerShell({
   onTabChange,
   summaryTabLabel,
   transactionsTabLabel,
+  parametersTabLabel,
   transactionsTabAction,
   summaryCards,
   body,
   transactionsContent,
+  parametersContent,
 }: HoldingDetailDrawerShellProps) {
   const metricCards = React.useMemo(() => {
     if (!priceReferenceLabel) return summaryCards;
@@ -268,12 +289,13 @@ function HoldingDetailDrawerShell({
           >
             <Tabs
               value={activeTab}
-              onChange={(_event, tab) => onTabChange(tab as "summary" | "transactions")}
+              onChange={(_event, tab) => onTabChange(tab as DetailTab)}
               aria-label="investment-holding-detail-tabs"
               sx={{ flex: 1, minWidth: 0 }}
             >
               <Tab value="summary" label={summaryTabLabel} />
               <Tab value="transactions" label={transactionsTabLabel} />
+              {parametersTabLabel ? <Tab value="parameters" label={parametersTabLabel} /> : null}
             </Tabs>
             {activeTab === "transactions" && transactionsTabAction ? (
               <Box sx={{ flexShrink: 0, alignSelf: "center", transform: "translateY(-2px)" }}>
@@ -324,6 +346,15 @@ function HoldingDetailDrawerShell({
                         </Typography>
                       ) : null}
                     </>
+                  ) : card.valueKind === "percentagePoints" ? (
+                    <Typography variant="h6" fontWeight={500} sx={{ lineHeight: 1.1, fontSize: { xs: "1.05rem", md: "1.15rem" } }} noWrap>
+                      {card.value != null && Number.isFinite(card.value)
+                        ? new Intl.NumberFormat(locale, {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 2,
+                          }).format(card.value) + "%"
+                        : "—"}
+                    </Typography>
                   ) : card.valueKind === "number" ? (
                     <Typography variant="h6" fontWeight={500} sx={{ lineHeight: 1.1, fontSize: { xs: "1.05rem", md: "1.15rem" } }} noWrap>
                       {card.value != null && Number.isFinite(card.value) ? formatDetailQuantityValue(card.value, locale) : "—"}
@@ -348,7 +379,7 @@ function HoldingDetailDrawerShell({
             {body}
           </>
         ) : (
-          transactionsContent
+          activeTab === "transactions" ? transactionsContent : parametersContent
         )}
       </Drawer.Body>
 
@@ -360,6 +391,130 @@ function HoldingDetailDrawerShell({
         </Drawer.Footer>
       ) : null}
     </Drawer>
+  );
+}
+
+type FundParametersFormData = {
+  administrationFeeAnnualPercent?: number;
+  comeCotasMode: "default" | "enabled" | "disabled";
+};
+
+export function buildUpdateFundHoldingParamsInput(
+  holdingId: string,
+  values: FundParametersFormData,
+) {
+  return {
+    input: {
+      holdingId,
+      administrationFeeAnnualPercent:
+        values.administrationFeeAnnualPercent == null || values.administrationFeeAnnualPercent === 0
+          ? null
+          : values.administrationFeeAnnualPercent,
+      comeCotasEnabled:
+        values.comeCotasMode === "default"
+          ? null
+          : values.comeCotasMode === "enabled",
+    },
+  };
+}
+
+interface FundParametersTabProps {
+  holding: NonNullable<FundHoldingDetailQuery["investmentHolding"]>;
+  locale: string;
+  onSaved: () => Promise<unknown>;
+}
+
+export function FundParametersTab({ holding, locale, onSaved }: FundParametersTabProps) {
+  const { t } = useTranslation(personalFinanceTranslations);
+  const toast = useToast();
+  const apolloClient = useApolloClient();
+  const methods = useForm<FundParametersFormData>({
+    defaultValues: {
+      administrationFeeAnnualPercent: holding.administrationFeeAnnualPercent ?? undefined,
+      comeCotasMode:
+        holding.comeCotasEnabled == null
+          ? "default"
+          : holding.comeCotasEnabled
+            ? "enabled"
+            : "disabled",
+    },
+  });
+  const [updateFundHoldingParamsMutation, { loading }] = useMutation(UPDATE_FUND_HOLDING_PARAMS);
+  const comeCotasMode = useWatch({ control: methods.control, name: "comeCotasMode" });
+  const { executeMutation } = useMutationWithRefetch({
+    onRefetch: () => {
+      void onSaved();
+      void apolloClient.refetchQueries({
+        include: [
+          INVESTMENT_PORTFOLIO_SUMMARY,
+          INVESTMENT_CASH_BALANCE,
+          INVESTMENT_CASH_TRANSACTIONS,
+        ],
+      });
+    },
+    errorMessage: t("investments.detailDrawer.parameters.updateError"),
+  });
+
+  React.useEffect(() => {
+    methods.reset({
+      administrationFeeAnnualPercent: holding.administrationFeeAnnualPercent ?? undefined,
+      comeCotasMode:
+        holding.comeCotasEnabled == null
+          ? "default"
+          : holding.comeCotasEnabled
+            ? "enabled"
+            : "disabled",
+    });
+  }, [holding.administrationFeeAnnualPercent, holding.comeCotasEnabled, methods]);
+
+  const handleSubmit = methods.handleSubmit(async (values) => {
+    try {
+      await executeMutation(
+        updateFundHoldingParamsMutation,
+        buildUpdateFundHoldingParamsInput(holding.id, values),
+        holding.id,
+      );
+      toast.success(t("investments.detailDrawer.parameters.updateSuccess"));
+    } catch (error) {
+      toast.error(extractErrorMessage(error, t("investments.detailDrawer.parameters.updateError")));
+    }
+  });
+
+  return (
+    <FormProvider {...methods}>
+      <form onSubmit={handleSubmit}>
+        <FormStack spacing={2}>
+          <PercentField
+            name="administrationFeeAnnualPercent"
+            label={t("investments.detailDrawer.parameters.administrationFeeAnnualPercent")}
+            locale={locale}
+            fractionDigits={2}
+            data-testid="fund-parameters-administration-fee"
+          />
+          <FormStack spacing={0.5}>
+            <Label sx={{ mb: 0 }}>{t("investments.detailDrawer.comeCotas.label")}</Label>
+            <SegmentedControl
+              fullWidth
+              value={comeCotasMode}
+              onChange={(value) => methods.setValue("comeCotasMode", value as FundParametersFormData["comeCotasMode"])}
+              options={[
+                { value: "default", label: t("investments.detailDrawer.comeCotas.options.default") },
+                { value: "enabled", label: t("investments.detailDrawer.comeCotas.options.enabled") },
+                { value: "disabled", label: t("investments.detailDrawer.comeCotas.options.disabled") },
+              ]}
+            />
+            <Typography variant="body2" color="text.secondary">
+              {t("investments.detailDrawer.comeCotas.description")}
+            </Typography>
+          </FormStack>
+          <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
+            <Button type="submit" variant="contained" disabled={loading}>
+              {t("actions.save")}
+            </Button>
+          </Box>
+        </FormStack>
+      </form>
+    </FormProvider>
   );
 }
 
@@ -422,7 +577,7 @@ export function InvestmentHoldingDetailDrawer({
     kind,
     onClose,
   });
-  const [activeTab, setActiveTab] = React.useState<"summary" | "transactions">(initialTab);
+  const [activeTab, setActiveTab] = React.useState<DetailTab>(initialTab);
 
   React.useEffect(() => {
     if (!open) return;
@@ -776,6 +931,12 @@ export function InvestmentHoldingDetailDrawer({
                 { id: "principal", label: t("investments.detailDrawer.grid.principal"), value: fundViewModel?.principal ?? null },
                 { id: "netTotal", label: t("investments.detailDrawer.grid.netTotal"), value: fundViewModel?.netValue ?? null },
                 {
+                  id: "administrationFeeAnnualPercent",
+                  label: t("investments.detailDrawer.grid.administrationFeeAnnualPercent"),
+                  value: fundData?.investmentHolding?.administrationFeeAnnualPercent ?? null,
+                  valueKind: "percentagePoints" as const,
+                },
+                {
                   id: "xirr",
                   label:
                     fundViewModel?.xirr != null && fundViewModel.xirrSinceYear
@@ -876,6 +1037,30 @@ export function InvestmentHoldingDetailDrawer({
     />
   );
 
+  const parametersTabContent =
+    kind === "fund" ? (
+      fundData?.investmentHolding ? (
+        <FundParametersTab
+          holding={fundData.investmentHolding}
+          locale={locale}
+          onSaved={async () => {
+            await fundQuery.refetch();
+          }}
+        />
+      ) : fundQuery.loading ? (
+        <FormStack spacing={2}>
+          <Skeleton variant="text" width="40%" height={24} />
+          <Skeleton variant="rectangular" height={56} />
+          <Skeleton variant="text" width="35%" height={24} />
+          <Skeleton variant="rectangular" height={40} />
+          <Skeleton variant="text" width="85%" height={20} />
+          <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
+            <Skeleton variant="rectangular" width={96} height={36} />
+          </Box>
+        </FormStack>
+      ) : null
+    ) : null;
+
   return (
     <>
       <HoldingDetailDrawerShell
@@ -901,6 +1086,7 @@ export function InvestmentHoldingDetailDrawer({
         onTabChange={setActiveTab}
         summaryTabLabel={t("investments.detailDrawer.transactions.tabs.summary")}
         transactionsTabLabel={t("investments.detailDrawer.transactions.tabs.transactions")}
+        parametersTabLabel={kind === "fund" ? t("investments.detailDrawer.transactions.tabs.parameters") : null}
         transactionsTabAction={
           <ManagementHeaderActionButton
             variant="outlined"
@@ -923,6 +1109,7 @@ export function InvestmentHoldingDetailDrawer({
         summaryCards={strategy.summaryCards}
         body={strategy.body}
         transactionsContent={transactionsTabContent}
+        parametersContent={parametersTabContent}
       />
 
       {strategy.extra}

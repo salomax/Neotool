@@ -54,6 +54,8 @@ export interface InvestmentHolding {
   quantity: number;
   averageCost: number;
   pricingMode: HoldingPricingMode | null;
+  comeCotasEnabled: boolean | null;
+  administrationFeeAnnualPercent: number | null;
   indexer: Indexer | null;
   indexerPercentage: number | null;
   fixedAnnualRate: number | null;
@@ -207,6 +209,7 @@ export interface RecordInvestmentTransactionInput {
   incomeTax?: number;
   iof?: number;
   pricingMode?: HoldingPricingMode;
+  administrationFeeAnnualPercent?: number;
   brokerNote?: {
     brokerNoteNumber?: string;
     grossValue: number;
@@ -272,6 +275,12 @@ export interface UpdateInvestmentTransactionInput {
     valuedAt: string;
     grossValue: number;
   };
+}
+
+export interface UpdateFundHoldingParamsInput {
+  holdingId: string;
+  administrationFeeAnnualPercent?: number | null;
+  comeCotasEnabled?: boolean | null;
 }
 
 export interface CreateInvestmentCashTransactionInput {
@@ -368,6 +377,8 @@ const INVESTMENT_HOLDING_FIELDS = `
   quantity
   averageCost
   pricingMode
+  comeCotasEnabled
+  administrationFeeAnnualPercent
   indexer
   indexerPercentage
   fixedAnnualRate
@@ -515,6 +526,33 @@ export async function updateInvestmentTransaction(
   }
 
   return result.data.updateInvestmentTransaction;
+}
+
+export async function updateFundHoldingParams(
+  input: UpdateFundHoldingParamsInput,
+  token: string,
+): Promise<InvestmentHolding> {
+  const mutation = `
+    mutation UpdateFundHoldingParams($input: UpdateFundHoldingParamsInput!) {
+      updateFundHoldingParams(input: $input) {
+        ${INVESTMENT_HOLDING_FIELDS}
+      }
+    }
+  `;
+
+  const result = await executeGraphQL<{ updateFundHoldingParams: InvestmentHolding }>(
+    mutation,
+    { input },
+    token,
+  );
+
+  if (result.errors || !result.data?.updateFundHoldingParams) {
+    throw new Error(
+      `updateFundHoldingParams failed: ${result.errors?.[0]?.message ?? 'Unknown error'}`,
+    );
+  }
+
+  return result.data.updateFundHoldingParams;
 }
 
 export async function deleteInvestmentTransaction(id: string, token: string): Promise<void> {

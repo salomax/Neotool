@@ -26,6 +26,9 @@ function buildHolding(overrides?: Partial<NonNullable<FundHoldingDetailQuery["in
     iof: null,
     valuationSource: ValuationSource.Estimated,
     valuationReferenceDate: "2026-03-26",
+    pricingMode: null,
+    comeCotasEnabled: null,
+    administrationFeeAnnualPercent: null,
     isTaxExempt: false,
     source: InvestmentSource.Manual,
     financialAccount: {
@@ -432,5 +435,42 @@ describe("buildFundHoldingDetailViewModel", () => {
     expect(viewModel.xirrSinceLabel).toBeTruthy();
     expect(viewModel.totalReturnAbsolute).toBe(230);
     expect(viewModel.dividendsReceived).toBe(30);
+  });
+
+  it("shows manual approximation metadata only for manual pricing mode", () => {
+    const manualViewModel = buildFundHoldingDetailViewModel(
+      buildHolding({ pricingMode: "MANUAL" as any, valuationReferenceDate: "2026-04-10" }),
+      [],
+      undefined,
+      undefined,
+      t,
+      "pt-BR",
+    );
+    const marketViewModel = buildFundHoldingDetailViewModel(
+      buildHolding({ pricingMode: "MARKET_DATA" as any }),
+      [],
+      undefined,
+      undefined,
+      t,
+      "pt-BR",
+    );
+
+    expect(manualViewModel.showManualApproximationNotice).toBe(true);
+    expect(manualViewModel.manualApproximationReferenceDateLabel).toBeTruthy();
+    expect(marketViewModel.showManualApproximationNotice).toBe(false);
+  });
+
+  it("keeps the manual approximation notice without a date label when the reference date is missing", () => {
+    const viewModel = buildFundHoldingDetailViewModel(
+      buildHolding({ pricingMode: "MANUAL" as any, valuationReferenceDate: null }),
+      [],
+      undefined,
+      undefined,
+      t,
+      "pt-BR",
+    );
+
+    expect(viewModel.showManualApproximationNotice).toBe(true);
+    expect(viewModel.manualApproximationReferenceDateLabel).toBeNull();
   });
 });

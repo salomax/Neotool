@@ -811,6 +811,7 @@ class InvestmentQueryService(
             lastValuedAt = effectiveHolding.lastValuedAt,
             pricingMode = effectiveHolding.pricingMode,
             comeCotasEnabled = effectiveHolding.comeCotasEnabled,
+            administrationFeeAnnualPercent = effectiveHolding.administrationFeeAnnualPercent?.toDouble(),
             valuationSource = valuation.source,
             valuationReferenceDate = valuation.refDate,
             isExpired = isExpired,

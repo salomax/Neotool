@@ -1298,6 +1298,26 @@ class InvestmentTransactionServiceTest {
         }
 
         @Test
+        fun `first fund purchase persists administration fee`() {
+            whenever(assetRepository.findById(assetId)).thenReturn(fundAsset())
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+            whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+            val command =
+                buyCommand("100", "1.00").copy(
+                    pricingMode = HoldingPricingMode.MARKET_DATA,
+                    administrationFeeAnnualPercent = BigDecimal("1.50"),
+                )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).save(captor.capture())
+            assertThat(captor.firstValue.administrationFeeAnnualPercent).isEqualByComparingTo("1.50")
+        }
+
+        @Test
         fun `manual valuation is rejected for market-data fund holdings`() {
             whenever(assetRepository.findById(assetId)).thenReturn(fundAsset())
             whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))

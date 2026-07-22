@@ -656,6 +656,10 @@ type Mutation @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__ty
   """
   deleteInvestmentHolding(id: ID!): Boolean! @join__field(graph: BANKING)
   """
+  Updates mutable fund holding parameters such as administration fee and come-cotas override.
+  """
+  updateFundHoldingParams(input: UpdateFundHoldingParamsInput!): InvestmentHolding! @join__field(graph: BANKING)
+  """
   Triggers a manual portfolio quota recalculation. Optionally scoped to a financialAccountId and recalculateFrom date (ISO-8601). Defaults to all INVESTMENT accounts recalculating from 10 years ago.
   """
   triggerPortfolioRecalculation(financialAccountId: ID, recalculateFrom: String): Boolean! @join__field(graph: BANKING)
@@ -2487,6 +2491,10 @@ type InvestmentHolding @join__type(graph: BANKING) {
   Manual override for come-cotas eligibility. Null means profile default applies.
   """
   comeCotasEnabled: Boolean
+  """
+  Annual administration fee percentage declared by the user (e.g. 1.50 = 1.5% a.a.).
+  """
+  administrationFeeAnnualPercent: Float
   indexer: Indexer
   """Fraction of indexer applied (e.g. 1.15 = 115% CDI)."""
   indexerPercentage: Float
@@ -2920,6 +2928,13 @@ input RecordInvestmentTransactionInput @join__type(graph: BANKING) {
   providerInvestmentId: String
   pricingMode: HoldingPricingMode
   manualValuation: ManualFundValuationInput
+  administrationFeeAnnualPercent: Float
+}
+
+input UpdateFundHoldingParamsInput @join__type(graph: BANKING) {
+  holdingId: ID!
+  administrationFeeAnnualPercent: Float
+  comeCotasEnabled: Boolean
 }
 
 input UpdateInvestmentTransactionInput @join__type(graph: BANKING) {

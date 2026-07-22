@@ -77,6 +77,8 @@ open class HoldingEntity(
     open var manualValuedAt: LocalDate? = null,
     @Column(name = "come_cotas_enabled")
     open var comeCotasEnabled: Boolean? = null,
+    @Column(name = "administration_fee_annual_percent", precision = 8, scale = 4)
+    open var administrationFeeAnnualPercent: BigDecimal? = null,
     // ── Provenance ────────────────────────────────────────────────────────────
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

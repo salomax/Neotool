@@ -650,6 +650,7 @@ open class InvestmentTransactionService(
             pricingMode = command.pricingMode,
             manualGrossValue = command.manualValuation?.grossValue,
             manualValuedAt = command.manualValuation?.valuedAt,
+            administrationFeeAnnualPercent = command.administrationFeeAnnualPercent,
             source = command.source,
             providerInvestmentId = command.providerInvestmentId,
             createdAt = now,

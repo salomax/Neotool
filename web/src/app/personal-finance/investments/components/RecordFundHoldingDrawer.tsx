@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Box, Divider, Tab, TextField, Typography } from "@mui/material";
+import { Box, Divider, Tab, TextField } from "@mui/material";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
@@ -32,7 +32,7 @@ import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { FormRowStack } from "@/shared/components/ui/forms/components/FormRowStack";
 import { FormStack } from "@/shared/components/ui/forms/components/FormStack";
 import { FormTabs } from "@/shared/components/ui/forms/components/FormTabs";
-import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
+import { DatePickerField, MoneyInput, NumberField, PercentField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { formatDateOnly, isValidDate, parseDateOnly, toStartOfDayLocal } from "@/shared/utils/date/dateOnly";
@@ -50,6 +50,7 @@ import { mapCvmFundAssetType } from "@/lib/utils/mapCvmFundAssetType";
 import type { IssuerSelectionAccount } from "./IssuerSelection";
 import { InvestmentRecordDrawer } from "./InvestmentRecordDrawer";
 import type { FundGateResult } from "./transaction-editor/new-holding/newHoldingFlow.types";
+import { UpdateFormSectionLabel } from "./update/UpdateFormSectionLabel";
 
 interface RecordFundHoldingDrawerProps {
   open: boolean;
@@ -95,6 +96,7 @@ type RecordFundFormData = {
   grossValue?: number;
   manualCurrentGrossValue?: number;
   manualValuedAt?: Date;
+  administrationFeeAnnualPercent?: number;
 };
 
 type UpdateInvestmentAssetMutationData = { updateInvestmentAsset: { id: string } };
@@ -113,6 +115,7 @@ function buildDefaultValues(): RecordFundFormData {
     grossValue: undefined,
     manualCurrentGrossValue: undefined,
     manualValuedAt: toStartOfDayLocal(new Date()),
+    administrationFeeAnnualPercent: undefined,
   };
 }
 
@@ -189,6 +192,7 @@ export function RecordFundHoldingDrawer({
         unitPrice: z.preprocess(parseLocalizedNumber, z.number().positive().optional()),
         grossValue: z.preprocess(parseLocalizedNumber, z.number().positive().optional()),
         manualCurrentGrossValue: z.preprocess(parseLocalizedNumber, z.number().positive().optional()),
+        administrationFeeAnnualPercent: z.preprocess(parseLocalizedNumber, z.number().min(0).max(100).optional()),
         tradeDate: z.preprocess(
           (value) => (value === "" || value === null || value === undefined ? undefined : value),
           z.date().optional(),
@@ -505,6 +509,7 @@ export function RecordFundHoldingDrawer({
               valuedAt: formatDateOnly(data.manualValuedAt),
             }
           : undefined,
+      administrationFeeAnnualPercent: data.administrationFeeAnnualPercent,
     };
 
     try {
@@ -602,6 +607,7 @@ export function RecordFundHoldingDrawer({
               ? String(editHolding!.valuationReferenceDate)
               : null,
           ) ?? toStartOfDayLocal(new Date()),
+        administrationFeeAnnualPercent: undefined,
       },
       { keepDirty: false },
     );
@@ -699,24 +705,19 @@ export function RecordFundHoldingDrawer({
                 </>
               ) : null}
 
-              <FormRowStack>
-                <InvestmentTradeAndSettlementDateRow<RecordFundFormData>
-                  tradeDateLabel={t("investments.recordFund.fields.tradeDate")}
-                  settlementDateLabel={t("investments.recordFund.fields.settlementDate")}
-                  size="medium"
-                  minDate={minAllowedDate.toDate()}
-                  tradeMaxDate={dayjs().startOf("day").toDate()}
-                  tradeDateTestId="record-fund-trade-date"
-                  settlementDateTestId="record-fund-settlement-date"
-                />
-              </FormRowStack>
-
-              <Divider sx={{ pt: 2 }} />
+              <UpdateFormSectionLabel title={t("investments.recordFund.sections.dates")} />
+              <InvestmentTradeAndSettlementDateRow<RecordFundFormData>
+                tradeDateLabel={t("investments.recordFund.fields.tradeDate")}
+                settlementDateLabel={t("investments.recordFund.fields.settlementDate")}
+                size="medium"
+                minDate={minAllowedDate.toDate()}
+                tradeMaxDate={dayjs().startOf("day").toDate()}
+                tradeDateTestId="record-fund-trade-date"
+                settlementDateTestId="record-fund-settlement-date"
+              />
 
               <FormStack spacing={1}>
-                <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
-                  {t("investments.recordFund.sections.values")}
-                </Typography>
+                <UpdateFormSectionLabel title={t("investments.recordFund.sections.values")} />
                 <FormTabs
                   value={valueFlow}
                   onChange={(_, next: ValueFlow) => {
@@ -791,13 +792,19 @@ export function RecordFundHoldingDrawer({
                 </FormStack>
               )}
 
+              <PercentField
+                name="administrationFeeAnnualPercent"
+                label={t("investments.recordFund.fields.administrationFeeAnnualPercent")}
+                size="medium"
+                locale={locale}
+                fractionDigits={2}
+                data-testid="record-fund-administration-fee"
+              />
+
               {listingMode === "MANUAL" ? (
                 <>
-                  <Divider sx={{ pt: 2 }} />
                   <FormStack spacing={1}>
-                    <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
-                      {t("investments.recordFund.sections.currentValue")}
-                    </Typography>
+                    <UpdateFormSectionLabel title={t("investments.recordFund.sections.currentValue")} />
                     <FormRowStack alignItems="flex-start">
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <MoneyInput

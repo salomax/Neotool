@@ -713,6 +713,7 @@
         "principal": "Principal",
         "grossTotal": "Total Bruto",
         "netTotal": "Total Líquido",
+        "administrationFeeAnnualPercent": "Taxa de administração",
         "grossEarnings": "Rendimento Bruto",
         "totalReturn": "Rendimento Bruto",
         "totalGain": "Ganho total",
@@ -750,10 +751,20 @@
         "updateSuccess": "Configuração de come-cotas atualizada.",
         "updateError": "Não foi possível atualizar a configuração de come-cotas."
       },
+      "manualApproximation": {
+        "withDate": "Estes valores são aproximados e usam dados de mercado até {{date}}.",
+        "withoutDate": "Estes valores são aproximados e usam os dados de mercado mais recentes disponíveis."
+      },
+      "parameters": {
+        "administrationFeeAnnualPercent": "Taxa de administração (% a.a.)",
+        "updateSuccess": "Parâmetros do fundo atualizados.",
+        "updateError": "Não foi possível atualizar os parâmetros do fundo."
+      },
       "transactions": {
         "tabs": {
           "summary": "Resumo",
-          "transactions": "Movimentações"
+          "transactions": "Movimentações",
+          "parameters": "Parâmetros"
         },
         "add": "Nova transação",
         "emptyTitle": "Nenhuma movimentação",
@@ -1064,6 +1075,7 @@
         "fund": "Fundo",
         "listing": "Como o fundo está cadastrado?",
         "manualFund": "Fundo manual",
+        "dates": "Datas",
         "applicationData": "Dados da aplicação",
         "values": "Valores",
         "currentValue": "Valor atual",
@@ -1089,7 +1101,8 @@
         "settlementDate": "Data de liquidação",
         "grossValue": "Valor a investir",
         "manualCurrentGrossValue": "Valor atual",
-        "manualValuedAt": "Data do valor atual"
+        "manualValuedAt": "Data do valor atual",
+        "administrationFeeAnnualPercent": "Taxa de administração (% a.a.)"
       },
       "assetTypes": {
         "MUTUAL_FUND": "Fundo",

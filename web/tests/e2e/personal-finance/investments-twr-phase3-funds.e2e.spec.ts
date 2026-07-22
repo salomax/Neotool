@@ -13,6 +13,7 @@ import {
   InvestmentTransactionType,
   PerformancePeriod,
   recordInvestmentTransaction,
+  updateFundHoldingParams,
   ValuationSource,
 } from '../helpers/investment-graphql';
 import { waitForRecalculation } from '../helpers/investment-e2e';
@@ -520,5 +521,62 @@ test.describe('Investments TWR phase 3B funds', () => {
     });
     expect(sourceRows.some((row) => row.investmentTransactionId === transferOut.id)).toBe(false);
     expect(destinationRows.some((row) => row.investmentTransactionId === transferIn.id)).toBe(false);
+  });
+
+  test('INV-TWR-P3-FU-05: fund parameter mutation persists administration fee and come-cotas override', async ({
+    pfUser,
+    brokerageAccount,
+  }) => {
+    const fund = await createInvestmentAsset(
+      {
+        name: uniqueName('Fundo parametros editaveis'),
+        assetType: AssetType.MutualFund,
+      },
+      pfUser.token,
+    );
+
+    await recordInvestmentTransaction(
+      {
+        financialAccountId: brokerageAccount.id,
+        assetId: fund.id,
+        direction: InvestmentTransactionDirection.Inflow,
+        type: InvestmentTransactionType.Purchase,
+        tradeDate: isoDaysAgo(25),
+        settlementDate: isoDaysAgo(25),
+        quantity: 100,
+        unitPrice: 10,
+        grossValue: 1000,
+        netValue: 1000,
+        pricingMode: HoldingPricingMode.MarketData,
+        administrationFeeAnnualPercent: 1.5,
+      },
+      pfUser.token,
+    );
+
+    await waitForRecalculation(pfUser.token, brokerageAccount.id);
+
+    const initialHolding = await findHolding(pfUser.token, brokerageAccount.id, fund.id);
+    expect(initialHolding).not.toBeNull();
+    expectNear(initialHolding!.administrationFeeAnnualPercent ?? 0, 1.5, 6);
+    expect(initialHolding!.comeCotasEnabled).toBeNull();
+
+    const updatedHolding = await updateFundHoldingParams(
+      {
+        holdingId: initialHolding!.id,
+        administrationFeeAnnualPercent: 1.75,
+        comeCotasEnabled: true,
+      },
+      pfUser.token,
+    );
+
+    expectNear(updatedHolding.administrationFeeAnnualPercent ?? 0, 1.75, 6);
+    expect(updatedHolding.comeCotasEnabled).toBe(true);
+
+    await waitForRecalculation(pfUser.token, brokerageAccount.id);
+
+    const reloadedHolding = await findHolding(pfUser.token, brokerageAccount.id, fund.id);
+    expect(reloadedHolding).not.toBeNull();
+    expectNear(reloadedHolding!.administrationFeeAnnualPercent ?? 0, 1.75, 6);
+    expect(reloadedHolding!.comeCotasEnabled).toBe(true);
   });
 });
