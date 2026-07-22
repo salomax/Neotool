@@ -41,6 +41,7 @@
       "banking",
       "assistant",
       "comms",
+      "mcp",
       "bacen-ifdata-cronjob",
       "indicators-job",
       "ratings-job",

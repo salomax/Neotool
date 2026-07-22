@@ -11,7 +11,7 @@ description: >
 compatibility: Requires GitHub MCP or gh CLI. Reads skills from .agents/skills/ at the project root.
 metadata:
   author: invistus
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Implementation Orchestrator — Invistus
@@ -121,6 +121,18 @@ pnpm test
 ```
 
 Fix any failures before proceeding.
+
+### Step 5.5 — Self-review before requesting review
+
+Run this checklist before writing the summary. Each item maps to a round-1 blocker seen repeatedly on this project; catching them here removes an entire review round (the single most expensive part of the loop).
+
+- [ ] **Every `test:*` in the backlog exists** as an actual test, and each one would **fail without the fix** — not just pass with it. For any security comparison, confirm the fixture uses distinct values for the things being distinguished (see `neotool-kotlin-service` → tests).
+- [ ] **The backlog's rejection/edge matrix is covered**, not only the happy path — expired, revoked, unauthorized, missing-claim, wrong-tenant, empty-input, as the backlog lists.
+- [ ] **No claim the design made about existing code went unverified in the diff.** If the design said a method "already does X" and you found it did not, that divergence is in the summary, not silently worked around.
+- [ ] **A contract this issue applies but another defines** (scope map, shared claim, error taxonomy) is injected, not re-authored — and if you had to duplicate it for sequencing reasons, the summary says so and names the follow-up.
+- [ ] **Validation actually ran** for the touched scope (`ktlintCheck`, `testUnit`, and the relevant integration tests), and the summary reports exactly what passed and what was not run.
+
+Fix what this surfaces before summarising. A blocker you catch here costs nothing; the same blocker caught in review costs a full round trip.
 
 ### Step 6 — Confirm completion
 

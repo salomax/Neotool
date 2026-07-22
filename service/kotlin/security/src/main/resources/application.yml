@@ -183,7 +183,8 @@ oauth:
       supported-resources: []
       cache-max-age-seconds: ${OAUTH2_METADATA_CACHE_MAX_AGE_SECONDS:3600}
     token-exchange:
-      service-resource-identifiers: {}
+      service-resource-identifiers:
+        mcp-service: ${OAUTH2_TOKEN_EXCHANGE_MCP_SERVICE_RESOURCE:}
     registration:
       garbage-collection:
         enabled: ${OAUTH2_CLIENT_GC_ENABLED:true}

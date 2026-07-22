@@ -46,6 +46,8 @@ class ToolServiceTest {
                 executorEndpoint = tool.executorEndpoint,
                 timeoutMs = tool.timeoutMs,
                 retryPolicy = tool.retryPolicy,
+                mcpExposed = tool.mcpExposed,
+                mcpRequiredScope = tool.mcpRequiredScope,
                 status = tool.status,
                 createdAt = tool.createdAt,
                 updatedAt = tool.updatedAt,
@@ -75,6 +77,50 @@ class ToolServiceTest {
         verify(toolRepository).save(captor.capture())
         assertThat(captor.firstValue.executorService).isEqualTo("app-service")
         assertThat(captor.firstValue.timeoutMs).isEqualTo(3000)
+        assertThat(captor.firstValue.mcpExposed).isFalse()
+        assertThat(captor.firstValue.mcpRequiredScope).isNull()
+    }
+
+    @Test
+    fun `existing tools default to not exposed to MCP`() {
+        whenever(toolRepository.save(any())).thenAnswer { invocation ->
+            invocation.arguments[0] as ToolEntity
+        }
+
+        val result =
+            service.registerTool(
+                RegisterToolInput(
+                    name = "internal_tool",
+                    description = "Internal assistant-only tool",
+                    category = "internal",
+                    executorService = "assistant",
+                    executorEndpoint = "/internal/tools/internal",
+                    timeoutMs = 1000,
+                ),
+            )
+
+        assertThat(result.mcpExposed).isFalse()
+        assertThat(result.mcpRequiredScope).isNull()
+    }
+
+    @Test
+    fun `MCP exposed tools require a scope`() {
+        val exception =
+            org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+                service.registerTool(
+                    RegisterToolInput(
+                        name = "public_tool",
+                        description = "MCP visible tool",
+                        category = "finance",
+                        executorService = "assistant",
+                        executorEndpoint = "/internal/tools/public",
+                        timeoutMs = 1000,
+                        mcpExposed = true,
+                    ),
+                )
+            }
+
+        assertThat(exception.message).isEqualTo("Tool mcpRequiredScope is required when exposed to MCP")
     }
 
     @Test

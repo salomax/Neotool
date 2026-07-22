@@ -27,6 +27,8 @@ class ToolMapper {
         val inputSchema = (input["inputSchema"] as? Map<*, *>)?.normalizeMap() ?: emptyMap()
         val outputSchema = (input["outputSchema"] as? Map<*, *>)?.normalizeMap() ?: emptyMap()
         val retryPolicy = (input["retryPolicy"] as? Map<*, *>)?.normalizeMap()
+        val mcpExposed = input["mcpExposed"] as? Boolean ?: false
+        val mcpRequiredScope = input["mcpRequiredScope"] as? String
         val status =
             when (val raw = input["status"]) {
                 null -> ToolStatus.ACTIVE
@@ -45,6 +47,8 @@ class ToolMapper {
             executorEndpoint = executorEndpoint,
             timeoutMs = timeoutMs,
             retryPolicy = retryPolicy,
+            mcpExposed = mcpExposed,
+            mcpRequiredScope = mcpRequiredScope,
             status = status,
         )
     }
@@ -60,6 +64,8 @@ class ToolMapper {
             executorEndpoint = dto.executorEndpoint,
             timeoutMs = dto.timeoutMs,
             retryPolicy = dto.retryPolicy,
+            mcpExposed = dto.mcpExposed,
+            mcpRequiredScope = dto.mcpRequiredScope,
             status = dto.status,
         )
     }
@@ -77,6 +83,8 @@ class ToolMapper {
             executorEndpoint = entity.executorEndpoint,
             timeoutMs = entity.timeoutMs,
             retryPolicy = entity.retryPolicy,
+            mcpExposed = entity.mcpExposed,
+            mcpRequiredScope = entity.mcpRequiredScope,
             status = entity.status,
             createdAt = entity.createdAt.toString(),
             updatedAt = entity.updatedAt.toString(),

@@ -86,6 +86,9 @@ jobs:
               MATRIX='[{"context":"./service/kotlin","dockerfile":"./service/kotlin/banking/Dockerfile","image":"neotool-banking"}]'
               SUPERGRAPH=true
               ;;
+            mcp)
+              MATRIX='[{"context":"./service/kotlin","dockerfile":"./service/kotlin/mcp/Dockerfile","image":"neotool-mcp"}]'
+              ;;
             bacen-ifdata-cronjob)
               MATRIX='[
                 {"context":"./workers/golang","dockerfile":"./workers/golang/financial_data/bacen_ifdata_job/Dockerfile","target":"cronjob","image":"neotool-bacen-ifdata-cronjob"},

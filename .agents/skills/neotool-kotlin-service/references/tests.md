@@ -54,3 +54,17 @@ class SnapshotComputationServiceTest {
 - Testes de integração são lentos — não rodar no loop de desenvolvimento
 - `@MicronautTest` inicia o contexto completo — preferir unit tests com mocks quando possível
 - Para mocks de `@Repository`, usar `@MockBean` (não `@Mock`)
+
+## Fixtures que não provam nada
+
+Um teste só cobre uma propriedade se **falharia com o bug presente**. O erro mais comum: fixtures que tornam dois valores distintos iguais por acaso, mascarando uma comparação no campo errado.
+
+```kotlin
+// ❌ Fixture mascara o bug: resource == clientId, então uma checagem
+//    que compara o campo errado (aud vs client_id) ainda passa.
+val subjectToken = issueToken(resource = "mcp", clientId = "mcp")
+// ✅ Valores distintos para o que está sendo distinguido — o bug falha o teste.
+val subjectToken = issueToken(resource = "https://mcp.invistus.test", clientId = "mcp")
+```
+
+Regra: para qualquer comparação de segurança (audience, tenant, permissão, propriedade), use valores **distintos** no fixture e mentalmente rode o teste contra o código bugado. Se ainda passa, o teste não cobre o que diz cobrir. Ao consertar um bug encontrado em review, primeiro ajuste o fixture para que o teste antigo **falhe**, depois aplique o fix.
