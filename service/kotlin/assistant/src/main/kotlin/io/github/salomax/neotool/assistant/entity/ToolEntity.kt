@@ -57,6 +57,10 @@ open class ToolEntity(
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "retry_policy", columnDefinition = "jsonb")
     open var retryPolicy: Map<String, Any?>? = null,
+    @Column(name = "mcp_exposed", nullable = false)
+    open var mcpExposed: Boolean = false,
+    @Column(name = "mcp_required_scope")
+    open var mcpRequiredScope: String? = null,
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     open var status: ToolStatus = ToolStatus.ACTIVE,

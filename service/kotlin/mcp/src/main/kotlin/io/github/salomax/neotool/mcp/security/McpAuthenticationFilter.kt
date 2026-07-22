@@ -10,7 +10,7 @@ import org.reactivestreams.Publisher
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 
-@Filter("/mcp/**")
+@Filter(patterns = ["/mcp", "/mcp/**"])
 @Singleton
 class McpAuthenticationFilter(
     private val authenticationService: McpAuthenticationService,
@@ -25,7 +25,7 @@ class McpAuthenticationFilter(
         }
 
         return try {
-            val principal = authenticationService.authenticate(request, requiredScope = "mcp:tools:call")
+            val principal = authenticationService.authenticate(request, requiredScope = requiredScope(request.path))
             request.setAttribute(PRINCIPAL_ATTRIBUTE, principal)
             chain.proceed(request)
         } catch (e: McpAuthenticationException) {
@@ -39,6 +39,12 @@ class McpAuthenticationFilter(
         path == "/mcp/ready" ||
             path == "/mcp/.well-known/oauth-protected-resource" ||
             path == "/.well-known/oauth-protected-resource"
+
+    private fun requiredScope(path: String): String? =
+        when (path) {
+            "/mcp/probe" -> "mcp:tools:call"
+            else -> null
+        }
 
     private class SingleResponsePublisher(
         private val response: MutableHttpResponse<*>,

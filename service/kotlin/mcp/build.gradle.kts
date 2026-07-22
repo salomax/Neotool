@@ -45,6 +45,7 @@ dependencies {
     runtimeOnly("org.flywaydb:flyway-database-postgresql")
 
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("io.projectreactor:reactor-core")
 
     runtimeOnly("ch.qos.logback:logback-classic")
 
