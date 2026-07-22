@@ -85,7 +85,7 @@
     "overrides": {
       "tar": ">=7.5.19",
       "minimatch": "10.2.3",
-      "fast-uri": ">=3.1.2",
+      "fast-uri": ">=4.1.1",
       "picomatch@2": "2.3.2",
       "picomatch@3": "3.0.2",
       "picomatch@4": "4.0.4",

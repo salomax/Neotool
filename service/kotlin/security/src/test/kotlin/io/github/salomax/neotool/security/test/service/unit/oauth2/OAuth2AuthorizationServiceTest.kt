@@ -7,10 +7,13 @@ import io.github.salomax.neotool.security.model.OAuth2AuthorizationRequestStatus
 import io.github.salomax.neotool.security.repo.OAuth2AuthorizationCodeRepository
 import io.github.salomax.neotool.security.repo.OAuth2AuthorizationRequestRepository
 import io.github.salomax.neotool.security.repo.OAuth2ClientRepository
+import io.github.salomax.neotool.security.service.oauth2.DefaultOAuth2ScopePermissionMapper
 import io.github.salomax.neotool.security.service.oauth2.OAuth2AuthorizationService
 import io.github.salomax.neotool.security.service.oauth2.OAuth2AuthorizeInput
 import io.github.salomax.neotool.security.service.oauth2.OAuth2ClientMetadataCodec
 import io.github.salomax.neotool.security.service.oauth2.OAuth2ClientRegistry
+import io.github.salomax.neotool.security.service.oauth2.OAuth2ConsentRequirement
+import io.github.salomax.neotool.security.service.oauth2.OAuth2ConsentService
 import io.github.salomax.neotool.security.service.oauth2.OAuth2InvalidRequestException
 import io.github.salomax.neotool.security.service.oauth2.OAuth2TokenHashing
 import org.assertj.core.api.Assertions.assertThat
@@ -29,6 +32,7 @@ class OAuth2AuthorizationServiceTest {
     private lateinit var requestRepository: OAuth2AuthorizationRequestRepository
     private lateinit var codeRepository: OAuth2AuthorizationCodeRepository
     private lateinit var clientRepository: OAuth2ClientRepository
+    private lateinit var consentService: OAuth2ConsentService
     private lateinit var service: OAuth2AuthorizationService
     private val tokenHashing = OAuth2TokenHashing()
     private val clientMetadataCodec = OAuth2ClientMetadataCodec()
@@ -38,6 +42,7 @@ class OAuth2AuthorizationServiceTest {
         requestRepository = mock()
         codeRepository = mock()
         clientRepository = mock()
+        consentService = mock()
         val oauthConfig =
             OAuthConfig(
                 authorizationServer =
@@ -61,6 +66,8 @@ class OAuth2AuthorizationServiceTest {
                 codeRepository,
                 tokenHashing,
                 oauthConfig,
+                DefaultOAuth2ScopePermissionMapper(),
+                consentService,
             )
     }
 
@@ -126,6 +133,15 @@ class OAuth2AuthorizationServiceTest {
                     userId = userId,
                     csrfTokenHash = tokenHashing.sha256Hex(csrf),
                     expiresAt = Instant.now().plusSeconds(60),
+                ),
+            )
+        whenever(consentService.consentRequirement(userId, "test-agent", setOf("finance:cashflow:read")))
+            .thenReturn(
+                OAuth2ConsentRequirement(
+                    accountId = UUID.randomUUID(),
+                    accountLabel = "Personal",
+                    existingScopes = emptySet(),
+                    scopesNeedingConsent = setOf("finance:cashflow:read"),
                 ),
             )
 

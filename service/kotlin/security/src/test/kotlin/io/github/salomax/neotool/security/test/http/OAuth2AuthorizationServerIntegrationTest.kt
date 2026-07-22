@@ -9,12 +9,21 @@ import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.http.AuthorizationServerMetadataController.AuthorizationServerMetadata
 import io.github.salomax.neotool.security.http.dto.OAuth2ClientRegistrationResponse
 import io.github.salomax.neotool.security.http.dto.OAuth2TokenResponse
+import io.github.salomax.neotool.security.model.OAuth2AuthorizationRequestStatus
 import io.github.salomax.neotool.security.model.OAuth2ClientStatus
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
+import io.github.salomax.neotool.security.model.account.AccountEntity
+import io.github.salomax.neotool.security.model.account.AccountMembershipEntity
+import io.github.salomax.neotool.security.model.account.AccountRole
+import io.github.salomax.neotool.security.model.account.AccountType
+import io.github.salomax.neotool.security.model.account.MembershipStatus
+import io.github.salomax.neotool.security.repo.AccountMembershipRepository
+import io.github.salomax.neotool.security.repo.AccountRepository
 import io.github.salomax.neotool.security.repo.OAuth2AuthorizationCodeRepository
 import io.github.salomax.neotool.security.repo.OAuth2AuthorizationRequestRepository
 import io.github.salomax.neotool.security.repo.OAuth2ClientRepository
+import io.github.salomax.neotool.security.repo.OAuth2ConsentRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.UserRepository
@@ -78,6 +87,15 @@ open class OAuth2AuthorizationServerIntegrationTest :
     lateinit var oauth2ClientRepository: OAuth2ClientRepository
 
     @Inject
+    lateinit var oauth2ConsentRepository: OAuth2ConsentRepository
+
+    @Inject
+    lateinit var accountRepository: AccountRepository
+
+    @Inject
+    lateinit var accountMembershipRepository: AccountMembershipRepository
+
+    @Inject
     lateinit var refreshTokenService: RefreshTokenService
 
     @Inject
@@ -93,14 +111,23 @@ open class OAuth2AuthorizationServerIntegrationTest :
     lateinit var entityManager: EntityManager
 
     private val createdUserIds = mutableSetOf<UUID>()
+    private val createdAccountIds = mutableSetOf<UUID>()
 
     @AfterEach
     fun cleanupTestData() {
         entityManager.runTransaction {
             authorizationCodeRepository.deleteAll()
             authorizationRequestRepository.deleteAll()
+            oauth2ConsentRepository.deleteAll()
             oauth2ClientRepository.deleteAll()
             refreshTokenRepository.deleteAll()
+            if (createdAccountIds.isNotEmpty()) {
+                accountMembershipRepository.deleteAll(
+                    createdAccountIds.flatMap { accountMembershipRepository.findByAccountId(it) },
+                )
+                accountRepository.deleteAll(accountRepository.findAll().filter { it.id in createdAccountIds })
+                createdAccountIds.clear()
+            }
             if (createdUserIds.isNotEmpty()) {
                 principalRepository.deleteAll(
                     principalRepository.findByPrincipalTypeAndExternalIdIn(
@@ -403,6 +430,140 @@ open class OAuth2AuthorizationServerIntegrationTest :
             )
 
         assertThat(tokenResponse.scope).isEqualTo("finance:cashflow:read finance:transactions:read")
+        assertThat(jwtTokenValidator.validateToken(tokenResponse.access_token)["scope"])
+            .isEqualTo("finance:cashflow:read finance:transactions:read")
+        val consent = oauth2ConsentRepository.findAll().single()
+        assertThat(consent.userId).isEqualTo(userId)
+        assertThat(consent.clientId).isEqualTo("test-agent")
+        assertThat(consent.grantedScopes).isEqualTo("finance:cashflow:read finance:transactions:read")
+        assertThat(consent.revokedAt).isNull()
+    }
+
+    @Test
+    fun `deselected consent scope is omitted from token and persisted grant`() {
+        val verifier = "correct-horse-battery-staple-0123456789"
+        val (userId, requestId, csrfToken) =
+            createPendingAuthorizationRequest(
+                verifier = verifier,
+                scope = "finance:cashflow:read finance:transactions:read",
+            )
+        val sessionCookie = "${sessionService.cookieName()}=${sessionService.createSessionCookie(userId).value}"
+        val consentResponse =
+            noRedirectClient().use { client ->
+                client.toBlocking().exchange(
+                    HttpRequest
+                        .POST(
+                            "/oauth2/consent",
+                            "request_id=$requestId" +
+                                "&csrf_token=$csrfToken" +
+                                "&scope=finance%3Acashflow%3Aread",
+                        ).contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .header(HttpHeaders.COOKIE, sessionCookie),
+                    String::class.java,
+                )
+            }
+
+        assertThat(consentResponse.status()).isEqualTo(HttpStatus.SEE_OTHER)
+        val code =
+            requireNotNull(
+                Regex("code=([^&]+)").find(
+                    requireNotNull(consentResponse.headers[HttpHeaders.LOCATION]),
+                ),
+            ).groupValues[1]
+        val tokenResponse =
+            json.readValue(
+                exchangeAuthorizationCode(code, verifier).body(),
+                OAuth2TokenResponse::class.java,
+            )
+
+        assertThat(tokenResponse.scope).isEqualTo("finance:cashflow:read")
+        assertThat(jwtTokenValidator.validateToken(tokenResponse.access_token)["scope"])
+            .isEqualTo("finance:cashflow:read")
+        val consent = oauth2ConsentRepository.findAll().single()
+        assertThat(consent.userId).isEqualTo(userId)
+        assertThat(consent.grantedScopes).isEqualTo("finance:cashflow:read")
+    }
+
+    @Test
+    fun `explicit deny redirects access denied to client`() {
+        val verifier = "correct-horse-battery-staple-0123456789"
+        val (userId, requestId, csrfToken) =
+            createPendingAuthorizationRequest(
+                verifier = verifier,
+                scope = "finance:cashflow:read",
+            )
+        val sessionCookie = "${sessionService.cookieName()}=${sessionService.createSessionCookie(userId).value}"
+        val consentResponse =
+            noRedirectClient().use { client ->
+                client.toBlocking().exchange(
+                    HttpRequest
+                        .POST(
+                            "/oauth2/consent",
+                            "request_id=$requestId" +
+                                "&csrf_token=$csrfToken" +
+                                "&decision=deny",
+                        ).contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .header(HttpHeaders.COOKIE, sessionCookie),
+                    String::class.java,
+                )
+            }
+
+        assertThat(consentResponse.status()).isEqualTo(HttpStatus.SEE_OTHER)
+        assertThat(consentResponse.headers[HttpHeaders.LOCATION])
+            .isEqualTo("http://client.example/callback?error=access_denied&state=state-123")
+        assertThat(oauth2ConsentRepository.findAll()).isEmpty()
+        entityManager.clear()
+        assertThat(authorizationRequestRepository.findById(requestId).orElseThrow().status)
+            .isEqualTo(OAuth2AuthorizationRequestStatus.DENIED)
+    }
+
+    @Test
+    fun `declining newly requested delta proceeds with existing consent`() {
+        val firstVerifier = "correct-horse-battery-staple-0123456789"
+        val (userId, _) = createApprovedAuthorizationCode(firstVerifier)
+        val secondVerifier = "another-correct-horse-battery-staple-0123456789"
+        val (_, requestId, csrfToken) =
+            createPendingAuthorizationRequest(
+                verifier = secondVerifier,
+                scope = "finance:cashflow:read finance:transactions:read",
+                userId = userId,
+            )
+        val sessionCookie = "${sessionService.cookieName()}=${sessionService.createSessionCookie(userId).value}"
+        val consentResponse =
+            noRedirectClient().use { client ->
+                client.toBlocking().exchange(
+                    HttpRequest
+                        .POST(
+                            "/oauth2/consent",
+                            "request_id=$requestId" +
+                                "&csrf_token=$csrfToken" +
+                                "&decision=allow",
+                        ).contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .header(HttpHeaders.COOKIE, sessionCookie),
+                    String::class.java,
+                )
+            }
+
+        assertThat(consentResponse.status()).isEqualTo(HttpStatus.SEE_OTHER)
+        val code =
+            requireNotNull(
+                Regex("code=([^&]+)").find(
+                    requireNotNull(consentResponse.headers[HttpHeaders.LOCATION]),
+                ),
+            ).groupValues[1]
+        val tokenResponse =
+            json.readValue(
+                exchangeAuthorizationCode(code, secondVerifier).body(),
+                OAuth2TokenResponse::class.java,
+            )
+
+        assertThat(tokenResponse.scope).isEqualTo("finance:cashflow:read")
+        assertThat(jwtTokenValidator.validateToken(tokenResponse.access_token)["scope"])
+            .isEqualTo("finance:cashflow:read")
+        assertThat(oauth2ConsentRepository.findAll())
+            .singleElement()
+            .extracting<String> { it.grantedScopes }
+            .isEqualTo("finance:cashflow:read")
     }
 
     @Test
@@ -544,9 +705,10 @@ open class OAuth2AuthorizationServerIntegrationTest :
     private fun createPendingAuthorizationRequest(
         verifier: String,
         scope: String,
+        userId: UUID? = null,
     ): Triple<UUID, UUID, String> =
         entityManager.runTransaction {
-            val savedUserId = createUser()
+            val savedUserId = userId ?: createUser()
             val authorizationRequest =
                 authorizationService.createAuthorizationRequest(
                     OAuth2AuthorizeInput(
@@ -636,6 +798,25 @@ open class OAuth2AuthorizationServerIntegrationTest :
                 principalType = PrincipalType.USER,
                 externalId = savedUserId.toString(),
                 enabled = true,
+            ),
+        )
+        val account =
+            accountRepository.save(
+                AccountEntity(
+                    accountName = "OAuth Test Account",
+                    accountType = AccountType.PERSONAL,
+                    ownerUserId = savedUserId,
+                ),
+            )
+        val accountId = requireNotNull(account.id)
+        createdAccountIds.add(accountId)
+        accountMembershipRepository.save(
+            AccountMembershipEntity(
+                accountId = accountId,
+                userId = savedUserId,
+                accountRole = AccountRole.OWNER,
+                membershipStatus = MembershipStatus.ACTIVE,
+                isDefault = true,
             ),
         )
         return savedUserId

@@ -152,7 +152,9 @@
       "brace-expansion@5": "5.0.7",
       "js-yaml@3": "3.15.0",
       "js-yaml@4": "4.3.0",
-      "shell-quote": ">=1.9.0"
+      "shell-quote": ">=1.9.0",
+      "fast-uri": ">=4.1.1",
+      "sharp": ">=0.35.0"
     }
   },
   "msw": {
