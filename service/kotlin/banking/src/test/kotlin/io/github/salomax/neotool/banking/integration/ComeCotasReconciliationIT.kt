@@ -10,6 +10,7 @@ import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTr
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventRepository
+import io.github.salomax.neotool.banking.service.investment.ComeCotasSupport
 import io.github.salomax.neotool.banking.service.investment.ConfirmWithholdingTaxService
 import io.github.salomax.neotool.banking.service.investment.InvestmentTransactionService
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
@@ -45,6 +46,7 @@ class ComeCotasReconciliationIT : BankingPostgresIntegrationTest() {
     private lateinit var userId: UUID
     private lateinit var financialAccountId: UUID
     private lateinit var assetId: UUID
+    private lateinit var fundCnpj: String
 
     @BeforeEach
     fun setUpFixture() {
@@ -52,6 +54,7 @@ class ComeCotasReconciliationIT : BankingPostgresIntegrationTest() {
         userId = UUID.randomUUID()
         financialAccountId = UUID.randomUUID()
         assetId = UUID.randomUUID()
+        fundCnpj = "12${UUID.randomUUID().toString().filter(Char::isDigit).padEnd(12, '0').take(12)}"
 
         openConnection().use { conn ->
             conn.createStatement().executeUpdate(
@@ -69,7 +72,7 @@ class ComeCotasReconciliationIT : BankingPostgresIntegrationTest() {
                 INSERT INTO banking.investment_assets (
                     id, name, asset_type, currency_code, fund_cnpj, created_at, updated_at
                 ) VALUES (
-                    '$assetId', 'FUNDO TESTE RF', '${AssetType.MUTUAL_FUND.name}', 'BRL', '12345678000199', NOW(), NOW()
+                    '$assetId', 'FUNDO TESTE RF', '${AssetType.MUTUAL_FUND.name}', 'BRL', '$fundCnpj', NOW(), NOW()
                 )
                 """.trimIndent(),
             )
@@ -170,6 +173,64 @@ class ComeCotasReconciliationIT : BankingPostgresIntegrationTest() {
         val importedFlow = importedEvents.single { it.eventType == PortfolioFlowEventType.INCOME_TAX }
         assertThat(importedFlow.sourceReferenceId).isEqualTo(importedWithholding.id)
         assertThat(importedFlow.grossAmount).isEqualByComparingTo("18.00")
+    }
+
+    @Test
+    fun `persisted withholding quantity reconstructs the expected surviving quota base`() {
+        val purchaseDate = LocalDate.of(2025, 6, 2)
+        val checkpointDate = LocalDate.of(2025, 11, 28)
+        val expectedSurvivingQuantity = BigDecimal("756.00421069")
+
+        investmentTransactionService.record(
+            command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("765.07800000"),
+                    unitPrice = BigDecimal("1.00000000"),
+                    grossValue = BigDecimal("765.07800000"),
+                    netValue = BigDecimal("765.07800000"),
+                    tradeDate = purchaseDate,
+                    settlementDate = purchaseDate,
+                    source = InvestmentSource.MANUAL,
+                ),
+            accountId = accountId,
+            userId = userId,
+        )
+
+        val holding =
+            requireNotNull(
+                holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId),
+            )
+
+        confirmWithholdingTaxService.confirm(
+            command =
+                ConfirmWithholdingTaxCommand(
+                    holdingId = requireNotNull(holding.id),
+                    tradeDate = checkpointDate,
+                    irValue = BigDecimal("15.00"),
+                    quotasDeducted = BigDecimal("9.07378931"),
+                    source = InvestmentSource.SYSTEM,
+                    providerTransactionId = "comecotas:${holding.id}:$checkpointDate",
+                ),
+            accountId = accountId,
+            userId = userId,
+        )
+
+        val transactions =
+            investmentTransactionRepository.findByHolding(
+                holdingId = requireNotNull(holding.id),
+                accountId = accountId,
+            )
+        val reconstructedQuantity =
+            ComeCotasSupport.reconstructOpenLots(transactions)
+                .fold(BigDecimal.ZERO) { acc, lot -> acc.add(lot.quantity) }
+
+        assertThat(reconstructedQuantity.subtract(expectedSurvivingQuantity).abs())
+            .isLessThan(BigDecimal("0.01"))
+        assertThat(reconstructedQuantity).isEqualByComparingTo(expectedSurvivingQuantity)
     }
 
     private fun openConnection() =

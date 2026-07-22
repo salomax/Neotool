@@ -146,7 +146,6 @@ class FundValuationServiceTest {
                     direction = InvestmentTransactionDirection.OUTFLOW,
                     type = InvestmentTransactionType.WITHHOLDING_TAX,
                     grossValue = BigDecimal("4.00"),
-                    incomeTax = BigDecimal("4.00"),
                     tradeDate = LocalDate.of(2025, 6, 2),
                     createdAt = Instant.parse("2025-06-02T12:00:00Z"),
                     updatedAt = Instant.parse("2025-06-02T12:00:00Z"),
@@ -225,7 +224,6 @@ class FundValuationServiceTest {
                     quantity = BigDecimal("5"),
                     unitPrice = BigDecimal("0.60"),
                     grossValue = BigDecimal("3.00"),
-                    incomeTax = BigDecimal("3.00"),
                     tradeDate = LocalDate.of(2025, 5, 30),
                     createdAt = Instant.parse("2025-05-30T12:00:00Z"),
                     updatedAt = Instant.parse("2025-05-30T12:00:00Z"),
@@ -234,8 +232,9 @@ class FundValuationServiceTest {
 
         val result = service.estimate(holding, snapshot, transactions)
 
-        assertThat(result.incomeTax).isNotNull
-        assertThat(result.incomeTax!!).isGreaterThanOrEqualTo(BigDecimal.ZERO)
-        assertThat(result.incomeTax!!).isLessThan(BigDecimal("4.00"))
+        assertThat(result.grossValue).isEqualByComparingTo("114.00")
+        assertThat(result.iof).isEqualByComparingTo("0")
+        assertThat(result.incomeTax).isEqualByComparingTo("0.80")
+        assertThat(result.netValue).isEqualByComparingTo("113.20")
     }
 }

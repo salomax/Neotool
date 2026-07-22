@@ -131,13 +131,14 @@ class ComeCotasCheckpointServiceTest {
         val job = claimedJob(attemptCount = 1)
         stubBase(
             job,
-            holding = holding.copy(quantity = BigDecimal("98.63636364")),
+            holding = holding.copy(quantity = BigDecimal("95.00000000")),
             asset = asset,
             transactions =
                 listOf(
                     purchase(quantity = "100", unitPrice = "1.00"),
                     withholdingTax(
                         tradeDate = LocalDate.of(2026, 5, 29),
+                        quantity = "5.00000000",
                         amount = "1.50",
                     ),
                 ),
@@ -162,11 +163,54 @@ class ComeCotasCheckpointServiceTest {
         val commandCaptor = argumentCaptor<ConfirmWithholdingTaxCommand>()
         verify(confirmWithholdingTaxService).confirm(commandCaptor.capture(), eq(accountId), eq(userId))
         assertThat(commandCaptor.firstValue.source).isEqualTo(InvestmentSource.SYSTEM)
-        assertThat(commandCaptor.firstValue.irValue).isEqualByComparingTo("1.50")
-        assertThat(commandCaptor.firstValue.quotasDeducted).isEqualByComparingTo("1.25000000")
+        assertThat(commandCaptor.firstValue.irValue).isEqualByComparingTo("1.35")
+        assertThat(commandCaptor.firstValue.quotasDeducted).isEqualByComparingTo("1.12500000")
 
         val updatedJob = captureUpdatedJob()
         assertThat(updatedJob.status).isEqualTo(ComeCotasCheckpointJobStatus.COMPLETED)
+    }
+
+    @Test
+    fun `uses the reduced base at the next checkpoint without tripping the current quantity guard`() {
+        val job = claimedJob(attemptCount = 1)
+        stubBase(
+            job,
+            holding = holding.copy(quantity = BigDecimal("1.20000000")),
+            asset = asset,
+            transactions =
+                listOf(
+                    purchase(quantity = "100", unitPrice = "1.00"),
+                    withholdingTax(
+                        tradeDate = LocalDate.of(2026, 5, 29),
+                        quantity = "5.00000000",
+                        amount = "1.50",
+                    ),
+                ),
+        )
+        whenever(fundMarketDataProvider.getSnapshotsByCnpj(setOf(fundCnpj))).thenReturn(
+            mapOf(
+                fundCnpj to
+                    FundMarketSnapshot(
+                        fundCnpj = fundCnpj,
+                        assetType = "MUTUAL_FUND",
+                        taxProfile = FundTaxProfile.COME_COTAS_LONG,
+                        latestNav = FundMarketNav(date = checkpointDate, closePrice = BigDecimal("1.20")),
+                    ),
+            ),
+        )
+        whenever(fundMarketDataProvider.getNavSeries(fundCnpj, LocalDate.of(2026, 1, 2), checkpointDate)).thenReturn(
+            listOf(checkpointDate to BigDecimal("1.20")),
+        )
+
+        service.process(requireNotNull(job.id))
+
+        val commandCaptor = argumentCaptor<ConfirmWithholdingTaxCommand>()
+        verify(confirmWithholdingTaxService).confirm(commandCaptor.capture(), eq(accountId), eq(userId))
+        assertThat(commandCaptor.firstValue.quotasDeducted).isEqualByComparingTo("1.12500000")
+
+        val updatedJob = captureUpdatedJob()
+        assertThat(updatedJob.status).isEqualTo(ComeCotasCheckpointJobStatus.COMPLETED)
+        assertThat(updatedJob.errorCode).isNull()
     }
 
     @Test
@@ -302,6 +346,7 @@ class ComeCotasCheckpointServiceTest {
     private fun withholdingTax(
         tradeDate: LocalDate,
         amount: String,
+        quantity: String = "0.00000000",
     ): InvestmentTransaction =
         InvestmentTransaction(
             id = UUID.randomUUID(),
@@ -311,8 +356,8 @@ class ComeCotasCheckpointServiceTest {
             createdByUserId = userId,
             direction = InvestmentTransactionDirection.OUTFLOW,
             type = InvestmentTransactionType.WITHHOLDING_TAX,
+            quantity = BigDecimal(quantity),
             grossValue = BigDecimal(amount),
-            incomeTax = BigDecimal(amount),
             tradeDate = tradeDate,
             createdAt = tradeDate.atStartOfDay().plusHours(12).toInstant(java.time.ZoneOffset.UTC),
             updatedAt = tradeDate.atStartOfDay().plusHours(12).toInstant(java.time.ZoneOffset.UTC),

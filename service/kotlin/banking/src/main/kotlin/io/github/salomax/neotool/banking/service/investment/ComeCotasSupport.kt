@@ -113,7 +113,11 @@ internal object ComeCotasSupport {
                 }
 
                 tx.type == InvestmentTransactionType.WITHHOLDING_TAX -> {
-                    allocateWithholding(openLots, tx.incomeTax ?: tx.grossValue ?: BigDecimal.ZERO)
+                    allocateWithholding(
+                        openLots = openLots,
+                        amount = tx.incomeTax ?: tx.grossValue ?: BigDecimal.ZERO,
+                        quantityDeducted = tx.quantity ?: BigDecimal.ZERO,
+                    )
                 }
             }
         }
@@ -151,8 +155,9 @@ internal object ComeCotasSupport {
     private fun allocateWithholding(
         openLots: ArrayDeque<OpenLot>,
         amount: BigDecimal,
+        quantityDeducted: BigDecimal,
     ) {
-        if (amount <= BigDecimal.ZERO || openLots.isEmpty()) return
+        if ((amount <= BigDecimal.ZERO && quantityDeducted <= BigDecimal.ZERO) || openLots.isEmpty()) return
 
         val lots = openLots.toList()
         val totalQuantity = lots.fold(BigDecimal.ZERO) { acc, lot -> acc.add(lot.quantity, mathContext) }
@@ -160,19 +165,34 @@ internal object ComeCotasSupport {
 
         openLots.clear()
         var allocated = BigDecimal.ZERO
+        var deducted = BigDecimal.ZERO
         lots.forEachIndexed { index, lot ->
-            val share =
+            val withholdingShare =
                 if (index == lots.lastIndex) {
                     amount.subtract(allocated, mathContext)
                 } else {
                     prorateAmount(amount, lot.quantity, totalQuantity)
                 }
-            allocated = allocated.add(share, mathContext)
-            openLots.addLast(
-                lot.copy(
-                    withholdingPaid = lot.withholdingPaid.add(share, mathContext),
-                ),
-            )
+            val quantityShare =
+                if (index == lots.lastIndex) {
+                    quantityDeducted.subtract(deducted, mathContext)
+                } else {
+                    prorateAmount(quantityDeducted, lot.quantity, totalQuantity)
+                }
+            allocated = allocated.add(withholdingShare, mathContext)
+            deducted = deducted.add(quantityShare, mathContext)
+
+            val remainingQuantity = lot.quantity.subtract(quantityShare, mathContext).max(BigDecimal.ZERO)
+            if (remainingQuantity > BigDecimal.ZERO) {
+                openLots.addLast(
+                    lot.copy(
+                        quantity = remainingQuantity,
+                        withholdingPaid = lot.withholdingPaid.add(withholdingShare, mathContext),
+                    ),
+                )
+            }
+            // A pro-rata come-cotas should never fully consume all open quantity here because the
+            // checkpoint flow rejects quotasDeducted > holding.quantity before persisting the event.
         }
     }
 

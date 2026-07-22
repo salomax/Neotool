@@ -208,6 +208,7 @@ class ComeCotasCheckpointService(
         if (openLots.isEmpty()) {
             return ComputationResult.NoTaxDue("no-open-lots")
         }
+        val baseQuantity = openLots.fold(BigDecimal.ZERO) { acc, lot -> acc.add(lot.quantity, mathContext) }
 
         val irValue =
             openLots.fold(BigDecimal.ZERO) { acc, lot ->
@@ -231,6 +232,11 @@ class ComeCotasCheckpointService(
         if (irValue <= BigDecimal.ZERO) return ComputationResult.NoTaxDue("non-positive-ir-value")
         val quotasDeducted = irValue.divide(navAtCheckpoint.second, 8, RoundingMode.HALF_UP)
         if (quotasDeducted <= BigDecimal.ZERO) return ComputationResult.NoTaxDue("non-positive-quotas-deducted")
+        logger.info {
+            "come-cotas checkpoint diagnostics holdingId=${holding.id} checkpointDate=$checkpointDate " +
+                "base_quantity=$baseQuantity nav_used=${navAtCheckpoint.second} " +
+                "irValue=$irValue quotasDeducted=$quotasDeducted"
+        }
         if (quotasDeducted > holding.quantity) {
             throw ValidationException(
                 CommonErrorCode.INVALID_INPUT,
