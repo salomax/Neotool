@@ -1,3 +1,13 @@
+## 0.12.1 (2026-07-22)
+
+### 🚀 Features
+
+- **investment:** enhance ComeCotas processing and logging ([#445](https://github.com/invistus/invistus/pull/445))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.12.0 (2026-07-22)
 
 ### 🚀 Features
