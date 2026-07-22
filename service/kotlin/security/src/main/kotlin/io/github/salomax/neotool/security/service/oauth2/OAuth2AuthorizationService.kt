@@ -35,6 +35,8 @@ open class OAuth2AuthorizationService(
     private val authorizationCodeRepository: OAuth2AuthorizationCodeRepository,
     private val tokenHashing: OAuth2TokenHashing,
     private val oauthConfig: OAuthConfig,
+    private val scopePermissionMapper: OAuth2ScopePermissionMapper,
+    private val consentService: OAuth2ConsentService,
 ) {
     @Transactional
     open fun createAuthorizationRequest(input: OAuth2AuthorizeInput): OAuth2AuthorizationRequestEntity {
@@ -69,7 +71,7 @@ open class OAuth2AuthorizationService(
         if (scopes.isEmpty()) {
             throw OAuth2InvalidRequestException("scope is required")
         }
-        val unknownScopes = scopes.filterNot { client.scopes.contains(it) }
+        val unknownScopes = scopes.filterNot { it in scopePermissionMapper.allScopes() && client.scopes.contains(it) }
         if (unknownScopes.isNotEmpty()) {
             throw OAuth2InvalidRequestException("Unknown scope requested")
         }
@@ -96,13 +98,21 @@ open class OAuth2AuthorizationService(
     open fun bindUserAndCsrf(
         requestId: UUID,
         userId: UUID,
-    ): Pair<OAuth2AuthorizationRequestEntity, String> {
+    ): Triple<OAuth2AuthorizationRequestEntity, String, OAuth2ConsentRequirement> {
         val request = getPendingRequest(requestId)
+        val requestedScopes = parseScopes(request.requestedScopes)
+        val consentRequirement =
+            consentService.consentRequirement(
+                userId = userId,
+                clientId = request.clientId,
+                requestedScopes = requestedScopes,
+            )
         val csrfToken = tokenHashing.newOpaqueToken()
         request.userId = userId
+        request.accountId = consentRequirement.accountId
         request.csrfTokenHash = tokenHashing.sha256Hex(csrfToken)
         request.updatedAt = Instant.now()
-        return authorizationRequestRepository.update(request) to csrfToken
+        return Triple(authorizationRequestRepository.update(request), csrfToken, consentRequirement)
     }
 
     @Transactional
@@ -116,22 +126,83 @@ open class OAuth2AuthorizationService(
         if (request.userId != userId) {
             throw OAuth2InvalidRequestException("Authorization request does not belong to this session")
         }
-        val expectedCsrf = request.csrfTokenHash ?: throw OAuth2InvalidRequestException("CSRF token is missing")
-        if (csrfToken.isNullOrBlank() ||
-            !tokenHashing.constantTimeEquals(
-                expectedCsrf,
-                tokenHashing.sha256Hex(csrfToken),
-            )
-        ) {
-            throw OAuth2InvalidRequestException("Invalid CSRF token")
-        }
+        validateCsrf(request, csrfToken)
         val requested = parseScopes(request.requestedScopes).toSet()
         val granted = grantedScopes.filter { it.isNotBlank() }.toSet()
-        if (granted.isEmpty() || !requested.containsAll(granted)) {
-            throw OAuth2InvalidRequestException("Granted scopes must be a non-empty subset of requested scopes")
+        if (!requested.containsAll(granted)) {
+            throw OAuth2InvalidRequestException("Granted scopes must be a subset of requested scopes")
+        }
+        val consentRequirement =
+            consentService.consentRequirement(
+                userId = userId,
+                clientId = request.clientId,
+                requestedScopes = requested,
+            )
+        val accountId =
+            request.accountId ?: consentRequirement.accountId
+        val existingScopes = consentRequirement.existingScopes
+        val effectiveGrant = (existingScopes + granted).intersect(requested).ifEmpty { granted }
+        if (effectiveGrant.isEmpty()) {
+            return denyRequest(request)
         }
         val code = tokenHashing.newOpaqueToken()
-        request.grantedScopes = granted.joinToString(" ")
+        request.accountId = accountId
+        request.grantedScopes = effectiveGrant.sorted().joinToString(" ")
+        request.status = OAuth2AuthorizationRequestStatus.APPROVED
+        request.updatedAt = Instant.now()
+        authorizationRequestRepository.update(request)
+        consentService.persistGrant(
+            userId = userId,
+            clientId = request.clientId,
+            accountId = accountId,
+            scopes = existingScopes + granted,
+        )
+        authorizationCodeRepository.save(
+            OAuth2AuthorizationCodeEntity(
+                codeHash = tokenHashing.sha256Hex(code),
+                authorizationRequestId = requestId,
+                expiresAt =
+                    Instant.now().plusSeconds(
+                        oauthConfig.authorizationServer.authorizationCodeTtlSeconds.coerceAtMost(60),
+                    ),
+            ),
+        )
+        return redirectWithCode(request.redirectUri, code, request.state)
+    }
+
+    @Transactional
+    open fun deny(
+        requestId: UUID,
+        userId: UUID,
+        csrfToken: String?,
+    ): String {
+        val request = getPendingRequest(requestId)
+        if (request.userId != userId) {
+            throw OAuth2InvalidRequestException("Authorization request does not belong to this session")
+        }
+        validateCsrf(request, csrfToken)
+        return denyRequest(request)
+    }
+
+    @Transactional
+    open fun approveExistingConsent(
+        requestId: UUID,
+        userId: UUID,
+        accountId: UUID,
+        grantedScopes: Collection<String>,
+    ): String {
+        val request = getPendingRequest(requestId)
+        if (request.userId != userId) {
+            throw OAuth2InvalidRequestException("Authorization request does not belong to this session")
+        }
+        val requested = parseScopes(request.requestedScopes).toSet()
+        val granted = grantedScopes.toSet().intersect(requested)
+        if (granted.isEmpty()) {
+            throw OAuth2InvalidRequestException("No consented scope is available for this request")
+        }
+        val code = tokenHashing.newOpaqueToken()
+        request.accountId = accountId
+        request.grantedScopes = granted.sorted().joinToString(" ")
         request.status = OAuth2AuthorizationRequestStatus.APPROVED
         request.updatedAt = Instant.now()
         authorizationRequestRepository.update(request)
@@ -150,21 +221,6 @@ open class OAuth2AuthorizationService(
 
     fun clientName(clientId: String): String = clientRegistry.find(clientId)?.clientName ?: clientId
 
-    fun describeScopes(scopes: String): List<OAuth2ScopeDescription> =
-        parseScopes(scopes).map { scope ->
-            OAuth2ScopeDescription(
-                name = scope,
-                description =
-                    when (scope) {
-                        "finance:cashflow:read" ->
-                            "Read cash-flow summaries for all accounts, including investment accounts."
-                        "finance:transactions:read" -> "Read transaction history."
-                        "finance:accounts:read" -> "Read financial account metadata."
-                        else -> "Access this permission."
-                    },
-            )
-        }
-
     fun parseScopes(scope: String?): List<String> =
         scope
             ?.split(" ")
@@ -172,6 +228,28 @@ open class OAuth2AuthorizationService(
             ?.filter { it.isNotBlank() }
             ?.distinct()
             ?: emptyList()
+
+    private fun validateCsrf(
+        request: OAuth2AuthorizationRequestEntity,
+        csrfToken: String?,
+    ) {
+        val expectedCsrf = request.csrfTokenHash ?: throw OAuth2InvalidRequestException("CSRF token is missing")
+        if (csrfToken.isNullOrBlank() ||
+            !tokenHashing.constantTimeEquals(
+                expectedCsrf,
+                tokenHashing.sha256Hex(csrfToken),
+            )
+        ) {
+            throw OAuth2InvalidRequestException("Invalid CSRF token")
+        }
+    }
+
+    private fun denyRequest(request: OAuth2AuthorizationRequestEntity): String {
+        request.status = OAuth2AuthorizationRequestStatus.DENIED
+        request.updatedAt = Instant.now()
+        authorizationRequestRepository.update(request)
+        return redirectWithError(request.redirectUri, "access_denied", request.state)
+    }
 
     private fun redirectWithCode(
         redirectUri: String,
@@ -182,5 +260,16 @@ open class OAuth2AuthorizationService(
         val encodedCode = URLEncoder.encode(code, Charsets.UTF_8)
         val statePart = state?.let { "&state=${URLEncoder.encode(it, Charsets.UTF_8)}" } ?: ""
         return "$redirectUri${separator}code=$encodedCode$statePart"
+    }
+
+    private fun redirectWithError(
+        redirectUri: String,
+        error: String,
+        state: String?,
+    ): String {
+        val separator = if (redirectUri.contains("?")) "&" else "?"
+        val encodedError = URLEncoder.encode(error, Charsets.UTF_8)
+        val statePart = state?.let { "&state=${URLEncoder.encode(it, Charsets.UTF_8)}" } ?: ""
+        return "$redirectUri${separator}error=$encodedError$statePart"
     }
 }

@@ -3,6 +3,7 @@ package io.github.salomax.neotool.security.http
 import io.github.salomax.neotool.security.repo.UserRepository
 import io.github.salomax.neotool.security.service.oauth2.OAuth2AuthorizationService
 import io.github.salomax.neotool.security.service.oauth2.OAuth2InvalidRequestException
+import io.github.salomax.neotool.security.service.oauth2.OAuth2ScopeDescriptionService
 import io.github.salomax.neotool.security.service.oauth2.OAuth2SessionService
 import io.github.salomax.neotool.security.service.oauth2.OAuth2TemplateRenderer
 import io.micronaut.http.HttpHeaders
@@ -29,6 +30,7 @@ class OAuth2ConsentController(
     private val authorizationService: OAuth2AuthorizationService,
     private val sessionService: OAuth2SessionService,
     private val templateRenderer: OAuth2TemplateRenderer,
+    private val scopeDescriptionService: OAuth2ScopeDescriptionService,
     private val userRepository: UserRepository,
 ) {
     @Get("/consent")
@@ -40,8 +42,20 @@ class OAuth2ConsentController(
             sessionService.parse(request.cookies[sessionService.cookieName()]?.value)
                 ?: return HttpResponse.seeOther<Any>(URI.create("/oauth2/login?request_id=$requestId"))
         return try {
-            val (authorizationRequest, csrfToken) = authorizationService.bindUserAndCsrf(requestId, session.userId)
+            val (authorizationRequest, csrfToken, consentRequirement) =
+                authorizationService.bindUserAndCsrf(requestId, session.userId)
+            if (!consentRequirement.requiresPrompt) {
+                val redirect =
+                    authorizationService.approveExistingConsent(
+                        requestId = requestId,
+                        userId = session.userId,
+                        accountId = consentRequirement.accountId,
+                        grantedScopes = authorizationService.parseScopes(authorizationRequest.requestedScopes),
+                    )
+                return HttpResponse.seeOther<Any>(URI.create(redirect))
+            }
             val user = userRepository.findById(session.userId).orElse(null)
+            val scopesToShow = consentRequirement.scopesNeedingConsent.joinToString(" ")
             HttpResponse
                 .ok(
                     templateRenderer.render(
@@ -51,8 +65,12 @@ class OAuth2ConsentController(
                             "requestId" to requestId.toString(),
                             "csrfToken" to csrfToken,
                             "clientName" to authorizationService.clientName(authorizationRequest.clientId),
-                            "account" to (user?.email ?: session.userId.toString()),
-                            "scopes" to authorizationService.describeScopes(authorizationRequest.requestedScopes),
+                            "account" to "${consentRequirement.accountLabel} (${user?.email ?: session.userId})",
+                            "scopes" to
+                                scopeDescriptionService.describe(
+                                    scopesToShow,
+                                    request.headers.get(HttpHeaders.ACCEPT_LANGUAGE),
+                                ),
                             "action" to "/oauth2/consent",
                         ),
                     ),
@@ -77,12 +95,21 @@ class OAuth2ConsentController(
             sessionService.parse(request.cookies[sessionService.cookieName()]?.value)
                 ?: return HttpResponse.seeOther<Any>(URI.create("/oauth2/login?request_id=$requestId"))
         return try {
-            val storedRequest = authorizationService.getPendingRequest(requestId)
+            val decision = form.first("decision")
+            if (decision == "deny") {
+                val redirect =
+                    authorizationService.deny(
+                        requestId = requestId,
+                        userId = session.userId,
+                        csrfToken = form.first("csrf_token"),
+                    )
+                return HttpResponse.seeOther<Any>(URI.create(redirect))
+            }
             val grantedScopes =
                 form["scope"]
                     ?.flatMap { it.split(" ") }
                     ?.filter { it.isNotBlank() }
-                    ?: authorizationService.parseScopes(storedRequest.requestedScopes)
+                    ?: emptyList()
             val redirect =
                 authorizationService.approve(
                     requestId = requestId,

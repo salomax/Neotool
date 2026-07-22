@@ -96,7 +96,9 @@ open class OAuth2TokenService(
                 clientId = clientId,
                 scopes = grantedScopes,
                 resource = authorizationRequest.resource,
-                currentAccountId = authContextFactory.build(user).currentAccountId,
+                currentAccountId =
+                    authorizationRequest.accountId
+                        ?: authContextFactory.build(user).currentAccountId,
             )
         val (refreshToken, familyId) =
             refreshTokenService.createOAuthRefreshToken(

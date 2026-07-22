@@ -151,9 +151,9 @@ class JwtTokenIssuer(
     /**
      * Generate an OAuth-issued access token from an authorization grant.
      *
-     * OAuth grants carry scopes, not the user's complete permission set. The `permissions`
-     * claim is intentionally set to the granted scopes for compatibility with existing
-     * downstream JWT permission checks until the MCP permission mapping work lands.
+     * OAuth grants carry scopes, not the user's complete permission set. The `scope`
+     * and `permissions` claims both carry the granted OAuth scopes; service-specific
+     * permission translation happens during token exchange.
      */
     fun generateOAuthAccessToken(
         userId: UUID,

@@ -48,6 +48,8 @@ open class OAuth2AuthorizationRequestEntity(
     @ManyToOne
     @JoinColumn(name = "user_id", insertable = false, updatable = false)
     open val user: UserEntity? = null,
+    @Column(name = "account_id", columnDefinition = "uuid")
+    open var accountId: UUID? = null,
     @Column(name = "csrf_token_hash", length = 64)
     open var csrfTokenHash: String? = null,
     @Enumerated(EnumType.STRING)
