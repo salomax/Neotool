@@ -69,6 +69,14 @@ jwt:
   issuer: ${JWT_ISSUER:https://auth.invistus.com.br}
   jwks-url: ${JWT_JWKS_URL:}
 
+# Service principal credentials for outbound calls through the GraphQL router.
+# Register via: neotool service register mcp-service --permissions ... --output-env
+security:
+  service:
+    url: ${SECURITY_SERVICE_URL:http://localhost:8080}
+    id: ${SECURITY_SERVICE_ID:}
+    secret: ${SECURITY_SERVICE_SECRET:}
+
 mcp:
   resource:
     audience: ${MCP_RESOURCE_AUDIENCE:https://mcp.invistus.com.br}

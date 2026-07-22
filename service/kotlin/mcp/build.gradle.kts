@@ -133,3 +133,29 @@ tasks.withType<Jar> {
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     archiveVersion.set("")
 }
+
+// MCP-specific Kover exclusions (same idea as security/common/financialdata):
+// keep the coverage gate on protocol/auth/dispatch logic, not wire models,
+// thin HTTP adapters, JPA embeddables, or outbound service clients.
+afterEvaluate {
+    extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
+        reports {
+            filters {
+                excludes {
+                    classes(
+                        // Outbound adapters (cf. financialdata rest.internal / RepositoryImpl)
+                        "io.github.salomax.neotool.mcp.catalog.AssistantMcpToolCatalog",
+                        "io.github.salomax.neotool.mcp.dispatch.DefaultMcpBankingGraphQLClient",
+                        // Thin exception handlers (cf. common exception.*Handler)
+                        "io.github.salomax.neotool.mcp.security.*ExceptionHandler",
+                        // Health/readiness surface
+                        "io.github.salomax.neotool.mcp.http.McpHealthController",
+                        "io.github.salomax.neotool.mcp.http.McpReadinessResponse",
+                        // JPA embeddable id (root already excludes *Entity, not *Id)
+                        "io.github.salomax.neotool.mcp.security.ConnectionRevocationId",
+                    )
+                }
+            }
+        }
+    }
+}

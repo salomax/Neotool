@@ -9,7 +9,7 @@ description: >
   An issue number is required — ask for it immediately if not provided.
 metadata:
   author: invistus
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Solution Design — Invistus
@@ -24,6 +24,7 @@ heading and serve as direct input for `neotool-backlog-gen`.
 1. **All content posted to GitHub must be in English** — comments, headings, task names, labels. No exceptions, regardless of the language used in the conversation.
 2. **Issue number is required** — do not proceed without one. If not provided, stop and ask:
    > What is the issue number? e.g. `#42`
+3. **Every factual claim about the code is grounded, not assumed.** When the analysis states what the code does, it must be tagged with its source — `verified in File.kt:123` — or explicitly marked `assumed`. Reading a method's *signature* is not verification: read its *body*. If a cited method throws, is a stub, caps a value, or returns early, the analysis says so. Most design errors in this project came from citing a signature whose body contradicted the claim (a method that threw `UnsupportedOperationException`; a list path that silently capped; a scope that mapped imprecisely rather than not at all). One grep-and-open per cited symbol is cheaper than one wrong backlog.
 
 ## Workflow
 
@@ -43,7 +44,11 @@ Inspect the local code before proposing a solution. Look for:
 - Existing domain invariants
 - Integration points and regression risk
 
+For each symbol you intend to cite (service method, resolver, validator, mapper), open its body — not just its signature. Note anything that changes its observable behaviour: it throws, it is a stub, it caps or coerces, it short-circuits, it reads a claim the caller does not set. These are exactly the facts a backlog built on the analysis will get wrong if the analysis skipped them.
+
 Prefer concrete evidence from the code over abstract opinion.
+
+**Sequencing across issues.** If this issue *applies* a contract, table, or mapping that another issue *defines* (e.g. a scope→permission table, a shared claim, an error taxonomy), the definer must land first — say so in the implementation order. If this issue must land first for delivery reasons, inject the dependency and record the resulting debt explicitly, so the same contract does not get authored twice in two places. Duplicated authorship (the scope→permission table lived in two issues because of ordering) is a sequencing failure, not a coding one.
 
 ### 3. Load the project conventions
 
@@ -113,3 +118,5 @@ After commenting, inform the user which layers are impacted and whether the issu
 ## Quality criteria
 
 Avoid generic analysis. Every significant recommendation must be anchored in code evidence, a project convention, or an explicit assumption. Prefer incremental solutions before proposing broad refactors. Do not write a detailed backlog here — the goal is to close the technical decision.
+
+A claim tagged `verified in File.kt:line` is worth more than a paragraph of confident prose. When in doubt between stating something as fact and marking it `assumed`, mark it `assumed` — a wrong "fact" propagates into the backlog and the code; a flagged assumption gets checked.
