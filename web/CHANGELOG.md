@@ -1,3 +1,13 @@
+## 0.8.5 (2026-07-22)
+
+### 🚀 Features
+
+- **security:** add OAuth consent scope grants ([#442](https://github.com/invistus/invistus/pull/442))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.8.4 (2026-07-21)
 
 ### 🚀 Features
