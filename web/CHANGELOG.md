@@ -1,3 +1,13 @@
+## 0.9.0 (2026-07-22)
+
+### 🚀 Features
+
+- improve investment fund workflow ([#441](https://github.com/invistus/invistus/pull/441))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.8.5 (2026-07-22)
 
 ### 🚀 Features
