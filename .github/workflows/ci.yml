@@ -79,7 +79,7 @@ jobs:
           fi
 
           # Known Kotlin API services (have package.json, appear without ":" prefix)
-          KOTLIN_KNOWN='["security","assets","financialdata","assistant","comms","banking"]'
+          KOTLIN_KNOWN='["security","assets","financialdata","assistant","comms","banking","mcp"]'
           PYTHON_KNOWN='["pdf-extractor"]'
 
           # Kotlin: projects with ":" prefix (Gradle libs) OR in known Kotlin API list

@@ -1,0 +1,91 @@
+micronaut:
+  application:
+    name: neotool-mcp-service
+  executors:
+    blocking:
+      virtual: true
+  server:
+    port: 8086
+    thread-selection: blocking
+  metrics:
+    enabled: true
+    export:
+      prometheus:
+        enabled: true
+        step: PT15S
+  observation:
+    enabled: true
+
+otel:
+  traces:
+    exporter: ${OTEL_TRACES_EXPORTER:none}
+  propagators: tracecontext,baggage
+
+datasources:
+  default:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:6432}/${POSTGRES_DB:neotool_db}
+    driverClassName: org.postgresql.Driver
+    username: ${POSTGRES_USER:neotool}
+    password: ${POSTGRES_PASSWORD:neotool}
+    dialect: POSTGRES
+    hikari:
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:10}
+      minimum-idle: ${HIKARI_MIN_IDLE:2}
+      connection-timeout: ${HIKARI_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${HIKARI_IDLE_TIMEOUT:600000}
+      max-lifetime: ${HIKARI_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${HIKARI_LEAK_DETECTION:60000}
+      connection-test-query: "SELECT 1"
+      validation-timeout: ${HIKARI_VALIDATION_TIMEOUT:5000}
+      auto-commit: false
+      read-only: false
+      data-source-properties:
+        applicationName: ${micronaut.application.name:neotool-mcp-service}
+        socketTimeout: 30
+        loginTimeout: 10
+        prepareThreshold: 0
+        tcpKeepAlive: true
+
+jpa:
+  default:
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: none
+
+flyway:
+  datasources:
+    default:
+      enabled: true
+      baseline-on-migrate: true
+      baseline-version: 0
+      table: flyway_schema_history_mcp
+      schemas:
+        - public
+        - mcp
+
+jwt:
+  algorithm: ${JWT_ALGORITHM:RS256}
+  issuer: ${JWT_ISSUER:https://auth.invistus.com.br}
+  jwks-url: ${JWT_JWKS_URL:}
+
+mcp:
+  resource:
+    audience: ${MCP_RESOURCE_AUDIENCE:https://mcp.invistus.com.br}
+    metadata-url: ${MCP_RESOURCE_METADATA_URL:https://mcp.invistus.com.br/.well-known/oauth-protected-resource}
+  revocation:
+    eviction:
+      fixed-delay: ${MCP_REVOCATION_EVICTION_FIXED_DELAY:PT1H}
+
+endpoints:
+  all:
+    enabled: true
+  health:
+    enabled: true
+    sensitive: false
+  prometheus:
+    enabled: true
+    sensitive: false
+  metrics:
+    enabled: true
+    sensitive: false

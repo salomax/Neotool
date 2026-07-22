@@ -24,7 +24,7 @@ GRADLEW_DEV="$CLI_DIR/gradlew-dev.sh"
 GRADLE_LOCK_FILE="/tmp/neotool-gradle.lock"
 
 # Ordered list for start all (bash 3 compatible — no associative arrays)
-ALL_SERVICES=(security assets assistant financialdata comms banking web)
+ALL_SERVICES=(security assets assistant financialdata comms banking mcp web)
 
 # All workers (golang + python)
 ALL_WORKERS=(asset-brand b3-cotahist b3-corporate-events bacen-ifdata cvm-funds indicators institution-consumer ratings pdf-extractor)
@@ -90,6 +90,7 @@ service_port() {
         financialdata) echo 8091 ;;
         comms)        echo 8084 ;;
         banking)      echo 8092 ;;
+        mcp)          echo 8086 ;;
         *)            echo "" ;;
     esac
 }
@@ -302,7 +303,7 @@ gradle_reset() {
     log "▶ Resetting Gradle locks and daemons..." "$BLUE"
 
     # Running :module:run services keep class files open under build/ and break `./gradlew clean`.
-    for svc in security assets assistant financialdata comms banking; do
+    for svc in security assets assistant financialdata comms banking mcp; do
         if window_exists "$svc"; then
             log "  Stopping $svc (tmux)..." "$GRAY"
             kill_window "$svc"
@@ -386,7 +387,7 @@ start_service() {
     fi
     case "$name" in
         web)              start_web ;;
-        security|assets|assistant|financialdata|comms|banking) start_kotlin "$name" ;;
+        security|assets|assistant|financialdata|comms|banking|mcp) start_kotlin "$name" ;;
         *) log_error "Unknown service: $name"; exit 1 ;;
     esac
 }
@@ -993,7 +994,7 @@ Subcommands:
     (use if kspKotlin fails with "Failed to load cache entry" or clean cannot delete build).
 
 Available services:
-  web, security, assets, assistant, financialdata, comms, banking
+  web, security, assets, assistant, financialdata, comms, banking, mcp
 
 Available workers:
   asset-brand, b3-cotahist, b3-corporate-events, bacen-ifdata,
@@ -1026,7 +1027,7 @@ EOF
 # =============================================================================
 
 FORWARD_PROXY_NAME="devpod-port-proxy"
-FORWARD_DEFAULT_PORTS=(3000 4000 8080 8082 8083 8084 8091 8092 5432 6432 9092 9094 9000 9001 8200)
+FORWARD_DEFAULT_PORTS=(3000 4000 8080 8082 8083 8084 8086 8091 8092 5432 6432 9092 9094 9000 9001 8200)
 FORWARD_EXTRA_PORTS_FILE="${TMPDIR:-/tmp}/devpod-forward-extra-ports"
 
 # Parse PORT or LOCAL:REMOTE into "local remote". Returns non-zero on invalid input.

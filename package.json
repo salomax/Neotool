@@ -6,7 +6,7 @@
     "typecheck": "nx run neotool-web:typecheck",
     "lint": "nx run neotool-web:lint",
     "nx": "nx",
-    "check:api": "nx run-many --target=check --projects=security,assets,financialdata,banking,assistant,comms",
+    "check:api": "nx run-many --target=check --projects=security,assets,financialdata,banking,assistant,comms,mcp",
     "check:workers": "nx run-many --target=build,test,lint --projects=bacen-ifdata-cronjob,ratings-job,indicators-job,institution-enhancement-consumer,pdf-extractor,cvm-funds-job,b3-cotahist-job,asset-brand-job",
     "check:web": "nx run-many --target=typecheck,lint,test:unit --projects=neotool-web",
     "check:mobile": "nx run-many --target=typecheck,lint,test --projects=neotool-mobile",

@@ -1,0 +1,3 @@
+<configuration>
+    <include resource="io/micronaut/runtime/logback/logback.xml"/>
+</configuration>
