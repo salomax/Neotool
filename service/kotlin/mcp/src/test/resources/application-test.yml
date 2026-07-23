@@ -18,6 +18,26 @@ otel:
 kafka:
   enabled: false
 
+jwt:
+  algorithm: RS256
+  issuer: http://localhost:8080
+  jwks-url: ""
+
+security:
+  service:
+    url: http://localhost:8080
+    id: mcp-service
+    secret: test-secret
+
+graphql:
+  router:
+    url: http://localhost:4000/graphql
+
+mcp:
+  resource:
+    audience: http://localhost:8086
+    metadata-url: http://localhost:8086/.well-known/oauth-protected-resource
+
 logging:
   level:
     io.github.salomax.neotool: DEBUG

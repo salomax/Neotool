@@ -69,22 +69,26 @@ flyway:
         - mcp
 
 jwt:
-  algorithm: ${JWT_ALGORITHM:RS256}
-  issuer: ${JWT_ISSUER:https://auth.invistus.com.br}
-  jwks-url: ${JWT_JWKS_URL:}
+  algorithm: ${JWT_ALGORITHM}
+  issuer: ${JWT_ISSUER}
+  jwks-url: ${JWT_JWKS_URL}
 
 # Service principal credentials for outbound calls through the GraphQL router.
 # Register via: neotool service register mcp-service --permissions ... --output-env
 security:
   service:
-    url: ${SECURITY_SERVICE_URL:http://localhost:8080}
-    id: ${SECURITY_SERVICE_ID:}
-    secret: ${SECURITY_SERVICE_SECRET:}
+    url: ${SECURITY_SERVICE_URL}
+    id: ${SECURITY_SERVICE_ID}
+    secret: ${SECURITY_SERVICE_SECRET}
+
+graphql:
+  router:
+    url: ${GRAPHQL_ROUTER_URL}
 
 mcp:
   resource:
-    audience: ${MCP_RESOURCE_AUDIENCE:https://mcp.invistus.com.br}
-    metadata-url: ${MCP_RESOURCE_METADATA_URL:https://mcp.invistus.com.br/.well-known/oauth-protected-resource}
+    audience: ${MCP_RESOURCE_AUDIENCE}
+    metadata-url: ${MCP_RESOURCE_METADATA_URL}
   revocation:
     eviction:
       fixed-delay: ${MCP_REVOCATION_EVICTION_FIXED_DELAY:PT1H}
