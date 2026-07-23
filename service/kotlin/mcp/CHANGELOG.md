@@ -1,3 +1,13 @@
+## 0.2.1 (2026-07-23)
+
+### 🚀 Features
+
+- **security:** add ADR-0016 for OAuth login and consent UI rendering ([3d92d81c](https://github.com/invistus/invistus/commit/3d92d81c))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.2.0 (2026-07-22)
 
 ### 🚀 Features
