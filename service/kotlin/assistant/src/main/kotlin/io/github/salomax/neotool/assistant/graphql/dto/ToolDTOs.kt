@@ -12,6 +12,8 @@ data class RegisterToolInputDTO(
     val executorEndpoint: String,
     val timeoutMs: Int,
     val retryPolicy: Map<String, Any?>? = null,
+    val mcpExposed: Boolean = false,
+    val mcpRequiredScope: String? = null,
     val status: ToolStatus = ToolStatus.ACTIVE,
 )
 
@@ -26,6 +28,8 @@ data class ToolDTO(
     val executorEndpoint: String,
     val timeoutMs: Int,
     val retryPolicy: Map<String, Any?>?,
+    val mcpExposed: Boolean,
+    val mcpRequiredScope: String?,
     val status: ToolStatus,
     val createdAt: String,
     val updatedAt: String,

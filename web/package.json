@@ -1,6 +1,6 @@
 {
   "name": "neotool-web",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
   "scripts": {
     "dev": "node scripts/dev-with-env.mjs",
@@ -33,6 +33,7 @@
     "codegen:watch": "graphql-codegen --config codegen.ts --watch",
     "postinstall": "node scripts/postinstall.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:mcp-oauth": "E2E_MCP_OAUTH=true playwright test tests/e2e/mcp-oauth.e2e.spec.ts --project=chromium",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "security:audit-fix": "pnpm audit && pnpm update && pnpm audit"

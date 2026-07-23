@@ -25,6 +25,9 @@ open class ToolService(
         require(input.executorService.isNotBlank()) { "Tool executorService is required" }
         require(input.executorEndpoint.isNotBlank()) { "Tool executorEndpoint is required" }
         require(input.timeoutMs > 0) { "Tool timeoutMs must be greater than zero" }
+        if (input.mcpExposed) {
+            require(!input.mcpRequiredScope.isNullOrBlank()) { "Tool mcpRequiredScope is required when exposed to MCP" }
+        }
 
         return toolRepository.save(
             ToolEntity(
@@ -37,6 +40,8 @@ open class ToolService(
                 executorEndpoint = input.executorEndpoint.trim(),
                 timeoutMs = input.timeoutMs,
                 retryPolicy = input.retryPolicy,
+                mcpExposed = input.mcpExposed,
+                mcpRequiredScope = input.mcpRequiredScope?.trim()?.takeIf { it.isNotEmpty() },
                 status = input.status,
             ),
         )
@@ -78,5 +83,7 @@ data class RegisterToolInput(
     val executorEndpoint: String,
     val timeoutMs: Int,
     val retryPolicy: Map<String, Any?>? = null,
+    val mcpExposed: Boolean = false,
+    val mcpRequiredScope: String? = null,
     val status: ToolStatus = ToolStatus.ACTIVE,
 )

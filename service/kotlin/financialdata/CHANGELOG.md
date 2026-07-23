@@ -1,3 +1,7 @@
+## 0.6.5 (2026-07-22)
+
+This was a version bump only for financialdata to align it with other projects, there were no code changes.
+
 ## 0.6.4 (2026-07-17)
 
 ### 🩹 Fixes

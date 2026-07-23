@@ -935,6 +935,8 @@ type Tool @join__type(graph: ASSISTANT) {
   executorEndpoint: String!
   timeoutMs: Int!
   retryPolicy: JSON
+  mcpExposed: Boolean!
+  mcpRequiredScope: String
   status: ToolStatus!
   createdAt: String!
   updatedAt: String!
@@ -950,6 +952,8 @@ input RegisterToolInput @join__type(graph: ASSISTANT) {
   executorEndpoint: String!
   timeoutMs: Int!
   retryPolicy: JSON
+  mcpExposed: Boolean
+  mcpRequiredScope: String
   status: ToolStatus
 }
 

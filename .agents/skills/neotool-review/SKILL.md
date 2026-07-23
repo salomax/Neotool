@@ -10,7 +10,7 @@ description: >
   An issue number is required — ask for it immediately if not provided.
 metadata:
   author: invistus
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Code Review — Invistus
@@ -39,6 +39,8 @@ Determine the change under review, in this order:
 3. The current working diff (`git diff` / `git diff main...HEAD` via Bash)
 
 If none is clear, ask which branch or PR to review. Never review from memory — always inspect the real diff.
+
+**Re-reviews (round 2+):** when a prior `🔍 Code Review` comment already exists on the issue, review only the **delta** since it — the follow-up commits or the changed files listed in the author's response — plus the direct blast radius of those changes. Do not re-read and re-summarise the whole diff. Open the previous review's findings, confirm each is resolved (and how), and report only what changed. This keeps later rounds cheap and focused on whether the flagged items were actually closed.
 
 ### 2. Read the issue and its history
 
@@ -70,7 +72,7 @@ Evaluate the change across these dimensions. Be specific — cite file and, wher
 - **Conventions** — layering, naming, structure, and patterns consistent with the loaded skills.
 - **Security** — auth enforced in the backend (never trust the frontend), input validation, trust boundaries, no leaked secrets. Extra scrutiny for any external input or third-party data.
 - **Error handling & UX** — errors propagated and surfaced per `neotool-conventions`; sensible fallbacks.
-- **Tests** — are the tests required by the backlog present and meaningful (`test:unit`, `test:integration`, `test:e2e`)? Do they cover the new business rules and flows, not just happy paths?
+- **Tests** — are the tests required by the backlog present and meaningful (`test:unit`, `test:integration`, `test:e2e`)? Do they cover the new business rules and flows, not just happy paths? **Check the fixtures, not just the assertions:** a test only proves something if it would fail when the bug is present. Watch for fixtures that make two distinct values coincidentally equal — e.g. a test where `resource` and `client_id` are the same string, so a check comparing the wrong two fields still passes. When a security-relevant comparison is under test, confirm the fixture uses *distinct* values for the things being distinguished, and mentally run the test against the buggy code: if it would still pass, it is not covering the property it claims to.
 - **Data & migrations** — migrations safe, reversible where expected, and consistent with entity changes.
 - **Simplicity** — no unnecessary complexity, dead code, or scope creep beyond the issue.
 

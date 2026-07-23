@@ -152,6 +152,7 @@ register_one() {
         return 0
     fi
 
+    upsert_env_var "$abs_env_file" "SECURITY_SERVICE_ID" "$service_id"
     upsert_env_var "$abs_env_file" "$env_var" "$secret"
     log "  ✓ registered → secret written to $env_file" "$GREEN"
 }

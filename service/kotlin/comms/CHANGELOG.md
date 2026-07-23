@@ -1,3 +1,7 @@
+## 0.5.10 (2026-07-22)
+
+This was a version bump only for comms to align it with other projects, there were no code changes.
+
 ## 0.5.9 (2026-07-18)
 
 ### 🚀 Features

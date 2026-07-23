@@ -1,0 +1,44 @@
+micronaut:
+  application:
+    name: neotool-mcp-service-test
+  server:
+    # -1 = Micronaut picks a free port (do not use 0: clients can resolve localhost:0)
+    port: -1
+  http:
+    client:
+      read-timeout: 30s
+      connect-timeout: 10s
+
+otel:
+  sdk:
+    disabled: true
+  traces:
+    exporter: none
+
+kafka:
+  enabled: false
+
+jwt:
+  algorithm: RS256
+  issuer: http://localhost:8080
+  jwks-url: ""
+
+security:
+  service:
+    url: http://localhost:8080
+    id: mcp-service
+    secret: test-secret
+
+graphql:
+  router:
+    url: http://localhost:4000/graphql
+
+mcp:
+  resource:
+    audience: http://localhost:8086
+    metadata-url: http://localhost:8086/.well-known/oauth-protected-resource
+
+logging:
+  level:
+    io.github.salomax.neotool: DEBUG
+    org.testcontainers: OFF
