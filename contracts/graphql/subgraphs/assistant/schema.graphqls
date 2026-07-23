@@ -194,6 +194,8 @@ type Tool {
   executorEndpoint: String!
   timeoutMs: Int!
   retryPolicy: JSON
+  mcpExposed: Boolean!
+  mcpRequiredScope: String
   status: ToolStatus!
   createdAt: String!
   updatedAt: String!
@@ -209,6 +211,8 @@ input RegisterToolInput {
   executorEndpoint: String!
   timeoutMs: Int!
   retryPolicy: JSON
+  mcpExposed: Boolean
+  mcpRequiredScope: String
   status: ToolStatus
 }
 
