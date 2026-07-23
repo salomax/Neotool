@@ -21,6 +21,10 @@ otel:
     exporter: ${OTEL_TRACES_EXPORTER:none}
   propagators: tracecontext,baggage
 
+# Pulled in transitively via :common (micronaut-kafka). MCP has no Kafka usage.
+kafka:
+  enabled: false
+
 datasources:
   default:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:6432}/${POSTGRES_DB:neotool_db}

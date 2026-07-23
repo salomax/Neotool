@@ -15,6 +15,9 @@ otel:
   traces:
     exporter: none
 
+kafka:
+  enabled: false
+
 logging:
   level:
     io.github.salomax.neotool: DEBUG
