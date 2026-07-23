@@ -1,3 +1,13 @@
+## 0.9.2 (2026-07-23)
+
+### 🚀 Features
+
+- **investment:** add fund holding parameters update functionality ([59b1e5ab](https://github.com/invistus/invistus/commit/59b1e5ab))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.9.1 (2026-07-22)
 
 ### 🚀 Features
