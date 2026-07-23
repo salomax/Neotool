@@ -792,14 +792,19 @@ export function RecordFundHoldingDrawer({
                 </FormStack>
               )}
 
-              <PercentField
-                name="administrationFeeAnnualPercent"
-                label={t("investments.recordFund.fields.administrationFeeAnnualPercent")}
-                size="medium"
-                locale={locale}
-                fractionDigits={2}
-                data-testid="record-fund-administration-fee"
-              />
+              <FormRowStack alignItems="flex-start">
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <PercentField
+                    name="administrationFeeAnnualPercent"
+                    label={t("investments.recordFund.fields.administrationFeeAnnualPercent")}
+                    size="medium"
+                    locale={locale}
+                    fractionDigits={2}
+                    data-testid="record-fund-administration-fee"
+                  />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0, display: { xs: "none", sm: "block" } }} aria-hidden />
+              </FormRowStack>
 
               {listingMode === "MANUAL" ? (
                 <>

@@ -147,8 +147,8 @@ export function presentHoldingDetailHeaderLabels(model: HoldingDetailHeaderModel
   if (model.variant === "fund") {
     const trimmedFundCnpj = (fundCnpj ?? "").trim();
     return {
+      // Asset type ("Fundo de investimento") is redundant inside the funds drawer.
       metaLabel: joinUniqueLabelParts([
-        assetTypeLabel,
         subtitleLabel,
         trimmedFundCnpj ? formatCnpj(trimmedFundCnpj) : null,
       ]),
