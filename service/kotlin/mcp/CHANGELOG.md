@@ -1,3 +1,13 @@
+## 0.2.2 (2026-07-23)
+
+### 💅 Refactors
+
+- **security:** update McpAuthenticationFilter to use reactive programming ([ff0499b7](https://github.com/invistus/invistus/commit/ff0499b7))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.2.1 (2026-07-23)
 
 ### 🚀 Features
