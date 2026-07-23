@@ -7,8 +7,9 @@ import io.micronaut.http.filter.HttpServerFilter
 import io.micronaut.http.filter.ServerFilterChain
 import jakarta.inject.Singleton
 import org.reactivestreams.Publisher
-import org.reactivestreams.Subscriber
-import org.reactivestreams.Subscription
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 
 @Filter(patterns = ["/mcp", "/mcp/**"])
 @Singleton
@@ -24,15 +25,20 @@ class McpAuthenticationFilter(
             return chain.proceed(request)
         }
 
-        return try {
-            val principal = authenticationService.authenticate(request, requiredScope = requiredScope(request.path))
-            request.setAttribute(PRINCIPAL_ATTRIBUTE, principal)
-            chain.proceed(request)
-        } catch (e: McpAuthenticationException) {
-            SingleResponsePublisher(errorResponseFactory.unauthorized(e))
-        } catch (e: McpInsufficientScopeException) {
-            SingleResponsePublisher(errorResponseFactory.forbidden(e))
-        }
+        return Mono
+            .fromCallable {
+                val principal = authenticationService.authenticate(request, requiredScope = requiredScope(request.path))
+                request.setAttribute(PRINCIPAL_ATTRIBUTE, principal)
+                request
+            }.subscribeOn(Schedulers.boundedElastic())
+            .flatMapMany { authenticatedRequest -> chain.proceed(authenticatedRequest) }
+            .onErrorResume { error ->
+                when (error) {
+                    is McpAuthenticationException -> Flux.just(errorResponseFactory.unauthorized(error))
+                    is McpInsufficientScopeException -> Flux.just(errorResponseFactory.forbidden(error))
+                    else -> Flux.error(error)
+                }
+            }
     }
 
     private fun isPublicMcpEndpoint(path: String): Boolean =
@@ -45,30 +51,6 @@ class McpAuthenticationFilter(
             "/mcp/probe" -> "mcp:tools:call"
             else -> null
         }
-
-    private class SingleResponsePublisher(
-        private val response: MutableHttpResponse<*>,
-    ) : Publisher<MutableHttpResponse<*>> {
-        override fun subscribe(subscriber: Subscriber<in MutableHttpResponse<*>>) {
-            subscriber.onSubscribe(
-                object : Subscription {
-                    private var completed = false
-
-                    override fun request(n: Long) {
-                        if (!completed && n > 0) {
-                            completed = true
-                            subscriber.onNext(response)
-                            subscriber.onComplete()
-                        }
-                    }
-
-                    override fun cancel() {
-                        completed = true
-                    }
-                },
-            )
-        }
-    }
 
     companion object {
         const val PRINCIPAL_ATTRIBUTE = "io.github.salomax.neotool.mcp.principal"
