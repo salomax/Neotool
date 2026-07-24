@@ -2561,6 +2561,10 @@ extend type Query {
     creditDebitType: CreditDebitType
     """Filter to one or more transaction types (e.g. SALARY, TRANSFER)."""
     types: [TransactionType!]
+    """Filter to transactions last stamped by a specific MCP client id."""
+    originClientId: String
+    """Filter to transactions last stamped by a specific MCP tool call id."""
+    originToolCallId: ID
     month: Int
     year: Int
     first: Int

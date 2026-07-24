@@ -4,6 +4,7 @@ import graphql.GraphQL
 import graphql.execution.UnknownOperationException
 import graphql.language.OperationDefinition
 import graphql.parser.Parser
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import io.micronaut.http.MediaType.APPLICATION_JSON
 import io.micronaut.http.annotation.Body
 import io.micronaut.http.annotation.Controller
@@ -49,6 +50,9 @@ open class GraphQLControllerBase(
     open fun post(
         @Body request: GraphQLRequest,
         @Header("Authorization") authorization: String?,
+        @Header(AgentCallContext.TOOL_CALL_ID_HEADER) mcpToolCallId: String? = null,
+        @Header(AgentCallContext.CLIENT_ID_HEADER) mcpClientId: String? = null,
+        @Header(AgentCallContext.TOKEN_ID_HEADER) mcpTokenId: String? = null,
     ): Map<String, Any?> {
         log.debug("GraphQL execution thread: virtual={}", Thread.currentThread().isVirtual)
         // Guard: empty/blank queries are invalid per GraphQL usage.
@@ -83,6 +87,15 @@ open class GraphQLControllerBase(
                 .graphQLContext { builder ->
                     if (token != null) {
                         builder.of("token", token)
+                    }
+                    if (!mcpToolCallId.isNullOrBlank()) {
+                        builder.of(AgentCallContext.TOOL_CALL_ID_CONTEXT_KEY, mcpToolCallId)
+                    }
+                    if (!mcpClientId.isNullOrBlank()) {
+                        builder.of(AgentCallContext.CLIENT_ID_CONTEXT_KEY, mcpClientId)
+                    }
+                    if (!mcpTokenId.isNullOrBlank()) {
+                        builder.of(AgentCallContext.TOKEN_ID_CONTEXT_KEY, mcpTokenId)
                     }
                 }
                 // Register DataLoaders for this request

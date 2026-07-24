@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.mcp.dispatch
 
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import io.github.salomax.neotool.common.service.GraphQLRequest
 import io.github.salomax.neotool.common.service.GraphQLResponse
 import io.github.salomax.neotool.common.service.ServiceTokenClient
@@ -8,6 +9,7 @@ import io.github.salomax.neotool.mcp.security.McpPrincipal
 import io.micronaut.context.annotation.Property
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
+import io.micronaut.http.MutableHttpRequest
 import io.micronaut.http.client.HttpClient
 import io.micronaut.http.client.exceptions.HttpClientResponseException
 import jakarta.inject.Singleton
@@ -24,10 +26,12 @@ interface McpBankingGraphQLClient {
 
 @Singleton
 class DefaultMcpBankingGraphQLClient(
-    @Property(name = "graphql.router.url", defaultValue = "http://localhost:4000/graphql")
-    private val routerUrl: String,
-    @Property(name = "mcp.dispatch.banking-target-audience", defaultValue = "apollo-router")
+    @Property(name = "mcp.dispatch.banking-service.url", defaultValue = "http://localhost:8092/graphql")
+    private val bankingGraphQlUrl: String,
+    @Property(name = "mcp.dispatch.banking-service.target-audience", defaultValue = "banking")
     private val targetAudience: String,
+    @Property(name = "security.service.id")
+    private val delegatingServiceId: String,
     private val serviceTokenClient: ServiceTokenClient,
     private val httpClient: HttpClient,
 ) : McpBankingGraphQLClient {
@@ -38,15 +42,21 @@ class DefaultMcpBankingGraphQLClient(
     ): GraphQLResponse =
         withContext(Dispatchers.IO) {
             requireNotNull(principal.principal.currentAccountId) { "MCP token has no active account context" }
-            val token = serviceTokenClient.getServiceTokenWithUserContext(targetAudience, principal.principal.token)
+            val token =
+                serviceTokenClient.getServiceTokenWithUserContext(
+                    targetAudience = targetAudience,
+                    subjectToken = principal.principal.token,
+                    delegatedBy = delegatingServiceId,
+                )
             val request = GraphQLRequest(query = query, variables = variables)
             val response =
                 try {
                     httpClient.toBlocking().exchange(
                         HttpRequest
-                            .POST(routerUrl, request)
+                            .POST(bankingGraphQlUrl, request)
                             .contentType(MediaType.APPLICATION_JSON)
-                            .bearerAuth(token),
+                            .bearerAuth(token)
+                            .applyAgentCallContext(principal.agentCallContext),
                         Map::class.java,
                     )
                 } catch (e: HttpClientResponseException) {
@@ -75,5 +85,17 @@ class DefaultMcpBankingGraphQLClient(
             parameters = mapOf("status" to status.code),
             cause = this,
         )
+    }
+
+    private fun <T> MutableHttpRequest<T>.applyAgentCallContext(
+        agentCallContext: AgentCallContext?,
+    ): MutableHttpRequest<T> {
+        if (agentCallContext == null) {
+            return this
+        }
+
+        return header(AgentCallContext.TOOL_CALL_ID_HEADER, agentCallContext.toolCallId.toString())
+            .header(AgentCallContext.CLIENT_ID_HEADER, agentCallContext.originClientId)
+            .header(AgentCallContext.TOKEN_ID_HEADER, agentCallContext.originTokenId)
     }
 }

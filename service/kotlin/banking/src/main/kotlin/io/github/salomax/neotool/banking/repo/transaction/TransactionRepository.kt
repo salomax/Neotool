@@ -6,6 +6,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransactionTotals
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransferTotals
+import io.github.salomax.neotool.banking.domain.transaction.OriginChannel
 import io.github.salomax.neotool.banking.domain.transaction.TagBreakdownRow
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
@@ -55,6 +56,14 @@ interface TransactionRepository {
     fun softDelete(
         id: UUID,
         accountId: UUID,
+    ): Boolean
+
+    fun softDelete(
+        id: UUID,
+        accountId: UUID,
+        originChannel: OriginChannel,
+        originClientId: String?,
+        originToolCallId: UUID?,
     ): Boolean
 
     /**
@@ -433,6 +442,8 @@ data class TransactionListQuery(
     val uncategorizedOnly: Boolean,
     val creditDebitType: CreditDebitType?,
     val types: List<TransactionType>?,
+    val originClientId: String? = null,
+    val originToolCallId: UUID? = null,
     val startDate: LocalDate?,
     val endDateExclusive: LocalDate?,
     val limit: Int,

@@ -31,6 +31,7 @@ import java.time.Instant
 import java.util.UUID
 
 class OAuth2TokenExchangeServiceTest {
+    private val authenticatedClientId = "mcp-service"
     private val jwtConfig =
         JwtConfig(
             issuer = "https://security.test",
@@ -73,7 +74,7 @@ class OAuth2TokenExchangeServiceTest {
                 resourceResolver = resourceResolver,
                 jwtConfig = jwtConfig,
             )
-        whenever(resourceResolver.resolveServiceResourceIdentifier("mcp"))
+        whenever(resourceResolver.resolveServiceResourceIdentifier(authenticatedClientId))
             .thenReturn("https://mcp.invistus.test")
     }
 
@@ -82,7 +83,7 @@ class OAuth2TokenExchangeServiceTest {
         val servicePrincipalId = UUID.randomUUID()
         val userId = UUID.randomUUID()
         val accountId = UUID.randomUUID()
-        whenever(servicePrincipalService.validateServiceCredentials("mcp", "secret"))
+        whenever(servicePrincipalService.validateServiceCredentials(authenticatedClientId, "secret"))
             .thenReturn(servicePrincipal(servicePrincipalId))
         whenever(servicePrincipalService.getServicePermissions(servicePrincipalId))
             .thenReturn(listOf("service:call"))
@@ -106,12 +107,40 @@ class OAuth2TokenExchangeServiceTest {
         assertThat(validator.getUserPermissionsFromServiceToken(delegatedToken)).isEmpty()
         assertThat(validator.getCurrentAccountIdFromToken(delegatedToken)).isEqualTo(accountId)
         assertThat(validator.getAudienceFromToken(delegatedToken)).isEqualTo("banking")
+        assertThat(validator.getDelegatedByFromServiceToken(delegatedToken)).isEqualTo(authenticatedClientId)
         assertThat(response.scope).isEmpty()
     }
 
     @Test
+    fun `delegated by is derived from authenticated caller and ignores request value`() {
+        val servicePrincipalId = UUID.randomUUID()
+        val userId = UUID.randomUUID()
+        whenever(servicePrincipalService.validateServiceCredentials(authenticatedClientId, "secret"))
+            .thenReturn(servicePrincipal(servicePrincipalId))
+        whenever(servicePrincipalService.getServicePermissions(servicePrincipalId))
+            .thenReturn(listOf("service:call"))
+        whenever(authorizationService.getUserPermissions(userId))
+            .thenReturn(listOf(Permission(name = "banking:transaction:view")))
+        whenever(revocationChecker.isRevoked(any())).thenReturn(false)
+        val subjectToken =
+            oauthSubjectToken(
+                userId = userId,
+                scopes = listOf("finance:cashflow:read"),
+            )
+
+        val response =
+            exchangeService.exchange(
+                validRequest(subjectToken).copy(
+                    delegated_by = "forged-delegator",
+                ),
+            )
+
+        assertThat(validator.getDelegatedByFromServiceToken(response.access_token)).isEqualTo(authenticatedClientId)
+    }
+
+    @Test
     fun `rejects subject token with wrong audience`() {
-        whenever(servicePrincipalService.validateServiceCredentials("mcp", "secret"))
+        whenever(servicePrincipalService.validateServiceCredentials(authenticatedClientId, "secret"))
             .thenReturn(servicePrincipal(UUID.randomUUID()))
         val subjectToken =
             issuer.generateOAuthAccessToken(
@@ -130,7 +159,7 @@ class OAuth2TokenExchangeServiceTest {
 
     @Test
     fun `rejects subject token without current account`() {
-        whenever(servicePrincipalService.validateServiceCredentials("mcp", "secret"))
+        whenever(servicePrincipalService.validateServiceCredentials(authenticatedClientId, "secret"))
             .thenReturn(servicePrincipal(UUID.randomUUID()))
         val subjectToken =
             issuer.generateOAuthAccessToken(
@@ -148,8 +177,8 @@ class OAuth2TokenExchangeServiceTest {
 
     @Test
     fun `rejects exchange when caller has no configured resource identifier`() {
-        whenever(resourceResolver.resolveServiceResourceIdentifier("mcp")).thenReturn(null)
-        whenever(servicePrincipalService.validateServiceCredentials("mcp", "secret"))
+        whenever(resourceResolver.resolveServiceResourceIdentifier(authenticatedClientId)).thenReturn(null)
+        whenever(servicePrincipalService.validateServiceCredentials(authenticatedClientId, "secret"))
             .thenReturn(servicePrincipal(UUID.randomUUID()))
         val subjectToken =
             issuer.generateOAuthAccessToken(
@@ -192,7 +221,7 @@ class OAuth2TokenExchangeServiceTest {
     fun `response scope uses OAuth scopes that survived permission intersection`() {
         val servicePrincipalId = UUID.randomUUID()
         val userId = UUID.randomUUID()
-        whenever(servicePrincipalService.validateServiceCredentials("mcp", "secret"))
+        whenever(servicePrincipalService.validateServiceCredentials(authenticatedClientId, "secret"))
             .thenReturn(servicePrincipal(servicePrincipalId))
         whenever(servicePrincipalService.getServicePermissions(servicePrincipalId))
             .thenReturn(listOf("service:call"))
@@ -212,7 +241,7 @@ class OAuth2TokenExchangeServiceTest {
 
     @Test
     fun `rejects revoked subject token`() {
-        whenever(servicePrincipalService.validateServiceCredentials("mcp", "secret"))
+        whenever(servicePrincipalService.validateServiceCredentials(authenticatedClientId, "secret"))
             .thenReturn(servicePrincipal(UUID.randomUUID()))
         whenever(revocationChecker.isRevoked(any())).thenReturn(true)
         val subjectToken = oauthSubjectToken()
@@ -224,7 +253,7 @@ class OAuth2TokenExchangeServiceTest {
 
     @Test
     fun `rejects unregistered caller`() {
-        whenever(servicePrincipalService.validateServiceCredentials("mcp", "secret")).thenReturn(null)
+        whenever(servicePrincipalService.validateServiceCredentials(authenticatedClientId, "secret")).thenReturn(null)
         val subjectToken = oauthSubjectToken()
 
         assertThatThrownBy { exchangeService.exchange(validRequest(subjectToken)) }
@@ -234,7 +263,7 @@ class OAuth2TokenExchangeServiceTest {
 
     @Test
     fun `rejects expired subject token`() {
-        whenever(servicePrincipalService.validateServiceCredentials("mcp", "secret"))
+        whenever(servicePrincipalService.validateServiceCredentials(authenticatedClientId, "secret"))
             .thenReturn(servicePrincipal(UUID.randomUUID()))
         val subjectToken = oauthSubjectToken(expiresAt = Instant.now().minusSeconds(5))
 
@@ -248,7 +277,7 @@ class OAuth2TokenExchangeServiceTest {
         val servicePrincipalId = UUID.randomUUID()
         val userId = UUID.randomUUID()
         val subjectExpiresAt = Instant.now().plusSeconds(120)
-        whenever(servicePrincipalService.validateServiceCredentials("mcp", "secret"))
+        whenever(servicePrincipalService.validateServiceCredentials(authenticatedClientId, "secret"))
             .thenReturn(servicePrincipal(servicePrincipalId))
         whenever(servicePrincipalService.getServicePermissions(servicePrincipalId))
             .thenReturn(listOf("service:call"))
@@ -273,9 +302,10 @@ class OAuth2TokenExchangeServiceTest {
     private fun validRequest(subjectToken: String) =
         OAuth2TokenRequest(
             grant_type = OAuth2TokenExchangeService.TOKEN_EXCHANGE_GRANT_TYPE,
-            client_id = "mcp",
+            client_id = authenticatedClientId,
             client_secret = "secret",
             audience = "banking",
+            delegated_by = authenticatedClientId,
             subject_token = subjectToken,
             subject_token_type = OAuth2TokenExchangeService.ACCESS_TOKEN_TYPE,
         )
@@ -299,7 +329,7 @@ class OAuth2TokenExchangeServiceTest {
         PrincipalEntity(
             id = id,
             principalType = PrincipalType.SERVICE,
-            externalId = "mcp",
+            externalId = authenticatedClientId,
             enabled = true,
         )
 }

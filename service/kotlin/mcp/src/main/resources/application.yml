@@ -73,7 +73,7 @@ jwt:
   issuer: ${JWT_ISSUER}
   jwks-url: ${JWT_JWKS_URL}
 
-# Service principal credentials for outbound calls through the GraphQL router.
+# Service principal credentials for outbound calls and token exchange delegation.
 # Register via: neotool service register mcp-service --permissions ... --output-env
 security:
   service:
@@ -81,11 +81,11 @@ security:
     id: ${SECURITY_SERVICE_ID}
     secret: ${SECURITY_SERVICE_SECRET}
 
-graphql:
-  router:
-    url: ${GRAPHQL_ROUTER_URL}
-
 mcp:
+  dispatch:
+    banking-service:
+      url: ${MCP_BANKING_SERVICE_URL:http://localhost:8092/graphql}
+      target-audience: ${MCP_BANKING_SERVICE_AUDIENCE:banking}
   resource:
     audience: ${MCP_RESOURCE_AUDIENCE}
     metadata-url: ${MCP_RESOURCE_METADATA_URL}

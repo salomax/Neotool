@@ -22,18 +22,59 @@ class BankingTestTokenPrincipalDecoder : TokenPrincipalDecoder {
         val TEST_ACCOUNT_ID: UUID = UUID.fromString("10000000-0000-0000-0000-000000000001")
         val TEST_USER_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")
         const val TEST_TOKEN = "test-token"
+        const val MCP_SERVICE_TOKEN = "mcp-service-token"
+        const val OTHER_SERVICE_TOKEN = "other-service-token"
     }
 
     override fun fromToken(token: String): RequestPrincipal {
         if (token.isBlank()) throw AuthenticationRequiredException("Access token is required")
-        return RequestPrincipal(
-            principalType = PrincipalType.USER,
-            userId = TEST_USER_ID,
-            serviceId = null,
-            token = token,
-            tokenId = "test-token-id",
-            permissionsFromToken = listOf(BankingPermissions.BANKING_ACCOUNT_VIEW),
-            currentAccountId = TEST_ACCOUNT_ID,
-        )
+        return when (token) {
+            MCP_SERVICE_TOKEN ->
+                RequestPrincipal(
+                    principalType = PrincipalType.SERVICE,
+                    userId = TEST_USER_ID,
+                    serviceId = UUID.fromString("20000000-0000-0000-0000-000000000001"),
+                    token = token,
+                    tokenId = "mcp-service-token-id",
+                    permissionsFromToken = listOf("service:call"),
+                    userPermissions =
+                        listOf(
+                            BankingPermissions.BANKING_ACCOUNT_VIEW,
+                            BankingPermissions.BANKING_TRANSACTION_CREATE,
+                        ),
+                    currentAccountId = TEST_ACCOUNT_ID,
+                    delegatedBy = "mcp-service",
+                )
+            OTHER_SERVICE_TOKEN ->
+                RequestPrincipal(
+                    principalType = PrincipalType.SERVICE,
+                    userId = TEST_USER_ID,
+                    serviceId = UUID.fromString("20000000-0000-0000-0000-000000000002"),
+                    token = token,
+                    tokenId = "other-service-token-id",
+                    permissionsFromToken = listOf("service:call"),
+                    userPermissions =
+                        listOf(
+                            BankingPermissions.BANKING_ACCOUNT_VIEW,
+                            BankingPermissions.BANKING_TRANSACTION_CREATE,
+                        ),
+                    currentAccountId = TEST_ACCOUNT_ID,
+                    delegatedBy = "other-service",
+                )
+            else ->
+                RequestPrincipal(
+                    principalType = PrincipalType.USER,
+                    userId = TEST_USER_ID,
+                    serviceId = null,
+                    token = token,
+                    tokenId = "test-token-id",
+                    permissionsFromToken =
+                        listOf(
+                            BankingPermissions.BANKING_ACCOUNT_VIEW,
+                            BankingPermissions.BANKING_TRANSACTION_CREATE,
+                        ),
+                    currentAccountId = TEST_ACCOUNT_ID,
+                )
+        }
     }
 }

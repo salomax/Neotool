@@ -6,6 +6,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransactionTotals
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransferTotals
+import io.github.salomax.neotool.banking.domain.transaction.OriginChannel
 import io.github.salomax.neotool.banking.domain.transaction.TagBreakdownRow
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
@@ -142,6 +143,22 @@ open class DefaultTransactionRepository(
         id: UUID,
         accountId: UUID,
     ): Boolean = entityRepository.softDelete(id, accountId, Instant.now()) > 0
+
+    override fun softDelete(
+        id: UUID,
+        accountId: UUID,
+        originChannel: OriginChannel,
+        originClientId: String?,
+        originToolCallId: UUID?,
+    ): Boolean =
+        entityRepository.softDeleteWithOrigin(
+            id = id,
+            accountId = accountId,
+            deletedAt = Instant.now(),
+            originChannel = originChannel.name,
+            originClientId = originClientId,
+            originToolCallId = originToolCallId,
+        ) > 0
 
     @Transactional(readOnly = true)
     override fun getMonthTotals(
@@ -298,6 +315,8 @@ open class DefaultTransactionRepository(
                         else -> null
                     },
                 types = null,
+                originClientId = null,
+                originToolCallId = null,
                 startDate = LocalDate.of(year, month, 1),
                 endDateExclusive = LocalDate.of(year, month, 1).plusMonths(1),
                 limit = 1,
@@ -335,6 +354,8 @@ open class DefaultTransactionRepository(
                         else -> null
                     },
                 types = null,
+                originClientId = null,
+                originToolCallId = null,
                 startDate = LocalDate.of(year, month, 1),
                 endDateExclusive = LocalDate.of(year, month, 1).plusMonths(1),
                 limit = 1,
@@ -375,6 +396,8 @@ open class DefaultTransactionRepository(
                         else -> null
                     },
                 types = null,
+                originClientId = null,
+                originToolCallId = null,
                 startDate = startDate,
                 endDateExclusive = endDateExclusive,
                 limit = 1,
@@ -495,6 +518,8 @@ open class DefaultTransactionRepository(
                         else -> null
                     },
                 types = null,
+                originClientId = null,
+                originToolCallId = null,
                 startDate = LocalDate.of(year, month, 1),
                 endDateExclusive = LocalDate.of(year, month, 1).plusMonths(1),
                 limit = 1,
@@ -531,6 +556,8 @@ open class DefaultTransactionRepository(
                         else -> null
                     },
                 types = null,
+                originClientId = null,
+                originToolCallId = null,
                 startDate = LocalDate.of(year, month, 1),
                 endDateExclusive = LocalDate.of(year, month, 1).plusMonths(1),
                 limit = 1,
@@ -1266,6 +1293,14 @@ open class DefaultTransactionRepository(
         query.belongsToName?.let {
             params["belongsToName"] = it
             conditions += "t.belongs_to_name = :belongsToName"
+        }
+        query.originClientId?.let {
+            params["originClientId"] = it
+            conditions += "t.origin_client_id = :originClientId"
+        }
+        query.originToolCallId?.let {
+            params["originToolCallId"] = it
+            conditions += "t.origin_tool_call_id = :originToolCallId"
         }
         query.search?.let {
             params["searchQuery"] = it

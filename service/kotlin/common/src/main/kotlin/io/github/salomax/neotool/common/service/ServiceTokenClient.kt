@@ -165,9 +165,10 @@ class ServiceTokenClient(
     suspend fun getServiceTokenWithUserContext(
         targetAudience: String,
         subjectToken: String,
+        delegatedBy: String? = null,
     ): String =
         withContext(Dispatchers.IO) {
-            val cacheKey = "obo|$targetAudience|${sha256Hex(subjectToken)}"
+            val cacheKey = "obo|$targetAudience|${delegatedBy.orEmpty()}|${sha256Hex(subjectToken)}"
             val cached = tokenCache[cacheKey]
             if (cached != null && !cached.isExpired()) {
                 return@withContext cached.token
@@ -196,7 +197,12 @@ class ServiceTokenClient(
             }
 
             try {
-                val (token, expiresIn) = fetchUserContextTokenFromSecurityService(targetAudience, subjectToken)
+                val (token, expiresIn) =
+                    fetchUserContextTokenFromSecurityService(
+                        audience = targetAudience,
+                        subjectToken = subjectToken,
+                        delegatedBy = delegatedBy,
+                    )
                 cacheLock.withLock {
                     tokenCache[cacheKey] = CachedToken(token, System.currentTimeMillis() + expiresIn * 1000)
                 }
@@ -257,6 +263,7 @@ class ServiceTokenClient(
     private suspend fun fetchUserContextTokenFromSecurityService(
         audience: String,
         subjectToken: String,
+        delegatedBy: String? = null,
     ): Pair<String, Long> {
         val serviceId = this.serviceId ?: throw IllegalStateException("Service ID not configured")
         val clientSecret =
@@ -270,6 +277,7 @@ class ServiceTokenClient(
                 audience = audience,
                 subject_token = subjectToken,
                 subject_token_type = "urn:ietf:params:oauth:token-type:access_token",
+                delegated_by = delegatedBy,
             )
 
         try {

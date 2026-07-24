@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.mcp.protocol
 
 import io.github.salomax.neotool.common.error.DomainException
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import io.github.salomax.neotool.mcp.catalog.McpCatalogTool
 import io.github.salomax.neotool.mcp.catalog.McpToolCatalog
 import io.github.salomax.neotool.mcp.dispatch.McpToolHandlerRegistry
@@ -9,6 +10,7 @@ import io.github.salomax.neotool.mcp.render.McpToolResultRenderer
 import io.github.salomax.neotool.mcp.security.McpPrincipal
 import jakarta.inject.Singleton
 import mu.KotlinLogging
+import java.util.UUID
 
 private val logger = KotlinLogging.logger {}
 
@@ -107,10 +109,19 @@ class McpProtocolService(
                     message = "Unknown tool",
                     data = mapOf("code" to "tool_not_found", "toolName" to name),
                 )
+        val principalWithAgentContext =
+            principal.copy(
+                agentCallContext =
+                    AgentCallContext(
+                        toolCallId = UUID.randomUUID(),
+                        originClientId = principal.clientId,
+                        originTokenId = principal.principal.tokenId,
+                    ),
+            )
         val arguments = (params["arguments"] as? Map<*, *>)?.normalizeMap() ?: emptyMap()
         val result =
             try {
-                handler.call(arguments, principal)
+                handler.call(arguments, principalWithAgentContext)
             } catch (e: McpToolExecutionException) {
                 logger.debug(e) { "MCP tool returned mapped error: $name" }
                 return success(id, resultRenderer.render(errorMapper.toResult(e), principal.scopes))

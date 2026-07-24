@@ -681,4 +681,25 @@ class JwtTokenValidatorTest {
             assertThat(issuer).isEqualTo(jwtConfig.issuer)
         }
     }
+
+    @Nested
+    @DisplayName("Client ID Extraction")
+    inner class ClientIdExtractionTests {
+        @Test
+        fun `should extract client id when claim is present`() {
+            val token =
+                JwtTestFixture.createToken(
+                    customClaims = mapOf("client_id" to "mcp-client"),
+                )
+
+            assertThat(validator.getClientIdFromToken(token)).isEqualTo("mcp-client")
+        }
+
+        @Test
+        fun `should return null when client id claim is absent`() {
+            val token = JwtTestFixture.createToken()
+
+            assertThat(validator.getClientIdFromToken(token)).isNull()
+        }
+    }
 }

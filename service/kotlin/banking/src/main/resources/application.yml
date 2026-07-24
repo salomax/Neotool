@@ -114,6 +114,8 @@ security:
 # Assets service — for import file storage (presigned upload/download).
 # Set ASSETS_SERVICE_URL in deployment (e.g. http://assets-service or http://localhost:port).
 banking:
+  mcp:
+    trusted-delegator: ${BANKING_MCP_TRUSTED_DELEGATOR:mcp-service}
   assets-service:
     url: ${ASSETS_SERVICE_URL:}
     graphql-path: /graphql

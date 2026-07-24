@@ -25,6 +25,7 @@ import io.github.salomax.neotool.banking.service.transaction.DashboardAnalyticsS
 import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import org.slf4j.LoggerFactory
@@ -85,6 +86,8 @@ class TransactionResolver(
         uncategorized: Boolean?,
         creditDebitType: CreditDebitType?,
         types: List<TransactionType>?,
+        originClientId: String? = null,
+        originToolCallId: String? = null,
         month: Int?,
         year: Int?,
         first: Int?,
@@ -97,6 +100,7 @@ class TransactionResolver(
         val belongsToUserUuid = belongsToUserId?.let { UUID.fromString(it) }
         val billUuid = billId?.let { UUID.fromString(it) }
         val categoryUuid = categoryId?.let { UUID.fromString(it) }
+        val originToolCallUuid = originToolCallId?.let { UUID.fromString(it) }
 
         val connection =
             service.listTransactions(
@@ -111,6 +115,8 @@ class TransactionResolver(
                 uncategorized = uncategorized,
                 creditDebitType = creditDebitType,
                 types = types,
+                originClientId = originClientId,
+                originToolCallId = originToolCallUuid,
                 month = month,
                 year = year,
                 first = first,
@@ -467,6 +473,7 @@ class TransactionResolver(
     fun createTransaction(
         input: Map<String, Any?>,
         principal: RequestPrincipal,
+        agentCallContext: AgentCallContext? = null,
     ): CreateTransactionPayloadDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val userId = requireNotNull(principal.userId) { "No user in token" }
@@ -480,7 +487,7 @@ class TransactionResolver(
                 command.copy(status = statusDefault)
             }
 
-        val outcome = service.createTransactionOutcome(commandWithDefaultStatus, accountId, userId)
+        val outcome = service.createTransactionOutcome(commandWithDefaultStatus, accountId, userId, agentCallContext)
         val saved = outcome.transaction
         val category = service.findAccessibleCategory(saved.categoryId, accountId)
         val merchant = saved.merchantId?.let { loadMerchantDTO(it) }
@@ -513,13 +520,14 @@ class TransactionResolver(
         id: String,
         input: Map<String, Any?>,
         principal: RequestPrincipal,
+        agentCallContext: AgentCallContext? = null,
     ): TransactionDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val userId = requireNotNull(principal.userId) { "No user in token" }
         val txId = UUID.fromString(id)
 
         val command = input.toUpdateCommand()
-        val updated = service.update(txId, command, accountId, userId)
+        val updated = service.update(txId, command, accountId, userId, agentCallContext)
         val category = service.findAccessibleCategory(updated.categoryId, accountId)
         val merchant = updated.merchantId?.let { loadMerchantDTO(it) }
         return updated.toDTO(category, merchant, false)
@@ -528,9 +536,10 @@ class TransactionResolver(
     fun deleteTransaction(
         id: String,
         principal: RequestPrincipal,
+        agentCallContext: AgentCallContext? = null,
     ): Boolean {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        return service.delete(UUID.fromString(id), accountId)
+        return service.delete(UUID.fromString(id), accountId, agentCallContext)
     }
 
     /** Maps a persisted [Transaction] to the GraphQL DTO (e.g. after domain service create). */

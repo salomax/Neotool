@@ -10,6 +10,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CategoryTotal
 import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionOutcome
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.OriginChannel
 import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
 import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
@@ -40,6 +41,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.Edge
 import io.github.salomax.neotool.common.graphql.pagination.PageInfo
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import org.slf4j.LoggerFactory
@@ -134,6 +136,45 @@ open class TransactionService(
         year: Int?,
         first: Int?,
         after: String?,
+    ): Connection<Transaction> =
+        listTransactions(
+            accountId = accountId,
+            financialAccountId = financialAccountId,
+            belongsToUserId = belongsToUserId,
+            belongsToName = belongsToName,
+            search = search,
+            tags = tags,
+            billId = billId,
+            categoryId = categoryId,
+            uncategorized = uncategorized,
+            creditDebitType = creditDebitType,
+            types = types,
+            originClientId = null,
+            originToolCallId = null,
+            month = month,
+            year = year,
+            first = first,
+            after = after,
+        )
+
+    fun listTransactions(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        belongsToUserId: UUID?,
+        belongsToName: String?,
+        search: String?,
+        tags: List<String>?,
+        billId: UUID?,
+        categoryId: UUID?,
+        uncategorized: Boolean?,
+        creditDebitType: CreditDebitType?,
+        types: List<TransactionType>?,
+        originClientId: String?,
+        originToolCallId: UUID?,
+        month: Int?,
+        year: Int?,
+        first: Int?,
+        after: String?,
     ): Connection<Transaction> {
         val startedAt = System.nanoTime()
         val pageSize = PaginationConstants.validatePageSize(first)
@@ -160,6 +201,8 @@ open class TransactionService(
                 uncategorized = uncategorized,
                 creditDebitType = creditDebitType,
                 types = types,
+                originClientId = originClientId,
+                originToolCallId = originToolCallId,
                 month = month,
                 year = year,
                 limit = pageSize,
@@ -280,6 +323,8 @@ open class TransactionService(
                 uncategorized = uncategorized,
                 creditDebitType = creditDebitFilter,
                 types = null,
+                originClientId = null,
+                originToolCallId = null,
                 month = month,
                 year = year,
                 limit = 1,
@@ -343,6 +388,8 @@ open class TransactionService(
                 uncategorized = uncategorized,
                 creditDebitType = creditDebitFilter,
                 types = null,
+                originClientId = null,
+                originToolCallId = null,
                 month = month,
                 year = year,
                 limit = 1,
@@ -383,6 +430,8 @@ open class TransactionService(
         uncategorized: Boolean?,
         creditDebitType: CreditDebitType?,
         types: List<TransactionType>?,
+        originClientId: String?,
+        originToolCallId: UUID?,
         month: Int?,
         year: Int?,
         limit: Int,
@@ -444,6 +493,8 @@ open class TransactionService(
             uncategorizedOnly = billId == null && uncategorized == true,
             creditDebitType = creditDebitType,
             types = normalizedTypes,
+            originClientId = originClientId,
+            originToolCallId = originToolCallId,
             startDate = startDate,
             endDateExclusive = endDateExclusive,
             limit = limit,
@@ -463,6 +514,7 @@ open class TransactionService(
         command: CreateTransactionCommand,
         accountId: UUID,
         userId: UUID,
+        agentCallContext: AgentCallContext? = null,
     ): CreateTransactionOutcome {
         requireAccountOwnsFinancialAccount(command.financialAccountId, accountId)
         validateCreateCommand(command)
@@ -584,6 +636,9 @@ open class TransactionService(
                 cardIdentifier = command.cardIdentifier,
                 payeeMcc = command.payeeMcc,
                 appliedRuleHistory = appliedRuleHistory,
+                originChannel = agentCallContext.originChannel(),
+                originClientId = agentCallContext?.originClientId,
+                originToolCallId = agentCallContext?.toolCallId,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -616,7 +671,8 @@ open class TransactionService(
         command: CreateTransactionCommand,
         accountId: UUID,
         userId: UUID,
-    ): Transaction = createTransactionOutcome(command, accountId, userId).transaction
+        agentCallContext: AgentCallContext? = null,
+    ): Transaction = createTransactionOutcome(command, accountId, userId, agentCallContext).transaction
 
     @Transactional
     open fun update(
@@ -624,6 +680,7 @@ open class TransactionService(
         command: UpdateTransactionCommand,
         accountId: UUID,
         userId: UUID,
+        agentCallContext: AgentCallContext? = null,
     ): Transaction {
         val existing =
             transactionRepository.findById(id, accountId)
@@ -755,6 +812,9 @@ open class TransactionService(
                 billId = newBillId,
                 cardIdentifier = command.cardIdentifier ?: existing.cardIdentifier,
                 payeeMcc = command.payeeMcc ?: existing.payeeMcc,
+                originChannel = agentCallContext.originChannel(),
+                originClientId = agentCallContext?.originClientId,
+                originToolCallId = agentCallContext?.toolCallId,
                 updatedAt = updateTimestamp,
             )
 
@@ -1007,11 +1067,19 @@ open class TransactionService(
     open fun delete(
         id: UUID,
         accountId: UUID,
+        agentCallContext: AgentCallContext? = null,
     ): Boolean {
         val exists =
             transactionRepository.findById(id, accountId)
                 ?: throw NotFoundException(BankingErrorCode.TRANSACTION_NOT_FOUND, field = "id")
-        val deleted = transactionRepository.softDelete(id, accountId)
+        val deleted =
+            transactionRepository.softDelete(
+                id = id,
+                accountId = accountId,
+                originChannel = agentCallContext.originChannel(),
+                originClientId = agentCallContext?.originClientId,
+                originToolCallId = agentCallContext?.toolCallId,
+            )
         if (deleted) {
             creditCardBillService.recomputeBill(exists.billId, accountId)
             snapshotComputationService.recomputeChain(
@@ -1052,6 +1120,13 @@ open class TransactionService(
             )
         return BulkCategorizeResult(affectedCount = affectedCount, errors = emptyList())
     }
+
+    private fun AgentCallContext?.originChannel(): OriginChannel =
+        if (this != null) {
+            OriginChannel.MCP
+        } else {
+            OriginChannel.UI
+        }
 
     /**
      * Registers a payment against a credit card bill (BILL-02).

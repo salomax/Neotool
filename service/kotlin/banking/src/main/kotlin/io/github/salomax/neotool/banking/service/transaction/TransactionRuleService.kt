@@ -7,6 +7,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.DuplicateTransactionRuleException
 import io.github.salomax.neotool.banking.domain.transaction.InvalidRegexPatternException
 import io.github.salomax.neotool.banking.domain.transaction.MerchantNotFoundException
+import io.github.salomax.neotool.banking.domain.transaction.OriginChannel
 import io.github.salomax.neotool.banking.domain.transaction.PatternType
 import io.github.salomax.neotool.banking.domain.transaction.SystemTransactionRuleNotDeletableException
 import io.github.salomax.neotool.banking.domain.transaction.SystemTransactionRuleNotEditableException
@@ -23,6 +24,7 @@ import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshot
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import mu.KotlinLogging
@@ -76,6 +78,7 @@ open class TransactionRuleService(
     fun create(
         input: CreateTransactionRuleInput,
         accountId: UUID,
+        agentCallContext: AgentCallContext? = null,
     ): TransactionRule {
         require(
             input.categoryId != null || input.merchantId != null ||
@@ -111,6 +114,9 @@ open class TransactionRuleService(
                 isSystem = false,
                 isImplicit = false,
                 matchCount = 0,
+                originChannel = agentCallContext.originChannel(),
+                originClientId = agentCallContext?.originClientId,
+                originToolCallId = agentCallContext?.toolCallId,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -438,4 +444,11 @@ open class TransactionRuleService(
             "typeOverride cannot be ANY"
         }
     }
+
+    private fun AgentCallContext?.originChannel(): OriginChannel =
+        if (this != null) {
+            OriginChannel.MCP
+        } else {
+            OriginChannel.UI
+        }
 }

@@ -25,6 +25,7 @@ import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -64,6 +65,7 @@ class TransactionServiceTest {
     private val financialAccountId = UUID.randomUUID()
     private val now = Instant.now()
     private val today = LocalDate.now()
+    private val toolCallId = UUID.randomUUID()
 
     private val ownedAccount =
         FinancialAccount(
@@ -76,6 +78,13 @@ class TransactionServiceTest {
             currencyCode = "BRL",
             createdAt = now,
             updatedAt = now,
+        )
+
+    private fun agentCallContext() =
+        AgentCallContext(
+            toolCallId = toolCallId,
+            originClientId = "mcp-client",
+            originTokenId = "origin-token-id",
         )
 
     @BeforeEach
@@ -570,6 +579,33 @@ class TransactionServiceTest {
 
             assertThat(saveCaptor.firstValue.tags).containsExactly("Food", "Weekend")
         }
+
+        @Test
+        fun `stamps MCP origin on create when agent call context is present`() {
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
+            val saveCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.save(saveCaptor.capture())).thenAnswer {
+                saveCaptor.firstValue.copy(id = UUID.randomUUID())
+            }
+
+            service.create(
+                CreateTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("18.00"),
+                    date = today,
+                    description = "Lunch",
+                ),
+                accountId,
+                userId,
+                agentCallContext(),
+            )
+
+            assertThat(saveCaptor.firstValue.originChannel).isEqualTo(OriginChannel.MCP)
+            assertThat(saveCaptor.firstValue.originClientId).isEqualTo("mcp-client")
+            assertThat(saveCaptor.firstValue.originToolCallId).isEqualTo(toolCallId)
+        }
     }
 
     @Nested
@@ -732,6 +768,41 @@ class TransactionServiceTest {
             assertThrows<IllegalArgumentException> {
                 service.update(txId, UpdateTransactionCommand(amount = BigDecimal.ZERO), accountId, userId)
             }
+        }
+
+        @Test
+        fun `stamps MCP origin on update when agent call context is present`() {
+            val txId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Original",
+                    originChannel = OriginChannel.UI,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            val updateCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.update(updateCaptor.capture())).thenAnswer { updateCaptor.firstValue }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(description = "Updated"),
+                accountId,
+                userId,
+                agentCallContext(),
+            )
+
+            assertThat(updateCaptor.firstValue.originChannel).isEqualTo(OriginChannel.MCP)
+            assertThat(updateCaptor.firstValue.originClientId).isEqualTo("mcp-client")
+            assertThat(updateCaptor.firstValue.originToolCallId).isEqualTo(toolCallId)
         }
 
         @Test
@@ -1677,12 +1748,14 @@ class TransactionServiceTest {
                     updatedAt = now,
                 )
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
-            whenever(transactionRepository.softDelete(txId, accountId)).thenReturn(true)
+            whenever(
+                transactionRepository.softDelete(txId, accountId, OriginChannel.UI, null, null),
+            ).thenReturn(true)
 
             val result = service.delete(txId, accountId)
 
             assertThat(result).isTrue
-            verify(transactionRepository).softDelete(txId, accountId)
+            verify(transactionRepository).softDelete(txId, accountId, OriginChannel.UI, null, null)
         }
 
         @Test
@@ -1713,12 +1786,43 @@ class TransactionServiceTest {
                     updatedAt = now,
                 )
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
-            whenever(transactionRepository.softDelete(txId, accountId)).thenReturn(true)
+            whenever(
+                transactionRepository.softDelete(txId, accountId, OriginChannel.UI, null, null),
+            ).thenReturn(true)
 
             val result = service.delete(txId, accountId)
 
             assertThat(result).isTrue
-            verify(transactionRepository).softDelete(txId, accountId)
+            verify(transactionRepository).softDelete(txId, accountId, OriginChannel.UI, null, null)
+        }
+
+        @Test
+        fun `stamps MCP origin on delete when agent call context is present`() {
+            val txId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.MANUAL,
+                    amount = BigDecimal("9.00"),
+                    date = today,
+                    description = "To delete",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(
+                transactionRepository.softDelete(txId, accountId, OriginChannel.MCP, "mcp-client", toolCallId),
+            ).thenReturn(true)
+
+            val result = service.delete(txId, accountId, agentCallContext())
+
+            assertThat(result).isTrue()
+            verify(transactionRepository).softDelete(txId, accountId, OriginChannel.MCP, "mcp-client", toolCallId)
         }
     }
 
@@ -2111,7 +2215,7 @@ class TransactionServiceTest {
             val txDate = LocalDate.of(2024, 11, 5)
             val existing = buildTransaction(id = txId, date = txDate)
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
-            whenever(transactionRepository.softDelete(txId, accountId)).thenReturn(true)
+            whenever(transactionRepository.softDelete(txId, accountId, OriginChannel.UI, null, null)).thenReturn(true)
 
             service.delete(txId, accountId)
 
@@ -2128,7 +2232,7 @@ class TransactionServiceTest {
             val txId = UUID.randomUUID()
             val existing = buildTransaction(id = txId)
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
-            whenever(transactionRepository.softDelete(txId, accountId)).thenReturn(false)
+            whenever(transactionRepository.softDelete(txId, accountId, OriginChannel.UI, null, null)).thenReturn(false)
 
             service.delete(txId, accountId)
 

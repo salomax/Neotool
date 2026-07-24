@@ -8,6 +8,7 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRep
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleService
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -39,6 +40,7 @@ class CategoryRuleServiceTest {
     private val accountId = UUID.randomUUID()
     private val otherAccountId = UUID.randomUUID()
     private val categoryId = UUID.randomUUID()
+    private val toolCallId = UUID.randomUUID()
 
     @BeforeEach
     fun setUp() {
@@ -56,6 +58,13 @@ class CategoryRuleServiceTest {
                 snapshotRepository,
             )
     }
+
+    private fun agentCallContext() =
+        AgentCallContext(
+            toolCallId = toolCallId,
+            originClientId = "mcp-client",
+            originTokenId = "origin-token-id",
+        )
 
     @Nested
     @DisplayName("listUserRules")
@@ -342,6 +351,25 @@ class CategoryRuleServiceTest {
             verify(ruleRepository).save(ruleCaptor.capture())
             assertThat(ruleCaptor.firstValue.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)
             assertThat(result.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)
+        }
+
+        @Test
+        fun `stamps MCP origin on create when agent call context is present`() {
+            whenever(categoryRepository.findById(categoryId)).thenReturn(category(id = categoryId))
+            whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(emptyList())
+            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as TransactionRule }
+
+            service.create(
+                createInput(categoryId = categoryId),
+                accountId,
+                agentCallContext(),
+            )
+
+            val ruleCaptor = argumentCaptor<TransactionRule>()
+            verify(ruleRepository).save(ruleCaptor.capture())
+            assertThat(ruleCaptor.firstValue.originChannel).isEqualTo(OriginChannel.MCP)
+            assertThat(ruleCaptor.firstValue.originClientId).isEqualTo("mcp-client")
+            assertThat(ruleCaptor.firstValue.originToolCallId).isEqualTo(toolCallId)
         }
     }
 

@@ -82,6 +82,9 @@ data class Transaction(
     val sourceData: Map<String, Any?>? = null,
     /** Audit trail for rules that were applied to the transaction over time. */
     val appliedRuleHistory: List<AppliedRuleAuditEntry> = emptyList(),
+    val originChannel: OriginChannel = OriginChannel.UI,
+    val originClientId: String? = null,
+    val originToolCallId: UUID? = null,
     // Soft delete + audit
     val deletedAt: Instant? = null,
     val createdAt: Instant,

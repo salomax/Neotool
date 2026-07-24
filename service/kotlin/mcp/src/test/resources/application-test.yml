@@ -29,11 +29,11 @@ security:
     id: mcp-service
     secret: test-secret
 
-graphql:
-  router:
-    url: http://localhost:4000/graphql
-
 mcp:
+  dispatch:
+    banking-service:
+      url: http://localhost:8092/graphql
+      target-audience: banking
   resource:
     audience: http://localhost:8086
     metadata-url: http://localhost:8086/.well-known/oauth-protected-resource

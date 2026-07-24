@@ -276,6 +276,7 @@ class JwtTokenIssuer(
         userPermissions: List<String>,
         currentAccountId: UUID? = null,
         expiresAt: Instant? = null,
+        delegatedBy: String? = null,
     ): String {
         val now = Instant.now()
         val expiration = expiresAt ?: now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
@@ -297,6 +298,9 @@ class JwtTokenIssuer(
 
         currentAccountId?.let {
             builder.claim("current_account", it.toString())
+        }
+        if (!delegatedBy.isNullOrBlank()) {
+            builder.claim("delegated_by", delegatedBy)
         }
 
         return signBuilder(builder).compact()
