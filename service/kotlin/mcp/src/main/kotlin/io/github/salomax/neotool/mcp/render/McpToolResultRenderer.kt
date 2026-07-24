@@ -65,7 +65,10 @@ class McpToolResultRenderer(
         if (key in UNTRUSTED_STRING_FIELDS) {
             return true
         }
-        return key == "name" && "merchant" in path
+        if (key == "name" && path.any { it in UNTRUSTED_NAME_CONTAINERS }) {
+            return true
+        }
+        return false
     }
 
     private fun delimit(value: String): String = "$UNTRUSTED_START${escapeDelimiter(value)}$UNTRUSTED_END"
@@ -87,9 +90,22 @@ class McpToolResultRenderer(
                 "description",
                 "notes",
                 "tags",
+                "tag",
                 "counterpartyName",
                 "paymentReason",
                 "merchantName",
+                "issuerName",
+                "pattern",
+                "descriptionOverride",
+                "tagsOverride",
+            )
+        private val UNTRUSTED_NAME_CONTAINERS =
+            setOf(
+                "merchant",
+                "category",
+                "financialAccounts",
+                "categories",
+                "transactionCategories",
             )
     }
 }

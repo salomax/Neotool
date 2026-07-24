@@ -137,7 +137,7 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
     @Test
     fun `tools call dispatches with user context and renders MCP result`() {
         val accountId = UUID.randomUUID()
-        catalogTools = listOf(tool(name = "finance.transactions.list", requiredScope = transactionsReadScope))
+        catalogTools = listOf(tool(name = "list_transactions", requiredScope = transactionsReadScope))
         bankingResponse =
             GraphQLResponse(
                 data =
@@ -172,7 +172,7 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
                         "method" to "tools/call",
                         "params" to
                             mapOf(
-                                "name" to "finance.transactions.list",
+                                "name" to "list_transactions",
                                 "arguments" to mapOf("first" to 5),
                             ),
                     ),
@@ -189,11 +189,12 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
     }
 
     @Test
-    fun `crafted account id argument is not forwarded to banking dispatch`() {
+    fun `unsupported crafted account id argument is rejected before banking dispatch`() {
         val accountId = UUID.randomUUID()
-        catalogTools = listOf(tool(name = "finance.transactions.list", requiredScope = transactionsReadScope))
+        catalogTools = listOf(tool(name = "list_transactions", requiredScope = transactionsReadScope))
 
-        retrieve(
+        val response =
+            retrieve(
             body =
                 mapOf(
                     "jsonrpc" to "2.0",
@@ -201,20 +202,22 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
                     "method" to "tools/call",
                     "params" to
                         mapOf(
-                            "name" to "finance.transactions.list",
+                            "name" to "list_transactions",
                             "arguments" to mapOf("first" to 5, "accountId" to UUID.randomUUID().toString()),
                         ),
                 ),
             token = McpJwtTestFixture.accessToken(accountId = accountId, scope = transactionsReadScope),
         )
 
-        assertThat(capturedBankingVariables).doesNotContainKey("accountId")
-        assertThat(capturedBankingPrincipal?.principal?.currentAccountId).isEqualTo(accountId)
+        val result = response["result"] as Map<*, *>
+        assertThat(result["isError"]).isEqualTo(true)
+        assertThat(capturedBankingVariables).isNull()
+        assertThat(capturedBankingPrincipal).isNull()
     }
 
     @Test
     fun `transactions tool is not visible with only cashflow read scope`() {
-        catalogTools = listOf(tool(name = "finance.transactions.list", requiredScope = transactionsReadScope))
+        catalogTools = listOf(tool(name = "list_transactions", requiredScope = transactionsReadScope))
 
         val response =
             retrieve(
@@ -226,12 +229,12 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
                     ),
                 token = McpJwtTestFixture.accessToken(scope = "finance:cashflow:read"),
             )
-        assertThat(response.toString()).doesNotContain("finance.transactions.list")
+        assertThat(response.toString()).doesNotContain("list_transactions")
     }
 
     @Test
     fun `tools call does not dispatch when token lacks tool required scope`() {
-        catalogTools = listOf(tool(name = "finance.transactions.list", requiredScope = transactionsReadScope))
+        catalogTools = listOf(tool(name = "list_transactions", requiredScope = transactionsReadScope))
 
         val response =
             retrieve(
@@ -242,7 +245,7 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
                         "method" to "tools/call",
                         "params" to
                             mapOf(
-                                "name" to "finance.transactions.list",
+                                "name" to "list_transactions",
                                 "arguments" to mapOf("first" to 5),
                             ),
                     ),
@@ -256,7 +259,7 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
 
     @Test
     fun `sse endpoint streams tool call result`() {
-        catalogTools = listOf(tool(name = "finance.transactions.list", requiredScope = transactionsReadScope))
+        catalogTools = listOf(tool(name = "list_transactions", requiredScope = transactionsReadScope))
         val token = McpJwtTestFixture.accessToken(scope = transactionsReadScope)
 
         val response =
@@ -272,7 +275,7 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
                                 "method" to "tools/call",
                                 "params" to
                                     mapOf(
-                                        "name" to "finance.transactions.list",
+                                        "name" to "list_transactions",
                                         "arguments" to mapOf("first" to 1),
                                     ),
                             ),
