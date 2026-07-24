@@ -168,7 +168,8 @@
         "pricing": "Precificação",
         "taxes": "Impostos e taxas",
         "purchaseFees": "Taxas de compra",
-        "saleFees": "Taxas da venda"
+        "saleFees": "Taxas da venda",
+        "totals": "Totais"
       },
       "context": {
         "ticker": "Ticker",
@@ -200,7 +201,8 @@
         "settlementFee": "Taxas de liquidação",
         "otherFees": "Outras taxas",
         "withholdingTax": "IRRF",
-        "valuedAt": "Data de valorização"
+        "valuedAt": "Data de valorização",
+        "quotaPrice": "Valor da cota"
       },
       "validation": {
         "tradeDateRequired": "Informe a data da operação",
@@ -2149,7 +2151,8 @@
     "delete": "Excluir",
     "cancel": "Cancelar",
     "close": "Fechar",
-    "save": "Salvar"
+    "save": "Salvar",
+    "saving": "Salvando..."
   },
   "transactionType": {
     "BALANCE_ADJUSTMENT": "Ajuste de Saldo",

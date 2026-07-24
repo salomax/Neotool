@@ -307,6 +307,27 @@ async function readNormalizedInputValue(
   return normalizeDecimalInputValue(await locator.inputValue().catch(() => ''));
 }
 
+const CNPJ_W1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] as const;
+const CNPJ_W2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] as const;
+
+function calculateCnpjCheckDigit(digits: string, weights: readonly number[]): number {
+  const sum = digits.split('').reduce((acc, digit, index) => acc + Number(digit) * (weights[index] ?? 0), 0);
+  const remainder = sum % 11;
+  return remainder < 2 ? 0 : 11 - remainder;
+}
+
+/** Unique per call; valid for `createInvestmentAsset` / `fundCnpj`. */
+function uniqueValidCnpj(): string {
+  const salt = `${Date.now()}-${Math.random().toString(36).slice(2)}`.replace(/\D/g, '').padEnd(12, '0');
+  let base = salt.slice(0, 12);
+  while (new Set(base.split('')).size === 1) {
+    base = `${base.slice(0, 11)}${(Number(base[11]) + 1) % 10}`;
+  }
+  const d1 = calculateCnpjCheckDigit(base, CNPJ_W1);
+  const d2 = calculateCnpjCheckDigit(base + String(d1), CNPJ_W2);
+  return base + String(d1) + String(d2);
+}
+
 async function readCurrencyByTestId(
   page: import('@playwright/test').Page,
   testId: string,
@@ -2037,7 +2058,7 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     const mockedFund = {
       id: `fund-nav-${Date.now()}`,
       name: uniqueName('P4 UI fund nav autocomplete'),
-      cnpj: '12345678000199',
+      cnpj: uniqueValidCnpj(),
       assetType: 'MUTUAL_FUND',
       isActive: true,
     };
@@ -2146,10 +2167,11 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
       await expect(recordForm).toBeVisible();
 
       const tradeDateInput = page.getByTestId('record-fund-trade-date').locator('input').first();
-      const unitPriceInput = page.getByTestId('record-fund-unit-price').locator('input').first();
-      const grossValueInput = page.getByTestId('record-fund-gross-value').locator('input').first();
+      // MoneyInput puts data-testid on the <input> itself (via inputProps).
+      const unitPriceInput = page.getByTestId('record-fund-unit-price');
+      const grossValueInput = page.getByTestId('record-fund-gross-value');
 
-      await expect(unitPriceInput).toBeVisible();
+      await expect(unitPriceInput).toBeVisible({ timeout: 15_000 });
 
       // Empty → invalid must not crash the drawer (GH-405).
       await tradeDateInput.fill('99/99/9999');
@@ -2267,5 +2289,232 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     await expect(page.getByTestId('record-equity-fees-total')).toHaveCount(0);
     await expect(page.locator('input[name="assetName"]')).toHaveCount(0);
     await expect(page.locator('input[name="ticker"]')).toHaveCount(0);
+  });
+
+  test('INV-TWR-P4-UI-30: fund aporte drawer shows Cotas row with quantity and quota price', async ({
+    page,
+    pfUser,
+    brokerageAccount,
+  }) => {
+    const fundName = uniqueName('P4 UI fund aporte quota');
+    const fund = await createInvestmentAsset(
+      {
+        name: fundName,
+        assetType: AssetType.MutualFund,
+      },
+      pfUser.token,
+    );
+
+    await recordInvestmentTransaction(
+      {
+        financialAccountId: brokerageAccount.id,
+        assetId: fund.id,
+        direction: InvestmentTransactionDirection.Inflow,
+        type: InvestmentTransactionType.Purchase,
+        tradeDate: isoDaysAgo(20),
+        settlementDate: isoDaysAgo(20),
+        quantity: 100,
+        unitPrice: 10,
+        grossValue: 1000,
+        netValue: 1000,
+        pricingMode: HoldingPricingMode.Manual,
+        manualValuation: { valuedAt: isoDaysAgo(20), grossValue: 1000 },
+      },
+      pfUser.token,
+    );
+
+    await waitForRecalculation(pfUser.token, brokerageAccount.id);
+
+    const investmentsPage = await openInvestmentsPage(page);
+    await investmentsPage.selectAccount(brokerageAccount.name, brokerageAccount.id);
+
+    await openGridClassDetailPanel(page, 'funds');
+    await expect
+      .poll(
+        async () => (await page.getByRole('row').filter({ hasText: fundName }).count()) > 0,
+        { timeout: 60_000 },
+      )
+      .toBe(true);
+
+    const row = holdingRow(page, fundName);
+    await row.hover();
+    const quickActions = row.locator('.holding-row-quick-actions');
+    await expect(quickActions).toBeVisible();
+    await quickActions
+      .getByRole('button', {
+        name: /Adicionar transação|Add transaction|Registrar compra|Buy|Aportar|Contribute/i,
+      })
+      .click();
+
+    const form = page.locator('form[id^="update-holding-form-"]');
+    await expect(form).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('fund-update-value-flow-tabs')).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Por valor aplicado|By invested amount/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Por quantidade de cotas|By fund units/i })).toBeVisible();
+    await expect(page.getByTestId('fund-update-by-amount-row')).toBeVisible();
+    await expect(page.getByTestId('fund-update-gross-value')).toBeVisible();
+    await expect(page.getByTestId('fund-update-unit-price')).toBeVisible();
+    // Manual-priced holding: valuedAt is part of the aporte UX.
+    await expect(page.getByLabel(/Data de valorização|Valuation date/i)).toBeVisible();
+
+    await page.getByRole('tab', { name: /Por quantidade de cotas|By fund units/i }).click();
+    await expect(page.getByTestId('fund-update-quotas-row')).toBeVisible();
+    await expect(page.getByTestId('fund-update-quantity')).toBeVisible();
+    await expect(page.getByTestId('fund-update-unit-price')).toBeVisible();
+  });
+
+  test('INV-TWR-P4-UI-31: market-data fund aporte does not show valuedAt / manual valuation UI', async ({
+    page,
+    pfUser,
+    brokerageAccount,
+  }) => {
+    const fundName = uniqueName('P4 UI fund market aporte');
+    const fund = await createInvestmentAsset(
+      {
+        name: fundName,
+        assetType: AssetType.MutualFund,
+      },
+      pfUser.token,
+    );
+
+    await recordInvestmentTransaction(
+      {
+        financialAccountId: brokerageAccount.id,
+        assetId: fund.id,
+        direction: InvestmentTransactionDirection.Inflow,
+        type: InvestmentTransactionType.Purchase,
+        tradeDate: isoDaysAgo(20),
+        settlementDate: isoDaysAgo(20),
+        quantity: 100,
+        unitPrice: 10,
+        grossValue: 1000,
+        netValue: 1000,
+        pricingMode: HoldingPricingMode.MarketData,
+      },
+      pfUser.token,
+    );
+
+    await waitForRecalculation(pfUser.token, brokerageAccount.id);
+
+    const investmentsPage = await openInvestmentsPage(page);
+    await investmentsPage.selectAccount(brokerageAccount.name, brokerageAccount.id);
+
+    await openGridClassDetailPanel(page, 'funds');
+    await expect
+      .poll(
+        async () => (await page.getByRole('row').filter({ hasText: fundName }).count()) > 0,
+        { timeout: 60_000 },
+      )
+      .toBe(true);
+
+    const row = holdingRow(page, fundName);
+    await row.hover();
+    const quickActions = row.locator('.holding-row-quick-actions');
+    await expect(quickActions).toBeVisible();
+    await quickActions
+      .getByRole('button', {
+        name: /Adicionar transação|Add transaction|Registrar compra|Buy|Aportar|Contribute/i,
+      })
+      .click();
+
+    const form = page.locator('form[id^="update-holding-form-"]');
+    await expect(form).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('fund-update-value-flow-tabs')).toBeVisible();
+    await expect(page.getByTestId('fund-update-unit-price')).toBeVisible();
+    await expect(page.getByLabel(/Data de valorização|Valuation date/i)).toHaveCount(0);
+    await expect(page.getByText(/^Precificação$|^Pricing$/)).toHaveCount(0);
+  });
+
+  test('INV-TWR-P4-UI-32: fund redeem shows read-only netValue derived from gross − IR − IOF', async ({
+    page,
+    pfUser,
+    brokerageAccount,
+  }) => {
+    const fundName = uniqueName('P4 UI fund redeem net');
+    const fund = await createInvestmentAsset(
+      {
+        name: fundName,
+        assetType: AssetType.MutualFund,
+      },
+      pfUser.token,
+    );
+
+    await recordInvestmentTransaction(
+      {
+        financialAccountId: brokerageAccount.id,
+        assetId: fund.id,
+        direction: InvestmentTransactionDirection.Inflow,
+        type: InvestmentTransactionType.Purchase,
+        tradeDate: isoDaysAgo(20),
+        settlementDate: isoDaysAgo(20),
+        quantity: 100,
+        unitPrice: 10,
+        grossValue: 1000,
+        netValue: 1000,
+        pricingMode: HoldingPricingMode.MarketData,
+      },
+      pfUser.token,
+    );
+
+    await waitForRecalculation(pfUser.token, brokerageAccount.id);
+
+    const investmentsPage = await openInvestmentsPage(page);
+    await investmentsPage.selectAccount(brokerageAccount.name, brokerageAccount.id);
+
+    await openGridClassDetailPanel(page, 'funds');
+    await expect
+      .poll(
+        async () => (await page.getByRole('row').filter({ hasText: fundName }).count()) > 0,
+        { timeout: 60_000 },
+      )
+      .toBe(true);
+
+    const row = holdingRow(page, fundName);
+    await row.hover();
+    const quickActions = row.locator('.holding-row-quick-actions');
+    await expect(quickActions).toBeVisible();
+    await quickActions
+      .getByRole('button', {
+        name: /Registrar venda|Sell transaction|Sell|Resgatar|Redeem/i,
+      })
+      .click();
+
+    const form = page.locator('form[id^="update-holding-form-"]');
+    await expect(form).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: /^Resgatar$|^Redeem$/i })).toBeVisible();
+
+    await expect(page.getByText(/^Impostos e taxas$|^Taxes and fees$/i)).toBeVisible();
+    await expect(page.getByText(/^Totais$|^Totals$/i)).toBeVisible();
+    const incomeTaxInput = form.locator('input[name="incomeTax"]');
+    const iofInput = form.locator('input[name="iof"]');
+    const netValueInput = page.getByTestId('fund-update-net-value');
+    await expect(incomeTaxInput).toBeVisible();
+    await expect(iofInput).toBeVisible();
+    await expect(netValueInput).toBeVisible();
+    await expect(netValueInput).toBeDisabled();
+
+    // Net value must sit after the tax inputs it depends on.
+    await expect
+      .poll(async () => {
+        const taxBox = await incomeTaxInput.boundingBox();
+        const netBox = await netValueInput.boundingBox();
+        if (!taxBox || !netBox) return false;
+        return netBox.y > taxBox.y;
+      })
+      .toBe(true);
+
+    const grossValueInput = page.getByTestId('fund-update-gross-value');
+    const unitPriceInput = page.getByTestId('fund-update-unit-price');
+    await grossValueInput.fill('1000');
+    await unitPriceInput.fill('10');
+    await incomeTaxInput.fill('150');
+    await iofInput.fill('50');
+    await page.keyboard.press('Tab');
+
+    await expect
+      .poll(async () => Number.parseFloat(await readNormalizedInputValue(netValueInput)), {
+        timeout: 10_000,
+      })
+      .toBe(800);
   });
 });

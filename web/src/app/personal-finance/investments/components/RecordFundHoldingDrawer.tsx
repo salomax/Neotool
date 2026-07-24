@@ -738,6 +738,8 @@ export function RecordFundHoldingDrawer({
                         label={t("investments.recordFund.fields.grossValue")}
                         currency="BRL"
                         size="medium"
+                        fractionDigits={8}
+                        fixedDecimalScale={false}
                         data-testid="record-fund-gross-value"
                       />
                     </Box>

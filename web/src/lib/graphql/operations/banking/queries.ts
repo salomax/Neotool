@@ -731,6 +731,7 @@ export const INVESTMENT_HOLDINGS = gql`
         assetType
         ticker
         issuerName
+        fundCnpj
         currencyCode
         logoAsset {
           id

@@ -35,6 +35,8 @@ import { getCurrentLocale } from '../table/investmentTableHelpers';
 import {
   getUpdateHoldingAssetClass,
   isFundManualPricingMode,
+  buildFundManualValuationInput,
+  deriveFundTradeLegs,
   type UpdateHoldingEditTransaction,
   type UpdateHolding,
   type UpdateHoldingAssetClass,
@@ -152,9 +154,12 @@ function buildRecordInput(
   }
 
   if (assetClass === 'fund') {
-    const grossValue = toNumber(data.grossValue) ?? toNumber(data.netValue) ?? 0;
-    const unitPrice = toNumber(data.unitPrice);
-    const quantity = toNumber(data.quantity);
+    const { quantity, grossValue, unitPrice } = deriveFundTradeLegs({
+      grossValue: toNumber(data.grossValue),
+      quantity: toNumber(data.quantity),
+      unitPrice: toNumber(data.unitPrice),
+      netValueFallback: toNumber(data.netValue),
+    });
 
     return compactInput({
       assetId: holding.asset.id,
@@ -168,13 +173,13 @@ function buildRecordInput(
       quantity,
       unitPrice,
       incomeTax: toNumber(data.incomeTax),
-      manualValuation:
-        direction === InvestmentTransactionDirection.Inflow && data.valuedAt && toNumber(data.grossValue) != null
-          ? {
-              grossValue: toNumber(data.grossValue) as number,
-              valuedAt: formatDateOnly(data.valuedAt),
-            }
-          : undefined,
+      iof: toNumber(data.iof),
+      manualValuation: buildFundManualValuationInput({
+        direction,
+        pricingMode: holding.pricingMode,
+        valuedAt: data.valuedAt,
+        grossValue,
+      }),
     });
   }
 
@@ -252,7 +257,6 @@ function buildDefaultValues(assetClass: UpdateHoldingAssetClass): Partial<Update
     incomeTax: 0,
     iof: 0,
     totalFees: 0,
-    valuedAt: today,
   };
 }
 
@@ -300,10 +304,9 @@ function UpdateHoldingDrawerForm({
         direction,
         maxQuantity: holding.quantity,
         minAllowedDate: getFinanceMinAllowedDate(),
-        isFundManualPricingMode: isFundManualPricingMode(holding.pricingMode),
         t,
       }),
-    [assetClass, direction, holding.pricingMode, holding.quantity, t],
+    [assetClass, direction, holding.quantity, t],
   );
 
   const defaultValues = React.useMemo<Partial<UpdateHoldingFormValues>>(() => {
@@ -314,8 +317,15 @@ function UpdateHoldingDrawerForm({
     if (merged.tradeDate) {
       merged.settlementDate = coerceFormSettlementDate(assetClass, merged.tradeDate, merged.settlementDate);
     }
+    // Only seed valuedAt for manual-priced fund holdings (used by manualValuation).
+    if (assetClass === 'fund' && isFundManualPricingMode(holding.pricingMode) && !merged.valuedAt) {
+      merged.valuedAt = dayjs().startOf('day').toDate();
+    }
+    if (assetClass === 'fund' && !isFundManualPricingMode(holding.pricingMode)) {
+      delete merged.valuedAt;
+    }
     return merged;
-  }, [assetClass, editTransaction]);
+  }, [assetClass, editTransaction, holding.pricingMode]);
 
   const formController = useUpdateHoldingForm<UpdateHoldingFormValues>({
     holding,
@@ -412,6 +422,9 @@ function UpdateHoldingDrawerForm({
             minDate={minDate}
             maxDate={maxDate}
             isManualPricingMode={isFundManualPricingMode(holding.pricingMode)}
+            fundCnpj={holding.asset.fundCnpj}
+            fundName={holding.asset.name}
+            disableAutoUnitPrice={isEditMode}
             tradeDateLabel={
               direction === InvestmentTransactionDirection.Inflow
                 ? t('investments.updateHolding.fields.tradeDateApply')
@@ -425,7 +438,7 @@ function UpdateHoldingDrawerForm({
             }
             netValueLabel={t('investments.updateHolding.fields.netValue')}
             quantityLabel={quantityFieldLabel}
-            unitPriceLabel={t('investments.updateHolding.fields.unitPrice')}
+            unitPriceLabel={t('investments.updateHolding.fields.quotaPrice')}
             valuedAtLabel={t('investments.updateHolding.fields.valuedAt')}
             incomeTaxLabel={t('investments.updateHolding.fields.incomeTax')}
             iofLabel={t('investments.updateHolding.fields.iof')}
@@ -547,3 +560,4 @@ export function UpdateHoldingDrawer({
 }
 
 export default UpdateHoldingDrawer;
+

@@ -30,7 +30,7 @@ import {
   INVESTMENT_CASH_TRANSACTIONS,
   INVESTMENT_PORTFOLIO_SUMMARY,
 } from "@/lib/graphql/operations/banking/queries";
-import { Drawer, DrawerDeleteButton } from "@/shared/components/ui/layout/Drawer";
+import { Drawer, DrawerDeleteButton, DrawerSubmitButton } from "@/shared/components/ui/layout/Drawer";
 import { ConfirmationDialog } from "@/shared/components/ui/feedback/dialogs/ConfirmationDialog";
 import { useTranslation } from "@/shared/i18n";
 import { Label } from "@/shared/components/ui/primitives/Label";
@@ -395,9 +395,18 @@ function HoldingDetailDrawerShell({
 }
 
 type FundParametersFormData = {
-  administrationFeeAnnualPercent?: number;
+  administrationFeeAnnualPercent?: number | null;
   comeCotasMode: "default" | "enabled" | "disabled";
 };
+
+function normalizeAdministrationFeeAnnualPercent(
+  value: FundParametersFormData["administrationFeeAnnualPercent"] | string,
+): number | null {
+  if (value == null || value === "") return null;
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric) || numeric === 0) return null;
+  return numeric;
+}
 
 export function buildUpdateFundHoldingParamsInput(
   holdingId: string,
@@ -406,10 +415,9 @@ export function buildUpdateFundHoldingParamsInput(
   return {
     input: {
       holdingId,
-      administrationFeeAnnualPercent:
-        values.administrationFeeAnnualPercent == null || values.administrationFeeAnnualPercent === 0
-          ? null
-          : values.administrationFeeAnnualPercent,
+      administrationFeeAnnualPercent: normalizeAdministrationFeeAnnualPercent(
+        values.administrationFeeAnnualPercent,
+      ),
       comeCotasEnabled:
         values.comeCotasMode === "default"
           ? null
@@ -430,7 +438,7 @@ export function FundParametersTab({ holding, locale, onSaved }: FundParametersTa
   const apolloClient = useApolloClient();
   const methods = useForm<FundParametersFormData>({
     defaultValues: {
-      administrationFeeAnnualPercent: holding.administrationFeeAnnualPercent ?? undefined,
+      administrationFeeAnnualPercent: holding.administrationFeeAnnualPercent ?? null,
       comeCotasMode:
         holding.comeCotasEnabled == null
           ? "default"
@@ -439,6 +447,7 @@ export function FundParametersTab({ holding, locale, onSaved }: FundParametersTa
             : "disabled",
     },
   });
+  const { reset } = methods;
   const [updateFundHoldingParamsMutation, { loading }] = useMutation(UPDATE_FUND_HOLDING_PARAMS);
   const comeCotasOptions = React.useMemo(
     () => [
@@ -450,7 +459,6 @@ export function FundParametersTab({ holding, locale, onSaved }: FundParametersTa
   );
   const { executeMutation } = useMutationWithRefetch({
     onRefetch: () => {
-      void onSaved();
       void apolloClient.refetchQueries({
         include: [
           INVESTMENT_PORTFOLIO_SUMMARY,
@@ -463,8 +471,8 @@ export function FundParametersTab({ holding, locale, onSaved }: FundParametersTa
   });
 
   React.useEffect(() => {
-    methods.reset({
-      administrationFeeAnnualPercent: holding.administrationFeeAnnualPercent ?? undefined,
+    reset({
+      administrationFeeAnnualPercent: holding.administrationFeeAnnualPercent ?? null,
       comeCotasMode:
         holding.comeCotasEnabled == null
           ? "default"
@@ -472,15 +480,28 @@ export function FundParametersTab({ holding, locale, onSaved }: FundParametersTa
             ? "enabled"
             : "disabled",
     });
-  }, [holding.administrationFeeAnnualPercent, holding.comeCotasEnabled, methods]);
+    // Only re-seed when switching holdings. Same-holding updates are applied via reset() after save;
+    // syncing on fee/come-cotas props races with refetch and restores the stale value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed by holding.id only
+  }, [holding.id, reset]);
 
   const handleSubmit = methods.handleSubmit(async (values) => {
+    const nextValues: FundParametersFormData = {
+      administrationFeeAnnualPercent: normalizeAdministrationFeeAnnualPercent(
+        values.administrationFeeAnnualPercent,
+      ),
+      comeCotasMode: values.comeCotasMode,
+    };
     try {
       await executeMutation(
         updateFundHoldingParamsMutation,
-        buildUpdateFundHoldingParamsInput(holding.id, values),
+        buildUpdateFundHoldingParamsInput(holding.id, nextValues),
         holding.id,
       );
+      // Keep the form on the saved payload immediately — don't wait for refetch,
+      // otherwise a re-render can reset back to the stale holding value.
+      reset(nextValues);
+      await onSaved();
       toast.success(t("investments.detailDrawer.parameters.updateSuccess"));
     } catch (error) {
       toast.error(extractErrorMessage(error, t("investments.detailDrawer.parameters.updateError")));
@@ -513,9 +534,14 @@ export function FundParametersTab({ holding, locale, onSaved }: FundParametersTa
           </FormRowStack>
           <Divider />
           <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-            <Button type="submit" variant="contained" disabled={loading}>
+            <DrawerSubmitButton
+              type="submit"
+              submitting={loading}
+              submittingText={t("actions.saving")}
+              disabled={loading}
+            >
               {t("actions.save")}
-            </Button>
+            </DrawerSubmitButton>
           </Box>
         </FormStack>
       </form>
@@ -935,12 +961,16 @@ export function InvestmentHoldingDetailDrawer({
                 detailQuantityGridCard,
                 { id: "principal", label: t("investments.detailDrawer.grid.principal"), value: fundViewModel?.principal ?? null },
                 { id: "netTotal", label: t("investments.detailDrawer.grid.netTotal"), value: fundViewModel?.netValue ?? null },
-                {
-                  id: "administrationFeeAnnualPercent",
-                  label: t("investments.detailDrawer.grid.administrationFeeAnnualPercent"),
-                  value: fundData?.investmentHolding?.administrationFeeAnnualPercent ?? null,
-                  valueKind: "percentagePoints" as const,
-                },
+                ...(fundData?.investmentHolding?.administrationFeeAnnualPercent != null
+                  ? [
+                      {
+                        id: "administrationFeeAnnualPercent",
+                        label: t("investments.detailDrawer.grid.administrationFeeAnnualPercent"),
+                        value: fundData.investmentHolding.administrationFeeAnnualPercent,
+                        valueKind: "percentagePoints" as const,
+                      },
+                    ]
+                  : []),
                 {
                   id: "xirr",
                   label:

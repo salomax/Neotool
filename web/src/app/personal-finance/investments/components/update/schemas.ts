@@ -12,7 +12,6 @@ interface BuildSchemaParams {
   direction: InvestmentTransactionDirection;
   maxQuantity: number;
   minAllowedDate: dayjs.Dayjs;
-  isFundManualPricingMode: boolean;
   t: (key: string, options?: Record<string, unknown>) => string;
 }
 
@@ -22,7 +21,7 @@ function decimalPlaces(value: number): number {
 }
 
 export function buildUpdateHoldingSchema(params: BuildSchemaParams): z.ZodType<UpdateHoldingFormValues, z.ZodTypeDef, unknown> {
-  const { assetClass, direction, maxQuantity, minAllowedDate, isFundManualPricingMode, t } = params;
+  const { assetClass, direction, maxQuantity, minAllowedDate, t } = params;
 
   return z
     .object({
@@ -95,19 +94,26 @@ export function buildUpdateHoldingSchema(params: BuildSchemaParams): z.ZodType<U
 
       if (assetClass === 'fund') {
         if (direction === InvestmentTransactionDirection.Inflow) {
-          if (data.grossValue == null) {
+          if (data.unitPrice == null) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t('investments.updateHolding.validation.unitPriceRequired'),
+              path: ['unitPrice'],
+            });
+          }
+
+          const hasGross = data.grossValue != null;
+          const hasQuantity = data.quantity != null;
+          if (!hasGross && !hasQuantity) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
               message: t('investments.updateHolding.validation.grossValueRequired'),
               path: ['grossValue'],
             });
-          }
-
-          if (isFundManualPricingMode && data.unitPrice == null) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
-              message: t('investments.updateHolding.validation.unitPriceRequired'),
-              path: ['unitPrice'],
+              message: t('investments.updateHolding.validation.quantityRequired'),
+              path: ['quantity'],
             });
           }
         }
@@ -118,6 +124,22 @@ export function buildUpdateHoldingSchema(params: BuildSchemaParams): z.ZodType<U
               code: z.ZodIssueCode.custom,
               message: t('investments.updateHolding.validation.netValueRequired'),
               path: ['netValue'],
+            });
+          }
+          if (data.unitPrice == null) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t('investments.updateHolding.validation.unitPriceRequired'),
+              path: ['unitPrice'],
+            });
+          }
+          const hasGross = data.grossValue != null;
+          const hasQuantity = data.quantity != null;
+          if (!hasGross && !hasQuantity) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t('investments.updateHolding.validation.grossValueRequired'),
+              path: ['grossValue'],
             });
           }
           if (data.quantity != null && data.quantity > maxQuantity) {

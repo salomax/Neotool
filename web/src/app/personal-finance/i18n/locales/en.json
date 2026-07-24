@@ -168,7 +168,8 @@
         "pricing": "Pricing",
         "taxes": "Taxes and fees",
         "purchaseFees": "Purchase fees",
-        "saleFees": "Sale fees"
+        "saleFees": "Sale fees",
+        "totals": "Totals"
       },
       "context": {
         "ticker": "Ticker",
@@ -200,7 +201,8 @@
         "settlementFee": "Settlement fee",
         "otherFees": "Other fees",
         "withholdingTax": "Withholding tax",
-        "valuedAt": "Valuation date"
+        "valuedAt": "Valuation date",
+        "quotaPrice": "Quota price"
       },
       "validation": {
         "tradeDateRequired": "Enter the trade date",
@@ -2145,7 +2147,8 @@
     "delete": "Delete",
     "cancel": "Cancel",
     "close": "Close",
-    "save": "Save"
+    "save": "Save",
+    "saving": "Saving..."
   },
   "transactionType": {
     "BALANCE_ADJUSTMENT": "Balance Adjustment",

@@ -36,6 +36,19 @@ export const INVESTMENT_FUND_NAV = gql`
 `;
 
 /**
+ * NAV series for a fund identified by CNPJ (used when the banking asset only has fundCnpj,
+ * e.g. aporte/resgate on an existing holding).
+ */
+export const FUND_NAV_SERIES = gql`
+  query FundNavSeries($cnpj: String!, $from: Date!, $to: Date!) {
+    fundNavSeries(cnpj: $cnpj, from: $from, to: $to) {
+      date
+      closePrice
+    }
+  }
+`;
+
+/**
  * Autocomplete search for B3 equities and FIIs (by ticker / name).
  * Used by the equity holding drawer.
  */

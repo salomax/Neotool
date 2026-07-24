@@ -4549,6 +4549,8 @@ export type RegisterToolInput = {
   executorEndpoint: Scalars['String']['input'];
   executorService: Scalars['String']['input'];
   inputSchema?: InputMaybe<Scalars['JSON']['input']>;
+  mcpExposed?: InputMaybe<Scalars['Boolean']['input']>;
+  mcpRequiredScope?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   outputSchema?: InputMaybe<Scalars['JSON']['input']>;
   retryPolicy?: InputMaybe<Scalars['JSON']['input']>;
@@ -4778,6 +4780,8 @@ export type Tool = {
   executorService: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   inputSchema: Scalars['JSON']['output'];
+  mcpExposed: Scalars['Boolean']['output'];
+  mcpRequiredScope: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
   outputSchema: Scalars['JSON']['output'];
   retryPolicy: Maybe<Scalars['JSON']['output']>;
