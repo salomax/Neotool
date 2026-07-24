@@ -1,3 +1,13 @@
+## 0.9.3 (2026-07-24)
+
+### 🚀 Features
+
+- **graphql:** enhance Tool and RegisterToolInput types with new fields ([#471](https://github.com/invistus/invistus/pull/471))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.9.2 (2026-07-23)
 
 ### 🚀 Features
