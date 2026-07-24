@@ -32,12 +32,12 @@ function baseModel(
 }
 
 describe("presentHoldingDetailHeaderLabels", () => {
-  it("puts fund type, category and CNPJ on the description line", () => {
+  it("puts fund category and CNPJ on the description line", () => {
     const labels = presentHoldingDetailHeaderLabels(
       baseModel({ traits: { fundCnpj: "27717359000130" } }),
     );
 
-    expect(labels.metaLabel).toBe("Fundo de investimento • Misto • 27.717.359/0001-30");
+    expect(labels.metaLabel).toBe("Misto • 27.717.359/0001-30");
     expect(labels.accountLabel).toBe("Corretora de Valores - Nubank • Nubank");
   });
 
@@ -46,7 +46,22 @@ describe("presentHoldingDetailHeaderLabels", () => {
       baseModel({ traits: { fundCnpj: "   " } }),
     );
 
-    expect(labels.metaLabel).toBe("Fundo de investimento • Misto");
+    expect(labels.metaLabel).toBe("Misto");
+  });
+
+  it("omits redundant fund asset type from the description line", () => {
+    const labels = presentHoldingDetailHeaderLabels(
+      baseModel({
+        traits: {
+          assetTypeLabel: "Fundo de investimento",
+          subtitleLabel: "Misto",
+          fundCnpj: "27717359000130",
+        },
+      }),
+    );
+
+    expect(labels.metaLabel).toBe("Misto • 27.717.359/0001-30");
+    expect(labels.metaLabel).not.toContain("Fundo de investimento");
   });
 
   it("keeps issuer on the description line for equity holdings", () => {

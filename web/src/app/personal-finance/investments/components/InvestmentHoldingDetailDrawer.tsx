@@ -22,7 +22,7 @@ import {
   useTheme,
 } from "@mui/material";
 import { useApolloClient, useMutation } from "@apollo/client/react";
-import { FormProvider, useForm, useWatch } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
 import { AssetType } from "@/lib/graphql/types/__generated__/graphql";
 import { UPDATE_FUND_HOLDING_PARAMS } from "@/lib/graphql/operations/banking/mutations";
 import {
@@ -58,9 +58,9 @@ import {
 } from "./transaction-editor/intent";
 import { ManagementHeaderActionButton } from "@/shared/components/management/ManagementHeaderActions";
 import { MovimentacoesTab } from "./InvestmentHoldingDetailDrawer/MovimentacoesTab";
+import { FormRowStack } from "@/shared/components/ui/forms/components/FormRowStack";
 import { FormStack } from "@/shared/components/ui/forms/components/FormStack";
-import { PercentField } from "@/shared/components/ui/forms/form";
-import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
+import { PercentField, SelectField } from "@/shared/components/ui/forms/form";
 import { useMutationWithRefetch } from "@/shared/hooks/mutations";
 import { useToast } from "@/shared/providers";
 import { extractErrorMessage } from "@/shared/utils/error";
@@ -440,7 +440,14 @@ export function FundParametersTab({ holding, locale, onSaved }: FundParametersTa
     },
   });
   const [updateFundHoldingParamsMutation, { loading }] = useMutation(UPDATE_FUND_HOLDING_PARAMS);
-  const comeCotasMode = useWatch({ control: methods.control, name: "comeCotasMode" });
+  const comeCotasOptions = React.useMemo(
+    () => [
+      { value: "default" as const, label: t("investments.detailDrawer.comeCotas.options.default") },
+      { value: "enabled" as const, label: t("investments.detailDrawer.comeCotas.options.enabled") },
+      { value: "disabled" as const, label: t("investments.detailDrawer.comeCotas.options.disabled") },
+    ],
+    [t],
+  );
   const { executeMutation } = useMutationWithRefetch({
     onRefetch: () => {
       void onSaved();
@@ -484,30 +491,28 @@ export function FundParametersTab({ holding, locale, onSaved }: FundParametersTa
     <FormProvider {...methods}>
       <form onSubmit={handleSubmit}>
         <FormStack spacing={2}>
-          <PercentField
-            name="administrationFeeAnnualPercent"
-            label={t("investments.detailDrawer.parameters.administrationFeeAnnualPercent")}
-            locale={locale}
-            fractionDigits={2}
-            data-testid="fund-parameters-administration-fee"
-          />
-          <FormStack spacing={0.5}>
-            <Label sx={{ mb: 0 }}>{t("investments.detailDrawer.comeCotas.label")}</Label>
-            <SegmentedControl
-              fullWidth
-              value={comeCotasMode}
-              onChange={(value) => methods.setValue("comeCotasMode", value as FundParametersFormData["comeCotasMode"])}
-              options={[
-                { value: "default", label: t("investments.detailDrawer.comeCotas.options.default") },
-                { value: "enabled", label: t("investments.detailDrawer.comeCotas.options.enabled") },
-                { value: "disabled", label: t("investments.detailDrawer.comeCotas.options.disabled") },
-              ]}
-            />
-            <Typography variant="body2" color="text.secondary">
-              {t("investments.detailDrawer.comeCotas.description")}
-            </Typography>
-          </FormStack>
-          <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
+          <FormRowStack alignItems="flex-start">
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <PercentField
+                name="administrationFeeAnnualPercent"
+                label={t("investments.detailDrawer.parameters.administrationFeeAnnualPercent")}
+                locale={locale}
+                fractionDigits={2}
+                data-testid="fund-parameters-administration-fee"
+              />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <SelectField
+                name="comeCotasMode"
+                label={t("investments.detailDrawer.comeCotas.label")}
+                options={comeCotasOptions}
+                helperText={t("investments.detailDrawer.comeCotas.description")}
+                data-testid="fund-parameters-come-cotas"
+              />
+            </Box>
+          </FormRowStack>
+          <Divider />
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
             <Button type="submit" variant="contained" disabled={loading}>
               {t("actions.save")}
             </Button>

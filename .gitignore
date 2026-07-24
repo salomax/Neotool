@@ -10,7 +10,6 @@ coverage.out
 .run/
 .env
 .env.*
-!.env.example
 venv
 .venv/
 .next/

@@ -22,7 +22,9 @@ interface HoldingIdentitySource {
     logoAsset?: { publicUrl?: string | null } | null;
   } | null;
   financialAccount?: {
+    issuerName?: string | null;
     issuer?: {
+      name?: string | null;
       logoAsset?: { publicUrl?: string | null } | null;
     } | null;
   } | null;
@@ -31,13 +33,19 @@ interface HoldingIdentitySource {
 export function resolveHoldingIdentity(source: HoldingIdentitySource) {
   const assetName = source.asset?.ticker ?? source.asset?.name ?? "—";
 
+  const custodianIssuerName =
+    source.financialAccount?.issuer?.name ?? source.financialAccount?.issuerName ?? null;
+
   const secondaryLabel = source.asset?.ticker
-    ? (source.asset?.name ?? source.asset?.issuerName ?? null)
-    : (source.asset?.issuerName ?? null);
+    ? (source.asset?.name ?? source.asset?.issuerName ?? custodianIssuerName ?? null)
+    : (source.asset?.issuerName ?? custodianIssuerName ?? null);
+
+  const trimmedSecondary = secondaryLabel?.trim() || null;
 
   return {
     assetName,
-    issuerName: secondaryLabel ?? "—",
+    // Prefer a real secondary label; never render a placeholder hyphen as caption.
+    issuerName: trimmedSecondary && trimmedSecondary !== "—" ? trimmedSecondary : null,
     logoUrl: source.asset?.logoAsset?.publicUrl ?? source.financialAccount?.issuer?.logoAsset?.publicUrl ?? undefined,
   };
 }
