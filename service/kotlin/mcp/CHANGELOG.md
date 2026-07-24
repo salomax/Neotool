@@ -1,3 +1,13 @@
+## 0.3.0 (2026-07-24)
+
+### 🚀 Features
+
+- add MCP finance read tools ([#449](https://github.com/invistus/invistus/pull/449))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.2.3 (2026-07-23)
 
 ### 🚀 Features
