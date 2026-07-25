@@ -111,7 +111,43 @@ RUN mkdir -p /root/.local/bin \
         echo "Warning: cursor binary not found after install, skipping"; \
     fi
 
+# -----------------------------------------------------------------------------
+# 7b. RTK (Rust Token Killer) — compresses agent shell/CLI output (pinned)
+#     Shared by Claude Code, Cursor, and Codex. Agent hooks are wired in
+#     postCreate via .devcontainer/setup-rtk.sh (not at image build time).
+#     Verify with: rtk --version && rtk gain
+# -----------------------------------------------------------------------------
+ARG RTK_VERSION=0.43.0
+RUN ARCH=$(dpkg --print-architecture) \
+    && case "$ARCH" in \
+         amd64) RTK_ASSET="rtk-x86_64-unknown-linux-musl.tar.gz" ;; \
+         arm64) RTK_ASSET="rtk-aarch64-unknown-linux-gnu.tar.gz" ;; \
+         *) echo "Unsupported arch for RTK: $ARCH" >&2; exit 1 ;; \
+       esac \
+    && curl -fsSL "https://github.com/rtk-ai/rtk/releases/download/v${RTK_VERSION}/${RTK_ASSET}" \
+         -o /tmp/rtk.tar.gz \
+    && tar -xzf /tmp/rtk.tar.gz -C /tmp \
+    && install -m 755 /tmp/rtk /usr/local/bin/rtk \
+    && rm -f /tmp/rtk.tar.gz /tmp/rtk \
+    && rtk --version \
+    && rtk gain >/dev/null
 
+# -----------------------------------------------------------------------------
+# 7c. uv + Semble (semantic code search MCP) — pinned, CPU-only, no API key
+#     Shared binary/tooling for Claude Code, Cursor, Codex. Agent MCP wiring
+#     runs in postCreate via .devcontainer/setup-semble.sh.
+#     Docs: https://github.com/MinishLab/semble/blob/main/docs/installation.md
+# -----------------------------------------------------------------------------
+ARG UV_VERSION=0.11.32
+ARG SEMBLE_VERSION=0.5.2
+ENV UV_TOOL_DIR=/usr/local/share/uv/tools \
+    UV_TOOL_BIN_DIR=/usr/local/bin
+RUN curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" \
+        | env UV_INSTALL_DIR=/usr/local/bin sh \
+    && uv --version \
+    && uv tool install "semble[mcp]==${SEMBLE_VERSION}" \
+    && semble --help >/dev/null \
+    && uvx --from "semble[mcp]==${SEMBLE_VERSION}" semble --help >/dev/null
 
 # -----------------------------------------------------------------------------
 # 8. Python agent dependencies
@@ -234,6 +270,9 @@ RUN java -version \
     && git --version \
     && gh --version \
     && rover --version \
+    && rtk --version \
+    && uv --version \
+    && semble --help >/dev/null \
     && test -x "/home/${USERNAME}/.rover/bin/supergraph-v${SUPERGRAPH_PLUGIN_VERSION}" \
     && cursor --help > /dev/null 2>&1 || true \
     && cloudflared --version 2>&1 || true
