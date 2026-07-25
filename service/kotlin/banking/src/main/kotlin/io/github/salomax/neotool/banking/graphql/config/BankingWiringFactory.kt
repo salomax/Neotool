@@ -33,8 +33,12 @@ import io.github.salomax.neotool.banking.service.investment.InvestmentQueryServi
 import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
+import io.github.salomax.neotool.common.security.agent.AgentCallContextProvider
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
+import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
+import io.micronaut.context.annotation.Property
 import jakarta.inject.Singleton
 import java.time.LocalDate
 
@@ -60,6 +64,9 @@ class BankingWiringFactory(
     private val productResolver: ProductResolver,
     private val recurringPaymentResolver: RecurringPaymentResolver,
     private val wishlistResolver: WishlistResolver,
+    private val agentCallContextProvider: AgentCallContextProvider,
+    @Property(name = "banking.mcp.trusted-delegator", defaultValue = "mcp-service")
+    private val trustedMcpDelegator: String,
     requestPrincipalProvider: RequestPrincipalProvider,
     authorizationChecker: AuthorizationChecker,
 ) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
@@ -125,6 +132,8 @@ class BankingWiringFactory(
                             env.getArgument<String?>("creditDebitType")?.let { CreditDebitType.valueOf(it) }
                         val types =
                             env.getArgument<List<String>?>("types")?.map { TransactionType.valueOf(it) }
+                        val originClientId = env.getArgument<String?>("originClientId")
+                        val originToolCallId = env.getArgument<String?>("originToolCallId")
                         val month = env.getArgument<Int?>("month")
                         val year = env.getArgument<Int?>("year")
                         val first = env.getArgument<Int?>("first")
@@ -140,10 +149,27 @@ class BankingWiringFactory(
                             uncategorized = uncategorized,
                             creditDebitType = creditDebitType,
                             types = types,
+                            originClientId = originClientId,
+                            originToolCallId = originToolCallId,
                             month = month,
                             year = year,
                             first = first,
                             after = after,
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
+                "mcpChangeLog",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        transactionResolver.mcpChangeLog(
+                            clientId = env.getArgument<String?>("clientId"),
+                            tokenId = env.getArgument<String?>("tokenId"),
+                            toolCallId = env.getArgument<String?>("toolCallId"),
+                            limit = env.getArgument<Int?>("limit"),
+                            offset = env.getArgument<Int?>("offset"),
                             principal = principal,
                         )
                     }
@@ -957,7 +983,11 @@ class BankingWiringFactory(
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
-                        transactionResolver.createTransaction(input, principal)
+                        transactionResolver.createTransaction(
+                            input,
+                            principal,
+                            trustedAgentCallContext(env, principal),
+                        )
                     }
                 },
             )
@@ -971,7 +1001,12 @@ class BankingWiringFactory(
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
-                        transactionResolver.updateTransaction(id, input, principal)
+                        transactionResolver.updateTransaction(
+                            id,
+                            input,
+                            principal,
+                            trustedAgentCallContext(env, principal),
+                        )
                     }
                 },
             )
@@ -982,7 +1017,11 @@ class BankingWiringFactory(
                         val id =
                             env.getArgument<String>("id")
                                 ?: throw IllegalArgumentException("id is required")
-                        transactionResolver.deleteTransaction(id, principal)
+                        transactionResolver.deleteTransaction(
+                            id,
+                            principal,
+                            trustedAgentCallContext(env, principal),
+                        )
                     }
                 },
             )
@@ -1106,7 +1145,23 @@ class BankingWiringFactory(
                         val categoryId =
                             env.getArgument<String>("categoryId")
                                 ?: throw IllegalArgumentException("categoryId is required")
-                        transactionResolver.bulkCategorize(transactionIds, categoryId, principal)
+                        transactionResolver.bulkCategorize(
+                            transactionIds,
+                            categoryId,
+                            principal,
+                            trustedAgentCallContext(env, principal),
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
+                "revertToolCallChanges",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val toolCallId =
+                            env.getArgument<String>("toolCallId")
+                                ?: throw IllegalArgumentException("toolCallId is required")
+                        transactionResolver.revertToolCallChanges(toolCallId, principal)
                     }
                 },
             )
@@ -1569,7 +1624,11 @@ class BankingWiringFactory(
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
-                        transactionCategoryResolver.createTransactionRule(input, principal)
+                        transactionCategoryResolver.createTransactionRule(
+                            input,
+                            principal,
+                            trustedAgentCallContext(env, principal),
+                        )
                     }
                 },
             )
@@ -1605,7 +1664,11 @@ class BankingWiringFactory(
                         val id =
                             env.getArgument<String>("id")
                                 ?: throw IllegalArgumentException("id is required")
-                        transactionCategoryResolver.applyTransactionRuleToHistorical(id, principal)
+                        transactionCategoryResolver.applyTransactionRuleToHistorical(
+                            id,
+                            principal,
+                            trustedAgentCallContext(env, principal),
+                        )
                     }
                 },
             )
@@ -1870,4 +1933,13 @@ class BankingWiringFactory(
                     },
                 )
             }
+
+    private fun trustedAgentCallContext(
+        env: graphql.schema.DataFetchingEnvironment,
+        principal: RequestPrincipal,
+    ) = when {
+        principal.principalType != PrincipalType.SERVICE -> null
+        principal.delegatedBy != trustedMcpDelegator -> null
+        else -> agentCallContextProvider.fromGraphQl(env)
+    }
 }

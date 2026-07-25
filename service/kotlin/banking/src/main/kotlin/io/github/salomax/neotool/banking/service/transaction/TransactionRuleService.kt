@@ -6,11 +6,15 @@ import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.DuplicateTransactionRuleException
 import io.github.salomax.neotool.banking.domain.transaction.InvalidRegexPatternException
+import io.github.salomax.neotool.banking.domain.transaction.McpChangeLogAction
+import io.github.salomax.neotool.banking.domain.transaction.McpChangeLogEntry
+import io.github.salomax.neotool.banking.domain.transaction.McpChangeLogResourceType
 import io.github.salomax.neotool.banking.domain.transaction.MerchantNotFoundException
 import io.github.salomax.neotool.banking.domain.transaction.PatternType
 import io.github.salomax.neotool.banking.domain.transaction.SystemTransactionRuleNotDeletableException
 import io.github.salomax.neotool.banking.domain.transaction.SystemTransactionRuleNotEditableException
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionChangeSnapshot
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleNotFoundException
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
@@ -18,14 +22,16 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeResult
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionRuleInput
+import io.github.salomax.neotool.banking.repo.transaction.McpChangeLogRepository
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
+import io.github.salomax.neotool.common.provenance.toChangeOriginOrUi
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
-import mu.KotlinLogging
 import java.time.Instant
 import java.time.YearMonth
 import java.util.UUID
@@ -37,9 +43,8 @@ open class TransactionRuleService(
     private val merchantRepository: MerchantRepository,
     private val transactionRepository: TransactionRepository,
     private val snapshotRepository: MonthlyBalanceSnapshotRepository,
+    private val mcpChangeLogRepository: McpChangeLogRepository,
 ) {
-    private val logger = KotlinLogging.logger {}
-
     /** Returns all user-owned rules (explicit + implicit) for the account. System rules are excluded. */
     fun listUserRules(accountId: UUID): List<TransactionRule> = ruleRepository.findUserRulesForAccount(accountId)
 
@@ -76,6 +81,7 @@ open class TransactionRuleService(
     fun create(
         input: CreateTransactionRuleInput,
         accountId: UUID,
+        agentCallContext: AgentCallContext? = null,
     ): TransactionRule {
         require(
             input.categoryId != null || input.merchantId != null ||
@@ -111,6 +117,7 @@ open class TransactionRuleService(
                 isSystem = false,
                 isImplicit = false,
                 matchCount = 0,
+                origin = agentCallContext.toChangeOriginOrUi(),
                 createdAt = now,
                 updatedAt = now,
             )
@@ -242,58 +249,18 @@ open class TransactionRuleService(
         if (rule.accountId != accountId) {
             throw TransactionRuleNotFoundException(ruleId)
         }
-
-        // [RULE-DEBUG] temporary diagnostic logs — remove after investigation
-        logger.info {
-            "[RULE-DEBUG] countHistoricalMatches ruleId=$ruleId pattern='${rule.pattern}' " +
-                "patternType=${rule.patternType} applicableTo=${rule.applicableTo}"
-        }
-        val all = transactionRepository.findByAccount(accountId)
-        logger.info { "[RULE-DEBUG] total transactions: ${all.size}" }
-        val afterSourceFilter = all.filter { it.source != TransactionSource.MANUAL }
-        logger.info {
-            "[RULE-DEBUG] after source!=MANUAL: ${afterSourceFilter.size} " +
-                "(excluded ${all.size - afterSourceFilter.size} MANUAL)"
-        }
-        val afterTypeFilter = afterSourceFilter.filter { it.type != TransactionType.BALANCE_ADJUSTMENT }
-        logger.info { "[RULE-DEBUG] after type!=BALANCE_ADJUSTMENT: ${afterTypeFilter.size}" }
-        var applicableToRejected = 0
-        var patternRejected = 0
-        val matching =
-            afterTypeFilter.filter { tx ->
-                val side =
-                    if (tx.type == TransactionType.TRANSFER) {
-                        CategoryApplicableTo.TRANSFER
-                    } else if (tx.creditDebitType == CreditDebitType.CREDIT) {
-                        CategoryApplicableTo.INCOME
-                    } else {
-                        CategoryApplicableTo.EXPENSE
-                    }
-                if (rule.applicableTo != CategoryApplicableTo.ANY && rule.applicableTo != side) {
-                    applicableToRejected++
-                    return@filter false
-                }
-                val matched =
-                    TransactionRulePatternMatcher.matchesDescription(
-                        tx.description,
-                        rule.pattern,
-                        rule.patternType,
-                    )
-                if (!matched) patternRejected++
-                matched
-            }
-        logger.info {
-            "[RULE-DEBUG] applicableTo rejected: $applicableToRejected, " +
-                "pattern rejected: $patternRejected, final count: ${matching.size}"
-        }
-        return matching.size
-        // [RULE-DEBUG] end
+        return transactionRepository.findByAccount(accountId)
+            .asSequence()
+            .filter { it.source != TransactionSource.MANUAL }
+            .filter { it.type != TransactionType.BALANCE_ADJUSTMENT }
+            .count { matchesRule(it, rule) }
     }
 
     @Transactional
     open fun applyToHistorical(
         ruleId: UUID,
         accountId: UUID,
+        agentCallContext: AgentCallContext? = null,
     ): BulkCategorizeResult {
         val rule =
             ruleRepository.findById(ruleId)
@@ -304,6 +271,7 @@ open class TransactionRuleService(
         val now = Instant.now()
         var affectedCount = 0
         val earliestAffectedMonthByAccount = mutableMapOf<UUID, YearMonth>()
+        val changeLogs = mutableListOf<McpChangeLogEntry>()
 
         transactionRepository.findByAccount(accountId)
             .asSequence()
@@ -345,16 +313,35 @@ open class TransactionRuleService(
 
                 next =
                     next.copy(
+                        origin = agentCallContext.toChangeOriginOrUi(),
                         appliedRuleHistory =
                             tx.appliedRuleHistory +
                                 AppliedRuleAuditSupport.buildEntries(listOf(requireNotNull(rule.id)), now),
                         updatedAt = now,
                     )
 
+                if (agentCallContext != null) {
+                    changeLogs +=
+                        McpChangeLogEntry(
+                            toolCallId = agentCallContext.toolCallId,
+                            clientId = agentCallContext.originClientId,
+                            tokenId = agentCallContext.originTokenId,
+                            resourceType = McpChangeLogResourceType.TRANSACTION,
+                            resourceId = requireNotNull(tx.id),
+                            action = McpChangeLogAction.UPDATE,
+                            before = TransactionChangeSnapshot.from(tx).toMap(),
+                            after = TransactionChangeSnapshot.from(next).toMap(),
+                            createdAt = now,
+                        )
+                }
                 transactionRepository.update(next)
                 affectedCount += 1
                 rememberEarliestAffectedMonth(earliestAffectedMonthByAccount, tx.financialAccountId, tx.date)
             }
+
+        if (changeLogs.isNotEmpty()) {
+            mcpChangeLogRepository.saveAll(changeLogs)
+        }
 
         earliestAffectedMonthByAccount.forEach { (financialAccountId, earliestMonth) ->
             snapshotRepository.markDirtyFromMonth(

@@ -14,6 +14,9 @@ import java.util.UUID
  * @param serviceId The service ID (nullable, only for service principals)
  * @param token The raw JWT token string
  * @param tokenId Unique token identifier from the JWT `jti` claim.
+ * @param clientId OAuth client id from the inbound access token when present.
+ * For delegated SERVICE principals this remains null by design, because the delegated
+ * token is intentionally not allowed to re-assert the original caller's client_id.
  * @param permissionsFromToken List of permissions extracted from the token claims
  * @param userPermissions Optional user permissions when user context is propagated in a service token
  * @param currentAccountId Current/active account from token (user access tokens only). Null when absent.
@@ -27,6 +30,7 @@ data class RequestPrincipal(
     val serviceId: UUID?,
     val token: String,
     val tokenId: String,
+    val clientId: String? = null,
     val permissionsFromToken: List<String>,
     val userPermissions: List<String>? = null,
     val currentAccountId: UUID? = null,
@@ -55,6 +59,7 @@ data class RequestPrincipal(
         serviceId = null,
         token = token,
         tokenId = tokenId,
+        clientId = null,
         permissionsFromToken = permissionsFromToken,
         userPermissions = null,
         currentAccountId = null,

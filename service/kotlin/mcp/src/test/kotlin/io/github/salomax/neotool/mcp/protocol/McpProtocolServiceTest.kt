@@ -3,16 +3,24 @@ package io.github.salomax.neotool.mcp.protocol
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
+import io.github.salomax.neotool.mcp.audit.ToolCallAuditOutcome
+import io.github.salomax.neotool.mcp.audit.ToolCallAuditRecord
+import io.github.salomax.neotool.mcp.audit.ToolCallAuditService
 import io.github.salomax.neotool.mcp.catalog.McpCatalogTool
 import io.github.salomax.neotool.mcp.catalog.McpToolCatalog
 import io.github.salomax.neotool.mcp.dispatch.McpToolHandler
 import io.github.salomax.neotool.mcp.dispatch.McpToolHandlerRegistry
 import io.github.salomax.neotool.mcp.render.McpToolErrorMapper
+import io.github.salomax.neotool.mcp.render.McpToolErrorResult
 import io.github.salomax.neotool.mcp.render.McpToolResult
 import io.github.salomax.neotool.mcp.render.McpToolResultRenderer
+import io.github.salomax.neotool.mcp.render.McpToolSuccessResult
 import io.github.salomax.neotool.mcp.security.McpPrincipal
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import java.util.UUID
 
 class McpProtocolServiceTest {
@@ -181,9 +189,175 @@ class McpProtocolServiceTest {
         assertThat(result.content.first().text).contains("BANKING_RULE_FAILED")
     }
 
+    @Test
+    fun `tools call injects agent call context into downstream principal`() {
+        lateinit var observedPrincipal: McpPrincipal
+        val service =
+            protocolService(
+                tools = listOf(tool(name = "originated_tool", exposed = true, requiredScope = "finance:cashflow:read")),
+                handlers =
+                    listOf(
+                        object : McpToolHandler {
+                            override val name: String = "originated_tool"
+
+                            override fun call(
+                                arguments: Map<String, Any?>,
+                                principal: McpPrincipal,
+                            ): McpToolResult {
+                                observedPrincipal = principal
+                                return McpToolSuccessResult(mapOf("ok" to true))
+                            }
+                        },
+                    ),
+            )
+
+        service.handle(
+            mapOf(
+                "jsonrpc" to "2.0",
+                "id" to "call-3",
+                "method" to "tools/call",
+                "params" to mapOf("name" to "originated_tool", "arguments" to emptyMap<String, Any>()),
+            ),
+            principal("finance:cashflow:read"),
+        )
+
+        assertThat(observedPrincipal.agentCallContext).isNotNull
+        assertThat(observedPrincipal.agentCallContext!!.originClientId).isEqualTo(observedPrincipal.clientId)
+        assertThat(observedPrincipal.agentCallContext!!.originTokenId).isEqualTo(observedPrincipal.principal.tokenId)
+    }
+
+    @Test
+    fun `tools call records latency for success outcome`() {
+        val auditService = mock<ToolCallAuditService>()
+        val service =
+            protocolService(
+                tools = listOf(tool(name = "latency_success", exposed = true, requiredScope = "finance:cashflow:read")),
+                handlers =
+                    listOf(
+                        object : McpToolHandler {
+                            override val name: String = "latency_success"
+
+                            override fun call(
+                                arguments: Map<String, Any?>,
+                                principal: McpPrincipal,
+                            ): McpToolResult = McpToolSuccessResult(mapOf("ok" to true))
+                        },
+                    ),
+                auditService = auditService,
+            )
+
+        service.handle(
+            mapOf(
+                "jsonrpc" to "2.0",
+                "id" to "call-4",
+                "method" to "tools/call",
+                "params" to mapOf("name" to "latency_success", "arguments" to emptyMap<String, Any>()),
+            ),
+            principal("finance:cashflow:read"),
+        )
+
+        val captor = argumentCaptor<ToolCallAuditRecord>()
+        verify(auditService).record(captor.capture())
+        assertThat(captor.firstValue.outcome).isEqualTo(ToolCallAuditOutcome.SUCCESS)
+        assertThat(captor.firstValue.latencyMs).isGreaterThanOrEqualTo(0)
+    }
+
+    @Test
+    fun `tools call records latency for error outcome`() {
+        val auditService = mock<ToolCallAuditService>()
+        val service =
+            protocolService(
+                tools = listOf(tool(name = "latency_error", exposed = true, requiredScope = "finance:cashflow:read")),
+                handlers =
+                    listOf(
+                        object : McpToolHandler {
+                            override val name: String = "latency_error"
+
+                            override fun call(
+                                arguments: Map<String, Any?>,
+                                principal: McpPrincipal,
+                            ): McpToolResult = McpToolErrorResult(code = "BAD_INPUT", service = "mcp")
+                        },
+                    ),
+                auditService = auditService,
+            )
+
+        service.handle(
+            mapOf(
+                "jsonrpc" to "2.0",
+                "id" to "call-5",
+                "method" to "tools/call",
+                "params" to mapOf("name" to "latency_error", "arguments" to emptyMap<String, Any>()),
+            ),
+            principal("finance:cashflow:read"),
+        )
+
+        val captor = argumentCaptor<ToolCallAuditRecord>()
+        verify(auditService).record(captor.capture())
+        assertThat(captor.firstValue.outcome).isEqualTo(ToolCallAuditOutcome.ERROR)
+        assertThat(captor.firstValue.errorCode).isEqualTo("BAD_INPUT")
+        assertThat(captor.firstValue.latencyMs).isGreaterThanOrEqualTo(0)
+    }
+
+    @Test
+    fun `tools call outside caller scope is audited as rejected while remaining externally hidden`() {
+        val auditService = mock<ToolCallAuditService>()
+        val service =
+            protocolService(
+                tools =
+                    listOf(
+                        tool(name = "guarded_tool", exposed = true, requiredScope = "finance:transactions:read"),
+                    ),
+                auditService = auditService,
+            )
+
+        val response =
+            service.handle(
+                mapOf(
+                    "jsonrpc" to "2.0",
+                    "id" to "call-6",
+                    "method" to "tools/call",
+                    "params" to mapOf("name" to "guarded_tool", "arguments" to emptyMap<String, Any>()),
+                ),
+                principal("finance:cashflow:read"),
+            )!!
+
+        assertThat(response.error?.message).isEqualTo("Unknown tool")
+        val captor = argumentCaptor<ToolCallAuditRecord>()
+        verify(auditService).record(captor.capture())
+        assertThat(captor.firstValue.outcome).isEqualTo(ToolCallAuditOutcome.REJECTED)
+        assertThat(captor.firstValue.errorCode).isEqualTo("insufficient_scope")
+    }
+
+    @Test
+    fun `unknown tool audits arguments with redact all fallback`() {
+        val auditService = mock<ToolCallAuditService>()
+        val service = protocolService(auditService = auditService)
+
+        service.handle(
+            mapOf(
+                "jsonrpc" to "2.0",
+                "id" to "call-7",
+                "method" to "tools/call",
+                "params" to
+                    mapOf(
+                        "name" to "missing_tool",
+                        "arguments" to mapOf("secret" to "top-secret"),
+                    ),
+            ),
+            principal("finance:cashflow:read"),
+        )
+
+        val captor = argumentCaptor<ToolCallAuditRecord>()
+        verify(auditService).record(captor.capture())
+        assertThat(captor.firstValue.errorCode).isEqualTo("tool_not_found")
+        assertThat(captor.firstValue.redactAllArguments).isTrue()
+    }
+
     private fun protocolService(
         tools: List<McpCatalogTool> = emptyList(),
         handlers: List<McpToolHandler> = emptyList(),
+        auditService: ToolCallAuditService = mock(),
     ): McpProtocolService =
         McpProtocolService(
             toolCatalog =
@@ -193,6 +367,7 @@ class McpProtocolServiceTest {
             handlerRegistry = McpToolHandlerRegistry(handlers),
             resultRenderer = McpToolResultRenderer(jacksonObjectMapper()),
             errorMapper = McpToolErrorMapper(),
+            auditService = auditService,
         )
 
     private fun toolsListRequest(): Map<String, Any?> =

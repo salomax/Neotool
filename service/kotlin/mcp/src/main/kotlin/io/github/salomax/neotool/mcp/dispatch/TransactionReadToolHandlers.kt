@@ -46,7 +46,13 @@ class ListTransactionsToolHandler(
                 validateYear("year", arguments.intArgument("year"))?.let { put("year", it) }
             }
 
-        val transactions = queryField("transactions", TRANSACTIONS_QUERY, variables, principal) ?: emptyMap<String, Any?>()
+        val transactions =
+            queryField(
+                "transactions",
+                TRANSACTIONS_QUERY,
+                variables,
+                principal,
+            ) ?: emptyMap<String, Any?>()
         return success("transactions" to transactions)
     }
 

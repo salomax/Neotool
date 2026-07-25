@@ -12,6 +12,7 @@ data class OAuth2TokenRequest(
     val code_verifier: String? = null,
     val refresh_token: String? = null,
     val audience: String? = null,
+    val delegated_by: String? = null,
     val subject_token: String? = null,
     val subject_token_type: String? = null,
     val requested_token_type: String? = null,

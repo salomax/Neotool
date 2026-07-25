@@ -100,6 +100,7 @@ object TransactionMapper {
             importJobId = entity.importJobId,
             sourceData = entity.sourceData?.let { objectMapper.readValue<Map<String, Any?>>(it) },
             appliedRuleHistory = parseAppliedRuleHistory(entity.appliedRuleIds, entity.createdAt),
+            origin = entity.origin.toDomain(),
             deletedAt = entity.deletedAt,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
@@ -148,6 +149,7 @@ object TransactionMapper {
             importJobId = domain.importJobId,
             sourceData = domain.sourceData?.let { objectMapper.writeValueAsString(it) },
             appliedRuleIds = serializeAppliedRuleHistory(domain.appliedRuleHistory),
+            origin = ChangeOriginEmbeddable.fromDomain(domain.origin),
             deletedAt = domain.deletedAt,
             createdAt = domain.createdAt,
             updatedAt = domain.updatedAt,
@@ -194,6 +196,7 @@ object TransactionMapper {
             domain.sourceData
                 ?.let { source -> objectMapper.writeValueAsString(source) }
         entity.appliedRuleIds = serializeAppliedRuleHistory(domain.appliedRuleHistory)
+        entity.origin = ChangeOriginEmbeddable.fromDomain(domain.origin)
         entity.deletedAt = domain.deletedAt
         entity.updatedAt = domain.updatedAt
     }

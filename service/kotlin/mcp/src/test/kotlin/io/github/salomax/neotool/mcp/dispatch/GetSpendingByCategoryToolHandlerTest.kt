@@ -43,7 +43,15 @@ class GetSpendingByCategoryToolHandlerTest {
         val exception =
             assertThrows<ValidationException> {
                 handler.call(
-                    arguments = mapOf("month" to 7, "year" to 2026, "startYear" to 2026, "startMonth" to 1, "endYear" to 2026, "endMonth" to 6),
+                    arguments =
+                        mapOf(
+                            "month" to 7,
+                            "year" to 2026,
+                            "startYear" to 2026,
+                            "startMonth" to 1,
+                            "endYear" to 2026,
+                            "endMonth" to 6,
+                        ),
                     principal = principal(),
                 )
             }

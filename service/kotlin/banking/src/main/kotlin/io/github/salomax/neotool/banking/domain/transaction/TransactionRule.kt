@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
+import io.github.salomax.neotool.common.provenance.ChangeOrigin
+import io.github.salomax.neotool.common.provenance.OriginChannel
 import java.time.Instant
 import java.util.UUID
 
@@ -23,6 +25,7 @@ data class TransactionRule(
     val isSystem: Boolean = false,
     val isImplicit: Boolean = false,
     val matchCount: Int = 0,
+    val origin: ChangeOrigin = ChangeOrigin.ui(),
     val deletedAt: Instant? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
@@ -38,4 +41,13 @@ data class TransactionRule(
             "TransactionRule must target at least one enrichment field"
         }
     }
+
+    val originChannel: OriginChannel
+        get() = origin.channel
+
+    val originClientId: String?
+        get() = origin.clientId
+
+    val originToolCallId: UUID?
+        get() = origin.toolCallId
 }

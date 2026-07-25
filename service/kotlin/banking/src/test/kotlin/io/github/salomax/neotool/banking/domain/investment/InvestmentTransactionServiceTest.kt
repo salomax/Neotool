@@ -206,14 +206,14 @@ class InvestmentTransactionServiceTest {
         }
         whenever(transactionRepository.existsByInvestmentTransactionId(any())).thenReturn(false)
         whenever(transactionRepository.findByInvestmentTransactionIds(any(), any())).thenReturn(emptyList())
-        whenever(transactionService.delete(any(), any())).thenReturn(true)
+        whenever(transactionService.delete(any(), any(), anyOrNull())).thenReturn(true)
         whenever(portfolioFlowEventService.deleteEventsByRelatedHolding(any(), any())).thenReturn(0)
         whenever(holdingAttachmentRepository.deleteByHoldingIdAndAccountId(any(), any())).thenReturn(0)
         whenever(pendingActionRepository.cancelByEntityAndType(any(), any(), any(), any())).thenReturn(false)
         whenever(pendingActionRepository.findPendingByEntityAndType(any(), any(), any())).thenReturn(null)
         whenever(transactionCategoryEntityRepository.findSystemSubcategoryId(any(), any()))
             .thenReturn(UUID.randomUUID())
-        whenever(transactionService.create(any(), any(), any())).thenReturn(mock<Transaction>())
+        whenever(transactionService.create(any(), any(), any(), anyOrNull())).thenReturn(mock<Transaction>())
         whenever(
             portfolioFlowEventService.recordEvent(
                 any(),
@@ -756,7 +756,7 @@ class InvestmentTransactionServiceTest {
             service.record(buyCommand("100", "28.50"), accountId, userId)
 
             val cmdCaptor = argumentCaptor<CreateTransactionCommand>()
-            verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId))
+            verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId), anyOrNull())
             val cmd = cmdCaptor.firstValue
             assertThat(cmd.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
             assertThat(cmd.type).isEqualTo(TransactionType.TRANSFER)
@@ -776,7 +776,7 @@ class InvestmentTransactionServiceTest {
             service.record(buyCommand("100", "28.50").copy(settlementDate = settlement), accountId, userId)
 
             val cmdCaptor = argumentCaptor<CreateTransactionCommand>()
-            verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId))
+            verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId), anyOrNull())
             assertThat(cmdCaptor.firstValue.date).isEqualTo(settlement)
         }
 
@@ -869,7 +869,7 @@ class InvestmentTransactionServiceTest {
             service.record(subscriptionCommand, accountId, userId)
 
             val cmdCaptor = argumentCaptor<CreateTransactionCommand>()
-            verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId))
+            verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId), anyOrNull())
             assertThat(cmdCaptor.firstValue.description).isEqualTo("Subscrição")
         }
     }
@@ -931,7 +931,7 @@ class InvestmentTransactionServiceTest {
             service.record(command, accountId, userId)
 
             val cmdCaptor = argumentCaptor<CreateTransactionCommand>()
-            verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId))
+            verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId), anyOrNull())
             assertThat(cmdCaptor.firstValue.type).isEqualTo(TransactionType.INVESTMENT_RETURN)
             assertThat(cmdCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
             assertThat(cmdCaptor.firstValue.date).isEqualTo(settlement)

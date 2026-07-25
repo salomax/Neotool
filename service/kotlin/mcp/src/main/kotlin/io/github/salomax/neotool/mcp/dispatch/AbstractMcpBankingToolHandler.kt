@@ -4,7 +4,6 @@ import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.DomainException
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
-import io.github.salomax.neotool.common.service.GraphQLResponse
 import io.github.salomax.neotool.mcp.protocol.McpToolExecutionException
 import io.github.salomax.neotool.mcp.render.McpToolResult
 import io.github.salomax.neotool.mcp.render.McpToolSuccessResult
@@ -62,7 +61,11 @@ abstract class AbstractMcpBankingToolHandler(
 
     protected fun Map<String, Any?>.requiredStringArgument(name: String): String =
         stringArgument(name)
-            ?: throw ValidationException(CommonErrorCode.INVALID_INPUT, field = name, parameters = mapOf("field" to name))
+            ?: throw ValidationException(
+                CommonErrorCode.INVALID_INPUT,
+                field = name,
+                parameters = mapOf("field" to name),
+            )
 
     protected fun Map<String, Any?>.intArgument(name: String): Int? =
         when (val value = this[name]) {
@@ -100,7 +103,11 @@ abstract class AbstractMcpBankingToolHandler(
                         )
                 }
             is String -> listOf(value.trim()).filter { it.isNotEmpty() }
-            else -> throw ValidationException(CommonErrorCode.INVALID_INPUT, field = name, parameters = mapOf("field" to name))
+            else -> throw ValidationException(
+                CommonErrorCode.INVALID_INPUT,
+                field = name,
+                parameters = mapOf("field" to name),
+            )
         }?.takeIf { it.isNotEmpty() }
 
     protected fun Map<String, Any?>.uuidArgument(name: String): String? =
@@ -108,20 +115,32 @@ abstract class AbstractMcpBankingToolHandler(
             try {
                 UUID.fromString(it)
             } catch (_: IllegalArgumentException) {
-                throw ValidationException(CommonErrorCode.INVALID_INPUT, field = name, parameters = mapOf("field" to name))
+                throw ValidationException(
+                    CommonErrorCode.INVALID_INPUT,
+                    field = name,
+                    parameters = mapOf("field" to name),
+                )
             }
         }
 
     protected fun Map<String, Any?>.requiredUuidArgument(name: String): String =
         uuidArgument(name)
-            ?: throw ValidationException(CommonErrorCode.INVALID_INPUT, field = name, parameters = mapOf("field" to name))
+            ?: throw ValidationException(
+                CommonErrorCode.INVALID_INPUT,
+                field = name,
+                parameters = mapOf("field" to name),
+            )
 
     protected fun Map<String, Any?>.dateArgument(name: String): String? =
         stringArgument(name)?.also {
             try {
                 LocalDate.parse(it)
             } catch (_: DateTimeParseException) {
-                throw ValidationException(CommonErrorCode.INVALID_INPUT, field = name, parameters = mapOf("field" to name))
+                throw ValidationException(
+                    CommonErrorCode.INVALID_INPUT,
+                    field = name,
+                    parameters = mapOf("field" to name),
+                )
             }
         }
 
@@ -131,7 +150,11 @@ abstract class AbstractMcpBankingToolHandler(
     ): String? =
         stringArgument(name)?.uppercase()?.also {
             if (it !in allowed) {
-                throw ValidationException(CommonErrorCode.INVALID_INPUT, field = name, parameters = mapOf("field" to name))
+                throw ValidationException(
+                    CommonErrorCode.INVALID_INPUT,
+                    field = name,
+                    parameters = mapOf("field" to name),
+                )
             }
         }
 

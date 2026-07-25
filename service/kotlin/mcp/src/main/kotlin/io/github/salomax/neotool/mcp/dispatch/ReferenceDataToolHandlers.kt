@@ -16,7 +16,13 @@ class ListFinancialAccountsToolHandler(
         principal: McpPrincipal,
     ): McpToolResult {
         arguments.assertOnlySupportedArguments(emptySet())
-        val accounts = queryField("financialAccounts", FINANCIAL_ACCOUNTS_QUERY, emptyMap(), principal) ?: emptyList<Map<String, Any?>>()
+        val accounts =
+            queryField(
+                "financialAccounts",
+                FINANCIAL_ACCOUNTS_QUERY,
+                emptyMap(),
+                principal,
+            ) ?: emptyList<Map<String, Any?>>()
         return success("financialAccounts" to accounts)
     }
 
@@ -87,8 +93,14 @@ class ListCreditCardBillsToolHandler(
     ): McpToolResult {
         arguments.assertOnlySupportedArguments(setOf("financialAccountId"))
         val financialAccountId = arguments.requiredUuidArgument("financialAccountId")
-        val bills = queryField("creditCardBills", CREDIT_CARD_BILLS_QUERY, mapOf("financialAccountId" to financialAccountId), principal)
-            ?: emptyList<Map<String, Any?>>()
+        val bills =
+            queryField(
+                "creditCardBills",
+                CREDIT_CARD_BILLS_QUERY,
+                mapOf("financialAccountId" to financialAccountId),
+                principal,
+            )
+                ?: emptyList<Map<String, Any?>>()
         return success("creditCardBills" to bills)
     }
 
@@ -171,7 +183,13 @@ class ListCategoriesToolHandler(
         principal: McpPrincipal,
     ): McpToolResult {
         arguments.assertOnlySupportedArguments(emptySet())
-        val categories = queryField("transactionCategories", CATEGORIES_QUERY, emptyMap(), principal) ?: emptyList<Map<String, Any?>>()
+        val categories =
+            queryField(
+                "transactionCategories",
+                CATEGORIES_QUERY,
+                emptyMap(),
+                principal,
+            ) ?: emptyList<Map<String, Any?>>()
         return success("categories" to categories)
     }
 
@@ -212,7 +230,13 @@ class ListTransactionRulesToolHandler(
                 arguments.stringArgument("after")?.let { put("after", it) }
             }
 
-        val rules = queryField("transactionRules", TRANSACTION_RULES_QUERY, variables, principal) ?: emptyMap<String, Any?>()
+        val rules =
+            queryField(
+                "transactionRules",
+                TRANSACTION_RULES_QUERY,
+                variables,
+                principal,
+            ) ?: emptyMap<String, Any?>()
         return success("transactionRules" to rules)
     }
 

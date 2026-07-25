@@ -187,6 +187,29 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
 
     @Query(
         """
+        UPDATE banking.transactions
+           SET deleted_at = :deletedAt,
+               updated_at = :deletedAt,
+               origin_channel = :originChannel,
+               origin_client_id = :originClientId,
+               origin_tool_call_id = :originToolCallId
+         WHERE id = :id
+           AND account_id = :accountId
+           AND deleted_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun softDeleteWithOrigin(
+        id: UUID,
+        accountId: UUID,
+        deletedAt: Instant,
+        originChannel: String,
+        originClientId: String?,
+        originToolCallId: UUID?,
+    ): Int
+
+    @Query(
+        """
         SELECT DISTINCT t.financial_account_id
           FROM banking.transactions t
           JOIN banking.financial_accounts fa ON fa.id = t.financial_account_id

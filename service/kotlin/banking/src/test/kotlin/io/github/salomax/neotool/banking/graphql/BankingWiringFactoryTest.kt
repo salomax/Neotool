@@ -27,6 +27,8 @@ import io.github.salomax.neotool.banking.graphql.transaction.TransactionRuleConn
 import io.github.salomax.neotool.banking.graphql.wishlist.WishlistResolver
 import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
 import io.github.salomax.neotool.banking.shared.BankingPermissions
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
+import io.github.salomax.neotool.common.security.agent.AgentCallContextProvider
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -38,6 +40,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argThat
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
@@ -68,6 +71,9 @@ class BankingWiringFactoryTest {
     private lateinit var wiringFactory: BankingWiringFactory
 
     private val userId: UUID = UUID.randomUUID()
+    private val trustedMcpToken = "trusted-mcp-token"
+    private val otherServiceToken = "other-service-token"
+    private val accountId: UUID = UUID.randomUUID()
 
     @BeforeEach
     fun setUp() {
@@ -93,14 +99,42 @@ class BankingWiringFactoryTest {
 
         val decoder =
             TokenPrincipalDecoder { token ->
-                RequestPrincipal(
-                    principalType = PrincipalType.USER,
-                    userId = userId,
-                    serviceId = null,
-                    token = token,
-                    tokenId = "test-token-id",
-                    permissionsFromToken = emptyList(),
-                )
+                when (token) {
+                    trustedMcpToken ->
+                        RequestPrincipal(
+                            principalType = PrincipalType.SERVICE,
+                            userId = userId,
+                            serviceId = UUID.randomUUID(),
+                            token = token,
+                            tokenId = "trusted-service-token-id",
+                            permissionsFromToken = listOf("service:call"),
+                            userPermissions = listOf(BankingPermissions.BANKING_TRANSACTION_CREATE),
+                            currentAccountId = accountId,
+                            delegatedBy = "mcp-service",
+                        )
+                    otherServiceToken ->
+                        RequestPrincipal(
+                            principalType = PrincipalType.SERVICE,
+                            userId = userId,
+                            serviceId = UUID.randomUUID(),
+                            token = token,
+                            tokenId = "other-service-token-id",
+                            permissionsFromToken = listOf("service:call"),
+                            userPermissions = listOf(BankingPermissions.BANKING_TRANSACTION_CREATE),
+                            currentAccountId = accountId,
+                            delegatedBy = "other-service",
+                        )
+                    else ->
+                        RequestPrincipal(
+                            principalType = PrincipalType.USER,
+                            userId = userId,
+                            serviceId = null,
+                            token = token,
+                            tokenId = "test-token-id",
+                            permissionsFromToken = emptyList(),
+                            currentAccountId = accountId,
+                        )
+                }
             }
         requestPrincipalProvider = RequestPrincipalProvider(decoder)
 
@@ -123,6 +157,8 @@ class BankingWiringFactoryTest {
                 productResolver,
                 recurringPaymentResolver,
                 wishlistResolver,
+                AgentCallContextProvider(),
+                "mcp-service",
                 requestPrincipalProvider,
                 authorizationChecker,
             )
@@ -131,8 +167,21 @@ class BankingWiringFactoryTest {
     private fun envWithToken(
         token: String = "test-token",
         arguments: Map<String, Any?> = emptyMap(),
+        mcpToolCallId: String? = null,
+        mcpClientId: String? = null,
+        mcpTokenId: String? = null,
     ): DataFetchingEnvironment {
-        val context = GraphQLContext.newContext().of("token", token).build()
+        val contextBuilder = GraphQLContext.newContext().of("token", token)
+        if (mcpToolCallId != null) {
+            contextBuilder.of(AgentCallContext.TOOL_CALL_ID_CONTEXT_KEY, mcpToolCallId)
+        }
+        if (mcpClientId != null) {
+            contextBuilder.of(AgentCallContext.CLIENT_ID_CONTEXT_KEY, mcpClientId)
+        }
+        if (mcpTokenId != null) {
+            contextBuilder.of(AgentCallContext.TOKEN_ID_CONTEXT_KEY, mcpTokenId)
+        }
+        val context = contextBuilder.build()
         return DataFetchingEnvironmentImpl
             .newDataFetchingEnvironment()
             .graphQLContext(context)
@@ -558,6 +607,57 @@ class BankingWiringFactoryTest {
             dataFetcher.get(env)
 
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_DELETE))
+        }
+
+        @Test
+        fun `createTransaction ignores forged MCP context for user principals`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["createTransaction"]!!
+            val input = mapOf("financialAccountId" to UUID.randomUUID().toString())
+            whenever(transactionResolver.createTransaction(eq(input), any(), anyOrNull())).thenReturn(mock())
+
+            val env =
+                envWithToken(
+                    token = "user-token",
+                    arguments = mapOf("input" to input),
+                    mcpToolCallId = UUID.randomUUID().toString(),
+                    mcpClientId = "forged-client",
+                    mcpTokenId = "forged-token",
+                )
+
+            dataFetcher.get(env)
+
+            verify(transactionResolver).createTransaction(eq(input), any(), eq(null))
+        }
+
+        @Test
+        fun `createTransaction forwards MCP context only for trusted delegated service principals`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["createTransaction"]!!
+            val input = mapOf("financialAccountId" to UUID.randomUUID().toString())
+            val toolCallId = UUID.randomUUID()
+            whenever(transactionResolver.createTransaction(eq(input), any(), anyOrNull())).thenReturn(mock())
+
+            val env =
+                envWithToken(
+                    token = trustedMcpToken,
+                    arguments = mapOf("input" to input),
+                    mcpToolCallId = toolCallId.toString(),
+                    mcpClientId = "trusted-client",
+                    mcpTokenId = "trusted-origin-token",
+                )
+
+            dataFetcher.get(env)
+
+            verify(transactionResolver).createTransaction(
+                eq(input),
+                any(),
+                argThat {
+                    toolCallId == this.toolCallId &&
+                        originClientId == "trusted-client" &&
+                        originTokenId == "trusted-origin-token"
+                },
+            )
         }
     }
 }

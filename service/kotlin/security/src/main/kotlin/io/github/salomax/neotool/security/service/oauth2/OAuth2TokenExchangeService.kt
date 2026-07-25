@@ -97,6 +97,7 @@ open class OAuth2TokenExchangeService(
                 userPermissions = delegatedUserPermissions,
                 currentAccountId = currentAccountId,
                 expiresAt = delegatedExpiresAt,
+                delegatedBy = clientId,
             )
 
         return OAuth2TokenResponse(

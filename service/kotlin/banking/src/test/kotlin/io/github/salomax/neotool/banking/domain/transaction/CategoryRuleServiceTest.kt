@@ -2,12 +2,15 @@ package io.github.salomax.neotool.banking.domain.transaction
 
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionRuleInput
+import io.github.salomax.neotool.banking.repo.transaction.McpChangeLogRepository
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleService
+import io.github.salomax.neotool.common.provenance.OriginChannel
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -34,11 +37,13 @@ class CategoryRuleServiceTest {
     private lateinit var merchantRepository: MerchantRepository
     private lateinit var transactionRepository: TransactionRepository
     private lateinit var snapshotRepository: MonthlyBalanceSnapshotRepository
+    private lateinit var mcpChangeLogRepository: McpChangeLogRepository
     private lateinit var service: TransactionRuleService
 
     private val accountId = UUID.randomUUID()
     private val otherAccountId = UUID.randomUUID()
     private val categoryId = UUID.randomUUID()
+    private val toolCallId = UUID.randomUUID()
 
     @BeforeEach
     fun setUp() {
@@ -47,6 +52,7 @@ class CategoryRuleServiceTest {
         merchantRepository = mock()
         transactionRepository = mock()
         snapshotRepository = mock()
+        mcpChangeLogRepository = mock()
         service =
             TransactionRuleService(
                 ruleRepository,
@@ -54,8 +60,16 @@ class CategoryRuleServiceTest {
                 merchantRepository,
                 transactionRepository,
                 snapshotRepository,
+                mcpChangeLogRepository,
             )
     }
+
+    private fun agentCallContext() =
+        AgentCallContext(
+            toolCallId = toolCallId,
+            originClientId = "mcp-client",
+            originTokenId = "origin-token-id",
+        )
 
     @Nested
     @DisplayName("listUserRules")
@@ -343,6 +357,25 @@ class CategoryRuleServiceTest {
             assertThat(ruleCaptor.firstValue.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)
             assertThat(result.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)
         }
+
+        @Test
+        fun `stamps MCP origin on create when agent call context is present`() {
+            whenever(categoryRepository.findById(categoryId)).thenReturn(category(id = categoryId))
+            whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(emptyList())
+            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as TransactionRule }
+
+            service.create(
+                createInput(categoryId = categoryId),
+                accountId,
+                agentCallContext(),
+            )
+
+            val ruleCaptor = argumentCaptor<TransactionRule>()
+            verify(ruleRepository).save(ruleCaptor.capture())
+            assertThat(ruleCaptor.firstValue.originChannel).isEqualTo(OriginChannel.MCP)
+            assertThat(ruleCaptor.firstValue.originClientId).isEqualTo("mcp-client")
+            assertThat(ruleCaptor.firstValue.originToolCallId).isEqualTo(toolCallId)
+        }
     }
 
     @Nested
@@ -612,6 +645,45 @@ class CategoryRuleServiceTest {
             assertThat(savedCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
             verify(snapshotRepository).markDirtyFromMonth(financialAccountId, 2025, 9)
             verify(ruleRepository).incrementMatchCountBy(ruleId, 1)
+        }
+
+        @Test
+        fun `applyToHistorical writes MCP audit entries when agent call context is present`() {
+            val tx =
+                transaction(
+                    description = "iFood delivery",
+                    source = TransactionSource.OFX,
+                )
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(
+                    id = ruleId,
+                    accountId = accountId,
+                    pattern = "ifood",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                ),
+            )
+            whenever(transactionRepository.findByAccount(accountId)).thenReturn(listOf(tx))
+            whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            service.applyToHistorical(ruleId, accountId, agentCallContext())
+
+            val entriesCaptor = argumentCaptor<List<McpChangeLogEntry>>()
+            verify(mcpChangeLogRepository).saveAll(entriesCaptor.capture())
+            assertThat(entriesCaptor.firstValue).hasSize(1)
+            val entry = entriesCaptor.firstValue.single()
+            assertThat(entry.toolCallId).isEqualTo(toolCallId)
+            assertThat(entry.clientId).isEqualTo("mcp-client")
+            assertThat(entry.tokenId).isEqualTo("origin-token-id")
+            assertThat(entry.action).isEqualTo(McpChangeLogAction.UPDATE)
+            assertThat(entry.resourceType).isEqualTo(McpChangeLogResourceType.TRANSACTION)
+            assertThat(entry.resourceId).isEqualTo(tx.id)
+            assertThat(entry.before["categoryId"]).isNull()
+            assertThat(entry.after["categoryId"]).isEqualTo(categoryId.toString())
+            assertThat(entry.after["categorySource"]).isEqualTo(CategorySource.RULE.name)
+            assertThat(entry.after["originChannel"]).isEqualTo(OriginChannel.MCP.name)
+            assertThat(entry.after["originClientId"]).isEqualTo("mcp-client")
+            assertThat(entry.after["originToolCallId"]).isEqualTo(toolCallId.toString())
         }
 
         @Test

@@ -156,6 +156,19 @@ data class TransactionConnectionDTO(
     val totalCount: Int?,
 )
 
+data class McpChangeLogEntryDTO(
+    val id: UUID,
+    val toolCallId: UUID,
+    val clientId: String?,
+    val tokenId: String?,
+    val resourceType: String,
+    val resourceId: UUID,
+    val action: String,
+    val before: Map<String, Any?>,
+    val after: Map<String, Any?>,
+    val createdAt: Instant,
+)
+
 data class SimilarTransactionEditPreviewDTO(
     val similarCount: Int,
     val matchDescription: String,

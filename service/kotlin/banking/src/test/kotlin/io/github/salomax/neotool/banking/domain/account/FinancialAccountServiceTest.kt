@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -121,7 +122,7 @@ class FinancialAccountServiceTest {
 
             assertThat(result.id).isEqualTo(financialAccountId)
             verify(financialAccountRepository).save(any())
-            verify(transactionService, never()).create(any(), any(), any())
+            verify(transactionService, never()).create(any(), any(), any(), anyOrNull())
         }
 
         @Test
@@ -129,14 +130,20 @@ class FinancialAccountServiceTest {
             whenever(
                 financialAccountRepository.save(any()),
             ).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
-            whenever(transactionService.create(any(), eq(accountId), eq(userId))).thenReturn(transactionResult())
+            whenever(transactionService.create(any(), eq(accountId), eq(userId), anyOrNull()))
+                .thenReturn(transactionResult())
             val command = command(initialBalance = BigDecimal("1500.25"), initialBalanceDate = today)
 
             val result = service.create(command, accountId, userId)
 
             assertThat(result.id).isEqualTo(financialAccountId)
             val transactionCommandCaptor = argumentCaptor<CreateTransactionCommand>()
-            verify(transactionService).create(transactionCommandCaptor.capture(), eq(accountId), eq(userId))
+            verify(transactionService).create(
+                transactionCommandCaptor.capture(),
+                eq(accountId),
+                eq(userId),
+                anyOrNull(),
+            )
             val txCommand = transactionCommandCaptor.firstValue
             assertThat(txCommand.financialAccountId).isEqualTo(financialAccountId)
             assertThat(txCommand.type).isEqualTo(TransactionType.BALANCE_ADJUSTMENT)
@@ -154,7 +161,7 @@ class FinancialAccountServiceTest {
             assertThat(ex.errorCode).isEqualTo(BankingErrorCode.INITIAL_BALANCE_DATE_REQUIRED)
             assertThat(ex.field).isEqualTo("initialBalanceDate")
             verify(financialAccountRepository, never()).save(any())
-            verify(transactionService, never()).create(any(), any(), any())
+            verify(transactionService, never()).create(any(), any(), any(), anyOrNull())
         }
 
         @Test
@@ -166,7 +173,7 @@ class FinancialAccountServiceTest {
             assertThat(ex.errorCode).isEqualTo(BankingErrorCode.INITIAL_BALANCE_NON_ZERO)
             assertThat(ex.field).isEqualTo("initialBalance")
             verify(financialAccountRepository, never()).save(any())
-            verify(transactionService, never()).create(any(), any(), any())
+            verify(transactionService, never()).create(any(), any(), any(), anyOrNull())
         }
 
         @Test
@@ -186,7 +193,7 @@ class FinancialAccountServiceTest {
             assertThat(ex.errorCode).isEqualTo(BankingErrorCode.INITIAL_BALANCE_ONLY_SUPPORTED_FOR_BANK_ACCOUNTS)
             assertThat(ex.field).isEqualTo("initialBalance")
             verify(financialAccountRepository, never()).save(any())
-            verify(transactionService, never()).create(any(), any(), any())
+            verify(transactionService, never()).create(any(), any(), any(), anyOrNull())
         }
 
         @Test
@@ -200,7 +207,7 @@ class FinancialAccountServiceTest {
 
             assertThat(result.id).isEqualTo(financialAccountId)
             verify(financialAccountRepository).save(any())
-            verify(transactionService, never()).create(any(), any(), any())
+            verify(transactionService, never()).create(any(), any(), any(), anyOrNull())
         }
 
         @Test
@@ -215,7 +222,7 @@ class FinancialAccountServiceTest {
                 assertThat(ex.field).isEqualTo("initialBalanceDate")
             }
             verify(financialAccountRepository, never()).save(any())
-            verify(transactionService, never()).create(any(), any(), any())
+            verify(transactionService, never()).create(any(), any(), any(), anyOrNull())
         }
 
         @Test
@@ -230,7 +237,7 @@ class FinancialAccountServiceTest {
                 assertThat(ex.field).isEqualTo("initialBalanceDate")
             }
             verify(financialAccountRepository, never()).save(any())
-            verify(transactionService, never()).create(any(), any(), any())
+            verify(transactionService, never()).create(any(), any(), any(), anyOrNull())
         }
 
         @Test
@@ -250,7 +257,7 @@ class FinancialAccountServiceTest {
             assertThat(ex.errorCode).isEqualTo(BankingErrorCode.CARD_MASKED_NUMBER_INVALID)
             assertThat(ex.field).isEqualTo("maskedNumber")
             verify(financialAccountRepository, never()).save(any())
-            verify(transactionService, never()).create(any(), any(), any())
+            verify(transactionService, never()).create(any(), any(), any(), anyOrNull())
         }
 
         @Test
@@ -323,7 +330,7 @@ class FinancialAccountServiceTest {
             assertThat(ex.errorCode).isEqualTo(BankingErrorCode.FINANCIAL_ACCOUNT_NAME_TOO_LONG)
             assertThat(ex.field).isEqualTo("name")
             verify(financialAccountRepository, never()).save(any())
-            verify(transactionService, never()).create(any(), any(), any())
+            verify(transactionService, never()).create(any(), any(), any(), anyOrNull())
         }
 
         @Test
@@ -809,7 +816,12 @@ class FinancialAccountServiceTest {
             )
 
             val transactionCommandCaptor = argumentCaptor<CreateTransactionCommand>()
-            verify(transactionService).create(transactionCommandCaptor.capture(), eq(accountId), eq(userId))
+            verify(transactionService).create(
+                transactionCommandCaptor.capture(),
+                eq(accountId),
+                eq(userId),
+                anyOrNull(),
+            )
             assertThat(transactionCommandCaptor.firstValue.type).isEqualTo(TransactionType.BALANCE_ADJUSTMENT)
             assertThat(transactionCommandCaptor.firstValue.amount).isEqualByComparingTo("250.00")
             assertThat(transactionCommandCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
@@ -851,7 +863,7 @@ class FinancialAccountServiceTest {
                 fromYear = today.minusMonths(3).year,
                 fromMonth = today.minusMonths(3).monthValue,
             )
-            verify(transactionService, never()).create(any(), any(), any())
+            verify(transactionService, never()).create(any(), any(), any(), anyOrNull())
         }
 
         @Test
@@ -884,7 +896,7 @@ class FinancialAccountServiceTest {
                 fromYear = today.minusMonths(1).year,
                 fromMonth = today.minusMonths(1).monthValue,
             )
-            verify(transactionService, never()).create(any(), any(), any())
+            verify(transactionService, never()).create(any(), any(), any(), anyOrNull())
         }
 
         @Test

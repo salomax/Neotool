@@ -42,6 +42,7 @@ open class ToolService(
                 retryPolicy = input.retryPolicy,
                 mcpExposed = input.mcpExposed,
                 mcpRequiredScope = input.mcpRequiredScope?.trim()?.takeIf { it.isNotEmpty() },
+                sensitiveInputFields = input.sensitiveInputFields.map(String::trim).filter(String::isNotEmpty).distinct(),
                 status = input.status,
             ),
         )
@@ -85,5 +86,6 @@ data class RegisterToolInput(
     val retryPolicy: Map<String, Any?>? = null,
     val mcpExposed: Boolean = false,
     val mcpRequiredScope: String? = null,
+    val sensitiveInputFields: List<String> = emptyList(),
     val status: ToolStatus = ToolStatus.ACTIVE,
 )

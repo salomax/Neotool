@@ -206,6 +206,18 @@ class JwtTokenValidator(
     }
 
     /**
+     * Extract client id from a validated JWT token.
+     *
+     * This claim is expected on MCP OAuth access tokens. Delegated service tokens
+     * may intentionally omit it.
+     */
+    @Throws(AuthenticationRequiredException::class)
+    fun getClientIdFromToken(token: String): String? {
+        val claims = validateToken(token)
+        return claims["client_id"]?.toString()?.takeIf { it.isNotBlank() }
+    }
+
+    /**
      * Extract user ID from a service token with user context.
      *
      * @param token The JWT token string

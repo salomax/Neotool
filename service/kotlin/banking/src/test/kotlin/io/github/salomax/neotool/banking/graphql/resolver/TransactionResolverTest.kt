@@ -20,6 +20,7 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRep
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.DashboardAnalyticsService
+import io.github.salomax.neotool.banking.service.transaction.McpChangeLogService
 import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
@@ -49,6 +50,7 @@ class TransactionResolverTest {
     private lateinit var monthSummaryQueryService: MonthSummaryQueryService
     private lateinit var dashboardAnalyticsService: DashboardAnalyticsService
     private lateinit var creditCardBillService: CreditCardBillService
+    private lateinit var mcpChangeLogService: McpChangeLogService
     private lateinit var merchantRepository: MerchantRepository
     private lateinit var transactionRuleEngine: TransactionRuleEngine
     private lateinit var transactionCategoryRepository: TransactionCategoryRepository
@@ -80,6 +82,7 @@ class TransactionResolverTest {
         monthSummaryQueryService = mock()
         dashboardAnalyticsService = mock()
         creditCardBillService = mock()
+        mcpChangeLogService = mock()
         merchantRepository = mock()
         transactionRuleEngine = mock()
         transactionCategoryRepository = mock()
@@ -97,6 +100,7 @@ class TransactionResolverTest {
                 monthSummaryQueryService = monthSummaryQueryService,
                 dashboardAnalyticsService = dashboardAnalyticsService,
                 creditCardBillService = creditCardBillService,
+                mcpChangeLogService = mcpChangeLogService,
                 merchantRepository = merchantRepository,
                 transactionRuleEngine = transactionRuleEngine,
                 transactionCategoryRepository = transactionCategoryRepository,
@@ -142,14 +146,14 @@ class TransactionResolverTest {
                     createdAt = now,
                     updatedAt = now,
                 )
-            whenever(service.createTransactionOutcome(org.mockito.kotlin.any(), eq(accountId), eq(userId)))
+            whenever(service.createTransactionOutcome(org.mockito.kotlin.any(), eq(accountId), eq(userId), anyOrNull()))
                 .thenReturn(CreateTransactionOutcome(transaction = savedTx))
             whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
 
             resolver.createTransaction(input, principal())
 
             val commandCaptor = argumentCaptor<CreateTransactionCommand>()
-            verify(service).createTransactionOutcome(commandCaptor.capture(), eq(accountId), eq(userId))
+            verify(service).createTransactionOutcome(commandCaptor.capture(), eq(accountId), eq(userId), anyOrNull())
             val command = commandCaptor.firstValue
             assertThat(command.financialAccountId).isEqualTo(financialAccountId)
             assertThat(command.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
@@ -192,14 +196,14 @@ class TransactionResolverTest {
                     updatedAt = now,
                 )
             whenever(
-                service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId)),
+                service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId), anyOrNull()),
             ).thenReturn(updatedTx)
             whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
 
             resolver.updateTransaction(txId.toString(), input, principal())
 
             val commandCaptor = argumentCaptor<UpdateTransactionCommand>()
-            verify(service).update(eq(txId), commandCaptor.capture(), eq(accountId), eq(userId))
+            verify(service).update(eq(txId), commandCaptor.capture(), eq(accountId), eq(userId), anyOrNull())
             val command = commandCaptor.firstValue
             assertThat(command.description).isEqualTo("Updated desc")
             assertThat(command.amount).isEqualByComparingTo("50.00")
@@ -234,14 +238,14 @@ class TransactionResolverTest {
                     updatedAt = now,
                 )
             whenever(
-                service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId)),
+                service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId), anyOrNull()),
             ).thenReturn(updatedTx)
             whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
 
             resolver.updateTransaction(txId.toString(), input, principal())
 
             val commandCaptor = argumentCaptor<UpdateTransactionCommand>()
-            verify(service).update(eq(txId), commandCaptor.capture(), eq(accountId), eq(userId))
+            verify(service).update(eq(txId), commandCaptor.capture(), eq(accountId), eq(userId), anyOrNull())
             assertThat(commandCaptor.firstValue.belongsToProvided).isTrue()
             assertThat(commandCaptor.firstValue.belongsToName).isEqualTo("Family")
             assertThat(commandCaptor.firstValue.belongsToUserId).isNull()
@@ -270,14 +274,14 @@ class TransactionResolverTest {
                     updatedAt = now,
                 )
             whenever(
-                service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId)),
+                service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId), anyOrNull()),
             ).thenReturn(updatedTx)
             whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
 
             resolver.updateTransaction(txId.toString(), input, principal())
 
             val commandCaptor = argumentCaptor<UpdateTransactionCommand>()
-            verify(service).update(eq(txId), commandCaptor.capture(), eq(accountId), eq(userId))
+            verify(service).update(eq(txId), commandCaptor.capture(), eq(accountId), eq(userId), anyOrNull())
             assertThat(commandCaptor.firstValue.tagsProvided).isTrue()
             assertThat(commandCaptor.firstValue.tags).containsExactly("Food", "Weekend")
         }
@@ -289,18 +293,18 @@ class TransactionResolverTest {
         @Test
         fun `delegates to service and returns boolean result`() {
             val txId = UUID.randomUUID()
-            whenever(service.delete(txId, accountId)).thenReturn(true)
+            whenever(service.delete(eq(txId), eq(accountId), anyOrNull())).thenReturn(true)
 
             val result = resolver.deleteTransaction(txId.toString(), principal())
 
             assertThat(result).isTrue
-            verify(service).delete(eq(txId), eq(accountId))
+            verify(service).delete(eq(txId), eq(accountId), anyOrNull())
         }
 
         @Test
         fun `returns false when service returns false`() {
             val txId = UUID.randomUUID()
-            whenever(service.delete(txId, accountId)).thenReturn(false)
+            whenever(service.delete(eq(txId), eq(accountId), anyOrNull())).thenReturn(false)
 
             val result = resolver.deleteTransaction(txId.toString(), principal())
 
@@ -363,6 +367,8 @@ class TransactionResolverTest {
                 )
             doReturn(connection).whenever(service).listTransactions(
                 org.mockito.kotlin.any(),
+                anyOrNull(),
+                anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
@@ -441,6 +447,8 @@ class TransactionResolverTest {
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
             )
             resolver.transactions(
                 financialAccountId = financialAccountId.toString(),
@@ -466,6 +474,8 @@ class TransactionResolverTest {
                 anyOrNull(),
                 anyOrNull(),
                 eq("coffee"),
+                anyOrNull(),
+                anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
@@ -517,6 +527,8 @@ class TransactionResolverTest {
                 )
             doReturn(connection).whenever(service).listTransactions(
                 org.mockito.kotlin.any(),
+                anyOrNull(),
+                anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),

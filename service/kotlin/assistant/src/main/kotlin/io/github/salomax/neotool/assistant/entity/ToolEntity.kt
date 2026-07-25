@@ -61,6 +61,9 @@ open class ToolEntity(
     open var mcpExposed: Boolean = false,
     @Column(name = "mcp_required_scope")
     open var mcpRequiredScope: String? = null,
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "sensitive_input_fields", nullable = false, columnDefinition = "jsonb")
+    open var sensitiveInputFields: List<String> = emptyList(),
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     open var status: ToolStatus = ToolStatus.ACTIVE,

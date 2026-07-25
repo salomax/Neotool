@@ -17,6 +17,7 @@ import io.github.salomax.neotool.banking.service.transaction.TransactionCategory
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleService
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.util.UUID
@@ -201,6 +202,7 @@ class TransactionCategoryResolver(
     fun createTransactionRule(
         input: Map<String, Any?>,
         principal: RequestPrincipal,
+        agentCallContext: AgentCallContext? = null,
     ): TransactionRuleDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val categoryId = (input["categoryId"] as? String)?.let(UUID::fromString)
@@ -230,6 +232,7 @@ class TransactionCategoryResolver(
                     priority = priority,
                 ),
                 accountId,
+                agentCallContext,
             )
         val category = created.categoryId?.let { categoryRepository.findById(it) }
         val merchant = created.merchantId?.let { merchantRepository.findById(it) }
@@ -239,9 +242,10 @@ class TransactionCategoryResolver(
     fun applyTransactionRuleToHistorical(
         id: String,
         principal: RequestPrincipal,
+        agentCallContext: AgentCallContext? = null,
     ): BulkCategorizeResult {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        return ruleService.applyToHistorical(UUID.fromString(id), accountId)
+        return ruleService.applyToHistorical(UUID.fromString(id), accountId, agentCallContext)
     }
 
     fun updateTransactionRule(

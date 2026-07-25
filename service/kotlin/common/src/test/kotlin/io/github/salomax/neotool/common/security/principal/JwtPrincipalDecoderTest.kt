@@ -102,6 +102,7 @@ class JwtPrincipalDecoderTest {
             val userId = UUID.randomUUID()
             val perms = listOf("p1", "p2")
             val tokenId = UUID.randomUUID().toString()
+            val clientId = "mcp-client"
 
             whenever(jwtTokenValidator.isServiceToken(token)).thenReturn(false)
             whenever(jwtTokenValidator.isAccessToken(token)).thenReturn(true)
@@ -110,6 +111,7 @@ class JwtPrincipalDecoderTest {
             whenever(jwtTokenValidator.getCurrentAccountIdFromToken(token)).thenReturn(null)
             whenever(jwtTokenValidator.getAccountsFromToken(token)).thenReturn(null)
             whenever(jwtTokenValidator.getSessionVersionFromToken(token)).thenReturn(null)
+            whenever(jwtTokenValidator.getClientIdFromToken(token)).thenReturn(clientId)
             whenever(jwtTokenValidator.getJwtIdFromToken(token)).thenReturn(tokenId)
 
             val principal = decoder.fromToken(token)
@@ -117,11 +119,31 @@ class JwtPrincipalDecoderTest {
             assertThat(principal.principalType).isEqualTo(PrincipalType.USER)
             assertThat(principal.userId).isEqualTo(userId)
             assertThat(principal.tokenId).isEqualTo(tokenId)
+            assertThat(principal.clientId).isEqualTo(clientId)
             assertThat(principal.permissionsFromToken).isEqualTo(perms)
             assertThat(principal.currentAccountId).isNull()
             assertThat(principal.accounts).isNull()
             assertThat(principal.accountIds).isEmpty()
             assertThat(principal.sessionVersion).isNull()
+        }
+
+        @Test
+        fun `should leave client id null when claim is absent`() {
+            val token = "access-token"
+            val userId = UUID.randomUUID()
+            val tokenId = UUID.randomUUID().toString()
+
+            whenever(jwtTokenValidator.isServiceToken(token)).thenReturn(false)
+            whenever(jwtTokenValidator.isAccessToken(token)).thenReturn(true)
+            whenever(jwtTokenValidator.getUserIdFromToken(token)).thenReturn(userId)
+            whenever(jwtTokenValidator.getPermissionsFromToken(token)).thenReturn(emptyList())
+            whenever(jwtTokenValidator.getCurrentAccountIdFromToken(token)).thenReturn(null)
+            whenever(jwtTokenValidator.getAccountsFromToken(token)).thenReturn(null)
+            whenever(jwtTokenValidator.getSessionVersionFromToken(token)).thenReturn(null)
+            whenever(jwtTokenValidator.getClientIdFromToken(token)).thenReturn(null)
+            whenever(jwtTokenValidator.getJwtIdFromToken(token)).thenReturn(tokenId)
+
+            assertThat(decoder.fromToken(token).clientId).isNull()
         }
 
         @Test

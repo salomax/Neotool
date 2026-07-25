@@ -11,6 +11,8 @@ import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.common.provenance.ChangeOrigin
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.UUID
@@ -56,6 +58,17 @@ interface TransactionRepository {
         id: UUID,
         accountId: UUID,
     ): Boolean
+
+    fun softDelete(
+        id: UUID,
+        accountId: UUID,
+        origin: ChangeOrigin,
+    ): Boolean
+
+    fun findByIds(
+        ids: Collection<UUID>,
+        accountId: UUID,
+    ): List<Transaction>
 
     /**
      * Returns aggregate totals for one (financialAccountId, year, month).
@@ -155,6 +168,8 @@ interface TransactionRepository {
         categoryId: UUID,
         categorySource: CategorySource,
         accountId: UUID,
+        agentCallContext: AgentCallContext? = null,
+        changedAt: java.time.Instant? = null,
     ): Int
 
     /**
@@ -307,14 +322,6 @@ interface TransactionRepository {
     ): List<Transaction>
 
     /**
-     * Loads non-deleted transactions by id for the same account.
-     */
-    fun findByIds(
-        ids: Collection<UUID>,
-        accountId: UUID,
-    ): List<Transaction>
-
-    /**
      * Net cash position: SUM(CREDIT amount) − SUM(DEBIT amount) for POSTED and PENDING rows across the given accounts.
      */
     fun sumLedgerBalance(
@@ -433,6 +440,8 @@ data class TransactionListQuery(
     val uncategorizedOnly: Boolean,
     val creditDebitType: CreditDebitType?,
     val types: List<TransactionType>?,
+    val originClientId: String? = null,
+    val originToolCallId: UUID? = null,
     val startDate: LocalDate?,
     val endDateExclusive: LocalDate?,
     val limit: Int,

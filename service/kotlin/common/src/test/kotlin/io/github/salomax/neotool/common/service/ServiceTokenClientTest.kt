@@ -339,6 +339,29 @@ class ServiceTokenClientTest {
         }
 
         @Test
+        fun `should include delegated by when exchanging user context token`() {
+            runBlocking {
+                val tokenResponse = createTokenResponse("delegated-token", expiresIn = 120L)
+                val httpResponse: HttpResponse<Any> = mock()
+                whenever(httpResponse.body()).thenReturn(tokenResponse)
+                whenever(blockingHttpClient.exchange(any<HttpRequest<Any>>(), any<Class<*>>()))
+                    .thenReturn(httpResponse)
+                serviceTokenClient = createClient(serviceId = "mcp-service")
+
+                serviceTokenClient.getServiceTokenWithUserContext(
+                    targetAudience = "banking",
+                    subjectToken = "subject-token",
+                    delegatedBy = "mcp-service",
+                )
+
+                val requestCaptor = argumentCaptor<HttpRequest<Any>>()
+                verify(blockingHttpClient).exchange(requestCaptor.capture(), any<Class<*>>())
+                val requestBody = requestCaptor.firstValue.getBody(TokenRequest::class.java).orElseThrow()
+                assertThat(requestBody.delegated_by).isEqualTo("mcp-service")
+            }
+        }
+
+        @Test
         fun `should cache user context tokens by subject token hash and audience`() {
             runBlocking {
                 val tokenResponse = createTokenResponse("delegated-token", expiresIn = 120L)
