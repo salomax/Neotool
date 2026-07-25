@@ -9,7 +9,7 @@ description: >
   An issue number is required — ask for it immediately if not provided.
 metadata:
   author: invistus
-  version: "1.1"
+  version: "1.2"
 ---
 
 # Solution Design — Invistus
@@ -49,6 +49,15 @@ For each symbol you intend to cite (service method, resolver, validator, mapper)
 Prefer concrete evidence from the code over abstract opinion.
 
 **Sequencing across issues.** If this issue *applies* a contract, table, or mapping that another issue *defines* (e.g. a scope→permission table, a shared claim, an error taxonomy), the definer must land first — say so in the implementation order. If this issue must land first for delivery reasons, inject the dependency and record the resulting debt explicitly, so the same contract does not get authored twice in two places. Duplicated authorship (the scope→permission table lived in two issues because of ordering) is a sequencing failure, not a coding one.
+
+**Trust-boundary trace (required for any issue labeled `security`, or that moves a value across a service/network boundary — auth, tokens, headers, scopes, provenance, tenant/account binding).** Grounding a symbol in one file is not enough when the value *travels*: the costliest defects on this project were not wrong claims inside a file, they were at the seams — a router that silently stripped a provenance header, a `delegated_by` marker asserted by the caller instead of derived from it, a tool gated by the wrong scope, a field whose name did not match the delimiter list. No single file revealed any of these. So for every trust-sensitive value the change relies on, the analysis must trace it end to end and answer, explicitly:
+
+- **Who sets it**, and is that the authenticated/trusted source, or something the caller/client asserts?
+- **What transports it** across each hop (JWT claim, HTTP header, GraphQL arg, DB column) — and does anything on the path (Apollo Router propagate allowlist, a subgraph, a mapper) drop, rename, or fail to forward it? The router forwards only `authorization`, `x-request-id`, `traceparent`, `tracestate`, `baggage` — anything else is stripped.
+- **Who could forge or strip it**, and what happens if they do — does the system fail *closed* (reject / ignore / default to the safe value) or *open* (trust it)?
+- **Where it is enforced** — name the single line/gate that decides, and confirm it is on the trusted side of the boundary.
+
+Write this as a short "Trust-boundary trace" subsection in the analysis. If tracing it reveals the value cannot arrive intact or cannot be made unforgeable on the chosen path, that is a design finding to resolve *now* — not a review finding to discover three rounds later.
 
 ### 3. Load the project conventions
 
@@ -94,6 +103,9 @@ Publish the analysis on the issue. Use the following format:
 - Frontend: [yes/no + which areas]
 - Database: [yes/no + what changes]
 - Infra/Workers: [yes/no + what changes]
+
+### Trust-boundary trace
+[Required for `security` / cross-service issues; omit only if the change moves no trust-sensitive value. For each value: who sets it · what transports it across each hop (and whether anything strips/renames it) · who could forge or strip it · fail-closed or fail-open · the single line/gate that enforces it.]
 
 ### Risks and considerations
 - [Risk 1]

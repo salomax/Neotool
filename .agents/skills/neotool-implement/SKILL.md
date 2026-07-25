@@ -11,7 +11,7 @@ description: >
 compatibility: Requires GitHub MCP or gh CLI. Reads skills from .agents/skills/ at the project root.
 metadata:
   author: invistus
-  version: "1.1"
+  version: "1.2"
 ---
 
 # Implementation Orchestrator — Invistus
@@ -128,6 +128,7 @@ Run this checklist before writing the summary. Each item maps to a round-1 block
 
 - [ ] **Every `test:*` in the backlog exists** as an actual test, and each one would **fail without the fix** — not just pass with it. For any security comparison, confirm the fixture uses distinct values for the things being distinguished (see `neotool-kotlin-service` → tests).
 - [ ] **The backlog's rejection/edge matrix is covered**, not only the happy path — expired, revoked, unauthorized, missing-claim, wrong-tenant, empty-input, as the backlog lists.
+- [ ] **Every trust-sensitive value has a fail-closed test.** If the change moves a value across a service/network boundary (token claim, `X-Mcp-*` or other header, scope, provenance, tenant/account binding), there is a test that a **forged or stripped** value fails closed — the call is rejected, ignored, or defaults to the safe value, never trusted. Trace it end to end: confirm it actually arrives on the real path (through the router / propagation, not only when injected directly in the test), and that a spoofed value on the untrusted path does not take effect. The router propagates only `authorization`, `x-request-id`, `traceparent`, `tracestate`, `baggage` — a custom header that rides the router is silently dropped, so a test that injects it directly proves nothing about production.
 - [ ] **No claim the design made about existing code went unverified in the diff.** If the design said a method "already does X" and you found it did not, that divergence is in the summary, not silently worked around.
 - [ ] **A contract this issue applies but another defines** (scope map, shared claim, error taxonomy) is injected, not re-authored — and if you had to duplicate it for sequencing reasons, the summary says so and names the follow-up.
 - [ ] **Validation actually ran** for the touched scope (`ktlintCheck`, `testUnit`, and the relevant integration tests), and the summary reports exactly what passed and what was not run.
