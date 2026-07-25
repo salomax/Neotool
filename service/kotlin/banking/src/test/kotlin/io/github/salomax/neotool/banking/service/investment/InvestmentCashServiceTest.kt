@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -81,7 +82,7 @@ class InvestmentCashServiceTest {
         whenever(
             transactionCategoryEntityRepository.findSystemSubcategoryId(any(), any()),
         ).thenReturn(UUID.randomUUID())
-        whenever(transactionService.create(any(), eq(accountId), eq(userId))).thenAnswer { invocation ->
+        whenever(transactionService.create(any(), eq(accountId), eq(userId), anyOrNull())).thenAnswer { invocation ->
             val cmd = invocation.getArgument<CreateTransactionCommand>(0)
             Transaction(
                 id = UUID.randomUUID(),
@@ -118,7 +119,7 @@ class InvestmentCashServiceTest {
             )
 
         val cmdCaptor = argumentCaptor<CreateTransactionCommand>()
-        verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId))
+        verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId), anyOrNull())
         assertThat(cmdCaptor.firstValue.description).isEqualTo("Aporte")
         assertThat(saved.description).isEqualTo("Aporte")
     }
@@ -137,7 +138,7 @@ class InvestmentCashServiceTest {
             )
 
         val cmdCaptor = argumentCaptor<CreateTransactionCommand>()
-        verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId))
+        verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId), anyOrNull())
         assertThat(cmdCaptor.firstValue.description).isEqualTo("Saque")
         assertThat(saved.description).isEqualTo("Saque")
     }

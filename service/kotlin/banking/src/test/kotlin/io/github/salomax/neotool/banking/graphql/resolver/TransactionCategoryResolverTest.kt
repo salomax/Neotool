@@ -15,6 +15,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -87,7 +88,7 @@ class TransactionCategoryResolverTest {
     @Test
     fun `createTransactionRule maps typeOverride from GraphQL input`() {
         val created = rule(pattern = "pix joao", categoryId = null, typeOverride = CategoryApplicableTo.TRANSFER)
-        whenever(ruleService.create(org.mockito.kotlin.any(), eq(accountId))).thenReturn(created)
+        whenever(ruleService.create(org.mockito.kotlin.any(), eq(accountId), anyOrNull())).thenReturn(created)
 
         val result =
             resolver.createTransactionRule(
@@ -102,7 +103,7 @@ class TransactionCategoryResolverTest {
             )
 
         val captor = argumentCaptor<CreateTransactionRuleInput>()
-        verify(ruleService).create(captor.capture(), eq(accountId))
+        verify(ruleService).create(captor.capture(), eq(accountId), anyOrNull())
         assertThat(captor.firstValue.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)
         assertThat(result.typeOverride).isEqualTo(CategoryApplicableTo.TRANSFER)
     }

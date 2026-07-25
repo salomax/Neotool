@@ -2,7 +2,6 @@ package io.github.salomax.neotool.banking.model.transaction
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
-import io.github.salomax.neotool.banking.domain.transaction.OriginChannel
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 
 /**
@@ -27,9 +26,7 @@ object CategoryRuleMapper {
             isSystem = entity.isSystem,
             isImplicit = entity.isImplicit,
             matchCount = entity.matchCount,
-            originChannel = OriginChannel.valueOf(entity.originChannel),
-            originClientId = entity.originClientId,
-            originToolCallId = entity.originToolCallId,
+            origin = entity.origin.toDomain(),
             deletedAt = entity.deletedAt,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
@@ -51,9 +48,7 @@ object CategoryRuleMapper {
             isSystem = domain.isSystem,
             isImplicit = domain.isImplicit,
             matchCount = domain.matchCount,
-            originChannel = domain.originChannel.name,
-            originClientId = domain.originClientId,
-            originToolCallId = domain.originToolCallId,
+            origin = ChangeOriginEmbeddable.fromDomain(domain.origin),
             deletedAt = domain.deletedAt,
             createdAt = domain.createdAt,
             updatedAt = domain.updatedAt,

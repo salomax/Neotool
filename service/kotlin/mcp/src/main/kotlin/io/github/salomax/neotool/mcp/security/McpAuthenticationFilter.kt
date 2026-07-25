@@ -21,7 +21,9 @@ class McpAuthenticationFilter(
         request: HttpRequest<*>,
         chain: ServerFilterChain,
     ): Publisher<MutableHttpResponse<*>> {
-        if (isPublicMcpEndpoint(request.path)) {
+        // POST /mcp authenticates in the controller so rejected tools/call requests can
+        // audit the requested tool name before the protocol service is reached.
+        if (request.path == "/mcp" || isPublicMcpEndpoint(request.path)) {
             return chain.proceed(request)
         }
 

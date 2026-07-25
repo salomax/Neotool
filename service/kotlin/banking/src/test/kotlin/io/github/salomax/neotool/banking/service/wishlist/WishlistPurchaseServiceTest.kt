@@ -16,6 +16,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
@@ -46,7 +47,7 @@ class WishlistPurchaseServiceTest {
         val command = createTransactionCommand()
 
         whenever(wishlistItemService.findWishlistItem(accountId, itemId)).thenReturn(item)
-        whenever(transactionService.createTransactionOutcome(command, accountId, userId))
+        whenever(transactionService.createTransactionOutcome(command, accountId, userId, null))
             .thenReturn(CreateTransactionOutcome(transaction = transaction))
         whenever(
             wishlistItemService.markWishlistItemAsPurchased(
@@ -61,7 +62,7 @@ class WishlistPurchaseServiceTest {
         assertThat(result.transaction).isEqualTo(transaction)
         assertThat(result.wishlistItem.status).isEqualTo(WishlistItemStatus.PURCHASED)
         assertThat(result.wishlistItem.purchasedAt).isEqualTo(transactionDate)
-        verify(transactionService).createTransactionOutcome(command, accountId, userId)
+        verify(transactionService).createTransactionOutcome(command, accountId, userId, null)
         verify(wishlistItemService).markWishlistItemAsPurchased(accountId, itemId, transactionDate)
     }
 
@@ -73,7 +74,7 @@ class WishlistPurchaseServiceTest {
             service.purchaseWithTransaction(accountId, userId, itemId, createTransactionCommand())
         }.isInstanceOf(NotFoundException::class.java)
 
-        verify(transactionService, never()).createTransactionOutcome(any(), any(), any())
+        verify(transactionService, never()).createTransactionOutcome(any(), any(), any(), anyOrNull())
     }
 
     @Test
@@ -85,7 +86,7 @@ class WishlistPurchaseServiceTest {
             service.purchaseWithTransaction(accountId, userId, itemId, createTransactionCommand())
         }.isInstanceOf(ValidationException::class.java)
 
-        verify(transactionService, never()).createTransactionOutcome(any(), any(), any())
+        verify(transactionService, never()).createTransactionOutcome(any(), any(), any(), anyOrNull())
         verify(wishlistItemService, never()).markWishlistItemAsPurchased(eq(accountId), eq(itemId), any())
     }
 

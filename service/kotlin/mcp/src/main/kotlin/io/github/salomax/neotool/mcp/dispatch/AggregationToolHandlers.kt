@@ -96,7 +96,9 @@ class GetPeriodSummaryToolHandler(
         arguments: Map<String, Any?>,
         principal: McpPrincipal,
     ): McpToolResult {
-        arguments.assertOnlySupportedArguments(setOf("financialAccountId", "startYear", "startMonth", "endYear", "endMonth"))
+        arguments.assertOnlySupportedArguments(
+            setOf("financialAccountId", "startYear", "startMonth", "endYear", "endMonth"),
+        )
         val startYear = validateYear("startYear", arguments.intArgument("startYear")) ?: missing("startYear")
         val startMonth = validateMonth("startMonth", arguments.intArgument("startMonth")) ?: missing("startMonth")
         val endYear = validateYear("endYear", arguments.intArgument("endYear")) ?: missing("endYear")
@@ -112,15 +114,22 @@ class GetPeriodSummaryToolHandler(
                 put("endMonth", endMonth)
             }
 
-        val summary = queryField("dashboardPeriodSummary", PERIOD_SUMMARY_QUERY, variables, principal) ?: emptyMap<String, Any?>()
+        val summary =
+            queryField(
+                "dashboardPeriodSummary",
+                PERIOD_SUMMARY_QUERY,
+                variables,
+                principal,
+            ) ?: emptyMap<String, Any?>()
         return success("periodSummary" to summary)
     }
 
-    private fun missing(field: String): Nothing = throw io.github.salomax.neotool.common.error.ValidationException(
-        io.github.salomax.neotool.common.error.CommonErrorCode.INVALID_INPUT,
-        field = field,
-        parameters = mapOf("field" to field),
-    )
+    private fun missing(field: String): Nothing =
+        throw io.github.salomax.neotool.common.error.ValidationException(
+            io.github.salomax.neotool.common.error.CommonErrorCode.INVALID_INPUT,
+            field = field,
+            parameters = mapOf("field" to field),
+        )
 
     private companion object {
         private const val PERIOD_SUMMARY_QUERY = """
@@ -167,7 +176,9 @@ class GetCashFlowSeriesToolHandler(
         arguments: Map<String, Any?>,
         principal: McpPrincipal,
     ): McpToolResult {
-        arguments.assertOnlySupportedArguments(setOf("financialAccountId", "startYear", "startMonth", "endYear", "endMonth"))
+        arguments.assertOnlySupportedArguments(
+            setOf("financialAccountId", "startYear", "startMonth", "endYear", "endMonth"),
+        )
         val startYear = validateYear("startYear", arguments.intArgument("startYear")) ?: missing("startYear")
         val startMonth = validateMonth("startMonth", arguments.intArgument("startMonth")) ?: missing("startMonth")
         val endYear = validateYear("endYear", arguments.intArgument("endYear")) ?: missing("endYear")
@@ -183,15 +194,22 @@ class GetCashFlowSeriesToolHandler(
                 put("endMonth", endMonth)
             }
 
-        val series = queryField("cashFlowSeries", CASH_FLOW_QUERY, variables, principal) ?: emptyList<Map<String, Any?>>()
+        val series =
+            queryField(
+                "cashFlowSeries",
+                CASH_FLOW_QUERY,
+                variables,
+                principal,
+            ) ?: emptyList<Map<String, Any?>>()
         return success("cashFlowSeries" to series)
     }
 
-    private fun missing(field: String): Nothing = throw io.github.salomax.neotool.common.error.ValidationException(
-        io.github.salomax.neotool.common.error.CommonErrorCode.INVALID_INPUT,
-        field = field,
-        parameters = mapOf("field" to field),
-    )
+    private fun missing(field: String): Nothing =
+        throw io.github.salomax.neotool.common.error.ValidationException(
+            io.github.salomax.neotool.common.error.CommonErrorCode.INVALID_INPUT,
+            field = field,
+            parameters = mapOf("field" to field),
+        )
 
     private companion object {
         private const val CASH_FLOW_QUERY = """
@@ -289,7 +307,11 @@ class GetSpendingByCategoryToolHandler(
                     )
                 }
                 val startYear = validateYear("startYear", arguments.intArgument("startYear")) ?: missing("startYear")
-                val startMonth = validateMonth("startMonth", arguments.intArgument("startMonth")) ?: missing("startMonth")
+                val startMonth =
+                    validateMonth(
+                        "startMonth",
+                        arguments.intArgument("startMonth"),
+                    ) ?: missing("startMonth")
                 val endYear = validateYear("endYear", arguments.intArgument("endYear")) ?: missing("endYear")
                 val endMonth = validateMonth("endMonth", arguments.intArgument("endMonth")) ?: missing("endMonth")
                 validateYearMonthRange(startYear, startMonth, endYear, endMonth)
@@ -308,11 +330,12 @@ class GetSpendingByCategoryToolHandler(
         return success("categoryTotals" to result)
     }
 
-    private fun missing(field: String): Nothing = throw io.github.salomax.neotool.common.error.ValidationException(
-        io.github.salomax.neotool.common.error.CommonErrorCode.INVALID_INPUT,
-        field = field,
-        parameters = mapOf("field" to field),
-    )
+    private fun missing(field: String): Nothing =
+        throw io.github.salomax.neotool.common.error.ValidationException(
+            io.github.salomax.neotool.common.error.CommonErrorCode.INVALID_INPUT,
+            field = field,
+            parameters = mapOf("field" to field),
+        )
 
     private companion object {
         private const val CATEGORY_FIELDS = """
@@ -393,7 +416,16 @@ class GetSpendingByTagToolHandler(
         principal: McpPrincipal,
     ): McpToolResult {
         arguments.assertOnlySupportedArguments(
-            setOf("financialAccountId", "search", "categoryId", "uncategorized", "tags", "month", "year", "applicableTo"),
+            setOf(
+                "financialAccountId",
+                "search",
+                "categoryId",
+                "uncategorized",
+                "tags",
+                "month",
+                "year",
+                "applicableTo",
+            ),
         )
 
         val variables =
@@ -463,7 +495,13 @@ class GetTopMerchantsToolHandler(
                 arguments.intArgument("limit")?.let { put("limit", it) }
             }
 
-        val merchants = queryField("topMerchants", TOP_MERCHANTS_QUERY, variables, principal) ?: emptyList<Map<String, Any?>>()
+        val merchants =
+            queryField(
+                "topMerchants",
+                TOP_MERCHANTS_QUERY,
+                variables,
+                principal,
+            ) ?: emptyList<Map<String, Any?>>()
         return success("topMerchants" to merchants)
     }
 

@@ -2,6 +2,7 @@ package io.github.salomax.neotool.mcp.protocol
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.common.service.GraphQLResponse
+import io.github.salomax.neotool.mcp.audit.ToolCallAuditService
 import io.github.salomax.neotool.mcp.catalog.McpCatalogTool
 import io.github.salomax.neotool.mcp.catalog.McpToolCatalog
 import io.github.salomax.neotool.mcp.dispatch.McpBankingGraphQLClient
@@ -26,6 +27,7 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.mock
 import java.time.Instant
 import java.util.UUID
 
@@ -195,19 +197,19 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
 
         val response =
             retrieve(
-            body =
-                mapOf(
-                    "jsonrpc" to "2.0",
-                    "id" to "call-2",
-                    "method" to "tools/call",
-                    "params" to
-                        mapOf(
-                            "name" to "list_transactions",
-                            "arguments" to mapOf("first" to 5, "accountId" to UUID.randomUUID().toString()),
-                        ),
-                ),
-            token = McpJwtTestFixture.accessToken(accountId = accountId, scope = transactionsReadScope),
-        )
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "call-2",
+                        "method" to "tools/call",
+                        "params" to
+                            mapOf(
+                                "name" to "list_transactions",
+                                "arguments" to mapOf("first" to 5, "accountId" to UUID.randomUUID().toString()),
+                            ),
+                    ),
+                token = McpJwtTestFixture.accessToken(accountId = accountId, scope = transactionsReadScope),
+            )
 
         val result = response["result"] as Map<*, *>
         assertThat(result["isError"]).isEqualTo(true)
@@ -302,6 +304,38 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
         assertThat(exception.status).isEqualTo(HttpStatus.UNAUTHORIZED)
     }
 
+    @Test
+    fun `invalid token tools call does not dispatch to banking`() {
+        catalogTools = listOf(tool(name = "list_transactions", requiredScope = transactionsReadScope))
+
+        val exception =
+            assertThrows<HttpClientResponseException> {
+                client
+                    .toBlocking()
+                    .exchange(
+                        HttpRequest
+                            .POST(
+                                "/mcp",
+                                mapOf(
+                                    "jsonrpc" to "2.0",
+                                    "id" to "call-invalid-token",
+                                    "method" to "tools/call",
+                                    "params" to
+                                        mapOf(
+                                            "name" to "list_transactions",
+                                            "arguments" to mapOf("first" to 5),
+                                        ),
+                                ),
+                            ).header(HttpHeaders.AUTHORIZATION, "Bearer not-a-jwt"),
+                        OAuthError::class.java,
+                    )
+            }
+
+        assertThat(exception.status).isEqualTo(HttpStatus.UNAUTHORIZED)
+        assertThat(capturedBankingVariables).isNull()
+        assertThat(capturedBankingPrincipal).isNull()
+    }
+
     private fun retrieve(
         body: Map<String, Any?>,
         token: String = McpJwtTestFixture.accessToken(scope = "finance:cashflow:read"),
@@ -351,6 +385,9 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
                 return bankingResponse
             }
         }
+
+    @MockBean(ToolCallAuditService::class)
+    fun toolCallAuditService(): ToolCallAuditService = mock()
 
     private fun tool(
         name: String,

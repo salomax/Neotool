@@ -4,6 +4,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.PatternType
 import io.github.salomax.neotool.common.entity.BaseEntity
 import jakarta.persistence.Column
+import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -53,12 +54,8 @@ open class CategoryRuleEntity(
     open var isImplicit: Boolean = false,
     @Column(name = "match_count", nullable = false)
     open var matchCount: Int = 0,
-    @Column(name = "origin_channel", nullable = false, length = 10)
-    open var originChannel: String = "UI",
-    @Column(name = "origin_client_id")
-    open var originClientId: String? = null,
-    @Column(name = "origin_tool_call_id")
-    open var originToolCallId: UUID? = null,
+    @Embedded
+    open var origin: ChangeOriginEmbeddable = ChangeOriginEmbeddable(),
     @Column(name = "deleted_at")
     open var deletedAt: Instant? = null,
     @Column(name = "created_at", nullable = false)

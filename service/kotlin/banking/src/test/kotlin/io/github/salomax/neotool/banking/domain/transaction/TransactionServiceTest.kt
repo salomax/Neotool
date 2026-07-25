@@ -25,6 +25,8 @@ import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.common.provenance.ChangeOrigin
+import io.github.salomax.neotool.common.provenance.OriginChannel
 import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -784,7 +786,7 @@ class TransactionServiceTest {
                     amount = BigDecimal("10.00"),
                     date = today,
                     description = "Original",
-                    originChannel = OriginChannel.UI,
+                    origin = ChangeOrigin.ui(),
                     createdAt = now,
                     updatedAt = now,
                 )
@@ -1749,13 +1751,13 @@ class TransactionServiceTest {
                 )
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
             whenever(
-                transactionRepository.softDelete(txId, accountId, OriginChannel.UI, null, null),
+                transactionRepository.softDelete(txId, accountId, ChangeOrigin.ui()),
             ).thenReturn(true)
 
             val result = service.delete(txId, accountId)
 
             assertThat(result).isTrue
-            verify(transactionRepository).softDelete(txId, accountId, OriginChannel.UI, null, null)
+            verify(transactionRepository).softDelete(txId, accountId, ChangeOrigin.ui())
         }
 
         @Test
@@ -1787,13 +1789,13 @@ class TransactionServiceTest {
                 )
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
             whenever(
-                transactionRepository.softDelete(txId, accountId, OriginChannel.UI, null, null),
+                transactionRepository.softDelete(txId, accountId, ChangeOrigin.ui()),
             ).thenReturn(true)
 
             val result = service.delete(txId, accountId)
 
             assertThat(result).isTrue
-            verify(transactionRepository).softDelete(txId, accountId, OriginChannel.UI, null, null)
+            verify(transactionRepository).softDelete(txId, accountId, ChangeOrigin.ui())
         }
 
         @Test
@@ -1816,13 +1818,13 @@ class TransactionServiceTest {
                 )
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
             whenever(
-                transactionRepository.softDelete(txId, accountId, OriginChannel.MCP, "mcp-client", toolCallId),
+                transactionRepository.softDelete(txId, accountId, ChangeOrigin.mcp("mcp-client", toolCallId)),
             ).thenReturn(true)
 
             val result = service.delete(txId, accountId, agentCallContext())
 
             assertThat(result).isTrue()
-            verify(transactionRepository).softDelete(txId, accountId, OriginChannel.MCP, "mcp-client", toolCallId)
+            verify(transactionRepository).softDelete(txId, accountId, ChangeOrigin.mcp("mcp-client", toolCallId))
         }
     }
 
@@ -2215,7 +2217,7 @@ class TransactionServiceTest {
             val txDate = LocalDate.of(2024, 11, 5)
             val existing = buildTransaction(id = txId, date = txDate)
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
-            whenever(transactionRepository.softDelete(txId, accountId, OriginChannel.UI, null, null)).thenReturn(true)
+            whenever(transactionRepository.softDelete(txId, accountId, ChangeOrigin.ui())).thenReturn(true)
 
             service.delete(txId, accountId)
 
@@ -2232,7 +2234,7 @@ class TransactionServiceTest {
             val txId = UUID.randomUUID()
             val existing = buildTransaction(id = txId)
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
-            whenever(transactionRepository.softDelete(txId, accountId, OriginChannel.UI, null, null)).thenReturn(false)
+            whenever(transactionRepository.softDelete(txId, accountId, ChangeOrigin.ui())).thenReturn(false)
 
             service.delete(txId, accountId)
 

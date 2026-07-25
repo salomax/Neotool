@@ -20,6 +20,7 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRep
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.DashboardAnalyticsService
+import io.github.salomax.neotool.banking.service.transaction.McpChangeLogService
 import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
@@ -49,6 +50,7 @@ class TransactionResolverTest {
     private lateinit var monthSummaryQueryService: MonthSummaryQueryService
     private lateinit var dashboardAnalyticsService: DashboardAnalyticsService
     private lateinit var creditCardBillService: CreditCardBillService
+    private lateinit var mcpChangeLogService: McpChangeLogService
     private lateinit var merchantRepository: MerchantRepository
     private lateinit var transactionRuleEngine: TransactionRuleEngine
     private lateinit var transactionCategoryRepository: TransactionCategoryRepository
@@ -80,6 +82,7 @@ class TransactionResolverTest {
         monthSummaryQueryService = mock()
         dashboardAnalyticsService = mock()
         creditCardBillService = mock()
+        mcpChangeLogService = mock()
         merchantRepository = mock()
         transactionRuleEngine = mock()
         transactionCategoryRepository = mock()
@@ -97,6 +100,7 @@ class TransactionResolverTest {
                 monthSummaryQueryService = monthSummaryQueryService,
                 dashboardAnalyticsService = dashboardAnalyticsService,
                 creditCardBillService = creditCardBillService,
+                mcpChangeLogService = mcpChangeLogService,
                 merchantRepository = merchantRepository,
                 transactionRuleEngine = transactionRuleEngine,
                 transactionCategoryRepository = transactionCategoryRepository,

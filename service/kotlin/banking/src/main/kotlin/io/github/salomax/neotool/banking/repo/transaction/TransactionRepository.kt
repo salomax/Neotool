@@ -6,12 +6,13 @@ import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransactionTotals
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransferTotals
-import io.github.salomax.neotool.banking.domain.transaction.OriginChannel
 import io.github.salomax.neotool.banking.domain.transaction.TagBreakdownRow
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.common.provenance.ChangeOrigin
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.UUID
@@ -61,10 +62,13 @@ interface TransactionRepository {
     fun softDelete(
         id: UUID,
         accountId: UUID,
-        originChannel: OriginChannel,
-        originClientId: String?,
-        originToolCallId: UUID?,
+        origin: ChangeOrigin,
     ): Boolean
+
+    fun findByIds(
+        ids: Collection<UUID>,
+        accountId: UUID,
+    ): List<Transaction>
 
     /**
      * Returns aggregate totals for one (financialAccountId, year, month).
@@ -164,6 +168,8 @@ interface TransactionRepository {
         categoryId: UUID,
         categorySource: CategorySource,
         accountId: UUID,
+        agentCallContext: AgentCallContext? = null,
+        changedAt: java.time.Instant? = null,
     ): Int
 
     /**
@@ -312,14 +318,6 @@ interface TransactionRepository {
      */
     fun findByInvestmentTransactionIds(
         investmentTransactionIds: Collection<UUID>,
-        accountId: UUID,
-    ): List<Transaction>
-
-    /**
-     * Loads non-deleted transactions by id for the same account.
-     */
-    fun findByIds(
-        ids: Collection<UUID>,
         accountId: UUID,
     ): List<Transaction>
 

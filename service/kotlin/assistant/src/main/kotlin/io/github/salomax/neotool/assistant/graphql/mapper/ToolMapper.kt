@@ -29,6 +29,7 @@ class ToolMapper {
         val retryPolicy = (input["retryPolicy"] as? Map<*, *>)?.normalizeMap()
         val mcpExposed = input["mcpExposed"] as? Boolean ?: false
         val mcpRequiredScope = input["mcpRequiredScope"] as? String
+        val sensitiveInputFields = (input["sensitiveInputFields"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
         val status =
             when (val raw = input["status"]) {
                 null -> ToolStatus.ACTIVE
@@ -49,6 +50,7 @@ class ToolMapper {
             retryPolicy = retryPolicy,
             mcpExposed = mcpExposed,
             mcpRequiredScope = mcpRequiredScope,
+            sensitiveInputFields = sensitiveInputFields,
             status = status,
         )
     }
@@ -66,6 +68,7 @@ class ToolMapper {
             retryPolicy = dto.retryPolicy,
             mcpExposed = dto.mcpExposed,
             mcpRequiredScope = dto.mcpRequiredScope,
+            sensitiveInputFields = dto.sensitiveInputFields,
             status = dto.status,
         )
     }
@@ -85,6 +88,7 @@ class ToolMapper {
             retryPolicy = entity.retryPolicy,
             mcpExposed = entity.mcpExposed,
             mcpRequiredScope = entity.mcpRequiredScope,
+            sensitiveInputFields = entity.sensitiveInputFields,
             status = entity.status,
             createdAt = entity.createdAt.toString(),
             updatedAt = entity.updatedAt.toString(),

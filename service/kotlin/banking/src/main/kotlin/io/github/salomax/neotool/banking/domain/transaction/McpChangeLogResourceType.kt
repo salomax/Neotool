@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
-enum class OriginChannel {
-    UI,
-    MCP,
+enum class McpChangeLogResourceType {
+    TRANSACTION,
 }

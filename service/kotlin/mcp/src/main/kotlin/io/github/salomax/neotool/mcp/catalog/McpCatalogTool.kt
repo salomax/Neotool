@@ -6,4 +6,5 @@ data class McpCatalogTool(
     val inputSchema: Map<String, Any?>,
     val mcpExposed: Boolean,
     val mcpRequiredScope: String?,
+    val sensitiveInputFields: List<String> = emptyList(),
 )

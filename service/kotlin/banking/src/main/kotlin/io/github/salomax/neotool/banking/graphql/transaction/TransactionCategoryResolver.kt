@@ -242,9 +242,10 @@ class TransactionCategoryResolver(
     fun applyTransactionRuleToHistorical(
         id: String,
         principal: RequestPrincipal,
+        agentCallContext: AgentCallContext? = null,
     ): BulkCategorizeResult {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        return ruleService.applyToHistorical(UUID.fromString(id), accountId)
+        return ruleService.applyToHistorical(UUID.fromString(id), accountId, agentCallContext)
     }
 
     fun updateTransactionRule(

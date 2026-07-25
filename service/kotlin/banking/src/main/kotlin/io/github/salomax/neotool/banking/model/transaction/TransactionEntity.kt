@@ -6,6 +6,7 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.common.entity.BaseEntity
 import jakarta.persistence.Column
+import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
@@ -129,12 +130,8 @@ open class TransactionEntity(
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "applied_rule_ids", columnDefinition = "jsonb")
     open var appliedRuleIds: String? = null,
-    @Column(name = "origin_channel", nullable = false, length = 10)
-    open var originChannel: String = "UI",
-    @Column(name = "origin_client_id")
-    open var originClientId: String? = null,
-    @Column(name = "origin_tool_call_id")
-    open var originToolCallId: UUID? = null,
+    @Embedded
+    open var origin: ChangeOriginEmbeddable = ChangeOriginEmbeddable(),
     // Soft delete + audit
     @Column(name = "deleted_at")
     open var deletedAt: Instant? = null,

@@ -22,6 +22,7 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRep
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.DashboardAnalyticsService
+import io.github.salomax.neotool.banking.service.transaction.McpChangeLogService
 import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
@@ -43,6 +44,7 @@ class TransactionResolver(
     private val monthSummaryQueryService: MonthSummaryQueryService,
     private val dashboardAnalyticsService: DashboardAnalyticsService,
     private val creditCardBillService: CreditCardBillService,
+    private val mcpChangeLogService: McpChangeLogService,
     private val merchantRepository: MerchantRepository,
     private val transactionRuleEngine: TransactionRuleEngine,
     private val transactionCategoryRepository: TransactionCategoryRepository,
@@ -186,6 +188,39 @@ class TransactionResolver(
             pageInfo = pageInfoDto,
             totalCount = connection.totalCount?.toInt(),
         )
+    }
+
+    fun mcpChangeLog(
+        clientId: String?,
+        tokenId: String?,
+        toolCallId: String?,
+        limit: Int?,
+        offset: Int?,
+        principal: RequestPrincipal,
+    ): List<McpChangeLogEntryDTO> {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val toolCallUuid = toolCallId?.let(UUID::fromString)
+        return mcpChangeLogService.listForAccount(
+            accountId = accountId,
+            clientId = clientId,
+            tokenId = tokenId,
+            toolCallId = toolCallUuid,
+            limit = limit ?: 50,
+            offset = offset ?: 0,
+        ).map {
+            McpChangeLogEntryDTO(
+                id = it.id,
+                toolCallId = it.toolCallId,
+                clientId = it.clientId,
+                tokenId = it.tokenId,
+                resourceType = it.resourceType.name,
+                resourceId = it.resourceId,
+                action = it.action.name,
+                before = it.before,
+                after = it.after,
+                createdAt = it.createdAt,
+            )
+        }
     }
 
     fun transaction(
@@ -578,11 +613,20 @@ class TransactionResolver(
         transactionIds: List<String>,
         categoryId: String,
         principal: RequestPrincipal,
+        agentCallContext: AgentCallContext? = null,
     ): BulkCategorizeResult {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val ids = transactionIds.map { UUID.fromString(it) }
         val categoryUuid = UUID.fromString(categoryId)
-        return service.bulkCategorize(ids, categoryUuid, accountId)
+        return service.bulkCategorize(ids, categoryUuid, accountId, agentCallContext)
+    }
+
+    fun revertToolCallChanges(
+        toolCallId: String,
+        principal: RequestPrincipal,
+    ): BulkCategorizeResult {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        return mcpChangeLogService.revertToolCallChanges(accountId, UUID.fromString(toolCallId))
     }
 
     fun applyTransactionEditToSimilar(

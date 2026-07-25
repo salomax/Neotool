@@ -10,7 +10,6 @@ import io.github.salomax.neotool.banking.domain.transaction.CategoryTotal
 import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionOutcome
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.domain.transaction.OriginChannel
 import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
 import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
@@ -41,6 +40,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.Edge
 import io.github.salomax.neotool.common.graphql.pagination.PageInfo
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.provenance.toChangeOriginOrUi
 import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
@@ -636,9 +636,7 @@ open class TransactionService(
                 cardIdentifier = command.cardIdentifier,
                 payeeMcc = command.payeeMcc,
                 appliedRuleHistory = appliedRuleHistory,
-                originChannel = agentCallContext.originChannel(),
-                originClientId = agentCallContext?.originClientId,
-                originToolCallId = agentCallContext?.toolCallId,
+                origin = agentCallContext.toChangeOriginOrUi(),
                 createdAt = now,
                 updatedAt = now,
             )
@@ -812,9 +810,7 @@ open class TransactionService(
                 billId = newBillId,
                 cardIdentifier = command.cardIdentifier ?: existing.cardIdentifier,
                 payeeMcc = command.payeeMcc ?: existing.payeeMcc,
-                originChannel = agentCallContext.originChannel(),
-                originClientId = agentCallContext?.originClientId,
-                originToolCallId = agentCallContext?.toolCallId,
+                origin = agentCallContext.toChangeOriginOrUi(),
                 updatedAt = updateTimestamp,
             )
 
@@ -1076,9 +1072,7 @@ open class TransactionService(
             transactionRepository.softDelete(
                 id = id,
                 accountId = accountId,
-                originChannel = agentCallContext.originChannel(),
-                originClientId = agentCallContext?.originClientId,
-                originToolCallId = agentCallContext?.toolCallId,
+                origin = agentCallContext.toChangeOriginOrUi(),
             )
         if (deleted) {
             creditCardBillService.recomputeBill(exists.billId, accountId)
@@ -1102,6 +1096,7 @@ open class TransactionService(
         transactionIds: List<UUID>,
         categoryId: UUID,
         accountId: UUID,
+        agentCallContext: AgentCallContext? = null,
     ): BulkCategorizeResult {
         val category =
             categoryRepository.findById(categoryId)
@@ -1117,16 +1112,10 @@ open class TransactionService(
                 categoryId = categoryId,
                 categorySource = CategorySource.MANUAL,
                 accountId = accountId,
+                agentCallContext = agentCallContext,
             )
         return BulkCategorizeResult(affectedCount = affectedCount, errors = emptyList())
     }
-
-    private fun AgentCallContext?.originChannel(): OriginChannel =
-        if (this != null) {
-            OriginChannel.MCP
-        } else {
-            OriginChannel.UI
-        }
 
     /**
      * Registers a payment against a credit card bill (BILL-02).

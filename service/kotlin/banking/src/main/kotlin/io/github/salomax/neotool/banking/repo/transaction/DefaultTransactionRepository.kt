@@ -4,15 +4,21 @@ import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CategoryBreakdownRow
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.McpChangeLogAction
+import io.github.salomax.neotool.banking.domain.transaction.McpChangeLogEntry
+import io.github.salomax.neotool.banking.domain.transaction.McpChangeLogResourceType
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransactionTotals
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransferTotals
-import io.github.salomax.neotool.banking.domain.transaction.OriginChannel
 import io.github.salomax.neotool.banking.domain.transaction.TagBreakdownRow
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
+import io.github.salomax.neotool.banking.domain.transaction.TransactionChangeSnapshot
 import io.github.salomax.neotool.banking.model.transaction.TransactionEntity
 import io.github.salomax.neotool.banking.model.transaction.TransactionMapper
 import io.github.salomax.neotool.banking.model.transaction.TransactionTagEntity
+import io.github.salomax.neotool.common.provenance.ChangeOrigin
+import io.github.salomax.neotool.common.provenance.toChangeOrigin
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
@@ -31,6 +37,7 @@ import java.util.UUID
 open class DefaultTransactionRepository(
     private val entityRepository: TransactionEntityRepository,
     private val transactionTagEntityRepository: TransactionTagEntityRepository,
+    private val mcpChangeLogRepository: McpChangeLogRepository,
     @PersistenceContext private val entityManager: EntityManager,
 ) : TransactionRepository {
     private val logger = LoggerFactory.getLogger(DefaultTransactionRepository::class.java)
@@ -147,18 +154,28 @@ open class DefaultTransactionRepository(
     override fun softDelete(
         id: UUID,
         accountId: UUID,
-        originChannel: OriginChannel,
-        originClientId: String?,
-        originToolCallId: UUID?,
+        origin: ChangeOrigin,
     ): Boolean =
         entityRepository.softDeleteWithOrigin(
             id = id,
             accountId = accountId,
             deletedAt = Instant.now(),
-            originChannel = originChannel.name,
-            originClientId = originClientId,
-            originToolCallId = originToolCallId,
+            originChannel = origin.channel.name,
+            originClientId = origin.clientId,
+            originToolCallId = origin.toolCallId,
         ) > 0
+
+    override fun findByIds(
+        ids: Collection<UUID>,
+        accountId: UUID,
+    ): List<Transaction> {
+        if (ids.isEmpty()) return emptyList()
+        return withTags(
+            entityRepository.findByIdInAndAccountIdAndDeletedAtIsNull(ids.distinct().toList(), accountId)
+                .map(TransactionMapper::toDomain),
+            accountId,
+        )
+    }
 
     @Transactional(readOnly = true)
     override fun getMonthTotals(
@@ -682,16 +699,60 @@ open class DefaultTransactionRepository(
         categoryId: UUID,
         categorySource: CategorySource,
         accountId: UUID,
+        agentCallContext: AgentCallContext?,
+        changedAt: Instant?,
     ): Int {
         if (transactionIds.isEmpty()) return 0
-        val placeholders = transactionIds.indices.joinToString(",") { ":id$it" }
+        val effectiveChangedAt = changedAt ?: Instant.now()
+        val distinctIds = transactionIds.distinct()
+        val placeholders = distinctIds.indices.joinToString(",") { ":id$it" }
+        val agentOrigin = agentCallContext?.toChangeOrigin()
+        if (agentCallContext != null) {
+            val existingTransactions = findByIds(distinctIds, accountId)
+            if (existingTransactions.isNotEmpty()) {
+                mcpChangeLogRepository.saveAll(
+                    existingTransactions.map { tx ->
+                        McpChangeLogEntry(
+                            toolCallId = agentCallContext.toolCallId,
+                            clientId = agentCallContext.originClientId,
+                            tokenId = agentCallContext.originTokenId,
+                            resourceType = McpChangeLogResourceType.TRANSACTION,
+                            resourceId = requireNotNull(tx.id),
+                            action = McpChangeLogAction.UPDATE,
+                            before = TransactionChangeSnapshot.from(tx).toMap(),
+                            after =
+                                TransactionChangeSnapshot.from(
+                                    tx.copy(
+                                        categoryId = categoryId,
+                                        categorySource = categorySource,
+                                        origin = requireNotNull(agentOrigin),
+                                        updatedAt = effectiveChangedAt,
+                                    ),
+                                ).toMap(),
+                            createdAt = effectiveChangedAt,
+                        )
+                    },
+                )
+            }
+        }
+        val originSetClause =
+            if (agentOrigin != null) {
+                """
+                ,
+                       origin_channel = :originChannel,
+                       origin_client_id = :originClientId,
+                       origin_tool_call_id = :originToolCallId
+                """.trimIndent()
+            } else {
+                ""
+            }
         val query =
             entityManager.createNativeQuery(
                 """
                 UPDATE banking.transactions
                    SET category_id = CAST(:categoryId AS uuid),
                        category_source = :categorySource,
-                       updated_at = NOW()
+                       updated_at = :updatedAt$originSetClause
                  WHERE account_id = CAST(:accountId AS uuid)
                    AND deleted_at IS NULL
                    AND id IN ($placeholders)
@@ -700,10 +761,20 @@ open class DefaultTransactionRepository(
                 .setParameter("categoryId", categoryId.toString())
                 .setParameter("categorySource", categorySource.name)
                 .setParameter("accountId", accountId.toString())
-        transactionIds.forEachIndexed { i, uuid ->
+                .setParameter("updatedAt", effectiveChangedAt)
+        if (agentOrigin != null) {
+            query.setParameter("originChannel", agentOrigin.channel.name)
+            query.setParameter("originClientId", agentOrigin.clientId)
+            query.setParameter("originToolCallId", agentOrigin.toolCallId)
+        }
+        distinctIds.forEachIndexed { i, uuid ->
             query.setParameter("id$i", uuid)
         }
-        return query.executeUpdate()
+        val updated = query.executeUpdate()
+        if (updated > 0) {
+            entityManager.clear()
+        }
+        return updated
     }
 
     @Transactional(readOnly = true)
@@ -895,17 +966,6 @@ open class DefaultTransactionRepository(
                 investmentTransactionIds.distinct().toList(),
                 accountId,
             )
-            .map(TransactionMapper::toDomain)
-    }
-
-    @Transactional(readOnly = true)
-    override fun findByIds(
-        ids: Collection<UUID>,
-        accountId: UUID,
-    ): List<Transaction> {
-        if (ids.isEmpty()) return emptyList()
-        return entityRepository
-            .findByIdInAndAccountIdAndDeletedAtIsNull(ids.distinct().toList(), accountId)
             .map(TransactionMapper::toDomain)
     }
 

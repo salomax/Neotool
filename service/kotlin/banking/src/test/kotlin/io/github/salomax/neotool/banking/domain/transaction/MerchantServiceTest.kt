@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.eq
@@ -71,7 +72,7 @@ class MerchantServiceTest {
         whenever(merchantRepository.save(any())).thenReturn(merchant)
         doThrow(DuplicateTransactionRuleException("netflix", PatternType.CONTAINS))
             .whenever(ruleService)
-            .create(any(), eq(accountId))
+            .create(any(), eq(accountId), anyOrNull())
         whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(listOf(existingRule))
         whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as TransactionRule }
 
@@ -117,7 +118,7 @@ class MerchantServiceTest {
         whenever(merchantRepository.save(any())).thenReturn(merchant)
         doThrow(DuplicateTransactionRuleException("netflix", PatternType.CONTAINS))
             .whenever(ruleService)
-            .create(any(), eq(accountId))
+            .create(any(), eq(accountId), anyOrNull())
         whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(listOf(existingRule))
 
         service.create("Netflix", "https://netflix.com", "streaming", accountId)

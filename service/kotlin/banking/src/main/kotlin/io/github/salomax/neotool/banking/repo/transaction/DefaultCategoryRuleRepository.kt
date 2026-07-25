@@ -58,6 +58,7 @@ class DefaultCategoryRuleRepository(
             isSystem = rule.isSystem
             isImplicit = rule.isImplicit
             matchCount = rule.matchCount
+            origin = mappedRule.origin
             deletedAt = rule.deletedAt
             createdAt = rule.createdAt
             updatedAt = rule.updatedAt

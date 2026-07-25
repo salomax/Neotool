@@ -2570,6 +2570,13 @@ extend type Query {
     first: Int
     after: String
   ): TransactionConnection!
+  mcpChangeLog(
+    clientId: String
+    tokenId: ID
+    toolCallId: ID
+    limit: Int = 50
+    offset: Int = 0
+  ): [McpChangeLogEntry!]!
   """Recurring payment templates for one account or all tenant accounts when omitted."""
   recurringPayments(financialAccountId: ID): [RecurringPayment!]!
   recurringPayment(id: ID!): RecurringPayment
@@ -2839,6 +2846,7 @@ extend type Mutation {
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """
   bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult!
+  revertToolCallChanges(toolCallId: ID!): BulkOperationResult!
   applyTransactionEditToSimilar(
     id: ID!
     matchDescription: String!
@@ -2881,4 +2889,17 @@ extend type Mutation {
 type BulkOperationResult {
   affectedCount: Int!
   errors: [String!]!
+}
+
+type McpChangeLogEntry {
+  id: ID!
+  toolCallId: ID!
+  clientId: String
+  tokenId: ID
+  resourceType: String!
+  resourceId: ID!
+  action: String!
+  before: JSON!
+  after: JSON!
+  createdAt: DateTime!
 }

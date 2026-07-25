@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import io.github.salomax.neotool.common.provenance.ChangeOrigin
+import io.github.salomax.neotool.common.provenance.OriginChannel
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -82,9 +84,7 @@ data class Transaction(
     val sourceData: Map<String, Any?>? = null,
     /** Audit trail for rules that were applied to the transaction over time. */
     val appliedRuleHistory: List<AppliedRuleAuditEntry> = emptyList(),
-    val originChannel: OriginChannel = OriginChannel.UI,
-    val originClientId: String? = null,
-    val originToolCallId: UUID? = null,
+    val origin: ChangeOrigin = ChangeOrigin.ui(),
     // Soft delete + audit
     val deletedAt: Instant? = null,
     val createdAt: Instant,
@@ -94,4 +94,16 @@ data class Transaction(
     @get:JsonProperty(access = JsonProperty.Access.READ_ONLY)
     val appliedRuleIds: List<UUID>
         get() = appliedRuleHistory.map { it.ruleId }.distinct()
+
+    @get:JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    val originChannel: OriginChannel
+        get() = origin.channel
+
+    @get:JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    val originClientId: String?
+        get() = origin.clientId
+
+    @get:JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    val originToolCallId: UUID?
+        get() = origin.toolCallId
 }

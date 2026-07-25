@@ -161,6 +161,21 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "mcpChangeLog",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        transactionResolver.mcpChangeLog(
+                            clientId = env.getArgument<String?>("clientId"),
+                            tokenId = env.getArgument<String?>("tokenId"),
+                            toolCallId = env.getArgument<String?>("toolCallId"),
+                            limit = env.getArgument<Int?>("limit"),
+                            offset = env.getArgument<Int?>("offset"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
                 "recurringPayments",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
@@ -1130,7 +1145,23 @@ class BankingWiringFactory(
                         val categoryId =
                             env.getArgument<String>("categoryId")
                                 ?: throw IllegalArgumentException("categoryId is required")
-                        transactionResolver.bulkCategorize(transactionIds, categoryId, principal)
+                        transactionResolver.bulkCategorize(
+                            transactionIds,
+                            categoryId,
+                            principal,
+                            trustedAgentCallContext(env, principal),
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
+                "revertToolCallChanges",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val toolCallId =
+                            env.getArgument<String>("toolCallId")
+                                ?: throw IllegalArgumentException("toolCallId is required")
+                        transactionResolver.revertToolCallChanges(toolCallId, principal)
                     }
                 },
             )
@@ -1633,7 +1664,11 @@ class BankingWiringFactory(
                         val id =
                             env.getArgument<String>("id")
                                 ?: throw IllegalArgumentException("id is required")
-                        transactionCategoryResolver.applyTransactionRuleToHistorical(id, principal)
+                        transactionCategoryResolver.applyTransactionRuleToHistorical(
+                            id,
+                            principal,
+                            trustedAgentCallContext(env, principal),
+                        )
                     }
                 },
             )

@@ -36,12 +36,15 @@ class AssistantMcpToolCatalog(
         val inputSchema = (this["inputSchema"] as? Map<*, *>)?.normalizeMap() ?: emptyMap()
         val mcpExposed = this["mcpExposed"] as? Boolean ?: false
         val mcpRequiredScope = this["mcpRequiredScope"]?.toString()?.takeIf { it.isNotBlank() }
+        val sensitiveInputFields =
+            (this["sensitiveInputFields"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
         return McpCatalogTool(
             name = name,
             description = description,
             inputSchema = inputSchema,
             mcpExposed = mcpExposed,
             mcpRequiredScope = mcpRequiredScope,
+            sensitiveInputFields = sensitiveInputFields,
         )
     }
 
@@ -59,6 +62,7 @@ class AssistantMcpToolCatalog(
                 inputSchema
                 mcpExposed
                 mcpRequiredScope
+                sensitiveInputFields
               }
             }
         """

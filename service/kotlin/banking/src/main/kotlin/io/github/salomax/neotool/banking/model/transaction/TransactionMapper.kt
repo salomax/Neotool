@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import io.github.salomax.neotool.banking.domain.transaction.AppliedRuleAuditEntry
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
-import io.github.salomax.neotool.banking.domain.transaction.OriginChannel
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
 import java.math.BigDecimal
@@ -101,9 +100,7 @@ object TransactionMapper {
             importJobId = entity.importJobId,
             sourceData = entity.sourceData?.let { objectMapper.readValue<Map<String, Any?>>(it) },
             appliedRuleHistory = parseAppliedRuleHistory(entity.appliedRuleIds, entity.createdAt),
-            originChannel = OriginChannel.valueOf(entity.originChannel),
-            originClientId = entity.originClientId,
-            originToolCallId = entity.originToolCallId,
+            origin = entity.origin.toDomain(),
             deletedAt = entity.deletedAt,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
@@ -152,9 +149,7 @@ object TransactionMapper {
             importJobId = domain.importJobId,
             sourceData = domain.sourceData?.let { objectMapper.writeValueAsString(it) },
             appliedRuleIds = serializeAppliedRuleHistory(domain.appliedRuleHistory),
-            originChannel = domain.originChannel.name,
-            originClientId = domain.originClientId,
-            originToolCallId = domain.originToolCallId,
+            origin = ChangeOriginEmbeddable.fromDomain(domain.origin),
             deletedAt = domain.deletedAt,
             createdAt = domain.createdAt,
             updatedAt = domain.updatedAt,
@@ -201,9 +196,7 @@ object TransactionMapper {
             domain.sourceData
                 ?.let { source -> objectMapper.writeValueAsString(source) }
         entity.appliedRuleIds = serializeAppliedRuleHistory(domain.appliedRuleHistory)
-        entity.originChannel = domain.originChannel.name
-        entity.originClientId = domain.originClientId
-        entity.originToolCallId = domain.originToolCallId
+        entity.origin = ChangeOriginEmbeddable.fromDomain(domain.origin)
         entity.deletedAt = domain.deletedAt
         entity.updatedAt = domain.updatedAt
     }

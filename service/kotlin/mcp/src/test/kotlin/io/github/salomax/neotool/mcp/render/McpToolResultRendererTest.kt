@@ -88,8 +88,14 @@ class McpToolResultRendererTest {
                 McpToolSuccessResult(
                     data =
                         mapOf(
-                            "financialAccounts" to listOf(mapOf("name" to "Joint Account", "issuerName" to "Custom Bank")),
-                            "categoryTotals" to listOf(mapOf("category" to mapOf("name" to "Dining Out"), "totalAmount" to 10.0)),
+                            "financialAccounts" to
+                                listOf(
+                                    mapOf("name" to "Joint Account", "issuerName" to "Custom Bank"),
+                                ),
+                            "categoryTotals" to
+                                listOf(
+                                    mapOf("category" to mapOf("name" to "Dining Out"), "totalAmount" to 10.0),
+                                ),
                             "tagTotals" to listOf(mapOf("tag" to "vacation", "totalAmount" to 20.0)),
                             "transactionRules" to
                                 mapOf(
@@ -117,7 +123,8 @@ class McpToolResultRendererTest {
             .isEqualTo("<untrusted-data>Dining Out</untrusted-data>")
         assertThat(((body["tagTotals"] as List<*>).first() as Map<*, *>)["tag"])
             .isEqualTo("<untrusted-data>vacation</untrusted-data>")
-        val node = ((((body["transactionRules"] as Map<*, *>)["edges"] as List<*>).first() as Map<*, *>)["node"] as Map<*, *>)
+        val node =
+            ((((body["transactionRules"] as Map<*, *>)["edges"] as List<*>).first() as Map<*, *>)["node"] as Map<*, *>)
         assertThat(node["pattern"]).isEqualTo("<untrusted-data>IFOOD</untrusted-data>")
         assertThat(node["descriptionOverride"]).isEqualTo("<untrusted-data>Food delivery</untrusted-data>")
         assertThat(node["tagsOverride"] as List<*>).containsExactly("<untrusted-data>delivery</untrusted-data>")

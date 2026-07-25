@@ -14,6 +14,7 @@ data class RegisterToolInputDTO(
     val retryPolicy: Map<String, Any?>? = null,
     val mcpExposed: Boolean = false,
     val mcpRequiredScope: String? = null,
+    val sensitiveInputFields: List<String> = emptyList(),
     val status: ToolStatus = ToolStatus.ACTIVE,
 )
 
@@ -30,6 +31,7 @@ data class ToolDTO(
     val retryPolicy: Map<String, Any?>?,
     val mcpExposed: Boolean,
     val mcpRequiredScope: String?,
+    val sensitiveInputFields: List<String>,
     val status: ToolStatus,
     val createdAt: String,
     val updatedAt: String,
