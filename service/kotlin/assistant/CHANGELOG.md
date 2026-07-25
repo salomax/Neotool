@@ -1,3 +1,13 @@
+## 0.6.0 (2026-07-25)
+
+### 🚀 Features
+
+- implement #419 ([#472](https://github.com/invistus/invistus/pull/472), [#419](https://github.com/invistus/invistus/issues/419))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.5.0 (2026-07-24)
 
 ### 🚀 Features

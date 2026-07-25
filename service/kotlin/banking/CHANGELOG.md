@@ -1,3 +1,13 @@
+## 0.13.0 (2026-07-25)
+
+### 🚀 Features
+
+- implement #419 ([#472](https://github.com/invistus/invistus/pull/472), [#419](https://github.com/invistus/invistus/issues/419))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.12.2 (2026-07-22)
 
 This was a version bump only for banking to align it with other projects, there were no code changes.
