@@ -125,7 +125,8 @@ terraform.rc
 .claude/*
 !.claude/settings.json
 !.claude/skills
-.cursor/
+.cursor/*
+!.cursor/mcp.json
 .codex/
 .mcp.json
 

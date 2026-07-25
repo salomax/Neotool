@@ -9,5 +9,18 @@
       "Read(//Users/salomax/src/**)",
       "Read(//Users/salomax/**)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
+      }
+    ]
   }
 }
