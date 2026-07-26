@@ -1,3 +1,13 @@
+## 0.7.0 (2026-07-26)
+
+### 🚀 Features
+
+- add feature catalog documentation and update MANIFEST ([bc4bb6b4](https://github.com/invistus/invistus/commit/bc4bb6b4))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.6.0 (2026-07-26)
 
 ### 🚀 Features
