@@ -1,0 +1,12 @@
+groups:
+  - name: security-rate-limit-alerts
+    rules:
+      - alert: OAuth2TokenRateLimitExceeded
+        expr: increase(oauth2_token_rate_limit_exceeded_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "OAuth2 token requests are being rejected by rate limiting"
+          description: "The security service rejected /oauth2/token requests for client {{ $labels.client_id }} during the last 5 minutes."

@@ -13,4 +13,5 @@ class OAuth2InvalidGrantException(
 class OAuth2RateLimitException(
     message: String,
     val error: String = "slow_down",
+    val retryAfterSeconds: Long? = null,
 ) : RuntimeException(message)

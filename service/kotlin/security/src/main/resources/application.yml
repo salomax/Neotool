@@ -199,6 +199,10 @@ oauth:
       secure: ${OAUTH2_SESSION_COOKIE_SECURE:true}
     authorization-request-ttl-seconds: ${OAUTH2_AUTHORIZATION_REQUEST_TTL_SECONDS:600}
     authorization-code-ttl-seconds: ${OAUTH2_AUTHORIZATION_CODE_TTL_SECONDS:60}
+    token:
+      rate-limit:
+        limit: ${OAUTH2_TOKEN_RATE_LIMIT_LIMIT:120}
+        window-ms: ${OAUTH2_TOKEN_RATE_LIMIT_WINDOW_MS:3600000}
     clients: []
 
 datasources:

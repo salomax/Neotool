@@ -1,11 +1,13 @@
 package io.github.salomax.neotool.mcp.security
 
+import io.micronaut.context.annotation.Requires
 import io.micronaut.scheduling.annotation.Scheduled
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.time.Instant
 
 @Singleton
+@Requires(property = "mcp.revocation.eviction.enabled", value = "true", defaultValue = "true")
 open class ConnectionRevocationEvictionJob(
     private val revocationStore: ConnectionRevocationStore,
 ) {

@@ -309,6 +309,9 @@ open class RefreshTokenService(
         return tokenRecord?.clientId != null
     }
 
+    fun findOAuthClientId(refreshToken: String): String? =
+        refreshTokenRepository.findByTokenHash(hashToken(refreshToken))?.clientId
+
     /**
      * Check if a refresh token is valid (exists and not revoked).
      * Used by AuthenticationService for backward compatibility.

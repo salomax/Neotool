@@ -1,0 +1,12 @@
+groups:
+  - name: mcp-rate-limit-alerts
+    rules:
+      - alert: McpRateLimitExceeded
+        expr: increase(mcp_rate_limit_exceeded_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          team: assistant
+        annotations:
+          summary: "MCP requests are being rejected by rate limiting"
+          description: "The MCP service rejected requests due to the {{ $labels.scope }} rate limit during the last 5 minutes."

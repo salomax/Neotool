@@ -26,6 +26,17 @@ class OAuthErrorResponseFactory(
                 ),
             )
 
+    fun tooManyRequests(retryAfterSeconds: Long): MutableHttpResponse<Any> =
+        HttpResponse
+            .status<Any>(HttpStatus.TOO_MANY_REQUESTS)
+            .header(HttpHeaders.RETRY_AFTER, retryAfterSeconds.coerceAtLeast(0L).toString())
+            .body(
+                OAuthError(
+                    error = "rate_limit_exceeded",
+                    error_description = "Rate limit exceeded",
+                ),
+            )
+
     private fun wwwAuthenticate(exception: McpAuthenticationException): String =
         "Bearer error=\"${headerValue(exception.error)}\", " +
             "error_description=\"${headerValue(exception.message ?: "Authentication failed")}\", " +

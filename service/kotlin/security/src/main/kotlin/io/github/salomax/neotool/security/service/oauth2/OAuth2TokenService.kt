@@ -28,15 +28,27 @@ open class OAuth2TokenService(
     private val jwtConfig: JwtConfig,
     private val tokenExchangeService: OAuth2TokenExchangeService,
     private val authContextFactory: AuthContextFactory,
+    private val tokenRateLimitService: OAuth2TokenRateLimitService,
 ) {
     @Transactional
-    open fun issue(request: OAuth2TokenRequest): OAuth2TokenResponse =
-        when (request.grant_type) {
+    open fun issue(request: OAuth2TokenRequest): OAuth2TokenResponse {
+        resolveRateLimitClientId(request)?.let { clientId ->
+            val rateLimitDecision = tokenRateLimitService.check(clientId)
+            if (!rateLimitDecision.allowed) {
+                throw OAuth2RateLimitException(
+                    message = "OAuth2 token rate limit exceeded",
+                    retryAfterSeconds = rateLimitDecision.retryAfterSeconds,
+                )
+            }
+        }
+
+        return when (request.grant_type) {
             "authorization_code" -> exchangeAuthorizationCode(request)
             "refresh_token" -> refresh(request)
             OAuth2TokenExchangeService.TOKEN_EXCHANGE_GRANT_TYPE -> tokenExchangeService.exchange(request)
             else -> throw OAuth2InvalidRequestException("Unsupported grant_type")
         }
+    }
 
     private fun exchangeAuthorizationCode(request: OAuth2TokenRequest): OAuth2TokenResponse {
         val code =
@@ -126,7 +138,8 @@ open class OAuth2TokenService(
         val refreshToken =
             request.refresh_token?.takeIf { it.isNotBlank() }
                 ?: throw OAuth2InvalidRequestException("refresh_token is required")
-        if (!refreshTokenService.isOAuthRefreshToken(refreshToken)) {
+        val clientId = refreshTokenService.findOAuthClientId(refreshToken)
+        if (clientId == null) {
             throw OAuth2InvalidGrantException("Refresh token is not valid for OAuth2")
         }
         val tokenPair = refreshTokenService.refreshAccessToken(refreshToken)
@@ -137,4 +150,11 @@ open class OAuth2TokenService(
             scope = tokenPair.scope,
         )
     }
+
+    private fun resolveRateLimitClientId(request: OAuth2TokenRequest): String? =
+        when (request.grant_type) {
+            "authorization_code" -> request.client_id?.takeIf { it.isNotBlank() }
+            "refresh_token" -> request.refresh_token?.takeIf { it.isNotBlank() }?.let(refreshTokenService::findOAuthClientId)
+            else -> null
+        }
 }
