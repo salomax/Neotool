@@ -1327,6 +1327,8 @@ enum PendingActionType {
   BANK_ACCOUNT_NEGATIVE_BALANCE
   """A recurring payment is approaching the due date."""
   RECURRING_PAYMENT_DUE
+  """Confirmation required for a deferred agent write."""
+  AGENT_WRITE_CONFIRMATION
 }
 
 enum PendingActionSeverity {
@@ -2576,11 +2578,22 @@ extend type Query {
     creditDebitType: CreditDebitType
     """Filter to one or more transaction types (e.g. SALARY, TRANSFER)."""
     types: [TransactionType!]
+    """Filter to transactions last stamped by a specific MCP client id."""
+    originClientId: String
+    """Filter to transactions last stamped by a specific MCP tool call id."""
+    originToolCallId: ID
     month: Int
     year: Int
     first: Int
     after: String
   ): TransactionConnection!
+  mcpChangeLog(
+    clientId: String
+    tokenId: ID
+    toolCallId: ID
+    limit: Int = 50
+    offset: Int = 0
+  ): [McpChangeLogEntry!]!
   """Recurring payment templates for one account or all tenant accounts when omitted."""
   recurringPayments(financialAccountId: ID): [RecurringPayment!]!
   recurringPayment(id: ID!): RecurringPayment
@@ -2723,15 +2736,15 @@ extend type Mutation {
   """
   Create a new manual transaction.
   """
-  createTransaction(input: CreateTransactionInput!): CreateTransactionPayload!
+  createTransaction(input: CreateTransactionInput!, idempotencyKey: String): CreateTransactionPayload!
   """
   Update an existing manual transaction.
   """
-  updateTransaction(id: ID!, input: UpdateTransactionInput!): Transaction!
+  updateTransaction(id: ID!, input: UpdateTransactionInput!, idempotencyKey: String): Transaction!
   """
   Soft-delete a manual transaction.
   """
-  deleteTransaction(id: ID!): Boolean!
+  deleteTransaction(id: ID!, idempotencyKey: String): DeleteTransactionResult!
   createRecurringPayment(input: CreateRecurringPaymentInput!): RecurringPayment!
   updateRecurringPayment(id: ID!, input: UpdateRecurringPaymentInput!): RecurringPayment!
   pauseRecurringPayment(id: ID!): RecurringPayment!
@@ -2822,7 +2835,7 @@ extend type Mutation {
   """
   Create a transaction rule for auto-categorization and/or merchant suggestion. Invalid REGEX pattern returns a validation error.
   """
-  createTransactionRule(input: CreateTransactionRuleInput!): TransactionRule!
+  createTransactionRule(input: CreateTransactionRuleInput!, idempotencyKey: String): TransactionRule!
   """
   Update a user-owned transaction rule.
   """
@@ -2831,7 +2844,7 @@ extend type Mutation {
   Applies the given transaction rule to historical (non-manual) transactions that match it.
   Does not override MANUAL categories; other fields may be updated according to rule actions.
   """
-  applyTransactionRuleToHistorical(id: ID!): BulkOperationResult!
+  applyTransactionRuleToHistorical(id: ID!, idempotencyKey: String): BulkOperationResult!
   """
   Soft-delete a user-owned transaction rule. System rules cannot be deleted.
   """
@@ -2849,7 +2862,8 @@ extend type Mutation {
   """
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """
-  bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult!
+  bulkCategorize(transactionIds: [ID!]!, categoryId: ID!, idempotencyKey: String): BulkOperationResult!
+  revertToolCallChanges(toolCallId: ID!): BulkOperationResult!
   applyTransactionEditToSimilar(
     id: ID!
     matchDescription: String!
@@ -2880,6 +2894,8 @@ extend type Mutation {
 
   """Confirm fixed-income maturity: records MATURITY, closes the holding, completes the pending action, optional cash credit."""
   confirmHoldingMaturity(command: ConfirmHoldingMaturityInput!): ConfirmHoldingMaturityResult!
+  """Confirm a pending action that was created by a deferred agent write."""
+  confirmPendingAction(id: ID!): ConfirmPendingActionResult!
   """Confirms a fixed-income coupon payment and optionally completes a pending coupon action."""
   confirmCouponPayment(input: ConfirmCouponPaymentInput!): ConfirmCouponPaymentResult!
   """Transfere uma posição (total ou parcial) entre contas de custódia do mesmo usuário, preservando custo médio."""
@@ -2888,8 +2904,37 @@ extend type Mutation {
   dismissPendingAction(id: ID!): AccountPendingAction!
 }
 
+enum BulkOperationOutcome {
+  EXECUTED
+  CONFIRMATION_REQUIRED
+}
+
 """Result of a bulk operation (e.g. bulkCategorize)."""
 type BulkOperationResult {
   affectedCount: Int!
   errors: [String!]!
+  outcome: BulkOperationOutcome!
+  pendingAction: AccountPendingAction
+}
+
+type DeleteTransactionResult {
+  deleted: Boolean!
+  pendingAction: AccountPendingAction
+}
+
+type ConfirmPendingActionResult {
+  pendingAction: AccountPendingAction!
+}
+
+type McpChangeLogEntry {
+  id: ID!
+  toolCallId: ID!
+  clientId: String
+  tokenId: ID
+  resourceType: String!
+  resourceId: ID!
+  action: String!
+  before: JSON!
+  after: JSON!
+  createdAt: DateTime!
 }

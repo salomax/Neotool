@@ -196,6 +196,7 @@ type Tool {
   retryPolicy: JSON
   mcpExposed: Boolean!
   mcpRequiredScope: String
+  sensitiveInputFields: [String!]!
   status: ToolStatus!
   createdAt: String!
   updatedAt: String!
@@ -213,6 +214,7 @@ input RegisterToolInput {
   retryPolicy: JSON
   mcpExposed: Boolean
   mcpRequiredScope: String
+  sensitiveInputFields: [String!]
   status: ToolStatus
 }
 
