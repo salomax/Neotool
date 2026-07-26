@@ -36,7 +36,9 @@ class OAuth2TokenController(
                 .body(OAuth2ErrorResponse(e.error, e.message ?: "Invalid grant"))
         } catch (e: OAuth2RateLimitException) {
             HttpResponse.status<OAuth2ErrorResponse>(HttpStatus.TOO_MANY_REQUESTS)
-                .body(OAuth2ErrorResponse(e.error, e.message ?: "Rate limit exceeded"))
+                .headers { headers ->
+                    e.retryAfterSeconds?.let { headers.add("Retry-After", it.toString()) }
+                }.body(OAuth2ErrorResponse(e.error, e.message ?: "Rate limit exceeded"))
         } catch (e: AuthenticationRequiredException) {
             HttpResponse.status<OAuth2ErrorResponse>(HttpStatus.BAD_REQUEST)
                 .body(OAuth2ErrorResponse("invalid_grant", e.message ?: "Invalid refresh token"))

@@ -91,7 +91,22 @@ mcp:
     metadata-url: ${MCP_RESOURCE_METADATA_URL}
   revocation:
     eviction:
+      enabled: ${MCP_REVOCATION_EVICTION_ENABLED:true}
       fixed-delay: ${MCP_REVOCATION_EVICTION_FIXED_DELAY:PT1H}
+  rate-limit:
+    token:
+      read:
+        limit: ${MCP_RATE_LIMIT_TOKEN_READ_LIMIT:60}
+        window-ms: ${MCP_RATE_LIMIT_TOKEN_READ_WINDOW_MS:60000}
+      write:
+        limit: ${MCP_RATE_LIMIT_TOKEN_WRITE_LIMIT:15}
+        window-ms: ${MCP_RATE_LIMIT_TOKEN_WRITE_WINDOW_MS:60000}
+    user:
+      limit: ${MCP_RATE_LIMIT_USER_LIMIT:120}
+      window-ms: ${MCP_RATE_LIMIT_USER_WINDOW_MS:60000}
+    cleanup:
+      enabled: ${MCP_RATE_LIMIT_CLEANUP_ENABLED:true}
+      fixed-delay: ${MCP_RATE_LIMIT_CLEANUP_FIXED_DELAY:PT1H}
 
 endpoints:
   all:

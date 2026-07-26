@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.mcp.security
 
 import io.micronaut.http.HttpHeaders
+import io.micronaut.http.MediaType
 import io.micronaut.http.HttpResponse
 import io.micronaut.http.HttpStatus
 import io.micronaut.http.MutableHttpResponse
@@ -23,6 +24,18 @@ class OAuthErrorResponseFactory(
                 OAuthError(
                     error = "insufficient_scope",
                     error_description = "The token does not include required scope '${exception.requiredScope}'",
+                ),
+            )
+
+    fun tooManyRequests(retryAfterSeconds: Long): MutableHttpResponse<Any> =
+        HttpResponse
+            .status<Any>(HttpStatus.TOO_MANY_REQUESTS)
+            .header(HttpHeaders.RETRY_AFTER, retryAfterSeconds.coerceAtLeast(0L).toString())
+            .contentType(MediaType.APPLICATION_JSON_TYPE)
+            .body(
+                OAuthError(
+                    error = "rate_limit_exceeded",
+                    error_description = "Rate limit exceeded",
                 ),
             )
 

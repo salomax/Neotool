@@ -85,3 +85,8 @@ This is a **testing workflow** because it defines how we design and run non-func
 - `test-plan.md` with goals, scenarios, data, environment, and pass/fail criteria.
 - Load test scripts and configs in version control.
 - Results report with charts and regressions.
+
+## Current repo artifact
+
+- MCP and OAuth2 token rate-limit validation script: `tests/load/k6/mcp-rate-limit.js`
+- Manual run instructions: `tests/load/README.md`

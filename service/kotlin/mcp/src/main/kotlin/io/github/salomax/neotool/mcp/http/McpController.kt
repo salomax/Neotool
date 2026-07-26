@@ -5,6 +5,7 @@ import io.github.salomax.neotool.mcp.audit.ToolCallAuditRecord
 import io.github.salomax.neotool.mcp.audit.ToolCallAuditService
 import io.github.salomax.neotool.mcp.protocol.JsonRpcResponse
 import io.github.salomax.neotool.mcp.protocol.McpProtocolService
+import io.github.salomax.neotool.mcp.ratelimit.McpRequestRateLimiter
 import io.github.salomax.neotool.mcp.security.McpAuthenticationException
 import io.github.salomax.neotool.mcp.security.McpAuthenticationFilter
 import io.github.salomax.neotool.mcp.security.McpAuthenticationService
@@ -29,6 +30,7 @@ class McpController(
     private val authenticationService: McpAuthenticationService,
     private val errorResponseFactory: OAuthErrorResponseFactory,
     private val auditService: ToolCallAuditService,
+    private val requestRateLimiter: McpRequestRateLimiter,
 ) {
     @Post
     @Consumes(MediaType.APPLICATION_JSON)
@@ -44,22 +46,26 @@ class McpController(
                 auditRejectedToolCall(body, e.error, e.message ?: "Authentication failed")
                 return errorResponseFactory.unauthorized(e)
             }
+        rateLimitResponse(body, principal)?.let { return it }
         val response = protocolService.handle(body, principal) ?: return HttpResponse.accepted<Any>()
         return HttpResponse.ok(response)
     }
 
     @Post("/events")
     @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.TEXT_EVENT_STREAM)
+    @Produces(MediaType.TEXT_EVENT_STREAM, MediaType.APPLICATION_JSON)
     fun handleEvents(
         @Body body: Map<String, Any?>,
         request: HttpRequest<*>,
-    ): Flux<Event<JsonRpcResponse>> {
+    ): HttpResponse<*> {
         val principal = authenticatedPrincipal(request)
-        return Flux
-            .just(body)
-            .mapNotNull { protocolService.handle(it, principal) }
-            .map { Event.of(it) }
+        rateLimitResponse(body, principal)?.let { return it }
+        return HttpResponse.ok(
+            Flux
+                .just(body)
+                .mapNotNull { protocolService.handle(it, principal) }
+                .map { Event.of(it) },
+        )
     }
 
     private fun authenticatedPrincipal(request: HttpRequest<*>): McpPrincipal =
@@ -91,6 +97,14 @@ class McpController(
                 latencyMs = 0,
             ),
         )
+    }
+
+    private fun rateLimitResponse(
+        body: Map<String, Any?>,
+        principal: McpPrincipal,
+    ): HttpResponse<Any>? {
+        val decision = requestRateLimiter.check(body, principal) ?: return null
+        return errorResponseFactory.tooManyRequests(decision.retryAfterSeconds)
     }
 
     private fun Map<*, *>.normalizeMap(): Map<String, Any?> =
