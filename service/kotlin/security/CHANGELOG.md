@@ -1,3 +1,13 @@
+## 0.14.0 (2026-07-26)
+
+### 🚀 Features
+
+- implement agent rate limiting ([#483](https://github.com/invistus/invistus/pull/483))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.13.0 (2026-07-25)
 
 ### 🚀 Features
