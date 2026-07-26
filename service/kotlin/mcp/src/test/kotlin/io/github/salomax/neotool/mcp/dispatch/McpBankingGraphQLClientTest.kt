@@ -96,4 +96,58 @@ class McpBankingGraphQLClientTest {
         assertThat(request.headers.get(AgentCallContext.CLIENT_ID_HEADER)).isEqualTo("mcp-client")
         assertThat(request.headers.get(AgentCallContext.TOKEN_ID_HEADER)).isEqualTo("origin-token-id")
     }
+
+    @Test
+    fun `mutation dispatch uses the same trusted hop and provenance headers`() {
+        val toolCallId = UUID.randomUUID()
+        val principal =
+            McpPrincipal(
+                principal =
+                    RequestPrincipal(
+                        principalType = PrincipalType.USER,
+                        userId = UUID.randomUUID(),
+                        serviceId = null,
+                        token = "subject-token",
+                        tokenId = "origin-token-id",
+                        permissionsFromToken = emptyList(),
+                        currentAccountId = UUID.randomUUID(),
+                    ),
+                clientId = "mcp-client",
+                scopes = setOf("finance:transactions:write"),
+                agentCallContext =
+                    AgentCallContext(
+                        toolCallId = toolCallId,
+                        originClientId = "mcp-client",
+                        originTokenId = "origin-token-id",
+                    ),
+            )
+        runBlocking {
+            whenever(
+                serviceTokenClient.getServiceTokenWithUserContext(
+                    targetAudience = "banking",
+                    subjectToken = "subject-token",
+                    delegatedBy = "mcp-service",
+                ),
+            ).thenReturn("delegated-token")
+        }
+        val response: HttpResponse<Any> = mock()
+        whenever(response.body()).thenReturn(mapOf("data" to emptyMap<String, Any>()))
+        whenever(blockingHttpClient.exchange(any<HttpRequest<Any>>(), any<Class<*>>())).thenReturn(response)
+
+        runBlocking {
+            client.mutation(
+                query = "mutation { createTransaction(input: { description: \"Coffee\" }) { transaction { id } } }",
+                variables = mapOf("idempotencyKey" to "key-1"),
+                principal = principal,
+            )
+        }
+
+        val requestCaptor = argumentCaptor<HttpRequest<Any>>()
+        verify(blockingHttpClient).exchange(requestCaptor.capture(), any<Class<*>>())
+        val request = requestCaptor.firstValue
+        assertThat(request.uri.toString()).isEqualTo("http://localhost:8092/graphql")
+        assertThat(request.headers.get(AgentCallContext.TOOL_CALL_ID_HEADER)).isEqualTo(toolCallId.toString())
+        assertThat(request.headers.get(AgentCallContext.CLIENT_ID_HEADER)).isEqualTo("mcp-client")
+        assertThat(request.headers.get(AgentCallContext.TOKEN_ID_HEADER)).isEqualTo("origin-token-id")
+    }
 }

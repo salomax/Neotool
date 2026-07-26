@@ -166,6 +166,11 @@ enum class BankingErrorCode(
         "Transaction not found",
         404,
     ),
+    MCP_IDEMPOTENCY_KEY_REQUIRED(
+        "MCP_IDEMPOTENCY_KEY_REQUIRED",
+        "Idempotency key is required for MCP write operations",
+        422,
+    ),
     FINANCIAL_ACCOUNT_HAS_TRANSACTIONS(
         "FINANCIAL_ACCOUNT_HAS_TRANSACTIONS",
         "Financial account has transactions and cannot be deleted",

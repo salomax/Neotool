@@ -1,5 +1,10 @@
 package io.github.salomax.neotool.banking.graphql.resolver
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingAction
+import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionStatus
+import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionSeverity
+import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionType
 import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
 import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionOutcome
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
@@ -11,19 +16,29 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
+import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeResult
+import io.github.salomax.neotool.banking.model.dto.transaction.BulkOperationOutcome
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
 import io.github.salomax.neotool.banking.repo.attachment.TransactionAttachmentRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
+import io.github.salomax.neotool.banking.repo.transaction.McpWriteIdempotencyAlreadyClaimedException
+import io.github.salomax.neotool.banking.repo.transaction.McpWriteIdempotencyRecord
+import io.github.salomax.neotool.banking.repo.transaction.McpWriteIdempotencyRepository
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.service.pendingaction.AgentWriteConfirmationService
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
+import io.github.salomax.neotool.banking.service.transaction.BulkWriteCapGuard
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.DashboardAnalyticsService
+import io.github.salomax.neotool.banking.service.transaction.IdempotencyService
 import io.github.salomax.neotool.banking.service.transaction.McpChangeLogService
+import io.github.salomax.neotool.banking.service.transaction.McpWriteBulkConfiguration
 import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
+import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import org.assertj.core.api.Assertions.assertThat
@@ -37,12 +52,16 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 @DisplayName("TransactionResolver")
 class TransactionResolverTest {
@@ -57,6 +76,9 @@ class TransactionResolverTest {
     private lateinit var accountPreferencesService: AccountPreferencesService
     private lateinit var nfceDocumentRepository: NfceDocumentRepository
     private lateinit var transactionAttachmentRepository: TransactionAttachmentRepository
+    private lateinit var idempotencyService: IdempotencyService
+    private lateinit var bulkWriteCapGuard: BulkWriteCapGuard
+    private lateinit var agentWriteConfirmationService: AgentWriteConfirmationService
     private lateinit var resolver: TransactionResolver
 
     private val accountId = UUID.randomUUID()
@@ -89,6 +111,9 @@ class TransactionResolverTest {
         accountPreferencesService = mock()
         nfceDocumentRepository = mock()
         transactionAttachmentRepository = mock()
+        idempotencyService = mock()
+        bulkWriteCapGuard = BulkWriteCapGuard(McpWriteBulkConfiguration(maxAffectedRecords = 50))
+        agentWriteConfirmationService = mock()
         whenever(service.findAccessibleCategoriesByIds(org.mockito.kotlin.any(), org.mockito.kotlin.any()))
             .thenReturn(emptyMap())
         whenever(service.findAccessibleCategory(anyOrNull(), org.mockito.kotlin.any())).thenReturn(null)
@@ -107,6 +132,9 @@ class TransactionResolverTest {
                 accountPreferencesService = accountPreferencesService,
                 nfceDocumentRepository = nfceDocumentRepository,
                 transactionAttachmentRepository = transactionAttachmentRepository,
+                idempotencyService = idempotencyService,
+                bulkWriteCapGuard = bulkWriteCapGuard,
+                agentWriteConfirmationService = agentWriteConfirmationService,
             )
     }
 
@@ -167,6 +195,180 @@ class TransactionResolverTest {
             assertThat(command.tags).containsExactly("Food", "Weekend")
             assertThat(command.belongsToUserId).isNull()
             assertThat(command.belongsToName).isNull()
+        }
+
+        @Test
+        fun `agent-originated createTransaction replays stored result for the same key`() {
+            val idempotentResolver = resolverWithRealIdempotency()
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "creditDebitType" to "DEBIT",
+                    "type" to "OTHER_EXPENSE",
+                    "amount" to 99.99,
+                    "date" to today.toString(),
+                    "description" to "Idempotent create",
+                )
+            whenever(service.createTransactionOutcome(org.mockito.kotlin.any(), eq(accountId), eq(userId), anyOrNull()))
+                .thenReturn(CreateTransactionOutcome(transaction = transaction(description = "Idempotent create")))
+            whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
+
+            val first =
+                idempotentResolver.createTransaction(
+                    input = input,
+                    principal = principal(),
+                    idempotencyKey = "create-key",
+                    agentCallContext = agentCallContext(),
+                )
+            val second =
+                idempotentResolver.createTransaction(
+                    input = input,
+                    principal = principal(),
+                    idempotencyKey = "create-key",
+                    agentCallContext = agentCallContext(),
+                )
+
+            assertThat(second).isEqualTo(first)
+            verify(service, times(1)).createTransactionOutcome(
+                org.mockito.kotlin.any(),
+                eq(accountId),
+                eq(userId),
+                anyOrNull(),
+            )
+        }
+
+        @Test
+        fun `ui createTransaction bypasses idempotency service`() {
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "creditDebitType" to "DEBIT",
+                    "type" to "OTHER_EXPENSE",
+                    "amount" to 99.99,
+                    "date" to today.toString(),
+                    "description" to "UI create",
+                )
+            whenever(service.createTransactionOutcome(org.mockito.kotlin.any(), eq(accountId), eq(userId), anyOrNull()))
+                .thenReturn(CreateTransactionOutcome(transaction = transaction(description = "UI create")))
+            whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
+
+            resolver.createTransaction(input, principal())
+
+            verify(service).createTransactionOutcome(org.mockito.kotlin.any(), eq(accountId), eq(userId), anyOrNull())
+            verifyNoInteractions(idempotencyService)
+        }
+    }
+
+    @Nested
+    @DisplayName("bulkCategorize")
+    inner class BulkCategorizeTests {
+        @Test
+        fun `agent over-cap returns confirmation required and never calls bulk service`() {
+            val idempotentResolver = resolverWithRealIdempotency()
+            whenever(
+                service.countCategorizableTransactions(
+                    listOf(UUID.fromString("00000000-0000-0000-0000-000000000001")),
+                    accountId,
+                ),
+            ).thenReturn(51)
+            whenever(
+                agentWriteConfirmationService.requestBulkCategorize(
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(
+                AccountPendingAction(
+                    id = UUID.randomUUID(),
+                    accountId = accountId,
+                    type = PendingActionType.AGENT_WRITE_CONFIRMATION,
+                    severity = PendingActionSeverity.ACTION_REQUIRED,
+                    status = AccountPendingActionStatus.PENDING,
+                    entityType = "BulkCategorizeConfirmationPayload",
+                    entityId = UUID.randomUUID(),
+                    relatedTransactionId = null,
+                    payload = emptyMap(),
+                    visibleFrom = now,
+                    notifiedAt = null,
+                    dismissedAt = null,
+                    completedAt = null,
+                    cancelledAt = null,
+                    expiresAt = null,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+
+            val result =
+                idempotentResolver.bulkCategorize(
+                    transactionIds = listOf("00000000-0000-0000-0000-000000000001"),
+                    categoryId = UUID.randomUUID().toString(),
+                    principal = principal(),
+                    idempotencyKey = "bulk-over-cap",
+                    agentCallContext = agentCallContext(),
+                )
+
+            assertThat(result.outcome).isEqualTo(BulkOperationOutcome.CONFIRMATION_REQUIRED)
+            assertThat(result.affectedCount).isEqualTo(51)
+            assertThat(result.pendingAction).isNotNull
+            verify(service, never()).bulkCategorize(
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+            )
+        }
+
+        @Test
+        fun `agent at-cap executes bulk categorize once`() {
+            val idempotentResolver = resolverWithRealIdempotency()
+            val transactionId = UUID.fromString("00000000-0000-0000-0000-000000000002")
+            val categoryId = UUID.randomUUID()
+            whenever(service.countCategorizableTransactions(listOf(transactionId), accountId)).thenReturn(50)
+            whenever(
+                service.bulkCategorize(eq(listOf(transactionId)), eq(categoryId), eq(accountId), anyOrNull()),
+            ).thenReturn(
+                BulkCategorizeResult(affectedCount = 50, errors = emptyList()),
+            )
+
+            val result =
+                idempotentResolver.bulkCategorize(
+                    transactionIds = listOf(transactionId.toString()),
+                    categoryId = categoryId.toString(),
+                    principal = principal(),
+                    idempotencyKey = "bulk-at-cap",
+                    agentCallContext = agentCallContext(),
+                )
+
+            assertThat(result.outcome).isEqualTo(BulkOperationOutcome.EXECUTED)
+            verify(service).bulkCategorize(
+                eq(listOf(transactionId)),
+                eq(categoryId),
+                eq(accountId),
+                anyOrNull(),
+            )
+        }
+
+        @Test
+        fun `ui path bypasses idempotency and cap gate`() {
+            val transactionId = UUID.fromString("00000000-0000-0000-0000-000000000003")
+            val categoryId = UUID.randomUUID()
+            whenever(
+                service.bulkCategorize(listOf(transactionId), categoryId, accountId, null),
+            ).thenReturn(
+                BulkCategorizeResult(affectedCount = 1, errors = emptyList()),
+            )
+
+            resolver.bulkCategorize(
+                transactionIds = listOf(transactionId.toString()),
+                categoryId = categoryId.toString(),
+                principal = principal(),
+            )
+
+            verify(service).bulkCategorize(listOf(transactionId), categoryId, accountId, null)
+            verify(service, never()).countCategorizableTransactions(anyOrNull(), anyOrNull())
+            verifyNoInteractions(idempotencyService)
         }
     }
 
@@ -285,19 +487,66 @@ class TransactionResolverTest {
             assertThat(commandCaptor.firstValue.tagsProvided).isTrue()
             assertThat(commandCaptor.firstValue.tags).containsExactly("Food", "Weekend")
         }
+
+        @Test
+        fun `agent-originated updateTransaction replays stored result for the same key`() {
+            val idempotentResolver = resolverWithRealIdempotency()
+            val txId = UUID.randomUUID()
+            val input = mapOf("description" to "Updated once")
+            whenever(
+                service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId), anyOrNull()),
+            ).thenReturn(transaction(id = txId, description = "Updated once"))
+            whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
+
+            val first =
+                idempotentResolver.updateTransaction(
+                    id = txId.toString(),
+                    input = input,
+                    principal = principal(),
+                    idempotencyKey = "update-key",
+                    agentCallContext = agentCallContext(),
+                )
+            val second =
+                idempotentResolver.updateTransaction(
+                    id = txId.toString(),
+                    input = input,
+                    principal = principal(),
+                    idempotencyKey = "update-key",
+                    agentCallContext = agentCallContext(),
+                )
+
+            assertThat(second).isEqualTo(first)
+            verify(service, times(1)).update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId), anyOrNull())
+        }
+
+        @Test
+        fun `ui updateTransaction bypasses idempotency service`() {
+            val txId = UUID.randomUUID()
+            val input = mapOf("description" to "Updated desc")
+            whenever(
+                service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId), anyOrNull()),
+            ).thenReturn(transaction(id = txId, description = "Updated desc"))
+            whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
+
+            resolver.updateTransaction(txId.toString(), input, principal())
+
+            verify(service).update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId), anyOrNull())
+            verifyNoInteractions(idempotencyService)
+        }
     }
 
     @Nested
     @DisplayName("deleteTransaction")
     inner class DeleteTransactionTests {
         @Test
-        fun `delegates to service and returns boolean result`() {
+        fun `delegates to service and returns deleted result`() {
             val txId = UUID.randomUUID()
             whenever(service.delete(eq(txId), eq(accountId), anyOrNull())).thenReturn(true)
 
             val result = resolver.deleteTransaction(txId.toString(), principal())
 
-            assertThat(result).isTrue
+            assertThat(result.deleted).isTrue
+            assertThat(result.pendingAction).isNull()
             verify(service).delete(eq(txId), eq(accountId), anyOrNull())
         }
 
@@ -308,7 +557,61 @@ class TransactionResolverTest {
 
             val result = resolver.deleteTransaction(txId.toString(), principal())
 
-            assertThat(result).isFalse
+            assertThat(result.deleted).isFalse
+        }
+
+        @Test
+        fun `agent delete creates a pending action instead of deleting immediately`() {
+            val idempotentResolver = resolverWithRealIdempotency()
+            val txId = UUID.randomUUID()
+            val agentContext = agentCallContext()
+            val pending =
+                AccountPendingAction(
+                    id = UUID.randomUUID(),
+                    accountId = accountId,
+                    type = PendingActionType.AGENT_WRITE_CONFIRMATION,
+                    severity = PendingActionSeverity.ACTION_REQUIRED,
+                    status = AccountPendingActionStatus.PENDING,
+                    entityType = "DeleteTransactionConfirmationPayload",
+                    entityId = txId,
+                    relatedTransactionId = null,
+                    payload =
+                        mapOf(
+                            "operation" to "delete_transaction",
+                            "request_id" to txId.toString(),
+                            "transaction_id" to txId.toString(),
+                            "origin" to
+                                mapOf(
+                                    "client_id" to "mcp-client",
+                                    "tool_call_id" to agentContext.toolCallId.toString(),
+                                    "token_id" to "origin-token-id",
+                                ),
+                        ),
+                    visibleFrom = now,
+                    notifiedAt = null,
+                    dismissedAt = null,
+                    completedAt = null,
+                    cancelledAt = null,
+                    expiresAt = null,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(
+                agentWriteConfirmationService.requestDeleteTransaction(eq(accountId), eq(txId), anyOrNull()),
+            ).thenReturn(pending)
+
+            val result =
+                idempotentResolver.deleteTransaction(
+                    id = txId.toString(),
+                    principal = principal(),
+                    idempotencyKey = "delete-key",
+                    agentCallContext = agentContext,
+                )
+
+            assertThat(result.deleted).isFalse
+            assertThat(result.pendingAction).isNotNull
+            assertThat(result.pendingAction?.type).isEqualTo(PendingActionType.AGENT_WRITE_CONFIRMATION.name)
+            verify(service, never()).delete(anyOrNull(), anyOrNull(), anyOrNull())
         }
     }
 
@@ -856,5 +1159,94 @@ class TransactionResolverTest {
             assertThat(result.first().tag).isEqualTo("Weekend")
             assertThat(result.first().totalAmount).isEqualTo(42.0)
         }
+    }
+
+    private fun resolverWithRealIdempotency(): TransactionResolver =
+        TransactionResolver(
+            service = service,
+            monthSummaryQueryService = monthSummaryQueryService,
+            dashboardAnalyticsService = dashboardAnalyticsService,
+            creditCardBillService = creditCardBillService,
+            mcpChangeLogService = mcpChangeLogService,
+            merchantRepository = merchantRepository,
+            transactionRuleEngine = transactionRuleEngine,
+            transactionCategoryRepository = transactionCategoryRepository,
+            accountPreferencesService = accountPreferencesService,
+            nfceDocumentRepository = nfceDocumentRepository,
+            transactionAttachmentRepository = transactionAttachmentRepository,
+            idempotencyService =
+                IdempotencyService(
+                    repository = InMemoryMcpWriteIdempotencyRepository(),
+                    objectMapper = ObjectMapper().findAndRegisterModules(),
+                ),
+            bulkWriteCapGuard = BulkWriteCapGuard(McpWriteBulkConfiguration(maxAffectedRecords = 50)),
+            agentWriteConfirmationService = agentWriteConfirmationService,
+        )
+
+    private fun agentCallContext(): AgentCallContext =
+        AgentCallContext(
+            toolCallId = UUID.randomUUID(),
+            originClientId = "mcp-client",
+            originTokenId = "origin-token-id",
+        )
+
+    private fun transaction(
+        id: UUID = UUID.randomUUID(),
+        description: String,
+    ) = Transaction(
+        id = id,
+        financialAccountId = financialAccountId,
+        accountId = accountId,
+        createdByUserId = userId,
+        creditDebitType = CreditDebitType.DEBIT,
+        type = TransactionType.OTHER_EXPENSE,
+        status = TransactionStatus.POSTED,
+        amount = BigDecimal("99.99"),
+        date = today,
+        description = description,
+        createdAt = now,
+        updatedAt = now,
+    )
+
+    private class InMemoryMcpWriteIdempotencyRepository : McpWriteIdempotencyRepository {
+        private val rows = ConcurrentHashMap<Pair<UUID, String>, McpWriteIdempotencyRecord>()
+
+        override fun claim(
+            accountId: UUID,
+            idempotencyKey: String,
+            operation: String,
+        ): McpWriteIdempotencyRecord {
+            val record =
+                McpWriteIdempotencyRecord(
+                    id = UUID.randomUUID(),
+                    accountId = accountId,
+                    idempotencyKey = idempotencyKey,
+                    operation = operation,
+                    resultJson = "{}",
+                    createdAt = Instant.now(),
+                )
+            val previous = rows.putIfAbsent(accountId to idempotencyKey, record)
+            if (previous != null) {
+                throw McpWriteIdempotencyAlreadyClaimedException(accountId, idempotencyKey, operation)
+            }
+            return record
+        }
+
+        override fun findByAccountIdAndIdempotencyKey(
+            accountId: UUID,
+            idempotencyKey: String,
+        ): McpWriteIdempotencyRecord? = rows[accountId to idempotencyKey]
+
+        override fun storeResult(
+            id: UUID,
+            resultJson: String,
+        ): McpWriteIdempotencyRecord {
+            val existing = rows.values.first { it.id == id }
+            val updated = existing.copy(resultJson = resultJson)
+            rows[existing.accountId to existing.idempotencyKey] = updated
+            return updated
+        }
+
+        override fun deleteCreatedBefore(cutoff: Instant): Int = 0
     }
 }

@@ -7,8 +7,9 @@ import { Box, Divider, Stack } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { EmptyState, LoadingState, QueryErrorState } from "@/shared/components/ui/feedback";
-import { useAuth } from "@/shared/providers";
+import { useAuth, useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n";
+import { extractErrorMessage } from "@/shared/utils/error";
 import { personalFinanceTranslations } from "../i18n";
 import { Button } from "@/shared/components/ui/primitives/Button";
 import {
@@ -20,6 +21,7 @@ import {
   type PendingActionsQueryVariables,
   PendingActionsCountDocument,
 } from "@/lib/graphql/operations/banking/pendingActionOperations.generated";
+import { CONFIRM_PENDING_ACTION as CONFIRM_PENDING_ACTION_DOC } from "@/lib/graphql/operations/banking/pendingActionOperations";
 import { FinancialAccountType, PendingActionSeverity, PendingActionStatus, PendingActionType } from "@/lib/graphql/types/__generated__/graphql";
 import type { IssuerSelectionAccount } from "./components/IssuerSelection";
 import { MaturityConfirmDrawer, type MaturityDrawerHolding } from "./MaturityConfirmDrawer";
@@ -47,6 +49,7 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
   const router = useRouter();
   const client = useApolloClient();
   const { isAuthenticated } = useAuth();
+  const toast = useToast();
 
   const {
     data,
@@ -65,6 +68,7 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
     DismissPendingActionMutation,
     DismissPendingActionMutationVariables
   >(DismissPendingActionDocument);
+  const [confirmAction] = useMutation(CONFIRM_PENDING_ACTION_DOC);
 
   const [maturityOpen, setMaturityOpen] = React.useState(false);
   const [maturityHolding, setMaturityHolding] = React.useState<MaturityDrawerHolding | null>(null);
@@ -108,6 +112,15 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
   const handleDismiss = async (id: string) => {
     await dismissAction({ variables: { id } });
     await refresh();
+  };
+
+  const handleConfirm = async (id: string) => {
+    try {
+      await confirmAction({ variables: { id } });
+      await refresh();
+    } catch (error) {
+      toast.error(extractErrorMessage(error, "Unable to confirm pending action"));
+    }
   };
 
   const handleDismissAll = async () => {
@@ -209,6 +222,14 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
           onClose();
           router.push(`/personal-finance/finance-transactions?accountId=${financialAccountId}`);
         },
+      };
+    }
+
+    if (type === PendingActionType.AgentWriteConfirmation) {
+      return {
+        label: t("actions.confirm"),
+        testId: "pending-action-confirm",
+        onPrimaryAction: () => void handleConfirm(row.id),
       };
     }
 

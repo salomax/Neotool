@@ -575,11 +575,18 @@ export enum BudgetScope {
   Service = 'SERVICE'
 }
 
+export enum BulkOperationOutcome {
+  ConfirmationRequired = 'CONFIRMATION_REQUIRED',
+  Executed = 'EXECUTED'
+}
+
 /** Result of a bulk operation (e.g. bulkCategorize). */
 export type BulkOperationResult = {
   __typename: 'BulkOperationResult';
   affectedCount: Scalars['Int']['output'];
   errors: Array<Scalars['String']['output']>;
+  outcome: BulkOperationOutcome;
+  pendingAction: Maybe<AccountPendingAction>;
 };
 
 /**
@@ -3324,6 +3331,7 @@ export enum PendingActionStatus {
 export enum PendingActionType {
   /** Bank account balance went negative after a paired investment cash transfer (informational). */
   BankAccountNegativeBalance = 'BANK_ACCOUNT_NEGATIVE_BALANCE',
+  AgentWriteConfirmation = 'AGENT_WRITE_CONFIRMATION',
   /** Coupon payment is due for a coupon-bearing fixed income holding. */
   CouponPaymentDue = 'COUPON_PAYMENT_DUE',
   InvestmentMatured = 'INVESTMENT_MATURED',

@@ -778,6 +778,30 @@ open class DefaultTransactionRepository(
     }
 
     @Transactional(readOnly = true)
+    override fun countCategorizableTransactions(
+        transactionIds: List<UUID>,
+        accountId: UUID,
+    ): Int {
+        if (transactionIds.isEmpty()) return 0
+        val distinctIds = transactionIds.distinct()
+        val placeholders = distinctIds.indices.joinToString(",") { ":id$it" }
+        val query =
+            entityManager.createNativeQuery(
+                """
+                SELECT COUNT(*)
+                  FROM banking.transactions
+                 WHERE account_id = CAST(:accountId AS uuid)
+                   AND deleted_at IS NULL
+                   AND id IN ($placeholders)
+                """.trimIndent(),
+            ).setParameter("accountId", accountId.toString())
+        distinctIds.forEachIndexed { index, transactionId ->
+            query.setParameter("id$index", transactionId)
+        }
+        return (query.singleResult as Number).toInt()
+    }
+
+    @Transactional(readOnly = true)
     override fun countSimilarNonManualTransactions(
         accountId: UUID,
         excludeTransactionId: UUID,

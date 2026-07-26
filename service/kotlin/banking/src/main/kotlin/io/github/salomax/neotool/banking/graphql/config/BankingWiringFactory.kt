@@ -986,6 +986,7 @@ class BankingWiringFactory(
                         transactionResolver.createTransaction(
                             input,
                             principal,
+                            env.getArgument("idempotencyKey"),
                             trustedAgentCallContext(env, principal),
                         )
                     }
@@ -1005,6 +1006,7 @@ class BankingWiringFactory(
                             id,
                             input,
                             principal,
+                            env.getArgument("idempotencyKey"),
                             trustedAgentCallContext(env, principal),
                         )
                     }
@@ -1020,6 +1022,7 @@ class BankingWiringFactory(
                         transactionResolver.deleteTransaction(
                             id,
                             principal,
+                            env.getArgument("idempotencyKey"),
                             trustedAgentCallContext(env, principal),
                         )
                     }
@@ -1149,6 +1152,7 @@ class BankingWiringFactory(
                             transactionIds,
                             categoryId,
                             principal,
+                            env.getArgument("idempotencyKey"),
                             trustedAgentCallContext(env, principal),
                         )
                     }
@@ -1627,6 +1631,7 @@ class BankingWiringFactory(
                         transactionCategoryResolver.createTransactionRule(
                             input,
                             principal,
+                            env.getArgument("idempotencyKey"),
                             trustedAgentCallContext(env, principal),
                         )
                     }
@@ -1667,6 +1672,7 @@ class BankingWiringFactory(
                         transactionCategoryResolver.applyTransactionRuleToHistorical(
                             id,
                             principal,
+                            env.getArgument("idempotencyKey"),
                             trustedAgentCallContext(env, principal),
                         )
                     }
@@ -1750,6 +1756,17 @@ class BankingWiringFactory(
                             env.getArgument<Map<String, Any?>>("command")
                                 ?: throw IllegalArgumentException("command is required")
                         pendingActionResolver.confirmHoldingMaturity(command, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "confirmPendingAction",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        pendingActionResolver.confirmPendingAction(id, principal)
                     }
                 },
             )

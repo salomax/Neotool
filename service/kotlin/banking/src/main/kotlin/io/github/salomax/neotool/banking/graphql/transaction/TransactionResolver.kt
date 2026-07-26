@@ -11,21 +11,28 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
+import io.github.salomax.neotool.banking.graphql.pendingaction.toDto
 import io.github.salomax.neotool.banking.graphql.portfolio.PortfolioMonthlyValueDTO
 import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeResult
+import io.github.salomax.neotool.banking.model.dto.transaction.BulkOperationOutcome
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
 import io.github.salomax.neotool.banking.repo.attachment.TransactionAttachmentRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.service.pendingaction.AgentWriteConfirmationService
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
+import io.github.salomax.neotool.banking.service.transaction.BulkWriteCapDecision
+import io.github.salomax.neotool.banking.service.transaction.BulkWriteCapGuard
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.service.transaction.DashboardAnalyticsService
+import io.github.salomax.neotool.banking.service.transaction.IdempotencyService
 import io.github.salomax.neotool.banking.service.transaction.McpChangeLogService
 import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
+import io.github.salomax.neotool.banking.service.transaction.executeIfAgent
 import io.github.salomax.neotool.common.security.agent.AgentCallContext
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
@@ -51,6 +58,9 @@ class TransactionResolver(
     private val accountPreferencesService: AccountPreferencesService,
     private val nfceDocumentRepository: NfceDocumentRepository,
     private val transactionAttachmentRepository: TransactionAttachmentRepository,
+    private val idempotencyService: IdempotencyService,
+    private val bulkWriteCapGuard: BulkWriteCapGuard,
+    private val agentWriteConfirmationService: AgentWriteConfirmationService,
 ) {
     private val logger = LoggerFactory.getLogger(TransactionResolver::class.java)
 
@@ -508,73 +518,117 @@ class TransactionResolver(
     fun createTransaction(
         input: Map<String, Any?>,
         principal: RequestPrincipal,
+        idempotencyKey: String? = null,
         agentCallContext: AgentCallContext? = null,
-    ): CreateTransactionPayloadDTO {
-        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        val userId = requireNotNull(principal.userId) { "No user in token" }
+    ): CreateTransactionPayloadDTO =
+        idempotencyService.executeIfAgent(
+            accountId = requireNotNull(principal.currentAccountId) { "No active account in token" },
+            key = idempotencyKey,
+            operation = CREATE_TRANSACTION_OPERATION,
+            agentCallContext = agentCallContext,
+        ) {
+            val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+            val userId = requireNotNull(principal.userId) { "No user in token" }
 
-        val command = input.toCreateCommand()
-        val statusDefault = accountPreferencesService.get(accountId).defaultTransactionStatus
-        val commandWithDefaultStatus =
-            if ((input["status"] as? String?) != null) {
-                command
-            } else {
-                command.copy(status = statusDefault)
-            }
-
-        val outcome = service.createTransactionOutcome(commandWithDefaultStatus, accountId, userId, agentCallContext)
-        val saved = outcome.transaction
-        val category = service.findAccessibleCategory(saved.categoryId, accountId)
-        val merchant = saved.merchantId?.let { loadMerchantDTO(it) }
-
-        val appliedRules =
-            outcome.appliedRuleIds.takeIf { it.isNotEmpty() }?.let { ids ->
-                val rulesById =
-                    transactionRuleEngine.preloadRules(accountId)
-                        .filter { it.id != null }
-                        .associateBy { requireNotNull(it.id) }
-                ids.mapNotNull { id ->
-                    val rule = rulesById[id] ?: return@mapNotNull null
-                    val position = ids.indexOf(id) + 1
-                    rule.toRuleDTO(position)
+            val command = input.toCreateCommand()
+            val statusDefault = accountPreferencesService.get(accountId).defaultTransactionStatus
+            val commandWithDefaultStatus =
+                if ((input["status"] as? String?) != null) {
+                    command
+                } else {
+                    command.copy(status = statusDefault)
                 }
-            }
 
-        return CreateTransactionPayloadDTO(
-            transaction =
-                saved.toDTO(
-                    category,
-                    merchant,
-                    hasNfceDocument = false,
-                ),
-            appliedRules = appliedRules,
-        )
-    }
+            val outcome =
+                service.createTransactionOutcome(
+                    commandWithDefaultStatus,
+                    accountId,
+                    userId,
+                    agentCallContext,
+                )
+            val saved = outcome.transaction
+            val category = service.findAccessibleCategory(saved.categoryId, accountId)
+            val merchant = saved.merchantId?.let { loadMerchantDTO(it) }
+
+            val appliedRules =
+                outcome.appliedRuleIds.takeIf { it.isNotEmpty() }?.let { ids ->
+                    val rulesById =
+                        transactionRuleEngine.preloadRules(accountId)
+                            .filter { it.id != null }
+                            .associateBy { requireNotNull(it.id) }
+                    ids.mapNotNull { ruleId ->
+                        val rule = rulesById[ruleId] ?: return@mapNotNull null
+                        val position = ids.indexOf(ruleId) + 1
+                        rule.toRuleDTO(position)
+                    }
+                }
+
+            CreateTransactionPayloadDTO(
+                transaction =
+                    saved.toDTO(
+                        category,
+                        merchant,
+                        hasNfceDocument = false,
+                    ),
+                appliedRules = appliedRules,
+            )
+        }
 
     fun updateTransaction(
         id: String,
         input: Map<String, Any?>,
         principal: RequestPrincipal,
+        idempotencyKey: String? = null,
         agentCallContext: AgentCallContext? = null,
-    ): TransactionDTO {
-        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        val userId = requireNotNull(principal.userId) { "No user in token" }
-        val txId = UUID.fromString(id)
+    ): TransactionDTO =
+        idempotencyService.executeIfAgent(
+            accountId = requireNotNull(principal.currentAccountId) { "No active account in token" },
+            key = idempotencyKey,
+            operation = UPDATE_TRANSACTION_OPERATION,
+            agentCallContext = agentCallContext,
+        ) {
+            val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+            val userId = requireNotNull(principal.userId) { "No user in token" }
+            val txId = UUID.fromString(id)
 
-        val command = input.toUpdateCommand()
-        val updated = service.update(txId, command, accountId, userId, agentCallContext)
-        val category = service.findAccessibleCategory(updated.categoryId, accountId)
-        val merchant = updated.merchantId?.let { loadMerchantDTO(it) }
-        return updated.toDTO(category, merchant, false)
-    }
+            val command = input.toUpdateCommand()
+            val updated = service.update(txId, command, accountId, userId, agentCallContext)
+            val category = service.findAccessibleCategory(updated.categoryId, accountId)
+            val merchant = updated.merchantId?.let { loadMerchantDTO(it) }
+            updated.toDTO(category, merchant, false)
+        }
 
     fun deleteTransaction(
         id: String,
         principal: RequestPrincipal,
+        idempotencyKey: String? = null,
         agentCallContext: AgentCallContext? = null,
-    ): Boolean {
+    ): DeleteTransactionResultDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        return service.delete(UUID.fromString(id), accountId, agentCallContext)
+        val txId = UUID.fromString(id)
+        return idempotencyService.executeIfAgent(
+            accountId = accountId,
+            key = idempotencyKey,
+            operation = DELETE_TRANSACTION_OPERATION,
+            agentCallContext = agentCallContext,
+        ) {
+            if (agentCallContext == null) {
+                DeleteTransactionResultDTO(
+                    deleted = service.delete(txId, accountId, null),
+                )
+            } else {
+                val pending =
+                    agentWriteConfirmationService.requestDeleteTransaction(
+                        accountId = accountId,
+                        transactionId = txId,
+                        agentCallContext = agentCallContext,
+                    )
+                DeleteTransactionResultDTO(
+                    deleted = false,
+                    pendingAction = pending.toDto(),
+                )
+            }
+        }
     }
 
     /** Maps a persisted [Transaction] to the GraphQL DTO (e.g. after domain service create). */
@@ -613,12 +667,46 @@ class TransactionResolver(
         transactionIds: List<String>,
         categoryId: String,
         principal: RequestPrincipal,
+        idempotencyKey: String? = null,
         agentCallContext: AgentCallContext? = null,
     ): BulkCategorizeResult {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val ids = transactionIds.map { UUID.fromString(it) }
         val categoryUuid = UUID.fromString(categoryId)
-        return service.bulkCategorize(ids, categoryUuid, accountId, agentCallContext)
+        return idempotencyService.executeIfAgent(
+            accountId = accountId,
+            key = idempotencyKey,
+            operation = BULK_CATEGORIZE_OPERATION,
+            agentCallContext = agentCallContext,
+        ) {
+            if (agentCallContext == null) {
+                service.bulkCategorize(ids, categoryUuid, accountId, null)
+            } else {
+                when (
+                    val decision =
+                        bulkWriteCapGuard.evaluate(
+                            service.countCategorizableTransactions(ids, accountId),
+                        )
+                ) {
+                    BulkWriteCapDecision.Proceed ->
+                        service.bulkCategorize(ids, categoryUuid, accountId, agentCallContext)
+
+                    is BulkWriteCapDecision.ConfirmationRequired ->
+                        BulkCategorizeResult(
+                            affectedCount = decision.affectedCount,
+                            errors = emptyList(),
+                            outcome = BulkOperationOutcome.CONFIRMATION_REQUIRED,
+                            pendingAction =
+                                agentWriteConfirmationService.requestBulkCategorize(
+                                    accountId = accountId,
+                                    transactionIds = ids,
+                                    categoryId = categoryUuid,
+                                    agentCallContext = agentCallContext,
+                                ).toDto(),
+                        )
+                }
+            }
+        }
     }
 
     fun revertToolCallChanges(
@@ -837,4 +925,11 @@ class TransactionResolver(
 
     private fun Map<String, Any?>.toUpdateCommand(): UpdateTransactionCommand =
         TransactionInputParsing.parseUpdateInput(this)
+
+    private companion object {
+        private const val CREATE_TRANSACTION_OPERATION = "create_transaction"
+        private const val UPDATE_TRANSACTION_OPERATION = "update_transaction"
+        private const val DELETE_TRANSACTION_OPERATION = "delete_transaction"
+        private const val BULK_CATEGORIZE_OPERATION = "bulk_categorize"
+    }
 }

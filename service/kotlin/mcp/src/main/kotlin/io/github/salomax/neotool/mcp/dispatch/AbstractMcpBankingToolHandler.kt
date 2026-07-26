@@ -42,6 +42,31 @@ abstract class AbstractMcpBankingToolHandler(
         return response.data?.get(fieldName)
     }
 
+    protected fun mutationField(
+        fieldName: String,
+        mutation: String,
+        variables: Map<String, Any>,
+        principal: McpPrincipal,
+    ): Any? {
+        val response =
+            try {
+                runBlocking {
+                    bankingClient.mutation(
+                        query = mutation,
+                        variables = variables,
+                        principal = principal,
+                    )
+                }
+            } catch (e: DomainException) {
+                throw e
+            } catch (e: McpToolExecutionException) {
+                throw e
+            }
+
+        response.errors?.firstOrNull()?.let { throw it.toToolException() }
+        return response.data?.get(fieldName)
+    }
+
     protected fun success(payload: Pair<String, Any?>): McpToolResult =
         McpToolSuccessResult(mapOf(payload.first to payload.second.normalize().attachBrCurrencyCode()))
 
@@ -131,6 +156,34 @@ abstract class AbstractMcpBankingToolHandler(
                 parameters = mapOf("field" to name),
             )
 
+    protected fun Map<String, Any?>.uuidListArgument(name: String): List<String>? =
+        when (val value = this[name]) {
+            null -> null
+            is List<*> ->
+                value.map {
+                    it?.toString()?.trim()?.takeIf(String::isNotEmpty)?.also(UUID::fromString)
+                        ?: throw ValidationException(
+                            CommonErrorCode.INVALID_INPUT,
+                            field = name,
+                            parameters = mapOf("field" to name),
+                        )
+                }
+            else ->
+                throw ValidationException(
+                    CommonErrorCode.INVALID_INPUT,
+                    field = name,
+                    parameters = mapOf("field" to name),
+                )
+        }?.takeIf { it.isNotEmpty() }
+
+    protected fun Map<String, Any?>.requiredUuidListArgument(name: String): List<String> =
+        uuidListArgument(name)
+            ?: throw ValidationException(
+                CommonErrorCode.INVALID_INPUT,
+                field = name,
+                parameters = mapOf("field" to name),
+            )
+
     protected fun Map<String, Any?>.dateArgument(name: String): String? =
         stringArgument(name)?.also {
             try {
@@ -143,6 +196,14 @@ abstract class AbstractMcpBankingToolHandler(
                 )
             }
         }
+
+    protected fun Map<String, Any?>.requiredDateArgument(name: String): String =
+        dateArgument(name)
+            ?: throw ValidationException(
+                CommonErrorCode.INVALID_INPUT,
+                field = name,
+                parameters = mapOf("field" to name),
+            )
 
     protected fun Map<String, Any?>.enumArgument(
         name: String,
@@ -202,6 +263,27 @@ abstract class AbstractMcpBankingToolHandler(
             )
         }
     }
+
+    protected fun Map<String, Any?>.doubleArgument(name: String): Double? =
+        when (val value = this[name]) {
+            null -> null
+            is Number -> value.toDouble()
+            is String -> value.toDoubleOrNull()
+            else ->
+                throw ValidationException(
+                    CommonErrorCode.INVALID_INPUT,
+                    field = name,
+                    parameters = mapOf("field" to name),
+                )
+        }
+
+    protected fun Map<String, Any?>.requiredDoubleArgument(name: String): Double =
+        doubleArgument(name)
+            ?: throw ValidationException(
+                CommonErrorCode.INVALID_INPUT,
+                field = name,
+                parameters = mapOf("field" to name),
+            )
 
     protected fun notFound(
         resourceType: String,

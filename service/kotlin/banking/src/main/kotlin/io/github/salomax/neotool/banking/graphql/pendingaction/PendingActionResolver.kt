@@ -13,6 +13,7 @@ import io.github.salomax.neotool.banking.model.dto.investment.HoldingMaturityCon
 import io.github.salomax.neotool.banking.model.dto.investment.MaturityCashMovementCommand
 import io.github.salomax.neotool.banking.service.investment.HoldingMaturityConfirmService
 import io.github.salomax.neotool.banking.service.pendingaction.AccountPendingActionService
+import io.github.salomax.neotool.banking.service.pendingaction.AgentWriteConfirmationService
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
@@ -23,6 +24,7 @@ import java.util.UUID
 class PendingActionResolver(
     private val accountPendingActionService: AccountPendingActionService,
     private val holdingMaturityConfirmService: HoldingMaturityConfirmService,
+    private val agentWriteConfirmationService: AgentWriteConfirmationService,
 ) {
     fun pendingActions(
         status: String?,
@@ -94,6 +96,18 @@ class PendingActionResolver(
         return accountPendingActionService
             .dismiss(UUID.fromString(id), accountId)
             .toDto()
+    }
+
+    fun confirmPendingAction(
+        id: String,
+        principal: RequestPrincipal,
+    ): ConfirmPendingActionResultDTO {
+        val accountId = requireAccountId(principal)
+        return agentWriteConfirmationService.confirmPendingAction(
+            id = UUID.fromString(id),
+            accountId = accountId,
+            principal = principal,
+        )
     }
 
     private fun AccountPendingAction.toDto(): AccountPendingActionDTO =

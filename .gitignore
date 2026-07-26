@@ -19,6 +19,10 @@ venv
 /retry-worker
 *.tsbuildinfo
 .pnpm-store/
+#gradlw
+service/kotlin/daemon/
+service/kotlin/caches/
+service/kotlin/native/
 # Root uses npm (package-lock.json). Keep web/ and mobile/ pnpm lockfiles tracked.
 /pnpm-lock.yaml
 /pnpm-workspace.yaml
@@ -125,7 +129,8 @@ terraform.rc
 .claude/*
 !.claude/settings.json
 !.claude/skills
-.cursor/
+.cursor/*
+!.cursor/mcp.json
 .codex/
 .mcp.json
 

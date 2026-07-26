@@ -22,6 +22,12 @@ interface McpBankingGraphQLClient {
         variables: Map<String, Any>,
         principal: McpPrincipal,
     ): GraphQLResponse
+
+    suspend fun mutation(
+        query: String,
+        variables: Map<String, Any>,
+        principal: McpPrincipal,
+    ): GraphQLResponse = query(query = query, variables = variables, principal = principal)
 }
 
 @Singleton
@@ -39,6 +45,18 @@ class DefaultMcpBankingGraphQLClient(
         query: String,
         variables: Map<String, Any>,
         principal: McpPrincipal,
+    ): GraphQLResponse = execute(document = query, variables = variables, principal = principal)
+
+    override suspend fun mutation(
+        query: String,
+        variables: Map<String, Any>,
+        principal: McpPrincipal,
+    ): GraphQLResponse = execute(document = query, variables = variables, principal = principal)
+
+    private suspend fun execute(
+        document: String,
+        variables: Map<String, Any>,
+        principal: McpPrincipal,
     ): GraphQLResponse =
         withContext(Dispatchers.IO) {
             requireNotNull(principal.principal.currentAccountId) { "MCP token has no active account context" }
@@ -48,7 +66,7 @@ class DefaultMcpBankingGraphQLClient(
                     subjectToken = principal.principal.token,
                     delegatedBy = delegatingServiceId,
                 )
-            val request = GraphQLRequest(query = query, variables = variables)
+            val request = GraphQLRequest(query = document, variables = variables)
             val response =
                 try {
                     httpClient.toBlocking().exchange(

@@ -38,6 +38,8 @@ import java.util.UUID
 @Tag("mcp")
 open class McpControllerIntegrationTest : TestPropertyProvider {
     private val transactionsReadScope = "finance:transactions:read"
+    private val transactionsWriteScope = "finance:transactions:write"
+    private val rulesWriteScope = "finance:rules:write"
 
     @Inject
     @field:Client("/")
@@ -50,6 +52,7 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
     private var bankingResponse: GraphQLResponse = emptyTransactionsResponse()
     private var capturedBankingVariables: Map<String, Any>? = null
     private var capturedBankingPrincipal: McpPrincipal? = null
+    private var bankingDispatchCount: Int = 0
 
     override fun getProperties(): MutableMap<String, String> =
         mutableMapOf(
@@ -57,6 +60,7 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
             "jwt.public-key" to McpJwtTestFixture.publicKeyPem,
             "mcp.resource.audience" to McpJwtTestFixture.AUDIENCE,
             "mcp.resource.metadata-url" to "https://mcp.example.test/.well-known/oauth-protected-resource",
+            "micronaut.executors.scheduled.enabled" to "false",
             "datasources.default.enabled" to "false",
             "flyway.datasources.default.enabled" to "false",
         )
@@ -67,6 +71,7 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
         bankingResponse = emptyTransactionsResponse()
         capturedBankingVariables = null
         capturedBankingPrincipal = null
+        bankingDispatchCount = 0
     }
 
     @Test
@@ -235,6 +240,58 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
     }
 
     @Test
+    fun `write tools are not visible with only read scopes`() {
+        catalogTools =
+            listOf(
+                tool(name = "create_transaction", requiredScope = transactionsWriteScope),
+                tool(name = "delete_transaction", requiredScope = transactionsWriteScope),
+                tool(name = "create_transaction_rule", requiredScope = rulesWriteScope),
+                tool(name = "categorize_transactions", requiredScope = transactionsWriteScope),
+                tool(name = "apply_rule_to_historical", requiredScope = rulesWriteScope),
+            )
+
+        val response =
+            retrieve(
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "list-write-1",
+                        "method" to "tools/list",
+                    ),
+                token = McpJwtTestFixture.accessToken(scope = transactionsReadScope),
+            )
+
+        assertThat(response.toString()).doesNotContain("create_transaction")
+        assertThat(response.toString()).doesNotContain("delete_transaction")
+        assertThat(response.toString()).doesNotContain("create_transaction_rule")
+        assertThat(response.toString()).doesNotContain("categorize_transactions")
+        assertThat(response.toString()).doesNotContain("apply_rule_to_historical")
+    }
+
+    @Test
+    fun `write catalog does not expose pending action confirmation tool`() {
+        catalogTools =
+            listOf(
+                tool(name = "create_transaction", requiredScope = transactionsWriteScope),
+                tool(name = "delete_transaction", requiredScope = transactionsWriteScope),
+                tool(name = "categorize_transactions", requiredScope = transactionsWriteScope),
+            )
+
+        val response =
+            retrieve(
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "list-write-confirmation-guard",
+                        "method" to "tools/list",
+                    ),
+                token = McpJwtTestFixture.accessToken(scope = transactionsWriteScope),
+            )
+
+        assertThat(response.toString()).doesNotContain("confirmPendingAction")
+    }
+
+    @Test
     fun `tools call does not dispatch when token lacks tool required scope`() {
         catalogTools = listOf(tool(name = "list_transactions", requiredScope = transactionsReadScope))
 
@@ -257,6 +314,404 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
         assertThat(response["result"]).isNull()
         assertThat((response["error"] as Map<*, *>)["message"]).isEqualTo("Unknown tool")
         assertThat(capturedBankingVariables).isNull()
+    }
+
+    @Test
+    fun `read-only token cannot call write tool`() {
+        catalogTools = listOf(tool(name = "create_transaction", requiredScope = transactionsWriteScope))
+
+        val response =
+            retrieve(
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "call-write-readonly",
+                        "method" to "tools/call",
+                        "params" to
+                            mapOf(
+                                "name" to "create_transaction",
+                                "arguments" to
+                                    mapOf(
+                                        "idempotency_key" to "key-1",
+                                        "financialAccountId" to UUID.randomUUID().toString(),
+                                        "creditDebitType" to "DEBIT",
+                                        "type" to "OTHER_EXPENSE",
+                                        "amount" to 10.0,
+                                        "date" to "2026-07-25",
+                                        "description" to "Coffee",
+                                    ),
+                            ),
+                    ),
+                token = McpJwtTestFixture.accessToken(scope = transactionsReadScope),
+            )
+
+        assertThat((response["error"] as Map<*, *>)["message"]).isEqualTo("Unknown tool")
+        assertThat(capturedBankingVariables).isNull()
+    }
+
+    @Test
+    fun `transactions write scope can call create transaction but not rule tool`() {
+        catalogTools =
+            listOf(
+                tool(name = "create_transaction", requiredScope = transactionsWriteScope),
+                tool(name = "create_transaction_rule", requiredScope = rulesWriteScope),
+                tool(name = "categorize_transactions", requiredScope = transactionsWriteScope),
+                tool(name = "apply_rule_to_historical", requiredScope = rulesWriteScope),
+            )
+        bankingResponse =
+            GraphQLResponse(
+                data =
+                    mapOf(
+                        "createTransaction" to
+                            mapOf(
+                                "transaction" to
+                                    mapOf(
+                                        "id" to "tx-1",
+                                        "amount" to 42.5,
+                                        "currencyCode" to "BRL",
+                                        "description" to "Coffee",
+                                    ),
+                            ),
+                    ),
+            )
+
+        val allowedResponse =
+            retrieve(
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "call-write-allowed",
+                        "method" to "tools/call",
+                        "params" to
+                            mapOf(
+                                "name" to "create_transaction",
+                                "arguments" to
+                                    mapOf(
+                                        "idempotency_key" to "key-1",
+                                        "financialAccountId" to UUID.randomUUID().toString(),
+                                        "creditDebitType" to "DEBIT",
+                                        "type" to "OTHER_EXPENSE",
+                                        "amount" to 10.0,
+                                        "date" to "2026-07-25",
+                                        "description" to "Coffee",
+                                    ),
+                            ),
+                    ),
+                token = McpJwtTestFixture.accessToken(scope = transactionsWriteScope),
+            )
+
+        assertThat((allowedResponse["result"] as Map<*, *>)["isError"]).isEqualTo(false)
+        assertThat(capturedBankingVariables).containsEntry("idempotencyKey", "key-1")
+
+        capturedBankingVariables = null
+        capturedBankingPrincipal = null
+        val forbiddenResponse =
+            retrieve(
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "call-rule-forbidden",
+                        "method" to "tools/call",
+                        "params" to
+                            mapOf(
+                                "name" to "create_transaction_rule",
+                                "arguments" to
+                                    mapOf(
+                                        "idempotency_key" to "key-2",
+                                        "pattern" to "ifood",
+                                        "patternType" to "CONTAINS",
+                                        "applicableTo" to "EXPENSE",
+                                        "typeOverride" to "TRANSFER",
+                                    ),
+                            ),
+                    ),
+                token = McpJwtTestFixture.accessToken(scope = transactionsWriteScope),
+            )
+
+        assertThat((forbiddenResponse["error"] as Map<*, *>)["message"]).isEqualTo("Unknown tool")
+        assertThat(capturedBankingVariables).isNull()
+    }
+
+    @Test
+    fun `transactions write scope can call categorize transactions but not apply rule to historical`() {
+        val accountId = UUID.randomUUID()
+        val transactionIds = listOf(UUID.randomUUID().toString(), UUID.randomUUID().toString())
+        val categoryId = UUID.randomUUID().toString()
+        catalogTools =
+            listOf(
+                tool(name = "categorize_transactions", requiredScope = transactionsWriteScope),
+                tool(name = "apply_rule_to_historical", requiredScope = rulesWriteScope),
+            )
+        bankingResponse =
+            GraphQLResponse(
+                data =
+                    mapOf(
+                        "bulkCategorize" to
+                            mapOf(
+                                "affectedCount" to 3,
+                                "errors" to emptyList<String>(),
+                                "outcome" to "CONFIRMATION_REQUIRED",
+                            ),
+                    ),
+            )
+
+        val allowedResponse =
+            retrieve(
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "call-bulk-categorize",
+                        "method" to "tools/call",
+                        "params" to
+                            mapOf(
+                                "name" to "categorize_transactions",
+                                "arguments" to
+                                    mapOf(
+                                        "idempotency_key" to "bulk-key-1",
+                                        "transactionIds" to transactionIds,
+                                        "categoryId" to categoryId,
+                                    ),
+                            ),
+                    ),
+                token = McpJwtTestFixture.accessToken(accountId = accountId, scope = transactionsWriteScope),
+            )
+
+        val result = allowedResponse["result"] as Map<*, *>
+        val content = (result["content"] as List<*>).first() as Map<*, *>
+        val textBody = objectMapper.readValue(content["text"].toString(), Map::class.java)
+        val payload = textBody["bulkCategorize"] as Map<*, *>
+
+        assertThat(result["isError"]).isEqualTo(false)
+        assertThat(capturedBankingPrincipal?.principal?.currentAccountId).isEqualTo(accountId)
+        assertThat(capturedBankingVariables).containsEntry("idempotencyKey", "bulk-key-1")
+        assertThat(capturedBankingVariables).containsEntry("transactionIds", transactionIds)
+        assertThat(capturedBankingVariables).containsEntry("categoryId", categoryId)
+        assertThat(payload["outcome"]).isEqualTo("CONFIRMATION_REQUIRED")
+
+        capturedBankingVariables = null
+        val forbiddenResponse =
+            retrieve(
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "call-apply-rule-forbidden",
+                        "method" to "tools/call",
+                        "params" to
+                            mapOf(
+                                "name" to "apply_rule_to_historical",
+                                "arguments" to
+                                    mapOf(
+                                        "id" to UUID.randomUUID().toString(),
+                                        "idempotency_key" to "rule-key-1",
+                                    ),
+                            ),
+                    ),
+                token = McpJwtTestFixture.accessToken(scope = transactionsWriteScope),
+            )
+
+        assertThat((forbiddenResponse["error"] as Map<*, *>)["message"]).isEqualTo("Unknown tool")
+        assertThat(capturedBankingVariables).isNull()
+    }
+
+    @Test
+    fun `rules write scope can call apply rule to historical but not categorize transactions`() {
+        catalogTools =
+            listOf(
+                tool(name = "categorize_transactions", requiredScope = transactionsWriteScope),
+                tool(name = "apply_rule_to_historical", requiredScope = rulesWriteScope),
+            )
+        bankingResponse =
+            GraphQLResponse(
+                data =
+                    mapOf(
+                        "applyTransactionRuleToHistorical" to
+                            mapOf(
+                                "affectedCount" to 2,
+                                "errors" to emptyList<String>(),
+                                "outcome" to "EXECUTED",
+                            ),
+                    ),
+            )
+
+        val allowedResponse =
+            retrieve(
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "call-apply-rule-allowed",
+                        "method" to "tools/call",
+                        "params" to
+                            mapOf(
+                                "name" to "apply_rule_to_historical",
+                                "arguments" to
+                                    mapOf(
+                                        "id" to UUID.randomUUID().toString(),
+                                        "idempotency_key" to "rule-key-2",
+                                    ),
+                            ),
+                    ),
+                token = McpJwtTestFixture.accessToken(scope = rulesWriteScope),
+            )
+
+        val result = allowedResponse["result"] as Map<*, *>
+        val content = (result["content"] as List<*>).first() as Map<*, *>
+        val textBody = objectMapper.readValue(content["text"].toString(), Map::class.java)
+        val payload = textBody["applyTransactionRuleToHistorical"] as Map<*, *>
+
+        assertThat(result["isError"]).isEqualTo(false)
+        assertThat(capturedBankingVariables).containsEntry("idempotencyKey", "rule-key-2")
+        assertThat(payload["outcome"]).isEqualTo("EXECUTED")
+
+        capturedBankingVariables = null
+        val forbiddenResponse =
+            retrieve(
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "call-bulk-categorize-forbidden",
+                        "method" to "tools/call",
+                        "params" to
+                            mapOf(
+                                "name" to "categorize_transactions",
+                                "arguments" to
+                                    mapOf(
+                                        "idempotency_key" to "bulk-key-2",
+                                        "transactionIds" to listOf(UUID.randomUUID().toString()),
+                                        "categoryId" to UUID.randomUUID().toString(),
+                                    ),
+                            ),
+                    ),
+                token = McpJwtTestFixture.accessToken(scope = rulesWriteScope),
+            )
+
+        assertThat((forbiddenResponse["error"] as Map<*, *>)["message"]).isEqualTo("Unknown tool")
+        assertThat(capturedBankingVariables).isNull()
+    }
+
+    @Test
+    fun `create transaction tools call attaches agent call context for banking dispatch`() {
+        catalogTools = listOf(tool(name = "create_transaction", requiredScope = transactionsWriteScope))
+        bankingResponse = createTransactionBankingResponse(id = "tx-agent-1", description = "Agent context")
+
+        val response =
+            retrieve(
+                body = createTransactionCallBody(id = "call-agent-context", idempotencyKey = "agent-key"),
+                token = McpJwtTestFixture.accessToken(scope = transactionsWriteScope, clientId = "agent-client-a"),
+            )
+
+        assertThat((response["result"] as Map<*, *>)["isError"]).isEqualTo(false)
+        val principal = requireNotNull(capturedBankingPrincipal)
+        assertThat(principal.clientId).isEqualTo("agent-client-a")
+        assertThat(principal.agentCallContext).isNotNull()
+        assertThat(principal.agentCallContext!!.originClientId).isEqualTo("agent-client-a")
+        assertThat(principal.agentCallContext!!.toolCallId).isNotNull()
+        assertThat(capturedBankingVariables).containsEntry("idempotencyKey", "agent-key")
+    }
+
+    @Test
+    fun `create transaction tools call with same idempotency key dispatches key on every call`() {
+        catalogTools = listOf(tool(name = "create_transaction", requiredScope = transactionsWriteScope))
+        bankingResponse = createTransactionBankingResponse(id = "tx-idempotent-1", description = "Idempotent")
+
+        val first =
+            retrieve(
+                body = createTransactionCallBody(id = "call-idempotent-1", idempotencyKey = "same-key"),
+                token = McpJwtTestFixture.accessToken(scope = transactionsWriteScope),
+            )
+        val second =
+            retrieve(
+                body = createTransactionCallBody(id = "call-idempotent-2", idempotencyKey = "same-key"),
+                token = McpJwtTestFixture.accessToken(scope = transactionsWriteScope),
+            )
+
+        assertThat((first["result"] as Map<*, *>)["isError"]).isEqualTo(false)
+        assertThat((second["result"] as Map<*, *>)["isError"]).isEqualTo(false)
+        assertThat(bankingDispatchCount).isEqualTo(2)
+        assertThat(capturedBankingVariables).containsEntry("idempotencyKey", "same-key")
+    }
+
+    @Test
+    fun `create transaction tools call rejects unsupported account argument before banking dispatch`() {
+        catalogTools = listOf(tool(name = "create_transaction", requiredScope = transactionsWriteScope))
+
+        val response =
+            retrieve(
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "call-unsupported-account",
+                        "method" to "tools/call",
+                        "params" to
+                            mapOf(
+                                "name" to "create_transaction",
+                                "arguments" to
+                                    mapOf(
+                                        "accountId" to UUID.randomUUID().toString(),
+                                        "idempotency_key" to "key-1",
+                                        "financialAccountId" to UUID.randomUUID().toString(),
+                                        "creditDebitType" to "DEBIT",
+                                        "type" to "OTHER_EXPENSE",
+                                        "amount" to 10.0,
+                                        "date" to "2026-07-25",
+                                        "description" to "Unsupported",
+                                    ),
+                            ),
+                    ),
+                token = McpJwtTestFixture.accessToken(scope = transactionsWriteScope),
+            )
+
+        val result = response["result"] as Map<*, *>
+        assertThat(result["isError"]).isEqualTo(true)
+        assertThat(bankingDispatchCount).isZero()
+        assertThat(capturedBankingVariables).isNull()
+    }
+
+    @Test
+    fun `delete transaction tools call forwards id and idempotency key`() {
+        val accountId = UUID.randomUUID()
+        val transactionId = UUID.randomUUID().toString()
+        catalogTools = listOf(tool(name = "delete_transaction", requiredScope = transactionsWriteScope))
+        bankingResponse =
+            GraphQLResponse(
+                data =
+                    mapOf(
+                        "deleteTransaction" to
+                            mapOf(
+                                "deleted" to false,
+                                "pendingAction" to
+                                    mapOf(
+                                        "id" to "pending-1",
+                                        "type" to "AGENT_WRITE_CONFIRMATION",
+                                        "severity" to "ACTION_REQUIRED",
+                                        "status" to "PENDING",
+                                        "entityType" to "DeleteTransactionConfirmationPayload",
+                                        "entityId" to UUID.randomUUID().toString(),
+                                        "payload" to emptyMap<String, Any>(),
+                                    ),
+                            ),
+                    ),
+            )
+
+        val response =
+            retrieve(
+                body =
+                    deleteTransactionCallBody(
+                        id = "call-delete-1",
+                        idempotencyKey = "delete-key-1",
+                        transactionId = transactionId,
+                    ),
+                token = McpJwtTestFixture.accessToken(accountId = accountId, scope = transactionsWriteScope),
+            )
+
+        val result = response["result"] as Map<*, *>
+        val content = (result["content"] as List<*>).first() as Map<*, *>
+        val textBody = objectMapper.readValue(content["text"].toString(), Map::class.java)
+        assertThat(result["isError"]).isEqualTo(false)
+        val payload = textBody["deleteTransaction"] as Map<*, *>
+        assertThat(capturedBankingVariables).containsEntry("id", transactionId)
+        assertThat(capturedBankingVariables).containsEntry("idempotencyKey", "delete-key-1")
+        assertThat(payload["deleted"]).isEqualTo(false)
+        assertThat(payload["pendingAction"]).isInstanceOf(Map::class.java)
     }
 
     @Test
@@ -380,6 +835,18 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
                 variables: Map<String, Any>,
                 principal: McpPrincipal,
             ): GraphQLResponse {
+                bankingDispatchCount += 1
+                capturedBankingVariables = variables
+                capturedBankingPrincipal = principal
+                return bankingResponse
+            }
+
+            override suspend fun mutation(
+                query: String,
+                variables: Map<String, Any>,
+                principal: McpPrincipal,
+            ): GraphQLResponse {
+                bankingDispatchCount += 1
                 capturedBankingVariables = variables
                 capturedBankingPrincipal = principal
                 return bankingResponse
@@ -399,6 +866,70 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
             inputSchema = mapOf("type" to "object"),
             mcpExposed = true,
             mcpRequiredScope = requiredScope,
+        )
+
+    private fun createTransactionCallBody(
+        id: String,
+        idempotencyKey: String,
+    ): Map<String, Any?> =
+        mapOf(
+            "jsonrpc" to "2.0",
+            "id" to id,
+            "method" to "tools/call",
+            "params" to
+                mapOf(
+                    "name" to "create_transaction",
+                    "arguments" to
+                        mapOf(
+                            "idempotency_key" to idempotencyKey,
+                            "financialAccountId" to UUID.randomUUID().toString(),
+                            "creditDebitType" to "DEBIT",
+                            "type" to "OTHER_EXPENSE",
+                            "amount" to 10.0,
+                            "date" to "2026-07-25",
+                            "description" to "Coffee",
+                        ),
+                ),
+        )
+
+    private fun deleteTransactionCallBody(
+        id: String,
+        idempotencyKey: String,
+        transactionId: String,
+    ): Map<String, Any?> =
+        mapOf(
+            "jsonrpc" to "2.0",
+            "id" to id,
+            "method" to "tools/call",
+            "params" to
+                mapOf(
+                    "name" to "delete_transaction",
+                    "arguments" to
+                        mapOf(
+                            "id" to transactionId,
+                            "idempotency_key" to idempotencyKey,
+                        ),
+                ),
+        )
+
+    private fun createTransactionBankingResponse(
+        id: String,
+        description: String,
+    ): GraphQLResponse =
+        GraphQLResponse(
+            data =
+                mapOf(
+                    "createTransaction" to
+                        mapOf(
+                            "transaction" to
+                                mapOf(
+                                    "id" to id,
+                                    "amount" to 10.0,
+                                    "currencyCode" to "BRL",
+                                    "description" to description,
+                                ),
+                        ),
+                ),
         )
 
     private fun emptyTransactionsResponse(): GraphQLResponse =

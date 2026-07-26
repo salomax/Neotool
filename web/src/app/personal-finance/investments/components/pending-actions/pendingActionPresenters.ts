@@ -5,6 +5,7 @@ import { toStartOfDayLocal, formatDateOnlyLocale } from "@/shared/utils/date/dat
 export type PendingActionRowData = PendingActionsQuery["pendingActions"][number];
 
 type PendingActionPayload = {
+  operation?: string;
   assetName?: string;
   recurringPaymentName?: string;
   financialAccountName?: string;
@@ -15,6 +16,9 @@ type PendingActionPayload = {
   currencyCode?: string;
   ledgerBalance?: string | number;
   variableAmount?: boolean;
+  transactionId?: string;
+  categoryId?: string;
+  ruleId?: string;
 };
 
 export function pendingActionPayload(row: PendingActionRowData): PendingActionPayload {
@@ -23,6 +27,18 @@ export function pendingActionPayload(row: PendingActionRowData): PendingActionPa
 
 export function pendingActionTitle(row: PendingActionRowData): string {
   const payload = pendingActionPayload(row);
+  if (row.type === PendingActionType.AgentWriteConfirmation) {
+    switch (payload.operation) {
+      case "delete_transaction":
+        return "Transaction deletion";
+      case "bulk_categorize":
+        return "Bulk categorization";
+      case "apply_rule_to_historical":
+        return "Rule replay";
+      default:
+        return "Agent confirmation";
+    }
+  }
   return (
     row.relatedHolding?.asset?.name ??
     payload.recurringPaymentName ??
@@ -117,6 +133,19 @@ export function pendingActionDescription(
 
   if (type === PendingActionType.BankAccountNegativeBalance) {
     return t("investments.pendingActions.descriptions.negativeBalance");
+  }
+
+  if (type === PendingActionType.AgentWriteConfirmation) {
+    switch (payload.operation) {
+      case "delete_transaction":
+        return t("investments.pendingActions.descriptions.agentWriteDelete");
+      case "bulk_categorize":
+        return t("investments.pendingActions.descriptions.agentWriteBulkCategorize");
+      case "apply_rule_to_historical":
+        return t("investments.pendingActions.descriptions.agentWriteApplyRule");
+      default:
+        return t("investments.pendingActions.descriptions.agentWriteConfirmation");
+    }
   }
 
   return "";

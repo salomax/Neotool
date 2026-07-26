@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.graphql.pendingaction
 
+import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingAction
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
 import java.time.Instant
@@ -22,3 +23,20 @@ data class ConfirmHoldingMaturityResultDTO(
     val bankingTransaction: TransactionDTO?,
     val pendingAction: AccountPendingActionDTO,
 )
+
+data class ConfirmPendingActionResultDTO(
+    val pendingAction: AccountPendingActionDTO,
+)
+
+fun AccountPendingAction.toDto(): AccountPendingActionDTO =
+    AccountPendingActionDTO(
+        id = requireNotNull(id),
+        type = type.name,
+        severity = severity.name,
+        status = status.name,
+        entityType = entityType,
+        entityId = entityId,
+        payload = payload,
+        createdAt = createdAt,
+        expiresAt = expiresAt,
+    )

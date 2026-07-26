@@ -173,6 +173,15 @@ interface TransactionRepository {
     ): Int
 
     /**
+     * Counts how many of the provided IDs belong to the account and are not soft-deleted.
+     * Used by MCP bulk-write cap enforcement before mutating.
+     */
+    fun countCategorizableTransactions(
+        transactionIds: List<UUID>,
+        accountId: UUID,
+    ): Int
+
+    /**
      * Returns category totals for the given period (CAT-14). Only POSTED/PENDING transactions
      * are included; uncategorized transactions are exposed as a special row with
      * category = null and uncategorized = true, ordered last.

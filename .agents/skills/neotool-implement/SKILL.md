@@ -11,13 +11,18 @@ description: >
 compatibility: Requires GitHub MCP or gh CLI. Reads skills from .agents/skills/ at the project root.
 metadata:
   author: invistus
-  version: "1.2"
+  version: "1.3"
 ---
 
 # Implementation Orchestrator — Invistus
 
 Coordinate the full implementation of a GitHub issue by reading its backlog, loading the right
 skills for the scope, and executing tasks one by one.
+
+**Token discipline (v1.3):** apply
+[neotool-conventions/references/token-discipline.md](../neotool-conventions/references/token-discipline.md)
+for every implementation — narrowest tests first, bound CLI output, summarize before re-run,
+broad-rerun cap, minimal-path GitHub lookups. Do not re-author those rules here.
 
 ## Non-negotiable rules
 
@@ -31,6 +36,11 @@ skills for the scope, and executing tasks one by one.
 ## Workflow
 
 ### Step 1 — Read the issue and locate the backlog
+
+**Minimal-path lookup** (see `token-discipline.md` §5): when the user already gave an issue URL
+and/or backlog comment URL, fetch **only** those resources — one issue read + one comments
+read (or the single comment if linked). Do **not** fan out exploratory project-board,
+milestone, or label lookups unless the backlog explicitly requires board metadata.
 
 Read the issue from GitHub:
 - Title, description, labels, and current state
@@ -46,7 +56,9 @@ Please run neotool-solution-design and neotool-backlog-gen first, then come back
 
 ### Step 2 — Determine scope from the backlog
 
-Parse the backlog to identify which layers are involved:
+Parse the backlog to identify which layers are involved. Prefer deriving scope from the
+backlog text already loaded in Step 1 — do not open extra GitHub/project calls just to
+classify metadata.
 
 | Backlog section present     | Load this skill          |
 |-----------------------------|--------------------------|
@@ -60,6 +72,7 @@ Parse the backlog to identify which layers are involved:
 `mobile/` (React Native + Expo) load `neotool-expo-mobile`. A cross-platform issue may load both.
 
 Load all skills that match before writing any code. Skills are located at `.agents/skills/` in the project root.
+Always load `token-discipline.md` via `neotool-conventions` for implementation work.
 
 ### Step 3 — Confirm branch
 
@@ -98,13 +111,37 @@ Treat each checkbox as a unit of work. Complete one before starting the next.
 
 ### Step 5 — Run validation
 
-After all tasks are complete, run the project's validation commands based on scope:
+After all tasks are complete, validate using **narrowing rings** from
+`token-discipline.md`. Always pass `--console=plain` for Gradle. Prefer RTK-compressed
+output when the hook is active; use `rtk proxy <cmd>` only when the filter hides a needed line.
 
-**Backend:**
+**Backend — ring 1 (inner loop, required):**
 ```bash
-./gradlew ktlintCheck
-./gradlew test
+./gradlew :<module>:testUnit --console=plain
+./gradlew :<module>:ktlintCheck --console=plain   # if the module exposes it; else root ktlintCheck on touched paths
 ```
+`<module>` = Gradle project owning the diff (`banking`, `mcp`, `security`, …). Run once per
+touched module.
+
+**Backend — ring 2 (escalate only after ring 1 is green, or when IT is in backlog scope):**
+```bash
+./gradlew :<module>:testIntegration --console=plain
+```
+
+**Backend — ring 3 (pre-PR gate only — not the diagnostic loop):**
+```bash
+./gradlew ktlintCheck --console=plain
+./gradlew test --console=plain
+```
+
+**Failure handling (mandatory):**
+1. Summarize the failure (command, failing tests, one-line hypothesis) **before** any re-run.
+2. Re-run only the narrowest command that falsifies the hypothesis
+   (add `--tests '…FullyQualifiedClass…'` when possible).
+3. **Broad-rerun cap:** at most **2** broad reruns (ring 2+ / unscoped suite) for the same
+   failing scope. After the second, **stop and ask the user** — do not burn a third broad cycle.
+4. Never dump raw Surefire/Failsafe XML or full Micronaut/Flyway/Testcontainers startup logs;
+   use tail/grep/filtered excerpts.
 
 **Frontend (web):**
 ```bash
@@ -120,7 +157,7 @@ pnpm typecheck
 pnpm test
 ```
 
-Fix any failures before proceeding.
+Fix any failures before proceeding (within the rerun-cap rules above).
 
 ### Step 5.5 — Self-review before requesting review
 

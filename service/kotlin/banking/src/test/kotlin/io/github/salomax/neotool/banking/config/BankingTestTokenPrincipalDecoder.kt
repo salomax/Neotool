@@ -24,10 +24,20 @@ class BankingTestTokenPrincipalDecoder : TokenPrincipalDecoder {
         const val TEST_TOKEN = "test-token"
         const val MCP_SERVICE_TOKEN = "mcp-service-token"
         const val OTHER_SERVICE_TOKEN = "other-service-token"
+        private const val DYNAMIC_MCP_SERVICE_TOKEN_PREFIX = "mcp-service-token:"
+
+        fun dynamicMcpServiceToken(
+            accountId: UUID,
+            userId: UUID = TEST_USER_ID,
+            tokenId: String = "dynamic-mcp-token-id",
+        ): String = "$DYNAMIC_MCP_SERVICE_TOKEN_PREFIX$accountId:$userId:$tokenId"
     }
 
     override fun fromToken(token: String): RequestPrincipal {
         if (token.isBlank()) throw AuthenticationRequiredException("Access token is required")
+        if (token.startsWith(DYNAMIC_MCP_SERVICE_TOKEN_PREFIX)) {
+            return parseDynamicMcpServiceToken(token)
+        }
         return when (token) {
             MCP_SERVICE_TOKEN ->
                 RequestPrincipal(
@@ -41,6 +51,8 @@ class BankingTestTokenPrincipalDecoder : TokenPrincipalDecoder {
                         listOf(
                             BankingPermissions.BANKING_ACCOUNT_VIEW,
                             BankingPermissions.BANKING_TRANSACTION_CREATE,
+                            BankingPermissions.BANKING_TRANSACTION_UPDATE,
+                            BankingPermissions.BANKING_CATEGORY_MANAGE,
                         ),
                     currentAccountId = TEST_ACCOUNT_ID,
                     delegatedBy = "mcp-service",
@@ -57,6 +69,8 @@ class BankingTestTokenPrincipalDecoder : TokenPrincipalDecoder {
                         listOf(
                             BankingPermissions.BANKING_ACCOUNT_VIEW,
                             BankingPermissions.BANKING_TRANSACTION_CREATE,
+                            BankingPermissions.BANKING_TRANSACTION_UPDATE,
+                            BankingPermissions.BANKING_CATEGORY_MANAGE,
                         ),
                     currentAccountId = TEST_ACCOUNT_ID,
                     delegatedBy = "other-service",
@@ -72,9 +86,34 @@ class BankingTestTokenPrincipalDecoder : TokenPrincipalDecoder {
                         listOf(
                             BankingPermissions.BANKING_ACCOUNT_VIEW,
                             BankingPermissions.BANKING_TRANSACTION_CREATE,
+                            BankingPermissions.BANKING_TRANSACTION_UPDATE,
+                            BankingPermissions.BANKING_CATEGORY_MANAGE,
                         ),
                     currentAccountId = TEST_ACCOUNT_ID,
                 )
         }
+    }
+
+    private fun parseDynamicMcpServiceToken(token: String): RequestPrincipal {
+        val payload = token.removePrefix(DYNAMIC_MCP_SERVICE_TOKEN_PREFIX)
+        val parts = payload.split(":")
+        require(parts.size == 3) { "Invalid dynamic MCP service token payload" }
+        return RequestPrincipal(
+            principalType = PrincipalType.SERVICE,
+            userId = UUID.fromString(parts[1]),
+            serviceId = UUID.fromString("20000000-0000-0000-0000-000000000001"),
+            token = token,
+            tokenId = parts[2],
+            permissionsFromToken = listOf("service:call"),
+            userPermissions =
+                listOf(
+                    BankingPermissions.BANKING_ACCOUNT_VIEW,
+                    BankingPermissions.BANKING_TRANSACTION_CREATE,
+                    BankingPermissions.BANKING_TRANSACTION_UPDATE,
+                    BankingPermissions.BANKING_CATEGORY_MANAGE,
+                ),
+            currentAccountId = UUID.fromString(parts[0]),
+            delegatedBy = "mcp-service",
+        )
     }
 }

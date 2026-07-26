@@ -6,15 +6,22 @@ import io.github.salomax.neotool.banking.domain.transaction.PatternType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
+import io.github.salomax.neotool.banking.graphql.pendingaction.toDto
 import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeResult
+import io.github.salomax.neotool.banking.model.dto.transaction.BulkOperationOutcome
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateCategoryInput
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateCategoryInput
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionRuleInput
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.service.pendingaction.AgentWriteConfirmationService
+import io.github.salomax.neotool.banking.service.transaction.BulkWriteCapDecision
+import io.github.salomax.neotool.banking.service.transaction.BulkWriteCapGuard
+import io.github.salomax.neotool.banking.service.transaction.IdempotencyService
 import io.github.salomax.neotool.banking.service.transaction.TransactionCategoryService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleService
+import io.github.salomax.neotool.banking.service.transaction.executeIfAgent
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.common.security.agent.AgentCallContext
@@ -28,6 +35,9 @@ class TransactionCategoryResolver(
     private val ruleService: TransactionRuleService,
     private val categoryRepository: TransactionCategoryRepository,
     private val merchantRepository: MerchantRepository,
+    private val idempotencyService: IdempotencyService,
+    private val bulkWriteCapGuard: BulkWriteCapGuard,
+    private val agentWriteConfirmationService: AgentWriteConfirmationService,
 ) {
     fun createTransactionCategory(
         input: Map<String, Any?>,
@@ -202,50 +212,91 @@ class TransactionCategoryResolver(
     fun createTransactionRule(
         input: Map<String, Any?>,
         principal: RequestPrincipal,
+        idempotencyKey: String? = null,
         agentCallContext: AgentCallContext? = null,
-    ): TransactionRuleDTO {
-        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        val categoryId = (input["categoryId"] as? String)?.let(UUID::fromString)
-        val merchantId = (input["merchantId"] as? String)?.let(UUID::fromString)
-        val pattern = input["pattern"] as? String ?: throw IllegalArgumentException("pattern is required")
-        val patternTypeRaw =
-            input["patternType"] as? String ?: throw IllegalArgumentException(
-                "patternType is required",
-            )
-        val applicableToRaw =
-            input["applicableTo"] as? String ?: throw IllegalArgumentException(
-                "applicableTo is required",
-            )
-        val priority = (input["priority"] as? Number)?.toInt()
+    ): TransactionRuleDTO =
+        idempotencyService.executeIfAgent(
+            accountId = requireNotNull(principal.currentAccountId) { "No active account in token" },
+            key = idempotencyKey,
+            operation = CREATE_TRANSACTION_RULE_OPERATION,
+            agentCallContext = agentCallContext,
+        ) {
+            val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+            val categoryId = (input["categoryId"] as? String)?.let(UUID::fromString)
+            val merchantId = (input["merchantId"] as? String)?.let(UUID::fromString)
+            val pattern = input["pattern"] as? String ?: throw IllegalArgumentException("pattern is required")
+            val patternTypeRaw =
+                input["patternType"] as? String ?: throw IllegalArgumentException(
+                    "patternType is required",
+                )
+            val applicableToRaw =
+                input["applicableTo"] as? String ?: throw IllegalArgumentException(
+                    "applicableTo is required",
+                )
+            val priority = (input["priority"] as? Number)?.toInt()
 
-        val created =
-            ruleService.create(
-                CreateTransactionRuleInput(
-                    categoryId = categoryId,
-                    merchantId = merchantId,
-                    typeOverride = (input["typeOverride"] as? String)?.let { CategoryApplicableTo.valueOf(it) },
-                    descriptionOverride = input["descriptionOverride"] as? String,
-                    tagsOverride = (input["tagsOverride"] as? List<*>)?.filterIsInstance<String>(),
-                    pattern = pattern,
-                    patternType = PatternType.valueOf(patternTypeRaw),
-                    applicableTo = CategoryApplicableTo.valueOf(applicableToRaw),
-                    priority = priority,
-                ),
-                accountId,
-                agentCallContext,
-            )
-        val category = created.categoryId?.let { categoryRepository.findById(it) }
-        val merchant = created.merchantId?.let { merchantRepository.findById(it) }
-        return created.toDTO(category, merchant, position = 1)
-    }
+            val created =
+                ruleService.create(
+                    CreateTransactionRuleInput(
+                        categoryId = categoryId,
+                        merchantId = merchantId,
+                        typeOverride = (input["typeOverride"] as? String)?.let { CategoryApplicableTo.valueOf(it) },
+                        descriptionOverride = input["descriptionOverride"] as? String,
+                        tagsOverride = (input["tagsOverride"] as? List<*>)?.filterIsInstance<String>(),
+                        pattern = pattern,
+                        patternType = PatternType.valueOf(patternTypeRaw),
+                        applicableTo = CategoryApplicableTo.valueOf(applicableToRaw),
+                        priority = priority,
+                    ),
+                    accountId,
+                    agentCallContext,
+                )
+            val category = created.categoryId?.let { categoryRepository.findById(it) }
+            val merchant = created.merchantId?.let { merchantRepository.findById(it) }
+            created.toDTO(category, merchant, position = 1)
+        }
 
     fun applyTransactionRuleToHistorical(
         id: String,
         principal: RequestPrincipal,
+        idempotencyKey: String? = null,
         agentCallContext: AgentCallContext? = null,
     ): BulkCategorizeResult {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        return ruleService.applyToHistorical(UUID.fromString(id), accountId, agentCallContext)
+        val ruleId = UUID.fromString(id)
+        return idempotencyService.executeIfAgent(
+            accountId = accountId,
+            key = idempotencyKey,
+            operation = APPLY_RULE_TO_HISTORICAL_OPERATION,
+            agentCallContext = agentCallContext,
+        ) {
+            if (agentCallContext == null) {
+                ruleService.applyToHistorical(ruleId, accountId, null)
+            } else {
+                when (
+                    val decision =
+                        bulkWriteCapGuard.evaluate(
+                            ruleService.countHistoricalMatches(ruleId, accountId),
+                        )
+                ) {
+                    BulkWriteCapDecision.Proceed ->
+                        ruleService.applyToHistorical(ruleId, accountId, agentCallContext)
+
+                    is BulkWriteCapDecision.ConfirmationRequired ->
+                        BulkCategorizeResult(
+                            affectedCount = decision.affectedCount,
+                            errors = emptyList(),
+                            outcome = BulkOperationOutcome.CONFIRMATION_REQUIRED,
+                            pendingAction =
+                                agentWriteConfirmationService.requestApplyRuleToHistorical(
+                                    accountId = accountId,
+                                    ruleId = ruleId,
+                                    agentCallContext = agentCallContext,
+                                ).toDto(),
+                        )
+                }
+            }
+        }
     }
 
     fun updateTransactionRule(
@@ -374,5 +425,10 @@ class TransactionCategoryResolver(
             isOwned = accountId != null,
             logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it.toString()) },
         )
+    }
+
+    private companion object {
+        private const val CREATE_TRANSACTION_RULE_OPERATION = "create_transaction_rule"
+        private const val APPLY_RULE_TO_HISTORICAL_OPERATION = "apply_rule_to_historical"
     }
 }

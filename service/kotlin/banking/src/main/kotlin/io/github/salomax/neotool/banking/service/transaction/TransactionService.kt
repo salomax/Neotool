@@ -1117,6 +1117,12 @@ open class TransactionService(
         return BulkCategorizeResult(affectedCount = affectedCount, errors = emptyList())
     }
 
+    @Transactional(readOnly = true)
+    open fun countCategorizableTransactions(
+        transactionIds: List<UUID>,
+        accountId: UUID,
+    ): Int = transactionRepository.countCategorizableTransactions(transactionIds, accountId)
+
     /**
      * Registers a payment against a credit card bill (BILL-02).
      * Creates a CREDIT TRANSFER on the card account; optionally a DEBIT TRANSFER on the source account.

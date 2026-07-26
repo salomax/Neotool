@@ -275,7 +275,9 @@ export const TRANSFER_CUSTODY = gql`
 /** Delete a transaction. */
 export const DELETE_TRANSACTION = gql`
   mutation DeleteTransaction($id: ID!) {
-    deleteTransaction(id: $id)
+    deleteTransaction(id: $id) {
+      deleted
+    }
   }
 `;
 

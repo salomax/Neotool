@@ -345,7 +345,8 @@
         "INVESTMENT_MATURED": "Maturity",
         "COUPON_PAYMENT_DUE": "Coupon",
         "RECURRING_PAYMENT_DUE": "Recurring",
-        "BANK_ACCOUNT_NEGATIVE_BALANCE": "Negative balance"
+        "BANK_ACCOUNT_NEGATIVE_BALANCE": "Negative balance",
+        "AGENT_WRITE_CONFIRMATION": "Agent write"
       },
       "descriptions": {
         "investmentMatured": "Investment matured — record the redemption.",
@@ -353,7 +354,11 @@
         "couponDue": "Coupon payment pending.",
         "couponOn": "Coupon on {{date}} — record the receipt.",
         "recurringDueOn": "Due on {{date}}.",
-        "negativeBalance": "The account balance went negative after a transfer."
+        "negativeBalance": "The account balance went negative after a transfer.",
+        "agentWriteConfirmation": "This action was deferred by an agent and requires confirmation.",
+        "agentWriteDelete": "Delete transaction requested by an agent.",
+        "agentWriteBulkCategorize": "Bulk categorization requested by an agent.",
+        "agentWriteApplyRule": "Apply historical rule requested by an agent."
       },
       "couponDrawer": {
         "irRateHint": "Estimated rate: {{rate}} (regressive table)",

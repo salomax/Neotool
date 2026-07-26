@@ -14,6 +14,7 @@ const TYPE_COLOR_MAP: Record<PendingActionType, ChipPaletteKey> = {
   [PendingActionType.CouponPaymentDue]: "primary",
   [PendingActionType.RecurringPaymentDue]: "info",
   [PendingActionType.BankAccountNegativeBalance]: "error",
+  [PendingActionType.AgentWriteConfirmation]: "secondary",
 };
 
 export interface PendingActionTypeChipProps {

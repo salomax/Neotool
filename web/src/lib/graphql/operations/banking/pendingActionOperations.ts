@@ -107,3 +107,14 @@ export const DISMISS_PENDING_ACTION = gql`
     }
   }
 `;
+
+export const CONFIRM_PENDING_ACTION = gql`
+  mutation ConfirmPendingAction($id: ID!) {
+    confirmPendingAction(id: $id) {
+      pendingAction {
+        id
+        status
+      }
+    }
+  }
+`;

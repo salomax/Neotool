@@ -344,7 +344,8 @@
         "INVESTMENT_MATURED": "Vencimento",
         "COUPON_PAYMENT_DUE": "Cupom",
         "RECURRING_PAYMENT_DUE": "Recorrente",
-        "BANK_ACCOUNT_NEGATIVE_BALANCE": "Saldo negativo"
+        "BANK_ACCOUNT_NEGATIVE_BALANCE": "Saldo negativo",
+        "AGENT_WRITE_CONFIRMATION": "Ação de agente"
       },
       "descriptions": {
         "investmentMatured": "Investimento vencido — registre o resgate.",
@@ -352,7 +353,11 @@
         "couponDue": "Pagamento de cupom pendente.",
         "couponOn": "Cupom em {{date}} — registre o recebimento.",
         "recurringDueOn": "Vence em {{date}}.",
-        "negativeBalance": "A conta ficou com saldo negativo após uma transferência."
+        "negativeBalance": "A conta ficou com saldo negativo após uma transferência.",
+        "agentWriteConfirmation": "Esta ação foi adiada por um agente e precisa de confirmação.",
+        "agentWriteDelete": "Exclusão de transação solicitada por um agente.",
+        "agentWriteBulkCategorize": "Categorização em massa solicitada por um agente.",
+        "agentWriteApplyRule": "Aplicação de regra ao histórico solicitada por um agente."
       },
       "couponDrawer": {
         "irRateHint": "Alíquota estimada: {{rate}} (tabela regressiva)",

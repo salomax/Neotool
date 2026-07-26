@@ -116,6 +116,13 @@ security:
 banking:
   mcp:
     trusted-delegator: ${BANKING_MCP_TRUSTED_DELEGATOR:mcp-service}
+  mcp-write-idempotency:
+    retention: ${BANKING_MCP_WRITE_IDEMPOTENCY_RETENTION:PT48H}
+    eviction:
+      enabled: ${BANKING_MCP_WRITE_IDEMPOTENCY_EVICTION_ENABLED:true}
+      fixed-delay: ${BANKING_MCP_WRITE_IDEMPOTENCY_EVICTION_FIXED_DELAY:PT1H}
+  mcp-write-bulk:
+    max-affected-records: ${BANKING_MCP_WRITE_BULK_MAX_AFFECTED_RECORDS:50}
   assets-service:
     url: ${ASSETS_SERVICE_URL:}
     graphql-path: /graphql

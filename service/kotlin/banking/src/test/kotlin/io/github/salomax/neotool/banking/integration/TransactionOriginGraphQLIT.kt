@@ -13,14 +13,12 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
 import java.sql.DriverManager
 import java.time.LocalDate
 import java.util.UUID
 
 @MicronautTest(startApplication = true)
 @DisplayName("Transaction origin GraphQL IT")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Tag("integration")
 @Tag("banking")
 class TransactionOriginGraphQLIT : BankingPostgresIntegrationTest() {
@@ -92,6 +90,7 @@ class TransactionOriginGraphQLIT : BankingPostgresIntegrationTest() {
     fun `trusted delegated MCP requests stamp MCP origin metadata`() {
         val toolCallId = UUID.randomUUID()
         val description = "Trusted MCP ${UUID.randomUUID()}"
+        val idempotencyKey = "origin-key-${UUID.randomUUID()}"
 
         val response =
             client.toBlocking().exchange(
@@ -101,6 +100,7 @@ class TransactionOriginGraphQLIT : BankingPostgresIntegrationTest() {
                     toolCallId = toolCallId,
                     clientId = "mcp-client-a",
                     tokenId = "origin-token-id-a",
+                    idempotencyKey = idempotencyKey,
                 ),
                 Map::class.java,
             )
@@ -119,11 +119,12 @@ class TransactionOriginGraphQLIT : BankingPostgresIntegrationTest() {
         toolCallId: UUID,
         clientId: String,
         tokenId: String,
+        idempotencyKey: String? = null,
     ): HttpRequest<Map<String, Any>> {
         val query =
             """
-            mutation CreateTransaction(${'$'}input: CreateTransactionInput!) {
-              createTransaction(input: ${'$'}input) {
+            mutation CreateTransaction(${'$'}input: CreateTransactionInput!, ${'$'}idempotencyKey: String) {
+              createTransaction(input: ${'$'}input, idempotencyKey: ${'$'}idempotencyKey) {
                 transaction {
                   id
                 }
@@ -144,6 +145,7 @@ class TransactionOriginGraphQLIT : BankingPostgresIntegrationTest() {
                                 "date" to LocalDate.now().toString(),
                                 "description" to description,
                             ),
+                        "idempotencyKey" to idempotencyKey,
                     ),
             )
 

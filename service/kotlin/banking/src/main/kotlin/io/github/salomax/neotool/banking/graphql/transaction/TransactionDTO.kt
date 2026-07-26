@@ -96,7 +96,8 @@ data class TransactionDTO(
     val transactionDatetime: Instant?,
     val description: String,
     val notes: String?,
-    val tags: List<String>,
+    /** Defaults keep idempotency replay safe when stored JSON omitted empty collections. */
+    val tags: List<String> = emptyList(),
     val category: TransactionCategoryDTO?,
     /** How the category was assigned: MANUAL, RULE, IMPORTED, AI. Null when uncategorized. */
     val categorySource: CategorySource?,
@@ -119,8 +120,8 @@ data class TransactionDTO(
     val cardIdentifier: String?,
     val payeeMcc: Int?,
     val billPostDate: LocalDate?,
-    val appliedRuleIds: List<UUID>,
-    val appliedRuleHistory: List<AppliedRuleHistoryEntryDTO>,
+    val appliedRuleIds: List<UUID> = emptyList(),
+    val appliedRuleHistory: List<AppliedRuleHistoryEntryDTO> = emptyList(),
     // Audit
     val createdAt: Instant,
     val updatedAt: Instant,

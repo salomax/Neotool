@@ -614,7 +614,14 @@ class BankingWiringFactoryTest {
             val wiring = wiringFactory.build()
             val dataFetcher = wiring.dataFetchers["Mutation"]!!["createTransaction"]!!
             val input = mapOf("financialAccountId" to UUID.randomUUID().toString())
-            whenever(transactionResolver.createTransaction(eq(input), any(), anyOrNull())).thenReturn(mock())
+            whenever(
+                transactionResolver.createTransaction(
+                    eq(input),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(mock())
 
             val env =
                 envWithToken(
@@ -627,7 +634,12 @@ class BankingWiringFactoryTest {
 
             dataFetcher.get(env)
 
-            verify(transactionResolver).createTransaction(eq(input), any(), eq(null))
+            verify(transactionResolver).createTransaction(
+                eq(input),
+                any(),
+                eq(null),
+                eq(null),
+            )
         }
 
         @Test
@@ -636,7 +648,14 @@ class BankingWiringFactoryTest {
             val dataFetcher = wiring.dataFetchers["Mutation"]!!["createTransaction"]!!
             val input = mapOf("financialAccountId" to UUID.randomUUID().toString())
             val toolCallId = UUID.randomUUID()
-            whenever(transactionResolver.createTransaction(eq(input), any(), anyOrNull())).thenReturn(mock())
+            whenever(
+                transactionResolver.createTransaction(
+                    eq(input),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(mock())
 
             val env =
                 envWithToken(
@@ -652,6 +671,7 @@ class BankingWiringFactoryTest {
             verify(transactionResolver).createTransaction(
                 eq(input),
                 any(),
+                eq(null),
                 argThat {
                     toolCallId == this.toolCallId &&
                         originClientId == "trusted-client" &&

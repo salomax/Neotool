@@ -68,6 +68,7 @@ class McpChangeLogGraphQLIT : BankingPostgresIntegrationTest() {
         val transactionId = UUID.randomUUID()
         val categoryId = UUID.randomUUID()
         val toolCallId = UUID.randomUUID()
+        val idempotencyKey = "bulk-change-log-${UUID.randomUUID()}"
         insertCategory(categoryId, accountId, "Groceries")
         insertTransaction(
             id = transactionId,
@@ -82,6 +83,7 @@ class McpChangeLogGraphQLIT : BankingPostgresIntegrationTest() {
                     transactionIds = listOf(transactionId.toString()),
                     categoryId = categoryId.toString(),
                     principal = principal(accountId),
+                    idempotencyKey = idempotencyKey,
                     agentCallContext = agentCallContext(toolCallId),
                 )
             }
