@@ -6,12 +6,6 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.http.dto.OAuth2ClientRegistrationResponse
-import io.github.salomax.neotool.security.service.oauth2.OAuth2AuthorizationService
-import io.github.salomax.neotool.security.service.oauth2.OAuth2AuthorizeInput
-import io.github.salomax.neotool.security.service.oauth2.OAuth2TokenExchangeService
-import io.github.salomax.neotool.security.service.oauth2.OAuth2TokenHashing
-import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
-import io.github.salomax.neotool.security.service.management.ServicePrincipalService
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.model.account.AccountEntity
@@ -28,6 +22,12 @@ import io.github.salomax.neotool.security.repo.OAuth2ConsentRepository
 import io.github.salomax.neotool.security.repo.PrincipalRepository
 import io.github.salomax.neotool.security.repo.RefreshTokenRepository
 import io.github.salomax.neotool.security.repo.UserRepository
+import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
+import io.github.salomax.neotool.security.service.management.ServicePrincipalService
+import io.github.salomax.neotool.security.service.oauth2.OAuth2AuthorizationService
+import io.github.salomax.neotool.security.service.oauth2.OAuth2AuthorizeInput
+import io.github.salomax.neotool.security.service.oauth2.OAuth2TokenExchangeService
+import io.github.salomax.neotool.security.service.oauth2.OAuth2TokenHashing
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.HttpStatus
 import io.micronaut.http.MediaType
@@ -106,7 +106,8 @@ open class OAuth2TokenRateLimitIntegrationTest :
         val props = super.getProperties()
         props["oauth.authorization-server.token.rate-limit.limit"] = "2"
         props["oauth.authorization-server.token.rate-limit.window-ms"] = "3600000"
-        props["oauth.authorization-server.token-exchange.service-resource-identifiers.mcp-service"] = "https://api.invistus.test"
+        props["oauth.authorization-server.token-exchange.service-resource-identifiers.mcp-service"] =
+            "https://api.invistus.test"
         return props
     }
 
@@ -162,10 +163,22 @@ open class OAuth2TokenRateLimitIntegrationTest :
     fun `one client hitting 429 does not block a different client`() {
         val verifier = "correct-horse-battery-staple-0123456789"
         val clientOne = registerRuntimeClient()
-        exchangeAuthorizationCode(createApprovedAuthorizationCode(verifier, clientOne.client_id), verifier, clientOne.client_id)
-        exchangeAuthorizationCode(createApprovedAuthorizationCode(verifier, clientOne.client_id), verifier, clientOne.client_id)
+        exchangeAuthorizationCode(
+            createApprovedAuthorizationCode(verifier, clientOne.client_id),
+            verifier,
+            clientOne.client_id,
+        )
+        exchangeAuthorizationCode(
+            createApprovedAuthorizationCode(verifier, clientOne.client_id),
+            verifier,
+            clientOne.client_id,
+        )
         assertThrows<HttpClientResponseException> {
-            exchangeAuthorizationCode(createApprovedAuthorizationCode(verifier, clientOne.client_id), verifier, clientOne.client_id)
+            exchangeAuthorizationCode(
+                createApprovedAuthorizationCode(verifier, clientOne.client_id),
+                verifier,
+                clientOne.client_id,
+            )
         }
 
         val clientTwo = registerRuntimeClient()

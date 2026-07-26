@@ -3,18 +3,21 @@ package io.github.salomax.neotool.mcp.ratelimit
 import io.github.salomax.neotool.mcp.catalog.FinanceWriteMcpTools
 import io.github.salomax.neotool.mcp.security.McpPrincipal
 import jakarta.inject.Singleton
+import java.util.Optional
 
 @Singleton
 class McpRequestRateLimiter(
-    private val rateLimitService: McpRateLimitService,
+    // Absent when EntityManager/repo is disabled (e.g. protocol integration tests without DB).
+    private val rateLimitService: Optional<McpRateLimitService>,
 ) {
     fun check(
         request: Map<String, Any?>,
         principal: McpPrincipal,
     ): McpRateLimitDecision? {
+        val service = rateLimitService.orElse(null) ?: return null
         val classification = classify(request) ?: return null
-        val result = rateLimitService.checkAndIncrement(principal.principal, classification)
-        return if (result.allowed) null else rateLimitService.rejectDecision(result)
+        val result = service.checkAndIncrement(principal.principal, classification)
+        return if (result.allowed) null else service.rejectDecision(result)
     }
 
     private fun classify(request: Map<String, Any?>): McpToolClassification? {

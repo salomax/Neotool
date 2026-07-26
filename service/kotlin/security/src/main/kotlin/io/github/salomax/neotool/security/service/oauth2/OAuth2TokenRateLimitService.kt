@@ -16,8 +16,9 @@ open class OAuth2TokenRateLimitService(
         require(config.windowMs > 0) { "windowMs must be greater than zero" }
         require(config.limit > 0) { "limit must be greater than zero" }
 
-        val normalizedClientId = clientId.trim().takeIf { it.isNotEmpty() }
-            ?: throw OAuth2InvalidRequestException("client_id is required")
+        val normalizedClientId =
+            clientId.trim().takeIf { it.isNotEmpty() }
+                ?: throw OAuth2InvalidRequestException("client_id is required")
         val now = now()
         val windowStart = alignToWindow(now, config.windowMs)
         val resetAt = windowStart.plusMillis(config.windowMs)

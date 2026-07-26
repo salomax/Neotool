@@ -1,9 +1,9 @@
 package io.github.salomax.neotool.mcp.security
 
 import io.micronaut.http.HttpHeaders
-import io.micronaut.http.MediaType
 import io.micronaut.http.HttpResponse
 import io.micronaut.http.HttpStatus
+import io.micronaut.http.MediaType
 import io.micronaut.http.MutableHttpResponse
 import jakarta.inject.Singleton
 

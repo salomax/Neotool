@@ -6,7 +6,6 @@ import io.github.salomax.neotool.mcp.observability.McpMetrics
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
-import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -19,10 +18,22 @@ class McpRateLimitServiceTest {
         McpRateLimitConfig(
             token =
                 McpRateLimitConfig.TokenConfig(
-                    read = McpRateLimitConfig.ReadScopeLimitConfig().apply { limit = 60; windowMs = 60_000 },
-                    write = McpRateLimitConfig.WriteScopeLimitConfig().apply { limit = 15; windowMs = 60_000 },
+                    read =
+                        McpRateLimitConfig.ReadScopeLimitConfig().apply {
+                            limit = 60
+                            windowMs = 60_000
+                        },
+                    write =
+                        McpRateLimitConfig.WriteScopeLimitConfig().apply {
+                            limit = 15
+                            windowMs = 60_000
+                        },
                 ),
-            user = McpRateLimitConfig.UserScopeLimitConfig().apply { limit = 120; windowMs = 60_000 },
+            user =
+                McpRateLimitConfig.UserScopeLimitConfig().apply {
+                    limit = 120
+                    windowMs = 60_000
+                },
         )
 
     @Test
@@ -69,10 +80,22 @@ class McpRateLimitServiceTest {
                     McpRateLimitConfig(
                         token =
                             McpRateLimitConfig.TokenConfig(
-                                read = McpRateLimitConfig.ReadScopeLimitConfig().apply { limit = 10; windowMs = 60_000 },
-                                write = McpRateLimitConfig.WriteScopeLimitConfig().apply { limit = 10; windowMs = 60_000 },
+                                read =
+                                    McpRateLimitConfig.ReadScopeLimitConfig().apply {
+                                        limit = 10
+                                        windowMs = 60_000
+                                    },
+                                write =
+                                    McpRateLimitConfig.WriteScopeLimitConfig().apply {
+                                        limit = 10
+                                        windowMs = 60_000
+                                    },
                             ),
-                        user = McpRateLimitConfig.UserScopeLimitConfig().apply { limit = 3; windowMs = 60_000 },
+                        user =
+                            McpRateLimitConfig.UserScopeLimitConfig().apply {
+                                limit = 3
+                                windowMs = 60_000
+                            },
                     ),
                 metrics = mock(),
             ) {

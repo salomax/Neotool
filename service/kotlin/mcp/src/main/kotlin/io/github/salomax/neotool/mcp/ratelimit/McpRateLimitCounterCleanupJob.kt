@@ -9,6 +9,7 @@ import java.time.Instant
 
 @Singleton
 @Requires(property = "mcp.rate-limit.cleanup.enabled", value = "true", defaultValue = "true")
+@Requires(beans = [McpRateLimitCounterRepository::class])
 open class McpRateLimitCounterCleanupJob(
     private val repository: McpRateLimitCounterRepository,
     private val config: McpRateLimitConfig,

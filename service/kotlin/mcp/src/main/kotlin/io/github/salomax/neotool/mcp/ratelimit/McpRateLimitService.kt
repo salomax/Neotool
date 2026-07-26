@@ -2,6 +2,7 @@ package io.github.salomax.neotool.mcp.ratelimit
 
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import io.github.salomax.neotool.mcp.observability.McpMetrics
+import io.micronaut.context.annotation.Requires
 import jakarta.inject.Singleton
 import java.time.Clock
 import java.time.Instant
@@ -9,6 +10,7 @@ import java.util.UUID
 import kotlin.math.ceil
 
 @Singleton
+@Requires(beans = [McpRateLimitCounterRepository::class])
 open class McpRateLimitService(
     private val repository: McpRateLimitCounterRepository,
     private val config: McpRateLimitConfig,

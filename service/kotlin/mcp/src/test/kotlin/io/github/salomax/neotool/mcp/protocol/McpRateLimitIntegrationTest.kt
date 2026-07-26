@@ -159,8 +159,12 @@ open class McpRateLimitIntegrationTest :
                 stmt.executeQuery().use { rs ->
                     val rows = mutableListOf<String>()
                     while (rs.next()) {
-                        rows +=
-                            "${rs.getString("scope")}:${rs.getString("scope_id")}:${rs.getTimestamp("window_start").toInstant()}:${rs.getLong("window_size_ms")}:${rs.getLong("request_count")}"
+                        val scope = rs.getString("scope")
+                        val scopeId = rs.getString("scope_id")
+                        val windowStart = rs.getTimestamp("window_start").toInstant()
+                        val windowSizeMs = rs.getLong("window_size_ms")
+                        val requestCount = rs.getLong("request_count")
+                        rows += "$scope:$scopeId:$windowStart:$windowSizeMs:$requestCount"
                     }
                     return rows
                 }

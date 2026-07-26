@@ -81,6 +81,7 @@ Quick lookup and reference materials:
 
 | Document | Path | Type | Category | Keywords |
 |----------|------|------|----------|----------|
+| Feature Catalog (Shipped) | `03-features/feature-catalog.md` | feature-catalog | product | catalog, shipped, landpage, marketing, personal-finance, investments, MCP, Bacen |
 | Investment Portfolio Blueprint | `03-features/investment-portfolio/investment-portfolio-blueprint.md` | feature | investment | investment, portfolio, holdings, performance, retail, advisory |
 | Holding Transaction Operations | `03-features/investment-portfolio/holding-transaction-operations.md` | feature | investment | aporte, resgate, compra, venda, holding, transaction, cash-flow, side-effect, portfolio |
 | Holding Update Flow | `03-features/investment-portfolio/holding-update-flow.md` | feature | investment | holding update, add position, withdraw, aporte, resgate, compra, venda, standardized drawer, ui-pattern |

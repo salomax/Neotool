@@ -3,7 +3,6 @@ package io.github.salomax.neotool.mcp.http
 import io.github.salomax.neotool.mcp.audit.ToolCallAuditOutcome
 import io.github.salomax.neotool.mcp.audit.ToolCallAuditRecord
 import io.github.salomax.neotool.mcp.audit.ToolCallAuditService
-import io.github.salomax.neotool.mcp.protocol.JsonRpcResponse
 import io.github.salomax.neotool.mcp.protocol.McpProtocolService
 import io.github.salomax.neotool.mcp.ratelimit.McpRequestRateLimiter
 import io.github.salomax.neotool.mcp.security.McpAuthenticationException

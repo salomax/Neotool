@@ -61,6 +61,8 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
             "mcp.resource.audience" to McpJwtTestFixture.AUDIENCE,
             "mcp.resource.metadata-url" to "https://mcp.example.test/.well-known/oauth-protected-resource",
             "micronaut.executors.scheduled.enabled" to "false",
+            "mcp.rate-limit.cleanup.enabled" to "false",
+            "mcp.revocation.eviction.enabled" to "false",
             "datasources.default.enabled" to "false",
             "flyway.datasources.default.enabled" to "false",
         )
