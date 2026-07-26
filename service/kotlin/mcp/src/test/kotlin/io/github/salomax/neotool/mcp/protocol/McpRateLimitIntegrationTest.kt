@@ -13,6 +13,7 @@ import io.github.salomax.neotool.mcp.test.McpJwtTestFixture
 import io.micronaut.http.HttpHeaders
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.HttpStatus
+import io.micronaut.http.MediaType
 import io.micronaut.http.client.HttpClient
 import io.micronaut.http.client.annotation.Client
 import io.micronaut.http.client.exceptions.HttpClientResponseException
@@ -73,12 +74,7 @@ open class McpRateLimitIntegrationTest :
     @Test
     fun `tool call over the limit returns 429 with retry after and succeeds again after window rollover`() {
         val token = McpJwtTestFixture.accessToken(scope = transactionsReadScope)
-        repeat(60) { attempt ->
-            val response = client.toBlocking().exchange(toolCallRequest(token), String::class.java)
-            assertThat(response.status)
-                .withFailMessage("expected request %s to remain under the default read limit", attempt + 1)
-                .isEqualTo(HttpStatus.OK)
-        }
+        exhaustDefaultReadLimit(token) { toolCallRequest(it) }
 
         val exception =
             assertThrows<HttpClientResponseException> {
@@ -99,6 +95,33 @@ open class McpRateLimitIntegrationTest :
         assertThat(third.status).isEqualTo(HttpStatus.OK)
     }
 
+    @Test
+    fun `sse endpoint returns json 429 with retry after once the read limit is exceeded`() {
+        val token = McpJwtTestFixture.accessToken(scope = transactionsReadScope)
+        exhaustDefaultReadLimit(token) { eventsRequest(it) }
+
+        val exception =
+            assertThrows<HttpClientResponseException> {
+                client.toBlocking().exchange(eventsRequest(token), String::class.java)
+            }
+
+        assertThat(exception.status).isEqualTo(HttpStatus.TOO_MANY_REQUESTS)
+        assertThat(exception.response.contentType.orElse(null)).isEqualTo(MediaType.APPLICATION_JSON_TYPE)
+        assertThat(exception.response.header("Retry-After")).isNotBlank()
+    }
+
+    private fun exhaustDefaultReadLimit(
+        token: String,
+        requestFactory: (String) -> HttpRequest<Map<String, Any>>,
+    ) {
+        repeat(60) { attempt ->
+            val response = client.toBlocking().exchange(requestFactory(token), String::class.java)
+            assertThat(response.status)
+                .withFailMessage("expected request %s to remain under the default read limit", attempt + 1)
+                .isEqualTo(HttpStatus.OK)
+        }
+    }
+
     private fun toolCallRequest(token: String): HttpRequest<Map<String, Any>> =
         HttpRequest
             .POST(
@@ -106,6 +129,18 @@ open class McpRateLimitIntegrationTest :
                 mapOf(
                     "jsonrpc" to "2.0",
                     "id" to "rate-limit-1",
+                    "method" to "tools/call",
+                    "params" to mapOf("name" to "list_transactions", "arguments" to mapOf("first" to 1)),
+                ),
+            ).header(HttpHeaders.AUTHORIZATION, "Bearer $token")
+
+    private fun eventsRequest(token: String): HttpRequest<Map<String, Any>> =
+        HttpRequest
+            .POST(
+                "/mcp/events",
+                mapOf(
+                    "jsonrpc" to "2.0",
+                    "id" to "rate-limit-stream-1",
                     "method" to "tools/call",
                     "params" to mapOf("name" to "list_transactions", "arguments" to mapOf("first" to 1)),
                 ),

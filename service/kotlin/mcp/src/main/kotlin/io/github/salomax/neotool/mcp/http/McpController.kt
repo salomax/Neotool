@@ -53,7 +53,7 @@ class McpController(
 
     @Post("/events")
     @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.TEXT_EVENT_STREAM)
+    @Produces(MediaType.TEXT_EVENT_STREAM, MediaType.APPLICATION_JSON)
     fun handleEvents(
         @Body body: Map<String, Any?>,
         request: HttpRequest<*>,

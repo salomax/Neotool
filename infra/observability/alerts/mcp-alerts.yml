@@ -6,7 +6,7 @@ groups:
         for: 2m
         labels:
           severity: warning
-          team: assistant
+          team: platform
         annotations:
           summary: "MCP requests are being rejected by rate limiting"
           description: "The MCP service rejected requests due to the {{ $labels.scope }} rate limit during the last 5 minutes."

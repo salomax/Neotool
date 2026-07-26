@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.mcp.security
 
 import io.micronaut.http.HttpHeaders
+import io.micronaut.http.MediaType
 import io.micronaut.http.HttpResponse
 import io.micronaut.http.HttpStatus
 import io.micronaut.http.MutableHttpResponse
@@ -30,6 +31,7 @@ class OAuthErrorResponseFactory(
         HttpResponse
             .status<Any>(HttpStatus.TOO_MANY_REQUESTS)
             .header(HttpHeaders.RETRY_AFTER, retryAfterSeconds.coerceAtLeast(0L).toString())
+            .contentType(MediaType.APPLICATION_JSON_TYPE)
             .body(
                 OAuthError(
                     error = "rate_limit_exceeded",

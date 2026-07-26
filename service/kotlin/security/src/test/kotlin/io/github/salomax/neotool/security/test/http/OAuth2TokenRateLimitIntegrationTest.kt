@@ -8,7 +8,10 @@ import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.http.dto.OAuth2ClientRegistrationResponse
 import io.github.salomax.neotool.security.service.oauth2.OAuth2AuthorizationService
 import io.github.salomax.neotool.security.service.oauth2.OAuth2AuthorizeInput
+import io.github.salomax.neotool.security.service.oauth2.OAuth2TokenExchangeService
 import io.github.salomax.neotool.security.service.oauth2.OAuth2TokenHashing
+import io.github.salomax.neotool.security.service.jwt.JwtTokenIssuer
+import io.github.salomax.neotool.security.service.management.ServicePrincipalService
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.model.account.AccountEntity
@@ -40,6 +43,7 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.fail
 import java.util.UUID
 
 @MicronautTest(startApplication = true)
@@ -57,6 +61,12 @@ open class OAuth2TokenRateLimitIntegrationTest :
 
     @Inject
     lateinit var tokenHashing: OAuth2TokenHashing
+
+    @Inject
+    lateinit var jwtTokenIssuer: JwtTokenIssuer
+
+    @Inject
+    lateinit var servicePrincipalService: ServicePrincipalService
 
     @Inject
     lateinit var userRepository: UserRepository
@@ -90,11 +100,13 @@ open class OAuth2TokenRateLimitIntegrationTest :
 
     private val createdUserIds = mutableSetOf<UUID>()
     private val createdAccountIds = mutableSetOf<UUID>()
+    private var tokenExchangeClientSecret: String? = null
 
     override fun getProperties(): MutableMap<String, String> {
         val props = super.getProperties()
         props["oauth.authorization-server.token.rate-limit.limit"] = "2"
         props["oauth.authorization-server.token.rate-limit.window-ms"] = "3600000"
+        props["oauth.authorization-server.token-exchange.service-resource-identifiers.mcp-service"] = "https://api.invistus.test"
         return props
     }
 
@@ -167,6 +179,28 @@ open class OAuth2TokenRateLimitIntegrationTest :
         assertThat(response.status()).isEqualTo(HttpStatus.OK)
     }
 
+    @Test
+    fun `token exchange flow returns 429 with retry after once the client exceeds the limit`() {
+        val (userId, accountId) = createUserAndAccount()
+        val clientSecret = tokenExchangeClientSecret()
+        val firstSubjectToken = createOAuthSubjectToken(userId, accountId)
+        val secondSubjectToken = createOAuthSubjectToken(userId, accountId)
+
+        val firstResponse = exchangeTokenOrFail(firstSubjectToken, clientSecret, "first")
+        val secondResponse = exchangeTokenOrFail(secondSubjectToken, clientSecret, "second")
+
+        assertThat(firstResponse.status()).isEqualTo(HttpStatus.OK)
+        assertThat(secondResponse.status()).isEqualTo(HttpStatus.OK)
+
+        val exception =
+            assertThrows<HttpClientResponseException> {
+                exchangeToken(createOAuthSubjectToken(userId, accountId), clientSecret)
+            }
+
+        assertThat(exception.status).isEqualTo(HttpStatus.TOO_MANY_REQUESTS)
+        assertThat(exception.response.header("Retry-After")).isNotBlank()
+    }
+
     private fun createApprovedAuthorizationCode(
         verifier: String,
         clientId: String,
@@ -234,7 +268,61 @@ open class OAuth2TokenRateLimitIntegrationTest :
         return json.readValue(response.body(), OAuth2ClientRegistrationResponse::class.java)
     }
 
-    private fun createUser(): UUID {
+    private fun tokenExchangeClientSecret(): String {
+        tokenExchangeClientSecret?.let { return it }
+        val registration =
+            entityManager.runTransaction {
+                servicePrincipalService.registerService("mcp-service", listOf("banking:transaction:view"))
+            }
+        tokenExchangeClientSecret = registration.clientSecret
+        return registration.clientSecret
+    }
+
+    private fun createOAuthSubjectToken(
+        userId: UUID,
+        accountId: UUID,
+    ): String =
+        jwtTokenIssuer.generateOAuthAccessToken(
+            userId = userId,
+            email = "oauth-$userId@example.com",
+            clientId = "test-agent",
+            scopes = listOf("finance:cashflow:read"),
+            resource = "https://api.invistus.test",
+            currentAccountId = accountId,
+        )
+
+    private fun exchangeToken(
+        subjectToken: String,
+        clientSecret: String,
+    ) = httpClient.exchangeAsString(
+        HttpRequest
+            .POST(
+                "/oauth2/token",
+                mapOf(
+                    "grant_type" to OAuth2TokenExchangeService.TOKEN_EXCHANGE_GRANT_TYPE,
+                    "client_id" to "mcp-service",
+                    "client_secret" to clientSecret,
+                    "audience" to "banking",
+                    "subject_token" to subjectToken,
+                    "subject_token_type" to OAuth2TokenExchangeService.ACCESS_TOKEN_TYPE,
+                ),
+            ).contentType(MediaType.APPLICATION_JSON),
+    )
+
+    private fun exchangeTokenOrFail(
+        subjectToken: String,
+        clientSecret: String,
+        attempt: String,
+    ) = try {
+        exchangeToken(subjectToken, clientSecret)
+    } catch (exception: HttpClientResponseException) {
+        val responseBody = exception.response.getBody(String::class.java).orElse("<empty>")
+        fail("Token exchange $attempt attempt failed with ${exception.status}: $responseBody")
+    }
+
+    private fun createUser(): UUID = createUserAndAccount().first
+
+    private fun createUserAndAccount(): Pair<UUID, UUID> {
         val user =
             userRepository.save(
                 UserEntity(
@@ -272,6 +360,6 @@ open class OAuth2TokenRateLimitIntegrationTest :
                 isDefault = true,
             ),
         )
-        return savedUserId
+        return savedUserId to accountId
     }
 }
