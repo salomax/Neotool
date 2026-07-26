@@ -1,3 +1,13 @@
+## 0.10.0 (2026-07-26)
+
+### 🚀 Features
+
+- enhance agent workflows and tooling ([d7d2bf07](https://github.com/invistus/invistus/commit/d7d2bf07))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.9.3 (2026-07-24)
 
 ### 🚀 Features
