@@ -26,6 +26,7 @@ Load reference files based on the task:
 - Implementing a repository or SQL query → [references/repo.md](references/repo.md)
 - Mapping GraphQL types or implementing a resolver → [references/graphql.md](references/graphql.md)
 - Writing unit or integration tests → [references/tests.md](references/tests.md)
+- Adding or changing `@ConfigurationProperties` / env-var-driven config → [references/config.md](references/config.md)
 
 ## Backend execution heuristics
 

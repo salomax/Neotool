@@ -80,6 +80,8 @@ When more than one viable approach exists, choose the recommended one, document 
 
 If relevant information is missing, list open questions at the end of the analysis. Only stop to ask the user before concluding when the missing answer would prevent a minimally safe proposal. Otherwise, continue with explicit assumptions.
 
+**Before listing an open question about production config, env vars, or deployment state, check whether the answer is already available in a local infra/deployment repo** (e.g. `invistus-flux`) before writing it down as unresolved. If that repo is reachable from the sandbox, grep it for the relevant property/env var name. An unresolved question that could have been answered by inspecting available infra manifests is a design gap, not a legitimate unknown — it lets implementation guess wrong, ship a fix, and only discover the real answer two review rounds later (this happened on issue #488: the analysis correctly flagged the risk around `supported-resources` but left "is this already configured in prod" as an open question, when `invistus-flux/infra/kubernetes/flux/apps/services/security/deployment.yaml` already had the answer).
+
 ### 6. Post as a comment on the issue
 
 Publish the analysis on the issue. Use the following format:
