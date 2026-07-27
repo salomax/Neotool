@@ -1,3 +1,13 @@
+## 0.7.1 (2026-07-27)
+
+### 🩹 Fixes
+
+- **mcp:** expose OAuth protected resource metadata ([#484](https://github.com/invistus/invistus/pull/484))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.0 (2026-07-26)
 
 ### 🚀 Features
