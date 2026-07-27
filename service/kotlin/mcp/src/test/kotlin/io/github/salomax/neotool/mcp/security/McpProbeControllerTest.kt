@@ -36,6 +36,10 @@ open class McpProbeControllerTest : TestPropertyProvider {
             "jwt.public-key" to McpJwtTestFixture.publicKeyPem,
             "mcp.resource.audience" to McpJwtTestFixture.AUDIENCE,
             "mcp.resource.metadata-url" to "https://mcp.example.test/.well-known/oauth-protected-resource",
+            "mcp.resource.metadata.cache-max-age-seconds" to "7200",
+            "micronaut.executors.scheduled.enabled" to "false",
+            "mcp.rate-limit.cleanup.enabled" to "false",
+            "mcp.revocation.eviction.enabled" to "false",
             "datasources.default.enabled" to "false",
             "flyway.datasources.default.enabled" to "false",
         )
@@ -174,6 +178,40 @@ open class McpProbeControllerTest : TestPropertyProvider {
             }
 
         assertThat(response["authenticated"]).isEqualTo(true)
+    }
+
+    @Test
+    fun `protected resource metadata endpoint is public and returns configured discovery document`() {
+        val response =
+            try {
+                client.toBlocking().exchange(
+                    HttpRequest.GET<Any>("/.well-known/oauth-protected-resource"),
+                    Map::class.java,
+                )
+            } catch (e: HttpClientResponseException) {
+                throw AssertionError("body=${e.response.getBody(String::class.java).orElse("<empty>")}", e)
+            }
+
+        assertThat(response.status).isEqualTo(HttpStatus.OK)
+        assertThat(response.header(HttpHeaders.CACHE_CONTROL)).isEqualTo("public, max-age=7200")
+        val body = response.body()
+        assertThat(body?.get("resource")).isEqualTo(McpJwtTestFixture.AUDIENCE)
+        assertThat(body?.get("bearer_methods_supported")).isEqualTo(listOf("header"))
+        assertThat(body?.get("authorization_servers"))
+            .isEqualTo(listOf(McpJwtTestFixture.ISSUER))
+    }
+
+    @Test
+    fun `mcp prefixed protected resource metadata path requires authentication after cleanup`() {
+        val exception =
+            assertThrows<HttpClientResponseException> {
+                client.toBlocking().exchange(
+                    HttpRequest.GET<Any>("/mcp/.well-known/oauth-protected-resource"),
+                    OAuthError::class.java,
+                )
+            }
+
+        assertUnauthorized(exception, "invalid_request")
     }
 
     private fun probeRequest(token: String): HttpRequest<Any> = probeRequest(token, "/mcp/probe")

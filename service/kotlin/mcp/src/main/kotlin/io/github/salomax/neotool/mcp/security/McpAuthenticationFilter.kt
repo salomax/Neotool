@@ -45,7 +45,6 @@ class McpAuthenticationFilter(
 
     private fun isPublicMcpEndpoint(path: String): Boolean =
         path == "/mcp/ready" ||
-            path == "/mcp/.well-known/oauth-protected-resource" ||
             path == "/.well-known/oauth-protected-resource"
 
     private fun requiredScope(path: String): String? =

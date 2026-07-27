@@ -37,6 +37,8 @@ mcp:
   resource:
     audience: http://localhost:8086
     metadata-url: http://localhost:8086/.well-known/oauth-protected-resource
+    metadata:
+      cache-max-age-seconds: 3600
 
 logging:
   level:
