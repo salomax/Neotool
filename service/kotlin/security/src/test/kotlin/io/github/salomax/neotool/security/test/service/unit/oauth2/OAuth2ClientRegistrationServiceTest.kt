@@ -22,26 +22,18 @@ class OAuth2ClientRegistrationServiceTest {
     private lateinit var repository: OAuth2ClientRepository
     private lateinit var service: OAuth2ClientRegistrationService
     private val codec = OAuth2ClientMetadataCodec()
+    private val supportedScopes =
+        listOf(
+            "finance:cashflow:read",
+            "finance:transactions:read",
+        )
+    private val supportedResources = listOf("https://api.invistus.test")
 
     @BeforeEach
     fun setUp() {
         repository = mock()
         whenever(repository.save(any())).thenAnswer { invocation -> invocation.arguments[0] }
-        service =
-            OAuth2ClientRegistrationService(
-                repository,
-                codec,
-                OAuth2TokenHashing(),
-                OAuthConfig(
-                    authorizationServer =
-                        OAuthConfig.AuthorizationServerConfig(
-                            metadata =
-                                OAuthConfig.AuthorizationServerConfig.MetadataConfig(
-                                    supportedResources = listOf("https://api.invistus.test"),
-                                ),
-                        ),
-                ),
-            )
+        service = createService()
     }
 
     @Test
@@ -101,6 +93,40 @@ class OAuth2ClientRegistrationServiceTest {
     }
 
     @Test
+    fun `register defaults omitted scope to all configured supported scopes`() {
+        val response = service.register(validRequest(scope = null), "127.0.0.1")
+
+        assertThat(response.scope).isEqualTo("finance:cashflow:read finance:transactions:read")
+    }
+
+    @Test
+    fun `register defaults omitted resources to all configured supported resources`() {
+        val response = service.register(validRequest(resources = null), "127.0.0.1")
+
+        assertThat(response.resources).containsExactly("https://api.invistus.test")
+    }
+
+    @Test
+    fun `register succeeds when scope and resources are both omitted`() {
+        val response = service.register(validRequest(scope = null, resources = null), "127.0.0.1")
+
+        assertThat(response.scope).isEqualTo("finance:cashflow:read finance:transactions:read")
+        assertThat(response.resources).containsExactly("https://api.invistus.test")
+    }
+
+    @Test
+    fun `register fails closed when default supported resources are empty`() {
+        val serviceWithoutResources = createService(supportedResources = emptyList())
+
+        val exception =
+            assertThrows<OAuth2InvalidRequestException> {
+                serviceWithoutResources.register(validRequest(resources = null), "127.0.0.1")
+            }
+
+        assertThat(exception.message).isEqualTo("No OAuth2 resources are configured")
+    }
+
+    @Test
     fun `register rejects unsafe client names`() {
         assertThrows<OAuth2InvalidRequestException> {
             service.register(validRequest(clientName = "Invistus Official\nAllow access"), "127.0.0.1")
@@ -112,8 +138,8 @@ class OAuth2ClientRegistrationServiceTest {
 
     private fun validRequest(
         redirectUris: List<String> = listOf("https://client.example/callback"),
-        scope: String = "finance:cashflow:read finance:transactions:read",
-        resources: List<String> = listOf("https://api.invistus.test"),
+        scope: String? = "finance:cashflow:read finance:transactions:read",
+        resources: List<String>? = listOf("https://api.invistus.test"),
         tokenEndpointAuthMethod: String? = null,
         clientName: String = "Runtime Agent",
     ): OAuth2ClientRegistrationRequest =
@@ -123,6 +149,25 @@ class OAuth2ClientRegistrationServiceTest {
             scope = scope,
             resources = resources,
             token_endpoint_auth_method = tokenEndpointAuthMethod,
+        )
+
+    private fun createService(
+        supportedResources: List<String> = this.supportedResources,
+    ): OAuth2ClientRegistrationService =
+        OAuth2ClientRegistrationService(
+            repository,
+            codec,
+            OAuth2TokenHashing(),
+            OAuthConfig(
+                authorizationServer =
+                    OAuthConfig.AuthorizationServerConfig(
+                        metadata =
+                            OAuthConfig.AuthorizationServerConfig.MetadataConfig(
+                                supportedScopes = supportedScopes,
+                                supportedResources = supportedResources,
+                            ),
+                    ),
+            ),
         )
 
     private fun configClient(): OAuth2ClientConfig =
