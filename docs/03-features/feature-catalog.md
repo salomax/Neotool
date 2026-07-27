@@ -26,7 +26,7 @@ related:
   - 03-features/financial_data
   - 07-frontend/mobile-migration-roadmap.md
   - MANIFEST.md
-last_updated: 2026-07-26
+last_updated: 2026-07-27
 ---
 
 # Invistus — Catálogo de Funcionalidades (Shipped)
@@ -67,6 +67,12 @@ Este documento é a **fonte de verdade do produto shipped** para:
 ### Gap de marketing
 
 A landing promove só **3 novidades de mercado** (Bacen, indicadores, comparador). O core B2C — dashboard, lançamentos, importações, carteira, MCP — já está **production-ready** e quase não aparece no copy público.
+
+### Regra editorial para copy da landing
+
+Texto novo escrito diretamente em `web/src/app/i18n` para viabilizar uma implementação da landing
+é **rascunho de implementação**, não copy final aprovada. Considerar esse texto definitivo somente
+quando o sign-off de produto estiver registrado na issue ou no PR correspondente.
 
 ---
 

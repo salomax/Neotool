@@ -159,6 +159,13 @@ Never create the branch before the issue number is known.
 **Priority:** `P0` · `P1` · `P2` · `P3`
 **Track:** `track:black` · `track:silver` · `track:infra` · `track:cross`
 
+**⚠️ P2/P3 label collision:** this repo already has lowercase `p2` ("Pillar 2 - Personal
+Finance Control") and `p3` ("Pillar 3 - Wealth Management B2B") labels. GitHub labels are
+case-insensitive, so `gh label create "P2"` / `"P3"` will fail with "label already exists"
+— there is no separate priority label to attach. When priority is P2 or P3, state it in the
+issue body's Technical info section instead of attempting the label, and don't spend a retry
+trying to create it. (Confirmed via `gh label create "P2"` → 409 during issue #485.)
+
 ---
 
 ## Full workflow reference

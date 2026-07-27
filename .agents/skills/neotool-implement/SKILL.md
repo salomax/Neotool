@@ -83,6 +83,11 @@ Verify the expected branch name from the issue or backlog:
 {type}/GH-{N}-{slug}   (feat/, fix/, refactor/, or chore/)
 ```
 
+**Fail fast before editing any files:** if git is available and the current branch does **not**
+match the expected issue branch, stop implementation work immediately and switch to the expected
+branch before making changes. Do not start coding on an unrelated branch and plan to move the diff
+later.
+
 **If git is available and the branch does not exist locally:**
 ```bash
 git checkout -b {type}/GH-{N}-{slug}
