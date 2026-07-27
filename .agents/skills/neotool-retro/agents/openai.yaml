@@ -1,4 +1,4 @@
 interface:
   display_name: "Neotool Retro"
-  short_description: "Extrai melhorias de SDLC a partir de um trabalho já realizado"
-  default_prompt: "Use $neotool-retro para analisar o que aconteceu durante a issue #123 e propor melhorias de skills, docs ou config."
+  short_description: "Extrai melhorias de SDLC ou endurece drafts de issue/spec para evitar retrabalho"
+  default_prompt: "Use $neotool-retro para analisar o que aconteceu durante a issue #123 ou para revisar um draft de issue/spec e deixá-lo mais assertivo, menos ambíguo e mais barato em tokens."
