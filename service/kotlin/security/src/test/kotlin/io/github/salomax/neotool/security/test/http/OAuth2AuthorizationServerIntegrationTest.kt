@@ -208,6 +208,69 @@ open class OAuth2AuthorizationServerIntegrationTest :
     }
 
     @Test
+    fun `dynamic client registration defaults scope and resources when omitted`() {
+        val registration =
+            registerRuntimeClient(
+                mapOf(
+                    "client_name" to "ChatGPT Runtime Agent",
+                    "redirect_uris" to listOf("https://chatgpt.com/connector/oauth/callback"),
+                    "grant_types" to listOf("authorization_code", "refresh_token"),
+                    "response_types" to listOf("code"),
+                    "token_endpoint_auth_method" to "none",
+                ),
+            )
+
+        assertThat(registration.client_id).startsWith("dcr_")
+        assertThat(registration.client_name).isEqualTo("ChatGPT Runtime Agent")
+        assertThat(registration.redirect_uris)
+            .containsExactly("https://chatgpt.com/connector/oauth/callback")
+        assertThat(registration.scope)
+            .isEqualTo(
+                "finance:transactions:read finance:transactions:write finance:cashflow:read " +
+                    "finance:accounts:read finance:bills:read finance:categories:read " +
+                    "finance:categories:write finance:rules:read finance:rules:write",
+            )
+        assertThat(registration.resources).containsExactly("https://api.invistus.test")
+        assertThat(registration.grant_types).containsExactly("authorization_code", "refresh_token")
+        assertThat(registration.response_types).containsExactly("code")
+        assertThat(registration.token_endpoint_auth_method).isEqualTo("none")
+    }
+
+    @Test
+    fun `client registered without explicit scope or resources is usable at authorize endpoint`() {
+        val registration =
+            registerRuntimeClient(
+                mapOf(
+                    "client_name" to "ChatGPT Runtime Agent",
+                    "redirect_uris" to listOf("https://chatgpt.com/connector/oauth/callback"),
+                    "grant_types" to listOf("authorization_code", "refresh_token"),
+                    "response_types" to listOf("code"),
+                    "token_endpoint_auth_method" to "none",
+                ),
+            )
+
+        val response =
+            noRedirectClient().use { client ->
+                client.toBlocking().exchange(
+                    HttpRequest.GET<Any>(
+                        "/oauth2/authorize" +
+                            "?response_type=code" +
+                            "&client_id=${registration.client_id}" +
+                            "&redirect_uri=https://chatgpt.com/connector/oauth/callback" +
+                            "&scope=finance:cashflow:read" +
+                            "&code_challenge=valid-s256-challenge" +
+                            "&code_challenge_method=S256" +
+                            "&resource=https://api.invistus.test",
+                    ),
+                    String::class.java,
+                )
+            }
+
+        assertThat(response.status()).isEqualTo(HttpStatus.SEE_OTHER)
+        assertThat(response.headers[HttpHeaders.LOCATION]).startsWith("/oauth2/login?request_id=")
+    }
+
+    @Test
     fun `dynamically registered client is immediately usable at authorize endpoint`() {
         val registration = registerRuntimeClient()
 
@@ -763,18 +826,21 @@ open class OAuth2AuthorizationServerIntegrationTest :
                 ).contentType(MediaType.APPLICATION_JSON),
         )
 
-    private fun registerRuntimeClient(): OAuth2ClientRegistrationResponse {
+    private fun registerRuntimeClient(
+        body: Map<String, Any> =
+            mapOf(
+                "client_name" to "Runtime Agent",
+                "redirect_uris" to listOf("https://runtime.example/callback"),
+                "scope" to "finance:cashflow:read",
+                "resources" to listOf("https://api.invistus.test"),
+            ),
+    ): OAuth2ClientRegistrationResponse {
         val response =
             httpClient.exchangeAsString(
                 HttpRequest
                     .POST(
                         "/oauth2/register",
-                        mapOf(
-                            "client_name" to "Runtime Agent",
-                            "redirect_uris" to listOf("https://runtime.example/callback"),
-                            "scope" to "finance:cashflow:read",
-                            "resources" to listOf("https://api.invistus.test"),
-                        ),
+                        body,
                     ).contentType(MediaType.APPLICATION_JSON),
             )
         assertThat(response.status()).isEqualTo(HttpStatus.CREATED)
