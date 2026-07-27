@@ -1,0 +1,60 @@
+---
+description: Playwright E2E conventions for invistus/web
+globs: tests/e2e/**/*
+alwaysApply: false
+---
+
+# E2E (Playwright)
+
+Full guide: `tests/e2e/CONVENTIONS.md`.
+
+## Timeouts
+
+Import from `tests/e2e/helpers/timeouts.ts`:
+
+- `E2E_RECALC_TIMEOUT_MS` — portfolio recalc (`waitForRecalculation`)
+- `E2E_PENDING_ACTION_POLL_MS` — pending actions, coupon rows
+- `E2E_IMPORT_JOB_TIMEOUT_MS` — file import jobs
+- `E2E_HEAVY_DESCRIBE_TIMEOUT_MS` / `E2E_INVESTMENT_DESCRIBE_TIMEOUT_MS` — describe blocks
+
+Do not use 5s defaults for Kafka/import/recalc; use `expect.poll` or shared wait helpers.
+
+## Helpers (reuse, do not duplicate)
+
+| Need | Module |
+|------|--------|
+| Recalc wait, grid session clear, replay idempotency | `investment-e2e.ts` |
+| Coupon day, ISO dates | `fixed-income-e2e.ts` |
+| Transaction query scope | `finance-transactions-e2e.ts` |
+
+```typescript
+// ❌ getTransactions(accountId, token, { first: 50 })
+// ✅ import month matching fixture
+import { importFixtureTransactionQuery, nfceTxQuery } from '../helpers/finance-transactions-e2e';
+await getTransactions(accountId, token, importFixtureTransactionQuery());
+```
+
+## Locators
+
+```typescript
+// ❌ page.getByTestId('pending-action-btn').toHaveCount(1)
+// ✅ scope to row
+await expect(holdingRow.getByTestId('pending-action-btn')).toBeVisible();
+```
+
+## Idempotency / TWR stress
+
+```typescript
+await replayRecalculationRound(token, brokerId, cryptoId);
+const first = await getInvestmentPortfolioSummary(token, { period: PerformancePeriod.All });
+await replayRecalculationRound(token, brokerId, cryptoId);
+const second = await getInvestmentPortfolioSummary(token, { period: PerformancePeriod.All });
+expectNear(second.totalCostBasis, first.totalCostBasis, 6);
+```
+
+Compare two **post-replay** snapshots, not pre-replay vs post-replay TWR.
+
+## Forms & numbers
+
+- Assert `account-form-submit` disabled instead of accidental submit via blur.
+- Use `toBeCloseTo` for balances and TWR from API.
