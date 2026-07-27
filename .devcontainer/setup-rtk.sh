@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
 # setup-rtk.sh — Install agent hooks for RTK (Rust Token Killer) in the DevPod.
-# Called from postCreateCommand. Idempotent. Requires `rtk` on PATH (Dockerfile).
+# Called from postCreateCommand after setup-agent-homes.sh. Idempotent.
+# Requires `rtk` on PATH (Dockerfile). Agent homes are container-local
+# (/home/dev/.claude, /home/dev/.codex) — not bind-mounted from the host.
 #
 # Agents:
 #   - Claude Code / Copilot: Tier-1 PreToolUse hook (rtk init -g --auto-patch)

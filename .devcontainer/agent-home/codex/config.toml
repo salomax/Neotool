@@ -1,0 +1,25 @@
+model = "gpt-5.4"
+model_reasoning_effort = "medium"
+personality = "pragmatic"
+
+# Headroom proxy — MUST stay at top-level (not under [mcp_servers.*])
+# ChatGPT OAuth users: openai_base_url is what actually redirects traffic.
+openai_base_url = "http://127.0.0.1:8787/v1"
+
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+service_tier = "default"
+approvals_reviewer = "user"
+
+[projects."/workspaces/invistus"]
+trust_level = "trusted"
+
+[features]
+js_repl = false
+
+[sandbox_workspace_write]
+network_access = true
+
+[mcp_servers.semble]
+command = "uvx"
+args = ["--from", "semble[mcp]==0.5.2", "semble"]

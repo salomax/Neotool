@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
 # setup-semble.sh — Wire Semble MCP for DevPod agents (Claude Code, Cursor, Codex).
-# Called from postCreateCommand. Idempotent. Requires `uv` + `semble` on PATH
-# (Dockerfile installs pinned versions).
+# Called from postCreateCommand after setup-agent-homes.sh. Idempotent.
+# Requires `uv` + `semble` on PATH (Dockerfile installs pinned versions).
+# Writes into container-local ~/.claude / ~/.codex (not host bind mounts).
 #
 # MCP only here — AGENTS.md / conventions docs in the repo carry usage guidance
 # so we do not let `semble install --type instructions` rewrite project files.

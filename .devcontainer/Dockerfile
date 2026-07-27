@@ -150,6 +150,16 @@ RUN curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" \
     && uvx --from "semble[mcp]==${SEMBLE_VERSION}" semble --help >/dev/null
 
 # -----------------------------------------------------------------------------
+# 7d. Headroom (token-saving local proxy) — pinned via uv tool, same pattern as
+#     Semble. postStart starts `headroom proxy` on 127.0.0.1:8787
+#     (.devcontainer/start-headroom.sh). Codex points openai_base_url at it.
+# -----------------------------------------------------------------------------
+ARG HEADROOM_VERSION=0.32.1
+RUN uv tool install "headroom-ai[proxy]==${HEADROOM_VERSION}" \
+    && headroom --help >/dev/null \
+    && command -v headroom
+
+# -----------------------------------------------------------------------------
 # 8. Python agent dependencies
 # -----------------------------------------------------------------------------
 RUN pip3 install --break-system-packages slack-bolt
@@ -273,6 +283,7 @@ RUN java -version \
     && rtk --version \
     && uv --version \
     && semble --help >/dev/null \
+    && headroom --help >/dev/null \
     && test -x "/home/${USERNAME}/.rover/bin/supergraph-v${SUPERGRAPH_PLUGIN_VERSION}" \
     && cursor --help > /dev/null 2>&1 || true \
     && cloudflared --version 2>&1 || true

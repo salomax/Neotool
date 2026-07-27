@@ -2,7 +2,8 @@
 
 Token-optimized CLI proxy for shell commands. Lives at the **repo root** so every agent
 (Codex, Cursor, Claude Code, in or out of the DevPod) can resolve it — not under
-`~/.codex/` (that path is container-local and breaks agents outside the sandbox).
+`~/.codex/` (that path is DevPod container-local after `setup-agent-homes.sh` and is not
+bind-mounted from the host).
 
 ## Rule
 
@@ -31,4 +32,5 @@ which rtk
 ```
 
 If `rtk` is missing on the host (agent outside DevPod), install it or skip the prefix —
-do not fail the task solely because RTK is absent.
+do not fail the task solely because RTK is absent. Inside the DevPod image, `rtk` is
+always present; hooks are wired by `.devcontainer/setup-rtk.sh`.

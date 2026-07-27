@@ -16,7 +16,7 @@
     }
   },
   "remoteUser": "dev",
-  "initializeCommand": "mkdir -p \"${localEnv:HOME}/.cloudflare\" \"${localEnv:HOME}/.vault-keys\" \"${localEnv:HOME}/.claude\" \"${localEnv:HOME}/.codex\"",
+  "initializeCommand": "mkdir -p \"${localEnv:HOME}/.cloudflare\" \"${localEnv:HOME}/.vault-keys\"",
   "mounts": [
     {
       "source": "invistus-gradle-cache",
@@ -33,16 +33,6 @@
       "target": "/home/dev/.vault-keys",
       "type": "bind",
       "readonly": true
-    },
-    {
-      "source": "${localEnv:HOME}/.claude",
-      "target": "/home/dev/.claude",
-      "type": "bind"
-    },
-    {
-      "source": "${localEnv:HOME}/.codex",
-      "target": "/home/dev/.codex",
-      "type": "bind"
     },
     {
       "source": "invistus-web-node-modules",
@@ -98,10 +88,9 @@
   "postCreateCommand": {
     "neotool-symlink": "sudo ln -sf /workspaces/invistus/scripts/cli/cli /usr/local/bin/neotool && sudo chmod +x /usr/local/bin/neotool",
     "python-yaml": "sudo apt-get update && sudo apt-get install -y --no-install-recommends python3-yaml",
-    "versions": "echo '=== DevPod environment ready ===' && java -version 2>&1 | head -1 && node --version && npm --version && git --version && gh --version | head -1 && (rtk --version 2>&1 || true) && (uv --version 2>&1 || true) && (semble --help >/dev/null && echo 'semble ok' || true) && echo '================================'",
+    "versions": "echo '=== DevPod environment ready ===' && java -version 2>&1 | head -1 && node --version && npm --version && git --version && gh --version | head -1 && (rtk --version 2>&1 || true) && (uv --version 2>&1 || true) && (semble --help >/dev/null && echo 'semble ok' || true) && (headroom --help >/dev/null && echo 'headroom ok' || true) && echo '================================'",
     "setup-env": ".devcontainer/setup-env.sh",
-    "setup-rtk": "bash .devcontainer/setup-rtk.sh",
-    "setup-semble": "bash .devcontainer/setup-semble.sh",
+    "setup-agents": "bash .devcontainer/setup-agent-homes.sh && bash .devcontainer/setup-rtk.sh && bash .devcontainer/setup-semble.sh",
     "fix-volume-perms": "sudo chown -R dev:dev /home/dev/.gradle /home/dev/.npm /workspaces/invistus/web/node_modules /workspaces/invistus/web/.next /workspaces/invistus/service/kotlin/.gradle 2>/dev/null || true"
   },
   "postStartCommand": ".devcontainer/start-infra.sh",

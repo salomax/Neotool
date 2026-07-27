@@ -5,9 +5,7 @@
       "Bash(gh run *)",
       "Bash(gh pr *)",
       "Bash(git rebase *)",
-      "Bash(kubectl rollout *)",
-      "Read(//Users/salomax/src/**)",
-      "Read(//Users/salomax/**)"
+      "Bash(kubectl rollout *)"
     ]
   },
   "hooks": {
@@ -17,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/homebrew/bin/rtk hook claude"
+            "command": "rtk hook claude"
           }
         ]
       }

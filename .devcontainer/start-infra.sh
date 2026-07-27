@@ -12,6 +12,9 @@ export PATH="$AGENTS_BIN:$DEVCONTAINER_BIN:$PATH"
 COMPOSE_FILE="$WORKSPACE_ROOT/infra/docker/docker-compose.local.yml"
 ENV_FILE="$WORKSPACE_ROOT/infra/docker/.env.local"
 
+# Headroom proxy (Codex openai_base_url) — before infra so agents can use it early
+bash "$DEVCONTAINER_BIN/start-headroom.sh" || true
+
 # Lê apenas as vars necessárias do .env.local (evita executar linhas YAML-style com ":")
 POSTGRES_USER=$(grep -E "^POSTGRES_USER=" "$ENV_FILE" | cut -d= -f2)
 POSTGRES_PASSWORD=$(grep -E "^POSTGRES_PASSWORD=" "$ENV_FILE" | cut -d= -f2)

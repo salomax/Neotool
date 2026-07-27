@@ -2,6 +2,24 @@
 
 # Agent instructions — Invistus
 
+## DevPod agent homes (self-contained)
+
+Inside the DevPod, Claude Code and Codex use **container-local** `~/.claude` and
+`~/.codex` seeded from `.devcontainer/agent-home/` (`postCreate` →
+`setup-agent-homes.sh`). Host `~/.claude` / `~/.codex` are **not** bind-mounted.
+
+On a new machine (or after `--recreate` / `devpod delete`):
+
+```bash
+claude login
+codex login
+# optional: gh auth login
+```
+
+`devpod stop` / `devpod up` without recreate keeps the container filesystem (OAuth
+sessions survive). Tooling is baked in the image: `claude`, `codex`, `rtk`,
+`semble`, `headroom` (proxy on `127.0.0.1:8787` via `start-headroom.sh`).
+
 ## RTK (Rust Token Killer) — shell output discipline
 
 See `@RTK.md` (repo root). Prefer RTK-prefixed shell commands when `rtk` is on PATH.
@@ -30,6 +48,16 @@ semble find-related path/to/File.kt 42 .
 ```
 
 Details: `.agents/skills/neotool-conventions/references/semble-search.md`.
+
+## Headroom — token-saving proxy
+
+DevPod runs `headroom proxy` on `http://127.0.0.1:8787`. Codex is seeded with
+`openai_base_url` pointing at that proxy. Host `agents-proxy/` is optional legacy
+for Mac-side use only — not required inside the DevPod.
+
+```bash
+curl -sf http://127.0.0.1:8787/readyz
+```
 
 ## Shared workflow
 

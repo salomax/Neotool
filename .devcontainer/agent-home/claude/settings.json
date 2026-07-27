@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh *)",
+      "Bash(rtk *)",
+      "Bash(git *)",
+      "Bash(npm *)",
+      "Bash(./gradlew *)",
+      "Bash(neotool *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
+      }
+    ]
+  },
+  "model": "sonnet",
+  "effortLevel": "medium"
+}

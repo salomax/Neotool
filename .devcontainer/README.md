@@ -187,6 +187,15 @@ Cada workspace tem git worktree próprio. Sem conflito de porta (VMs separadas).
 # Conferir infra (já deve estar rodando)
 docker ps
 
+# Agent tooling smoke (baked na imagem + postCreate/postStart)
+command -v rtk semble headroom claude codex
+rtk --version && rtk gain
+semble --help >/dev/null
+curl -sf http://127.0.0.1:8787/readyz
+# OAuth (obrigatório no primeiro up e após --recreate):
+claude login
+codex login
+
 # Subir Apollo Router (depois de gerar o supergraph)
 # Rover + plugin: baked no DevPod (`neotool dev up --recreate`) e na imagem
 # `invistus-rover` (host/CI: `graphql generate --docker`). Versões em rover-versions.env.
@@ -207,6 +216,34 @@ cd web && npx playwright test --reporter=list
 neotool --help
 neotool validate --web
 ```
+
+---
+
+## Agent tooling (Claude / Codex) — self-contained
+
+O DevPod **não** monta `~/.claude` / `~/.codex` do host. Homes são container-local,
+seeded de `.devcontainer/agent-home/` em `postCreate` (`setup-agent-homes.sh` →
+`setup-rtk.sh` → `setup-semble.sh`).
+
+| Ferramenta | Onde | Notas |
+|------------|------|--------|
+| `claude` / `codex` | imagem (npm global) | OAuth: `claude login` / `codex login` |
+| `rtk` | imagem + hooks no postCreate | Prefixo de shell commands |
+| `semble` | imagem + MCP no postCreate | Busca semântica |
+| `headroom` | imagem + proxy no postStart | `127.0.0.1:8787`; Codex usa `openai_base_url` |
+
+**Novo PC:** `devpod up` → smoke acima → só OAuth (e `gh auth login` se precisar).
+Não é necessário instalar rtk/semble/headroom no Mac para o sandbox.
+
+**Recreate:** `devpod up --recreate` / `devpod delete` apaga o filesystem do
+container — relogar OAuth. `devpod stop` / `up` sem recreate preserva sessões.
+
+Configs em `~/.claude` / `~/.codex` **do Mac** valem só para agentes rodando fora
+do DevPod. `~/.vault-keys` e `~/.cloudflare` ainda são bind mounts do host
+(fora do escopo de OAuth-only dos agentes).
+
+Skills: fonte única em `.agents/skills/` (Claude via symlink `.claude/skills`;
+Codex via links em `~/.codex/skills` criados no postCreate).
 
 ---
 
@@ -250,17 +287,20 @@ Postgres local do `docker-compose.local.yml`.
 O agente `neotool-dev-agent.py` é uma ponte Slack → pipelines de IA (Claude, Codex, Cursor).
 Ele precisa de dois tipos de chaves: uma para autenticação com o Slack, e outras para cada agente.
 
-### Autenticação Claude (recomendado)
+### Autenticação Claude e Codex (recomendado)
 
-O agente Claude utiliza a CLI `claude` do sistema, que se autentica via `claude login` (OAuth de assinatura):
+As CLIs usam OAuth. Sessões ficam em `~/.claude/` e `~/.codex/` **dentro do container**
+(não no HOME do Mac):
 
 ```bash
 # Dentro do workspace DevPod:
 claude login
+codex login
 ```
 
-Você será direcionado a `https://claude.ai/` para autenticar com sua conta Anthropic.
-A sessão é armazenada em `~/.claude/` e reutilizada automaticamente.
+Você será direcionado ao browser para autenticar. Após `--recreate` ou
+`devpod delete`, é necessário logar de novo. `devpod stop` / `up` sem recreate
+mantém as sessões.
 
 **Alternativa: API Key (headless)**  
 Se preferir usar `ANTHROPIC_API_KEY` em vez de login interativo (ex. CI/CD, servidor headless):
