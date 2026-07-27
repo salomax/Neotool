@@ -113,10 +113,10 @@ open class OAuth2ClientRegistrationService(
                 ?.filter { it.isNotBlank() }
                 ?.distinct()
                 ?: emptyList()
-        if (scopes.isEmpty()) {
-            throw OAuth2InvalidRequestException("scope is required")
-        }
         val supportedScopes = oauthConfig.authorizationServer.metadata.supportedScopes.toSet()
+        if (scopes.isEmpty()) {
+            return supportedScopes.toList()
+        }
         val unknownScopes = scopes.filterNot { supportedScopes.contains(it) }
         if (unknownScopes.isNotEmpty()) {
             throw OAuth2InvalidRequestException("Unknown scope requested")
@@ -125,16 +125,19 @@ open class OAuth2ClientRegistrationService(
     }
 
     private fun validateResources(resources: List<String>?): List<String> {
-        val values = requiredList("resources", resources)
-        values.forEach { parseAbsoluteUri("resources", it) }
         val supportedResources =
             oauthConfig.authorizationServer.metadata.supportedResources
                 .filter { it.isNotBlank() }
-                .toSet()
         if (supportedResources.isEmpty()) {
             throw OAuth2InvalidRequestException("No OAuth2 resources are configured")
         }
-        val unknownResources = values.filterNot { supportedResources.contains(it) }
+        val values = resources?.map { it.trim() }?.filter { it.isNotBlank() }?.distinct().orEmpty()
+        if (values.isEmpty()) {
+            return supportedResources
+        }
+        values.forEach { parseAbsoluteUri("resources", it) }
+        val supportedResourcesSet = supportedResources.toSet()
+        val unknownResources = values.filterNot { supportedResourcesSet.contains(it) }
         if (unknownResources.isNotEmpty()) {
             throw OAuth2InvalidRequestException("Unknown resource requested")
         }
