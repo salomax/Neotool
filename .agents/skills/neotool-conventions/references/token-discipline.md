@@ -34,6 +34,30 @@ If multiple modules changed, run ring 1 per touched module before escalating any
 - For **code discovery**, prefer the Semble MCP / CLI over exploratory Grep+Read sweeps — see
   [semble-search.md](semble-search.md).
 
+## 2.5. Sandbox-friendly JVM / Gradle defaults
+
+In restricted sandboxes, prefer a local temp-scoped home for Gradle / Kotlin before assuming the
+failure is in the code:
+
+- Set `HOME` to a writable temp dir when Kotlin / Gradle tries to write under `~/Library` or
+  another blocked host path.
+- Set `GRADLE_USER_HOME` to a writable temp dir when wrapper locks or caches under `~/.gradle`
+  are blocked.
+- Prefer `-Dkotlin.compiler.execution.strategy=in-process` when the Kotlin daemon cannot create
+  its marker or socket files in the sandbox.
+
+Treat these as execution hygiene, not code fixes. Apply them early so validation failures reflect
+the diff, not the environment.
+
+## 2.6. Do not parallelize KSP-backed Gradle tasks in the same module
+
+For Kotlin modules that use KSP, do **not** run multiple Gradle tasks against the same module in
+parallel (`testUnit`, `testIntegration`, `ktlintCheck`, compile tasks, etc.). KSP output cleanup
+and regeneration can race on `build/generated/ksp/...`, producing artificial failures.
+
+- Safe: parallelize across different modules when they do not share generated outputs.
+- Unsafe: parallelize multiple Gradle invocations that touch the same module's build directory.
+
 ## 3. Summarize failure before re-running
 
 Never re-run a broad suite “to see it again”.
@@ -94,3 +118,13 @@ Stop and ask the user when any of these hold:
   unscoped suite.
 - Acceptance requires a measurement or environment rebuild you cannot complete in-session
   (e.g. DevPod image rebuild for a new binary) — report what is done and what is blocked.
+
+## 8. Prefer targeted validation before full-module reruns
+
+When adding or adjusting a small number of tests:
+
+1. Run the new or changed test class directly.
+2. Run the closest HTTP / service-level test that proves the behavior end to end inside the module.
+3. Only then broaden to the full module suite.
+
+This reduces tokens and helps distinguish code failures from unrelated module noise.

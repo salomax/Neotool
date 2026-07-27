@@ -27,6 +27,20 @@ Load reference files based on the task:
 - Mapping GraphQL types or implementing a resolver → [references/graphql.md](references/graphql.md)
 - Writing unit or integration tests → [references/tests.md](references/tests.md)
 
+## Backend execution heuristics
+
+- **Check the module's real test taxonomy before choosing the command.** Do not assume
+  `@MicronautTest` implies the Gradle `testIntegration` task. Some modules keep HTTP or app-boot
+  tests in `testUnit`, while `testIntegration` is reserved for `@Tag("integration")` and may add
+  hard infrastructure requirements such as Docker / Testcontainers.
+- **Compare against the nearest in-repo analogue before inventing shape.** For new config,
+  controllers, validators, or tests, read the closest existing implementation in a sibling module
+  first and mirror its binding style, validation lifecycle, and test structure unless there is a
+  clear reason to diverge.
+- **If you intentionally diverge from backlog wording because of module mechanics, make it
+  explicit.** Example: covering a datasource-free Micronaut HTTP endpoint in `testUnit` instead of
+  `testIntegration` because the latter is Docker-gated in that module.
+
 ## Non-negotiable rules
 
 1. **Clean Architecture is mandatory** — domain never depends on infrastructure

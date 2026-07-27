@@ -41,13 +41,17 @@ class SnapshotComputationServiceTest {
 
 ## Comandos
 
+O wrapper `gradlew` **não existe na raiz do repo** — vive em `service/kotlin/gradlew`. Rode a partir da raiz com `-p service/kotlin`, ou `cd service/kotlin` antes:
+
 ```bash
 # Unit tests (sem Docker, rápido)
-./gradlew :banking:testUnit
+service/kotlin/gradlew -p service/kotlin :banking:testUnit
 
 # Integration tests (requer Docker)
-./gradlew :banking:testIntegration
+service/kotlin/gradlew -p service/kotlin :banking:testIntegration
 ```
+
+Se você usa o hook do RTK (`rtk hook claude`), ele pode reescrever/colapsar tasks Gradle não reconhecidas (ex.: `:mcp:testUnit` virando `:mcp:test`, puxando testes de integração indevidamente e gerando falhas enganosas). Para tasks customizadas (`testUnit`, `testIntegration`), prefira `rtk proxy "<comando completo>"` para rodar sem reescrita, e confira no output qual task realmente executou antes de interpretar falhas.
 
 ## Gotchas
 
