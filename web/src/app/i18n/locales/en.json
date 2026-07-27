@@ -10,35 +10,105 @@
     }
   },
   "features": {
-    "title": "What's New",
-    "subtitle": "The latest updates for your financial intelligence.",
+    "title": "The financial system that keeps up with real life",
+    "subtitle": "From everyday spending to market context, Invistus helps you organize cash flow, automate reviews, and act with more confidence.",
+    "personalFinance": {
+      "eyebrow": "Personal Finance Hub",
+      "title": "See your money in one place before the month drifts away.",
+      "description": "Your dashboard, accounts, categories, and latest movements stay connected so the next decision feels obvious, not exhausting.",
+      "cta": "Open the dashboard",
+      "dashboard": {
+        "title": "Dashboard",
+        "description": "Track KPIs, cash flow, net worth, and category signals from a single home base."
+      },
+      "transactions": {
+        "title": "Transactions",
+        "description": "Review credits, debits, transfers, and merchants with filters built for real routines."
+      },
+      "accounts": {
+        "title": "Accounts",
+        "description": "Keep bank, card, cash, investment, loan, and benefit accounts organized together."
+      },
+      "summary": {
+        "title": "Monthly summary",
+        "description": "Spot how the month is closing before surprises pile up."
+      },
+      "categorization": {
+        "title": "Smart categorization",
+        "description": "Apply rules and bulk actions without losing control over the details."
+      },
+      "tags": {
+        "title": "Tags and context",
+        "description": "Add your own lenses to analyze spending patterns the way you actually think about them."
+      },
+      "automation": {
+        "eyebrow": "Automation that still feels accountable",
+        "title": "Categorize faster, import faster, and keep the audit trail.",
+        "description": "Invistus turns repetitive finance cleanup into guided flows, with rules, document imports, and review steps that keep you in charge.",
+        "cta": "Explore transaction flows"
+      },
+      "imports": {
+        "title": "Statement and bill imports",
+        "description": "Bring OFX, CSV, Excel, and PDF data into the app instead of retyping the month by hand."
+      },
+      "installments": {
+        "title": "Installment review",
+        "description": "Confirm parcel details before they distort the real cost of a purchase."
+      },
+      "documentsNfce": {
+        "title": "Document and NFC-e intake",
+        "description": "Pull purchase evidence into your history so records are easier to trust and revisit."
+      }
+    },
+    "recurringPayments": {
+      "eyebrow": "Recurring Payments",
+      "title": "Never wonder which fixed bill is still waiting for you.",
+      "description": "Track subscriptions, utilities, and repeating commitments with pause, resume, reminders, and confirmations when the plan changes.",
+      "cta": "Manage recurring payments",
+      "highlights": {
+        "pauseResume": "Pause and resume cycles",
+        "reminders": "Stay ahead of due dates",
+        "confirmations": "Confirm what was actually paid"
+      }
+    },
+    "wishlist": {
+      "eyebrow": "Wishlist",
+      "title": "Turn impulse into a purchase plan you can actually trust.",
+      "description": "Rank priorities, reorder ideas, and convert planned purchases into tracked transactions when the timing is right.",
+      "cta": "Open the wishlist",
+      "highlights": {
+        "priorities": "Prioritize what matters now",
+        "reorder": "Reorder without losing context",
+        "purchaseFlow": "Mark as purchased and create the transaction"
+      }
+    },
     "institutions": {
-      "tag": "New Feature",
-      "title": "Financial Institutions",
-      "description": "Track quarterly balance sheets and ratings of major market institutions in a simplified way.",
+      "tag": "Market Data",
+      "title": "Follow financial institutions with more context than headlines give you.",
+      "description": "Browse quarterly results, capital signals, profitability, and ratings for major institutions without hunting across disconnected sources.",
       "tags": {
         "balance_results": "Balance Results",
         "basileia": "Basel Index",
         "net_profit": "Net Profit",
         "ratings": "Ratings"
       },
-      "cta": "Learn more"
+      "cta": "Explore institutions"
     },
     "indicators": {
-      "tag": "New Feature",
-      "title": "Macroeconomic Indicators",
-      "description": "Monitor main macroeconomic Indicators.",
+      "tag": "Macro Signals",
+      "title": "Keep inflation, rates, and growth close to the decisions they affect.",
+      "description": "Watch the indicators that move budgets, portfolios, and pricing power without opening five tabs to rebuild the story.",
       "tags": {
         "ipca": "IPCA",
         "selic": "Selic",
         "pib": "GDP"
       },
-      "cta": "Access data"
+      "cta": "View indicators"
     },
     "fixed_income_comparison": {
-      "tag": "New Feature",
-      "title": "Fixed Income Comparison",
-      "description": "Compare the best fixed income rates in the market. Find ideal CDBs, LCIs, and LCAs for you.",
+      "tag": "Fixed Income",
+      "title": "Compare fixed-income opportunities before yield marketing wins the room.",
+      "description": "Put CDBs, LCIs, and LCAs side by side with taxes and liquidity in view, so the best rate is not the only thing driving the choice.",
       "tags": {
         "cdb": "CDB",
         "lci": "LCI",
