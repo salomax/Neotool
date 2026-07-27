@@ -1,3 +1,13 @@
+## 0.10.1 (2026-07-27)
+
+### 🩹 Fixes
+
+- remove unnecessary whitespace in LandingPageClient component ([62ff011e](https://github.com/invistus/invistus/commit/62ff011e))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.10.0 (2026-07-26)
 
 ### 🚀 Features
