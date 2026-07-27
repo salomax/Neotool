@@ -89,6 +89,8 @@ mcp:
   resource:
     audience: ${MCP_RESOURCE_AUDIENCE}
     metadata-url: ${MCP_RESOURCE_METADATA_URL}
+    metadata:
+      cache-max-age-seconds: ${MCP_RESOURCE_METADATA_CACHE_MAX_AGE_SECONDS:3600}
   revocation:
     eviction:
       enabled: ${MCP_REVOCATION_EVICTION_ENABLED:true}
