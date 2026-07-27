@@ -101,6 +101,13 @@ Do not push tests to the end as a separate phase. Generate test tasks alongside 
 
 If a task is purely mechanical (e.g., running codegen, adding a migration with no logic), do not invent a test task just for formality.
 
+**For multi-step flows, split "accepts creation" from "is usable in the next hop".** If the technical solution describes a sequence such as register → authorize, create → fetch, issue token → call downstream service, or save config → boot service, the backlog must not stop at the first successful step. Generate acceptance-shaped tasks/tests that prove both:
+
+- the artifact is created/accepted successfully at step N
+- the created artifact is actually usable at step N+1 on the real path
+
+Issue #488 is the model case: proving that DCR returned 201 was not enough; the backlog also needed an explicit follow-up assertion that a client registered without `scope` / `resources` could then complete `/oauth2/authorize` with the defaulted values.
+
 ### 6. Post on the issue
 
 Publish the backlog as a comment on the issue. Use the following format:
@@ -141,3 +148,5 @@ After commenting, inform the user how many tasks were generated and which layers
 ## Quality principles
 
 Write tasks for both humans and agents. Each item must make sense without forcing the reader to re-read the entire technical analysis. Prefer project conventions over generic boilerplate. Do not explain in the task how to implement a pattern already covered by a local skill — use the task to say what needs to be delivered. Treat milestones as a deliverability recommendation, not a blocker.
+
+When a flow has more than one externally visible hop, acceptance criteria and test tasks should read like a chain, not isolated fragments: "request succeeds" and "result is usable in the next step" are separate deliverables unless the first test already proves both on the real path.
