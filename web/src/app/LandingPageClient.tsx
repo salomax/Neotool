@@ -25,6 +25,7 @@ export default function WelcomePage() {
         overflowX: "hidden",
       }}
     >
+      
       <LandingHero />
 
       <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.paper" }}>
