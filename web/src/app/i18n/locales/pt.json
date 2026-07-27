@@ -10,35 +10,105 @@
     }
   },
   "features": {
-    "title": "Novidades",
-    "subtitle": "As últimas atualizações para sua inteligência financeira.",
+    "title": "O sistema financeiro que acompanha a vida real",
+    "subtitle": "Do gasto do dia a dia ao contexto de mercado, o Invistus ajuda você a organizar fluxo de caixa, automatizar revisões e agir com mais confiança.",
+    "personalFinance": {
+      "eyebrow": "Hub de Finanças Pessoais",
+      "title": "Veja sua vida financeira inteira antes que o mês escape do controle.",
+      "description": "Dashboard, contas, categorias e movimentos recentes ficam conectados para que a próxima decisão pareça clara, não cansativa.",
+      "cta": "Abrir o dashboard",
+      "dashboard": {
+        "title": "Dashboard",
+        "description": "Acompanhe KPIs, fluxo de caixa, patrimônio e sinais por categoria em um só ponto de partida."
+      },
+      "transactions": {
+        "title": "Lançamentos",
+        "description": "Revise créditos, débitos, transferências e merchants com filtros pensados para a rotina real."
+      },
+      "accounts": {
+        "title": "Contas",
+        "description": "Organize bancos, cartões, caixa, investimentos, empréstimos e benefícios no mesmo lugar."
+      },
+      "summary": {
+        "title": "Resumo mensal",
+        "description": "Perceba como o mês está fechando antes que os desvios se acumulem."
+      },
+      "categorization": {
+        "title": "Categorização inteligente",
+        "description": "Aplique regras e ações em massa sem perder controle sobre os detalhes."
+      },
+      "tags": {
+        "title": "Tags e contexto",
+        "description": "Crie suas próprias lentes para analisar gastos do jeito que você realmente pensa sobre eles."
+      },
+      "automation": {
+        "eyebrow": "Automação com rastreabilidade",
+        "title": "Categorize mais rápido, importe mais rápido e mantenha trilha de revisão.",
+        "description": "O Invistus transforma a limpeza repetitiva das finanças em fluxos guiados, com regras, importações de documentos e etapas de revisão que mantêm você no controle.",
+        "cta": "Explorar fluxos de lançamentos"
+      },
+      "imports": {
+        "title": "Importação de extratos e faturas",
+        "description": "Traga OFX, CSV, Excel e PDF para o app em vez de reconstruir o mês manualmente."
+      },
+      "installments": {
+        "title": "Revisão de parcelas",
+        "description": "Confirme os detalhes de parcelamentos antes que eles distorçam o custo real da compra."
+      },
+      "documentsNfce": {
+        "title": "Documentos e NFC-e",
+        "description": "Leve comprovantes e compras para o histórico para que os registros fiquem mais confiáveis e fáceis de revisitar."
+      }
+    },
+    "recurringPayments": {
+      "eyebrow": "Pagamentos Recorrentes",
+      "title": "Nunca mais se pergunte qual conta fixa ainda está esperando por você.",
+      "description": "Acompanhe assinaturas, utilidades e compromissos recorrentes com pause, resume, lembretes e confirmações quando o plano muda.",
+      "cta": "Gerenciar recorrentes",
+      "highlights": {
+        "pauseResume": "Pause e retome ciclos",
+        "reminders": "Antecipe vencimentos",
+        "confirmations": "Confirme o que foi realmente pago"
+      }
+    },
+    "wishlist": {
+      "eyebrow": "Lista de Desejos",
+      "title": "Transforme impulso em plano de compra que faz sentido.",
+      "description": "Priorize o que importa, reorganize ideias e converta compras planejadas em lançamentos quando o momento certo chegar.",
+      "cta": "Abrir a wishlist",
+      "highlights": {
+        "priorities": "Priorize o que importa agora",
+        "reorder": "Reordene sem perder contexto",
+        "purchaseFlow": "Marque como comprado e gere o lançamento"
+      }
+    },
     "institutions": {
-      "tag": "Novo Recurso",
-      "title": "Instituições Financeiras",
-      "description": "Acompanhe balanços trimestrais e ratings das principais instituições do mercado de forma simplificada.",
+      "tag": "Dados de Mercado",
+      "title": "Acompanhe instituições financeiras com mais contexto do que as manchetes entregam.",
+      "description": "Navegue por resultados trimestrais, capital, lucratividade e ratings de grandes instituições sem caçar informação em fontes desconectadas.",
       "tags": {
         "balance_results": "Resultado dos balanços",
         "basileia": "Índice de Basileia",
         "net_profit": "Lucro Líquido",
         "ratings": "Ratings"
       },
-      "cta": "Acessar dados"
+      "cta": "Explorar instituições"
     },
     "indicators": {
-      "tag": "Novo Recurso",
-      "title": "Indicadores Macroeconômicos",
-      "description": "Monitore os principais indicadores Macroeconômicos",
+      "tag": "Sinais Macro",
+      "title": "Mantenha inflação, juros e crescimento perto das decisões que eles influenciam.",
+      "description": "Acompanhe os indicadores que mexem com orçamento, carteira e poder de precificação sem abrir cinco abas para reconstruir a história.",
       "tags": {
         "ipca": "IPCA",
         "selic": "Selic",
         "pib": "PIB"
       },
-      "cta": "Acessar dados"
+      "cta": "Ver indicadores"
     },
     "fixed_income_comparison": {
-      "tag": "Novo Recurso",
-      "title": "Comparador de Renda Fixa",
-      "description": "Compare as melhores taxas de renda fixa do mercado. Encontre CDBs, LCIs e LCAs ideais para você.",
+      "tag": "Renda Fixa",
+      "title": "Compare oportunidades de renda fixa antes que o marketing do yield domine a decisão.",
+      "description": "Coloque CDBs, LCIs e LCAs lado a lado com impostos e liquidez visíveis, para que a melhor taxa não seja o único critério da escolha.",
       "tags": {
         "cdb": "CDB",
         "lci": "LCI",
