@@ -1,53 +1,19 @@
 "use client";
 
-import {
-  Box,
-  Typography,
-  Container,
-  Stack,
-  styled,
-  Link,
-  Chip,
-} from "@/shared/ui/mui-imports";
-import { Theme } from "@mui/material/styles";
+import { Box, Container, Link, Stack, Typography } from "@/shared/ui/mui-imports";
 import { Logo } from "@/shared/ui/brand";
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import { useTranslation } from "@/shared/i18n";
 import { landingTranslations } from "./i18n";
 import { LandingHero } from "./landing/LandingHero";
 import { LANDING_PAGE_CONTENT_SX } from "./landing/landingPageLayout";
-import { BRAND_GREEN, BRAND_NAVY, BRAND_SAIL } from "./landing/brandColors";
-import NextLink from "next/link";
-import LinkedInIcon from "@mui/icons-material/LinkedIn";
-import EastIcon from "@mui/icons-material/East";
-import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import ShowChartIcon from "@mui/icons-material/ShowChart";
-import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
-
-const FeatureCard = styled(Box, {
-  shouldForwardProp: (prop: string) => prop !== "bgColor" && prop !== "textColor",
-})<{ bgColor?: string; textColor?: string }>(
-  ({ theme, bgColor, textColor }: { theme: Theme; bgColor?: string; textColor?: string }) => ({
-    backgroundColor: bgColor || theme.palette.background.paper,
-    color: textColor || theme.palette.text.primary,
-    borderRadius: 32,
-    padding: theme.spacing(5),
-    height: "100%",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    position: "relative",
-    overflow: "hidden",
-    transition: "all 0.5s ease",
-    cursor: "pointer",
-    "&:hover": {
-      boxShadow: theme.shadows[10],
-      transform: "translateY(-4px)",
-    },
-  }),
-);
+import { buildLandingFeatureCatalog } from "./landing/featureCatalog";
+import { FeatureHighlightSection } from "./landing/FeatureHighlightSection";
+import { FeatureSplitSection } from "./landing/FeatureSplitSection";
 
 export default function WelcomePage() {
   const { t } = useTranslation(landingTranslations);
+  const catalog = buildLandingFeatureCatalog(t);
 
   return (
     <Box
@@ -56,209 +22,31 @@ export default function WelcomePage() {
         minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
-        overflowX: "hidden", // Decorative landing visuals should clip instead of widening the mobile viewport.
+        overflowX: "hidden",
       }}
     >
       <LandingHero />
 
-      {/* Features Section */}
-      <Box sx={{ py: 12, bgcolor: "background.paper" }}>
+      <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.paper" }}>
         <Container maxWidth={false} sx={LANDING_PAGE_CONTENT_SX}>
-          <Box sx={{ mb: 6 }}>
-            <Typography variant="h3" component="h2" sx={{ fontWeight: 700, mb: 1 }}>
-              {t("features.title")}
+          <Box sx={{ mb: { xs: 6, md: 8 }, maxWidth: 760 }}>
+            <Typography variant="h3" component="h2" sx={{ fontWeight: 700, mb: 2 }}>
+              {catalog.header.title}
             </Typography>
-            <Typography variant="h6" sx={{ color: "text.secondary", fontWeight: 400 }}>
-              {t("features.subtitle")}
+            <Typography variant="h6" sx={{ color: "text.secondary", fontWeight: 400, lineHeight: 1.6 }}>
+              {catalog.header.subtitle}
             </Typography>
           </Box>
 
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 4 }}>
-            <NextLink href="/financial-data/bacen-institutions" style={{ textDecoration: "none", display: "block" }}>
-              <FeatureCard bgColor={BRAND_NAVY} textColor="#fff" className="group">
-                <Box sx={{ position: "relative", zIndex: 1 }}>
-                  <Chip
-                    label={t("features.institutions.tag")}
-                    size="small"
-                    sx={{ bgcolor: "rgba(255,255,255,0.1)", color: "#fff", mb: 3, backdropFilter: "blur(4px)" }}
-                  />
-                  <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-                    {t("features.institutions.title")}
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{ color: "rgba(183, 222, 246, 0.8)", fontSize: "1.125rem", lineHeight: 1.6, mb: 4 }}
-                  >
-                    {t("features.institutions.description")}
-                  </Typography>
-                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
-                    <Chip
-                      label={t("features.institutions.tags.balance_results")}
-                      variant="outlined"
-                      sx={{ borderColor: "rgba(255,255,255,0.2)", color: "#fff" }}
-                    />
-                    <Chip
-                      label={t("features.institutions.tags.basileia")}
-                      variant="outlined"
-                      sx={{ borderColor: "rgba(255,255,255,0.2)", color: "#fff" }}
-                    />
-                    <Chip
-                      label={t("features.institutions.tags.net_profit")}
-                      variant="outlined"
-                      sx={{ borderColor: "rgba(255,255,255,0.2)", color: "#fff" }}
-                    />
-                    <Chip
-                      label={t("features.institutions.tags.ratings")}
-                      variant="outlined"
-                      sx={{ borderColor: "rgba(255,255,255,0.2)", color: "#fff" }}
-                    />
-                  </Stack>
-                </Box>
-
-                <Box sx={{ mt: 6, display: "flex", alignItems: "center", color: BRAND_SAIL, fontWeight: 600 }}>
-                  {t("features.institutions.cta")} <EastIcon sx={{ ml: 1 }} />
-                </Box>
-
-                <Box
-                  sx={{
-                    position: "absolute",
-                    right: -60,
-                    bottom: -60,
-                    opacity: 0.2,
-                    transition: "all 0.7s",
-                    ".group:hover &": { transform: "scale(1.1)", opacity: 0.3 },
-                  }}
-                >
-                  <AccountBalanceIcon sx={{ fontSize: 300 }} />
-                </Box>
-              </FeatureCard>
-            </NextLink>
-
-            <NextLink href="/financial-data/national-indicators" style={{ textDecoration: "none", display: "block" }}>
-              <FeatureCard bgColor={BRAND_SAIL} textColor={BRAND_NAVY} className="group">
-                <Box sx={{ position: "relative", zIndex: 1 }}>
-                  <Chip
-                    label={t("features.indicators.tag")}
-                    size="small"
-                    sx={{ bgcolor: "rgba(15, 34, 63, 0.1)", color: BRAND_NAVY, mb: 3 }}
-                  />
-                  <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-                    {t("features.indicators.title")}
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{ color: "rgba(15, 34, 63, 0.7)", fontSize: "1.125rem", lineHeight: 1.6, mb: 4 }}
-                  >
-                    {t("features.indicators.description")}
-                  </Typography>
-                  <Stack direction="row" spacing={2} flexWrap="wrap" gap={1}>
-                    <Chip
-                      label={t("features.indicators.tags.ipca")}
-                      sx={{
-                        bgcolor: "rgba(255,255,255,0.5)",
-                        color: BRAND_NAVY,
-                        fontWeight: 700,
-                        border: "1px solid rgba(255,255,255,0.5)",
-                      }}
-                    />
-                    <Chip
-                      label={t("features.indicators.tags.selic")}
-                      sx={{
-                        bgcolor: "rgba(255,255,255,0.5)",
-                        color: BRAND_NAVY,
-                        fontWeight: 700,
-                        border: "1px solid rgba(255,255,255,0.5)",
-                      }}
-                    />
-                    <Chip
-                      label={t("features.indicators.tags.pib")}
-                      sx={{
-                        bgcolor: "rgba(255,255,255,0.5)",
-                        color: BRAND_NAVY,
-                        fontWeight: 700,
-                        border: "1px solid rgba(255,255,255,0.5)",
-                      }}
-                    />
-                  </Stack>
-                </Box>
-
-                <Box sx={{ mt: 6, display: "flex", alignItems: "center", fontWeight: 700 }}>
-                  {t("features.indicators.cta")} <EastIcon sx={{ ml: 1 }} />
-                </Box>
-
-                <Box
-                  sx={{
-                    position: "absolute",
-                    right: -60,
-                    bottom: -60,
-                    opacity: 0.2,
-                    transition: "all 0.7s",
-                    ".group:hover &": { transform: "rotate(12deg)" },
-                  }}
-                >
-                  <ShowChartIcon sx={{ fontSize: 300 }} />
-                </Box>
-              </FeatureCard>
-            </NextLink>
-
-            <NextLink
-              href="/investments/fixed-income-comparison"
-              style={{ textDecoration: "none", display: "block", height: "100%" }}
-            >
-              <FeatureCard bgColor={BRAND_GREEN} textColor="#fff" className="group">
-                <Box sx={{ position: "relative", zIndex: 1 }}>
-                  <Chip
-                    label={t("features.fixed_income_comparison.tag")}
-                    size="small"
-                    sx={{ bgcolor: "rgba(255,255,255,0.1)", color: "#fff", mb: 3, backdropFilter: "blur(4px)" }}
-                  />
-                  <Typography variant="h4" sx={{ fontWeight: 700, mb: 2 }}>
-                    {t("features.fixed_income_comparison.title")}
-                  </Typography>
-                  <Typography
-                    variant="body1"
-                    sx={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "1.125rem", lineHeight: 1.6, mb: 4 }}
-                  >
-                    {t("features.fixed_income_comparison.description")}
-                  </Typography>
-                  <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
-                    <Chip
-                      label={t("features.fixed_income_comparison.tags.cdb")}
-                      variant="outlined"
-                      sx={{ borderColor: "rgba(255,255,255,0.2)", color: "#fff" }}
-                    />
-                    <Chip
-                      label={t("features.fixed_income_comparison.tags.lci")}
-                      variant="outlined"
-                      sx={{ borderColor: "rgba(255,255,255,0.2)", color: "#fff" }}
-                    />
-                    <Chip
-                      label={t("features.fixed_income_comparison.tags.lca")}
-                      variant="outlined"
-                      sx={{ borderColor: "rgba(255,255,255,0.2)", color: "#fff" }}
-                    />
-                  </Stack>
-                </Box>
-
-                <Box sx={{ mt: 6, display: "flex", alignItems: "center", color: "#6ee7b7", fontWeight: 600 }}>
-                  {t("features.fixed_income_comparison.cta")} <EastIcon sx={{ ml: 1 }} />
-                </Box>
-
-                <Box
-                  sx={{
-                    position: "absolute",
-                    right: -60,
-                    bottom: -60,
-                    opacity: 0.2,
-                    transition: "all 0.7s",
-                    ".group:hover &": { transform: "scale(1.1)", opacity: 0.3 },
-                  }}
-                >
-                  <CompareArrowsIcon sx={{ fontSize: 300 }} />
-                </Box>
-              </FeatureCard>
-            </NextLink>
-          </Box>
+          <Stack spacing={{ xs: 6, md: 8 }}>
+            {catalog.sections.map((section) =>
+              section.layout === "highlight" ? (
+                <FeatureHighlightSection key={section.id} section={section} />
+              ) : (
+                <FeatureSplitSection key={section.id} section={section} />
+              ),
+            )}
+          </Stack>
         </Container>
       </Box>
 
