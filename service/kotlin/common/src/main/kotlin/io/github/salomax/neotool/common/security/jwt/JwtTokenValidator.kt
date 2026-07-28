@@ -1,13 +1,17 @@
 package io.github.salomax.neotool.common.security.jwt
 
 import io.github.salomax.neotool.common.security.config.JwtConfig
+import io.github.salomax.neotool.common.security.exception.AuthenticationFailureCause
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.key.KeyManager
 import io.github.salomax.neotool.common.security.key.KeyManagerFactory
 import io.github.salomax.neotool.common.security.principal.AccountSummary
 import io.jsonwebtoken.Claims
+import io.jsonwebtoken.ExpiredJwtException
+import io.jsonwebtoken.IncorrectClaimException
 import io.jsonwebtoken.JwtException
 import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.security.SignatureException
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.security.PublicKey
@@ -101,11 +105,23 @@ class JwtTokenValidator(
         } catch (e: AuthenticationRequiredException) {
             throw e
         } catch (e: JwtException) {
-            throw AuthenticationRequiredException("Token validation failed: ${e.message}")
+            throw AuthenticationRequiredException(
+                "Token validation failed: ${e.message}",
+                failureCause = mapJwtFailureCause(e),
+            )
         } catch (e: Exception) {
             throw AuthenticationRequiredException("Token validation failed: ${e.message}")
         }
     }
+
+    private fun mapJwtFailureCause(exception: JwtException): AuthenticationFailureCause =
+        when {
+            exception is ExpiredJwtException -> AuthenticationFailureCause.TOKEN_EXPIRED
+            exception is SignatureException -> AuthenticationFailureCause.TOKEN_INVALID_SIGNATURE
+            exception is IncorrectClaimException && exception.claimName == "iss" ->
+                AuthenticationFailureCause.TOKEN_INVALID_ISSUER
+            else -> AuthenticationFailureCause.TOKEN_INVALID
+        }
 
     /**
      * Extract user ID from a validated JWT token.

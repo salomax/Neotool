@@ -10,6 +10,7 @@ import io.github.salomax.neotool.mcp.catalog.McpCatalogTool
 import io.github.salomax.neotool.mcp.catalog.McpToolCatalog
 import io.github.salomax.neotool.mcp.dispatch.McpToolHandler
 import io.github.salomax.neotool.mcp.dispatch.McpToolHandlerRegistry
+import io.github.salomax.neotool.mcp.observability.McpObservabilityLogger
 import io.github.salomax.neotool.mcp.render.McpToolErrorMapper
 import io.github.salomax.neotool.mcp.render.McpToolErrorResult
 import io.github.salomax.neotool.mcp.render.McpToolResult
@@ -18,9 +19,12 @@ import io.github.salomax.neotool.mcp.render.McpToolSuccessResult
 import io.github.salomax.neotool.mcp.security.McpPrincipal
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import java.util.UUID
 
 class McpProtocolServiceTest {
@@ -91,7 +95,8 @@ class McpProtocolServiceTest {
 
     @Test
     fun `initialize falls back to latest protocol version for unsupported client version`() {
-        val service = protocolService()
+        val observabilityLogger = mock<McpObservabilityLogger>()
+        val service = protocolService(observabilityLogger = observabilityLogger)
 
         val response =
             service.handle(
@@ -103,6 +108,7 @@ class McpProtocolServiceTest {
                         mapOf(
                             "protocolVersion" to "2025-03-26",
                             "capabilities" to emptyMap<String, Any>(),
+                            "clientInfo" to mapOf("name" to "claude", "version" to "1.0.0"),
                         ),
                 ),
                 principal("finance:cashflow:read"),
@@ -110,6 +116,95 @@ class McpProtocolServiceTest {
         val result = response.result as InitializeResult
 
         assertThat(result.protocolVersion).isEqualTo("2025-06-18")
+        verify(observabilityLogger).recordProtocolRequest(
+            eq("initialize"),
+            eq("success"),
+            any<Long>(),
+            eq("client"),
+            eq(
+                mapOf(
+                    "requested_protocol_version" to "2025-03-26",
+                    "negotiated_protocol_version" to "2025-06-18",
+                    "client_name" to "claude",
+                    "client_version" to "1.0.0",
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `tools list records scoped tool count in protocol event`() {
+        val observabilityLogger = mock<McpObservabilityLogger>()
+        val service =
+            protocolService(
+                tools =
+                    listOf(
+                        tool(name = "cashflow", exposed = true, requiredScope = "finance:cashflow:read"),
+                        tool(name = "investments", exposed = true, requiredScope = "finance:investments:read"),
+                    ),
+                observabilityLogger = observabilityLogger,
+            )
+
+        service.handle(toolsListRequest(), principal("finance:cashflow:read"))
+
+        verify(observabilityLogger).recordProtocolRequest(
+            eq("tools/list"),
+            eq("success"),
+            any<Long>(),
+            eq("client"),
+            eq(mapOf("tool_count" to 1)),
+        )
+    }
+
+    @Test
+    fun `unknown method emits method not found protocol event`() {
+        val observabilityLogger = mock<McpObservabilityLogger>()
+        val service = protocolService(observabilityLogger = observabilityLogger)
+
+        service.handle(
+            mapOf(
+                "jsonrpc" to "2.0",
+                "id" to "unknown-1",
+                "method" to "tools/missing",
+            ),
+            principal("finance:cashflow:read"),
+        )
+
+        verify(observabilityLogger).recordProtocolRequest(
+            eq("unknown"),
+            eq("method_not_found"),
+            any<Long>(),
+            eq("client"),
+            eq(mapOf("raw_method" to "tools/missing")),
+        )
+    }
+
+    @Test
+    fun `protocol request still succeeds when observability logger throws`() {
+        val observabilityLogger = mock<McpObservabilityLogger>()
+        whenever(
+            observabilityLogger.recordProtocolRequest(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            ),
+        ).thenThrow(IllegalStateException("logger down"))
+        val service = protocolService(observabilityLogger = observabilityLogger)
+
+        val response =
+            service.handle(
+                mapOf(
+                    "jsonrpc" to "2.0",
+                    "id" to "init-logger-failure",
+                    "method" to "initialize",
+                    "params" to mapOf("protocolVersion" to "2025-06-18"),
+                ),
+                principal("finance:cashflow:read"),
+            )
+
+        assertThat((response!!.result as InitializeResult).protocolVersion).isEqualTo("2025-06-18")
     }
 
     @Test
@@ -322,11 +417,83 @@ class McpProtocolServiceTest {
                 principal("finance:cashflow:read"),
             )!!
 
-        assertThat(response.error?.message).isEqualTo("Unknown tool")
+        assertHiddenToolError(response, "guarded_tool")
         val captor = argumentCaptor<ToolCallAuditRecord>()
         verify(auditService).record(captor.capture())
         assertThat(captor.firstValue.outcome).isEqualTo(ToolCallAuditOutcome.REJECTED)
         assertThat(captor.firstValue.errorCode).isEqualTo("insufficient_scope")
+    }
+
+    @Test
+    fun `tools call for non exposed tool records tool not exposed audit code while keeping hidden response`() {
+        assertRejectedToolVisibilityAuditCode(
+            tool = tool(name = "guarded_tool", exposed = false, requiredScope = "finance:transactions:read"),
+            expectedErrorCode = "tool_not_exposed",
+        )
+    }
+
+    @Test
+    fun `tools call without required scope metadata records no required scope audit code`() {
+        assertRejectedToolVisibilityAuditCode(
+            tool = tool(name = "guarded_tool", exposed = true, requiredScope = null),
+            expectedErrorCode = "no_required_scope",
+        )
+    }
+
+    @Test
+    fun `tools list emits distinct empty catalog event when catalog has no MCP visible tools`() {
+        val observabilityLogger = mock<McpObservabilityLogger>()
+        val service =
+            protocolService(
+                tools =
+                    listOf(
+                        tool(name = "hidden", exposed = false, requiredScope = "finance:cashflow:read"),
+                        tool(name = "missing_scope", exposed = true, requiredScope = null),
+                    ),
+                observabilityLogger = observabilityLogger,
+            )
+
+        service.handle(toolsListRequest(), principal("finance:cashflow:read"))
+
+        verify(observabilityLogger).recordCatalogEmpty("tools/list", "client", 2)
+        verify(observabilityLogger).recordProtocolRequest(
+            eq("tools/list"),
+            eq("success"),
+            any<Long>(),
+            eq("client"),
+            eq(mapOf("tool_count" to 0)),
+        )
+    }
+
+    @Test
+    fun `tools list emits distinct catalog fetch failure event`() {
+        val observabilityLogger = mock<McpObservabilityLogger>()
+        val expected = IllegalStateException("Assistant catalog returned GraphQL errors")
+        val service =
+            McpProtocolService(
+                toolCatalog =
+                    object : McpToolCatalog {
+                        override fun listTools(): List<McpCatalogTool> = throw expected
+                    },
+                handlerRegistry = McpToolHandlerRegistry(emptyList()),
+                resultRenderer = McpToolResultRenderer(jacksonObjectMapper()),
+                errorMapper = McpToolErrorMapper(),
+                auditService = mock(),
+                observabilityLogger = observabilityLogger,
+            )
+
+        org.junit.jupiter.api.assertThrows<IllegalStateException> {
+            service.handle(toolsListRequest(), principal("finance:cashflow:read"))
+        }
+
+        verify(observabilityLogger).recordCatalogFetchFailure("tools/list", "client", expected)
+        verify(observabilityLogger).recordProtocolRequest(
+            eq("tools/list"),
+            eq("error"),
+            any<Long>(),
+            eq("client"),
+            eq(emptyMap()),
+        )
     }
 
     @Test
@@ -358,6 +525,7 @@ class McpProtocolServiceTest {
         tools: List<McpCatalogTool> = emptyList(),
         handlers: List<McpToolHandler> = emptyList(),
         auditService: ToolCallAuditService = mock(),
+        observabilityLogger: McpObservabilityLogger = mock(),
     ): McpProtocolService =
         McpProtocolService(
             toolCatalog =
@@ -368,7 +536,43 @@ class McpProtocolServiceTest {
             resultRenderer = McpToolResultRenderer(jacksonObjectMapper()),
             errorMapper = McpToolErrorMapper(),
             auditService = auditService,
+            observabilityLogger = observabilityLogger,
         )
+
+    private fun assertRejectedToolVisibilityAuditCode(
+        tool: McpCatalogTool,
+        expectedErrorCode: String,
+    ) {
+        val auditService = mock<ToolCallAuditService>()
+        val service = protocolService(tools = listOf(tool), auditService = auditService)
+
+        val response =
+            service.handle(
+                mapOf(
+                    "jsonrpc" to "2.0",
+                    "id" to "call-visibility",
+                    "method" to "tools/call",
+                    "params" to mapOf("name" to tool.name, "arguments" to emptyMap<String, Any>()),
+                ),
+                principal("finance:cashflow:read"),
+            )!!
+
+        assertHiddenToolError(response, "guarded_tool")
+        val captor = argumentCaptor<ToolCallAuditRecord>()
+        verify(auditService).record(captor.capture())
+        assertThat(captor.firstValue.outcome).isEqualTo(ToolCallAuditOutcome.REJECTED)
+        assertThat(captor.firstValue.errorCode).isEqualTo(expectedErrorCode)
+    }
+
+    private fun assertHiddenToolError(
+        response: JsonRpcResponse,
+        toolName: String,
+    ) {
+        assertThat(response.result).isNull()
+        assertThat(response.error?.code).isEqualTo(JsonRpcErrorCodes.INVALID_PARAMS)
+        assertThat(response.error?.message).isEqualTo("Unknown tool")
+        assertThat(response.error?.data).isEqualTo(mapOf("code" to "tool_not_found", "toolName" to toolName))
+    }
 
     private fun toolsListRequest(): Map<String, Any?> =
         mapOf(

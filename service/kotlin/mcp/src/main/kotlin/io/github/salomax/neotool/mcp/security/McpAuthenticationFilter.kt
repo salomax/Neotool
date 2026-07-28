@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.mcp.security
 
+import io.github.salomax.neotool.mcp.observability.McpObservabilityLogger
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MutableHttpResponse
 import io.micronaut.http.annotation.Filter
@@ -16,6 +17,7 @@ import reactor.core.scheduler.Schedulers
 class McpAuthenticationFilter(
     private val authenticationService: McpAuthenticationService,
     private val errorResponseFactory: OAuthErrorResponseFactory,
+    private val observabilityLogger: McpObservabilityLogger,
 ) : HttpServerFilter {
     override fun doFilter(
         request: HttpRequest<*>,
@@ -36,7 +38,14 @@ class McpAuthenticationFilter(
             .flatMapMany { authenticatedRequest -> chain.proceed(authenticatedRequest) }
             .onErrorResume { error ->
                 when (error) {
-                    is McpAuthenticationException -> Flux.just(errorResponseFactory.unauthorized(error))
+                    is McpAuthenticationException -> {
+                        observabilityLogger.recordAuthenticationFailure(
+                            classifyAuthenticationEndpoint(request.path),
+                            error.failureCause,
+                            error.error,
+                        )
+                        Flux.just(errorResponseFactory.unauthorized(error))
+                    }
                     is McpInsufficientScopeException -> Flux.just(errorResponseFactory.forbidden(error))
                     else -> Flux.error(error)
                 }
@@ -51,6 +60,14 @@ class McpAuthenticationFilter(
         when (path) {
             "/mcp/probe" -> "mcp:tools:call"
             else -> null
+        }
+
+    private fun classifyAuthenticationEndpoint(path: String): String =
+        when (path) {
+            "/mcp" -> "/mcp"
+            "/mcp/events" -> "/mcp/events"
+            "/mcp/probe" -> "/mcp/probe"
+            else -> "other"
         }
 
     companion object {

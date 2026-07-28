@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.mcp.security
 
+import io.github.salomax.neotool.common.security.exception.AuthenticationFailureCause
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 import io.github.salomax.neotool.common.security.principal.TokenPrincipalDecoder
@@ -24,29 +25,62 @@ class McpAuthenticationService(
             try {
                 jwtTokenValidator.validateToken(token)
             } catch (e: AuthenticationRequiredException) {
-                throw McpAuthenticationException("invalid_token", "The access token is invalid or expired")
+                throw McpAuthenticationException(
+                    error = "invalid_token",
+                    message = "The access token is invalid or expired",
+                    failureCause =
+                        if (e.failureCause == AuthenticationFailureCause.TOKEN_EXPIRED) {
+                            McpAuthenticationFailureCause.EXPIRED_TOKEN
+                        } else {
+                            McpAuthenticationFailureCause.INVALID_TOKEN
+                        },
+                )
             }
 
         if (claims["type"]?.toString() != "access") {
-            throw McpAuthenticationException("invalid_token", "The token must be an access token")
+            throw McpAuthenticationException(
+                "invalid_token",
+                "The token must be an access token",
+                McpAuthenticationFailureCause.INVALID_TOKEN_TYPE,
+            )
         }
 
         if (claims.audience?.contains(resourceConfig.audience) != true) {
-            throw McpAuthenticationException("invalid_token", "The token audience is invalid")
+            throw McpAuthenticationException(
+                "invalid_token",
+                "The token audience is invalid",
+                McpAuthenticationFailureCause.AUDIENCE_MISMATCH,
+            )
         }
 
         val clientId =
             claims["client_id"]?.toString()?.takeIf { it.isNotBlank() }
-                ?: throw McpAuthenticationException("invalid_token", "The token is missing client_id")
+                ?: throw McpAuthenticationException(
+                    "invalid_token",
+                    "The token is missing client_id",
+                    McpAuthenticationFailureCause.MISSING_CLIENT_ID,
+                )
         val userId =
             claims.subject?.let { parseUuid(it) }
-                ?: throw McpAuthenticationException("invalid_token", "The token subject is invalid")
+                ?: throw McpAuthenticationException(
+                    "invalid_token",
+                    "The token subject is invalid",
+                    McpAuthenticationFailureCause.INVALID_SUBJECT,
+                )
         val accountId =
             claims["current_account"]?.toString()?.let { parseUuid(it) }
-                ?: throw McpAuthenticationException("invalid_token", "The token is missing current_account")
+                ?: throw McpAuthenticationException(
+                    "invalid_token",
+                    "The token is missing current_account",
+                    McpAuthenticationFailureCause.MISSING_CURRENT_ACCOUNT,
+                )
 
         if (revocationStore.isRevoked(userId, clientId, accountId)) {
-            throw McpAuthenticationException("invalid_token", "The connection has been revoked")
+            throw McpAuthenticationException(
+                "invalid_token",
+                "The connection has been revoked",
+                McpAuthenticationFailureCause.REVOKED_CONNECTION,
+            )
         }
 
         val scopes = parseScopes(claims["scope"])
@@ -64,12 +98,24 @@ class McpAuthenticationService(
     private fun bearerToken(request: HttpRequest<*>): String {
         val authorization =
             request.headers.get(HttpHeaders.AUTHORIZATION)
-                ?: throw McpAuthenticationException("invalid_request", "Bearer token is required")
+                ?: throw McpAuthenticationException(
+                    "invalid_request",
+                    "Bearer token is required",
+                    McpAuthenticationFailureCause.MISSING_BEARER_TOKEN,
+                )
         if (!authorization.startsWith("Bearer ", ignoreCase = true)) {
-            throw McpAuthenticationException("invalid_request", "Bearer token is required")
+            throw McpAuthenticationException(
+                "invalid_request",
+                "Bearer token is required",
+                McpAuthenticationFailureCause.MISSING_BEARER_TOKEN,
+            )
         }
         return authorization.substringAfter(' ').trim().takeIf { it.isNotBlank() }
-            ?: throw McpAuthenticationException("invalid_request", "Bearer token is required")
+            ?: throw McpAuthenticationException(
+                "invalid_request",
+                "Bearer token is required",
+                McpAuthenticationFailureCause.MISSING_BEARER_TOKEN,
+            )
     }
 
     private fun parseUuid(value: String): UUID? =

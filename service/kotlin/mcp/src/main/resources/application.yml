@@ -95,6 +95,8 @@ mcp:
     eviction:
       enabled: ${MCP_REVOCATION_EVICTION_ENABLED:true}
       fixed-delay: ${MCP_REVOCATION_EVICTION_FIXED_DELAY:PT1H}
+  observability:
+    allowed-client-ids: []
   rate-limit:
     token:
       read:
