@@ -153,6 +153,7 @@
       "minimatch": "10.2.3",
       "minimatch@8": "10.2.3",
       "minimatch@9": "10.2.3",
+      "test-exclude>minimatch": "3.1.2",
       "js-yaml@3": "3.15.0",
       "js-yaml@4": "4.3.0",
       "shell-quote": ">=1.9.0",
