@@ -54,6 +54,8 @@ class AssistantMcpToolCatalog(
         }
 
     companion object {
+        internal val graphQLDocuments: List<String> = listOf(AVAILABLE_TOOLS_QUERY)
+
         private const val AVAILABLE_TOOLS_QUERY = """
             query McpAvailableTools {
               availableTools {

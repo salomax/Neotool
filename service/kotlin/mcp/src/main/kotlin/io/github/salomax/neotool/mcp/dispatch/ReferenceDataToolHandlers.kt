@@ -10,6 +10,7 @@ class ListFinancialAccountsToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.LIST_FINANCIAL_ACCOUNTS
+    override val graphQLDocuments: List<String> = listOf(FINANCIAL_ACCOUNTS_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -86,6 +87,7 @@ class ListCreditCardBillsToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.LIST_CREDIT_CARD_BILLS
+    override val graphQLDocuments: List<String> = listOf(CREDIT_CARD_BILLS_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -133,6 +135,7 @@ class GetCreditCardBillToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.GET_CREDIT_CARD_BILL
+    override val graphQLDocuments: List<String> = listOf(CREDIT_CARD_BILL_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -177,6 +180,7 @@ class ListCategoriesToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.LIST_CATEGORIES
+    override val graphQLDocuments: List<String> = listOf(CATEGORIES_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -216,6 +220,7 @@ class ListTransactionRulesToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.LIST_TRANSACTION_RULES
+    override val graphQLDocuments: List<String> = listOf(TRANSACTION_RULES_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,

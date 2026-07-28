@@ -80,6 +80,23 @@ tasks.test {
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
 }
 
+val bankingContractsSchemaFile =
+    rootProject.projectDir.parentFile.parentFile.resolve("contracts/graphql/subgraphs/banking/schema.graphqls")
+require(bankingContractsSchemaFile.isFile) {
+    "Missing banking contracts schema at ${bankingContractsSchemaFile.absolutePath}"
+}
+
+val assistantContractsSchemaFile =
+    rootProject.projectDir.parentFile.parentFile.resolve("contracts/graphql/subgraphs/assistant/schema.graphqls")
+require(assistantContractsSchemaFile.isFile) {
+    "Missing assistant contracts schema at ${assistantContractsSchemaFile.absolutePath}"
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("mcp.contracts.bankingSchemaPath", bankingContractsSchemaFile.absolutePath)
+    systemProperty("mcp.contracts.assistantSchemaPath", assistantContractsSchemaFile.absolutePath)
+}
+
 tasks.register<Test>("testUnit") {
     group = "verification"
     description = "Runs unit tests only (excludes integration tests)"

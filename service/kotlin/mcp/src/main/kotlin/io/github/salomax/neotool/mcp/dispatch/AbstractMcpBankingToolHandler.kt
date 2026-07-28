@@ -292,7 +292,14 @@ abstract class AbstractMcpBankingToolHandler(
 
     private fun Map<String, Any?>.toToolException(): McpToolExecutionException {
         val extensions = this["extensions"] as? Map<*, *> ?: emptyMap<Any, Any?>()
-        val code = extensions["code"]?.toString()?.takeIf { it.isNotBlank() } ?: "BANKING_GRAPHQL_ERROR"
+        val detail = this["message"]?.toString()?.takeIf { it.isNotBlank() }
+        val extensionCode = extensions["code"]?.toString()?.takeIf { it.isNotBlank() }
+        val classification = extensions["classification"]?.toString()?.takeIf { it.isNotBlank() }
+        val path = this["path"] as? List<*>
+        val isSpecError =
+            classification in SPEC_ERROR_CLASSIFICATIONS ||
+                (extensionCode == null && path.isNullOrEmpty())
+        val code = if (isSpecError) "MCP_INTERNAL_ERROR" else extensionCode ?: "BANKING_GRAPHQL_ERROR"
         val field =
             when (val rawField = extensions["field"]) {
                 is List<*> -> rawField.mapNotNull { it?.toString()?.takeIf(String::isNotBlank) }
@@ -307,9 +314,11 @@ abstract class AbstractMcpBankingToolHandler(
 
         return McpToolExecutionException(
             code = code,
-            service = "banking",
+            service = if (isSpecError) "mcp" else "banking",
             field = field?.takeIf { it.isNotEmpty() },
             parameters = parameters,
+            detail = detail,
+            internal = isSpecError,
         )
     }
 
@@ -337,6 +346,7 @@ abstract class AbstractMcpBankingToolHandler(
         }
 
     private companion object {
+        private val SPEC_ERROR_CLASSIFICATIONS = setOf("ValidationError", "InvalidSyntax")
         private val MONETARY_FIELDS =
             setOf(
                 "amount",

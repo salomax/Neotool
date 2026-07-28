@@ -41,7 +41,12 @@ class McpToolResultRendererTest {
                     data =
                         mapOf(
                             "investmentTransactionId" to "investment-transaction-id",
-                            "linkedInvestmentAsset" to mapOf("id" to "asset-id", "name" to "Treasury IPCA"),
+                            "linkedInvestmentAsset" to
+                                mapOf(
+                                    "id" to "asset-id",
+                                    "name" to "Treasury IPCA",
+                                    "ticker" to "NTN-B",
+                                ),
                         ),
                 ),
                 scopes = setOf("finance:cashflow:read", "finance:investments:read"),
@@ -49,7 +54,10 @@ class McpToolResultRendererTest {
         val body = rendered.content.first().jsonBody()
 
         assertThat(body).containsEntry("investmentTransactionId", "investment-transaction-id")
-        assertThat((body["linkedInvestmentAsset"] as Map<*, *>)["id"]).isEqualTo("asset-id")
+        val linkedInvestmentAsset = body["linkedInvestmentAsset"] as Map<*, *>
+        assertThat(linkedInvestmentAsset["id"]).isEqualTo("asset-id")
+        assertThat(linkedInvestmentAsset["name"]).isEqualTo("<untrusted-data>Treasury IPCA</untrusted-data>")
+        assertThat(linkedInvestmentAsset["ticker"]).isEqualTo("<untrusted-data>NTN-B</untrusted-data>")
     }
 
     @Test

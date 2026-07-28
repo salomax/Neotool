@@ -10,6 +10,7 @@ class CreateTransactionToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceWriteMcpTools.CREATE_TRANSACTION
+    override val graphQLDocuments: List<String> = listOf(CREATE_TRANSACTION_MUTATION)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -66,6 +67,7 @@ class UpdateTransactionToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceWriteMcpTools.UPDATE_TRANSACTION
+    override val graphQLDocuments: List<String> = listOf(UPDATE_TRANSACTION_MUTATION)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -119,6 +121,7 @@ class DeleteTransactionToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceWriteMcpTools.DELETE_TRANSACTION
+    override val graphQLDocuments: List<String> = listOf(DELETE_TRANSACTION_MUTATION)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -148,6 +151,7 @@ class CreateTransactionRuleToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceWriteMcpTools.CREATE_TRANSACTION_RULE
+    override val graphQLDocuments: List<String> = listOf(CREATE_TRANSACTION_RULE_MUTATION)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -188,6 +192,7 @@ class CategorizeTransactionsToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceWriteMcpTools.CATEGORIZE_TRANSACTIONS
+    override val graphQLDocuments: List<String> = listOf(BULK_CATEGORIZE_MUTATION)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -218,6 +223,7 @@ class ApplyRuleToHistoricalToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceWriteMcpTools.APPLY_RULE_TO_HISTORICAL
+    override val graphQLDocuments: List<String> = listOf(APPLY_RULE_TO_HISTORICAL_MUTATION)
 
     override fun call(
         arguments: Map<String, Any?>,

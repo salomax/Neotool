@@ -190,6 +190,53 @@ class McpProtocolServiceTest {
     }
 
     @Test
+    fun `mapped tool errors preserve detail in audit without leaking it to the agent payload`() {
+        val auditService = mock<ToolCallAuditService>()
+        val service =
+            protocolService(
+                tools = listOf(tool(name = "detail_tool", exposed = true, requiredScope = "finance:cashflow:read")),
+                handlers =
+                    listOf(
+                        object : McpToolHandler {
+                            override val name: String = "detail_tool"
+
+                            override fun call(
+                                arguments: Map<String, Any?>,
+                                principal: McpPrincipal,
+                            ): McpToolResult =
+                                throw McpToolExecutionException(
+                                    code = "MCP_INTERNAL_ERROR",
+                                    service = "mcp",
+                                    detail = "Field 'symbol' is not defined by type 'InvestmentAsset'",
+                                    internal = true,
+                                )
+                        },
+                    ),
+                auditService = auditService,
+            )
+
+        val response =
+            service.handle(
+                mapOf(
+                    "jsonrpc" to "2.0",
+                    "id" to "call-detail",
+                    "method" to "tools/call",
+                    "params" to mapOf("name" to "detail_tool", "arguments" to emptyMap<String, Any>()),
+                ),
+                principal("finance:cashflow:read"),
+            )!!
+
+        val result = response.result as CallToolResult
+        assertThat(result.isError).isTrue()
+        assertThat(result.content.first().text).contains("MCP_INTERNAL_ERROR").doesNotContain("InvestmentAsset")
+
+        val captor = argumentCaptor<ToolCallAuditRecord>()
+        verify(auditService).record(captor.capture())
+        assertThat(captor.firstValue.errorCode).isEqualTo("MCP_INTERNAL_ERROR")
+        assertThat(captor.firstValue.errorMessage).contains("Field 'symbol' is not defined by type 'InvestmentAsset'")
+    }
+
+    @Test
     fun `tools call injects agent call context into downstream principal`() {
         lateinit var observedPrincipal: McpPrincipal
         val service =
