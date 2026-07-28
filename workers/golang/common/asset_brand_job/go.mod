@@ -8,7 +8,7 @@ require (
 	github.com/jackc/pgx/v5 v5.9.0
 	github.com/salomax/invistus/workflow/golang/shared/auth v0.0.0
 	github.com/salomax/invistus/workflow/golang/shared/health v0.0.0
-	golang.org/x/text v0.37.0
+	golang.org/x/text v0.39.0
 )
 
 require (
@@ -34,7 +34,7 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
 )
 
 replace (
