@@ -6,6 +6,7 @@ import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.PostgresIntegrationTest
 import io.github.salomax.neotool.common.test.transaction.runTransaction
 import io.github.salomax.neotool.security.http.dto.OAuth2ClientRegistrationResponse
+import io.github.salomax.neotool.security.http.dto.OAuth2TokenResponse
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
 import io.github.salomax.neotool.security.model.account.AccountEntity
@@ -212,6 +213,40 @@ open class OAuth2TokenRateLimitIntegrationTest :
 
         assertThat(exception.status).isEqualTo(HttpStatus.TOO_MANY_REQUESTS)
         assertThat(exception.response.header("Retry-After")).isNotBlank()
+    }
+
+    @Test
+    fun `token exchange accepts refreshed access token as subject token`() {
+        val verifier = "correct-horse-battery-staple-0123456789"
+        val client = registerRuntimeClient()
+        val authorizationCode = createApprovedAuthorizationCode(verifier, client.client_id)
+        val initialTokenResponse =
+            json.readValue(
+                exchangeAuthorizationCode(authorizationCode, verifier, client.client_id).body(),
+                OAuth2TokenResponse::class.java,
+            )
+        val refreshedTokenResponse =
+            json.readValue(
+                httpClient.exchangeAsString(
+                    HttpRequest
+                        .POST(
+                            "/oauth2/token",
+                            mapOf(
+                                "grant_type" to "refresh_token",
+                                "refresh_token" to requireNotNull(initialTokenResponse.refresh_token),
+                            ),
+                        ).contentType(MediaType.APPLICATION_JSON),
+                ).body(),
+                OAuth2TokenResponse::class.java,
+            )
+        val response =
+            exchangeTokenOrFail(
+                refreshedTokenResponse.access_token,
+                tokenExchangeClientSecret(),
+                "refreshed-subject-token",
+            )
+
+        assertThat(response.status()).isEqualTo(HttpStatus.OK)
     }
 
     private fun createApprovedAuthorizationCode(

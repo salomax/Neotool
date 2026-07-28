@@ -199,6 +199,7 @@ class RefreshTokenServiceTest {
         @Test
         fun `should refresh OAuth token with granted scopes only`() {
             val userId = UUID.randomUUID()
+            val accountId = UUID.randomUUID()
             val user = SecurityTestDataBuilders.user(id = userId, email = "test@example.com")
             val familyId = UUID.randomUUID()
             val oldRefreshToken = "oauth-refresh-token"
@@ -212,6 +213,7 @@ class RefreshTokenServiceTest {
                     clientId = "test-agent",
                     grantedScopes = grantedScopes.joinToString(" "),
                     resource = "https://api.invistus.test",
+                    accountId = accountId,
                     issuedAt = Instant.now().minusSeconds(3600),
                     expiresAt = Instant.now().plusSeconds(604800L),
                 )
@@ -226,6 +228,7 @@ class RefreshTokenServiceTest {
                     clientId = "test-agent",
                     scopes = grantedScopes,
                     resource = "https://api.invistus.test",
+                    currentAccountId = accountId,
                 ),
             ).thenReturn("oauth-access-token")
             whenever(jwtTokenIssuer.generateRefreshToken(userId)).thenReturn("new-oauth-refresh-token")
@@ -234,6 +237,145 @@ class RefreshTokenServiceTest {
             val result = refreshTokenService.refreshAccessToken(oldRefreshToken)
 
             assertThat(result.accessToken).isEqualTo("oauth-access-token")
+            verify(authContextFactory, never()).build(any())
+            verify(jwtTokenIssuer, never()).generateAccessToken(any<AuthContext>())
+        }
+
+        @Test
+        fun `should preserve account binding across consecutive OAuth refresh rotations`() {
+            val userId = UUID.randomUUID()
+            val accountId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(id = userId, email = "test@example.com")
+            val familyId = UUID.randomUUID()
+            val firstRefreshToken = "oauth-refresh-token-1"
+            val secondRefreshToken = "oauth-refresh-token-2"
+            val thirdRefreshToken = "oauth-refresh-token-3"
+            val grantedScopes = listOf("finance:cashflow:read")
+            val persistedTokens = mutableMapOf<String, RefreshTokenEntity>()
+            val initialRecord =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = hashToken(firstRefreshToken),
+                    familyId = familyId,
+                    clientId = "test-agent",
+                    grantedScopes = grantedScopes.joinToString(" "),
+                    resource = "https://api.invistus.test",
+                    accountId = accountId,
+                    issuedAt = Instant.now().minusSeconds(3600),
+                    expiresAt = Instant.now().plusSeconds(604800L),
+                )
+            persistedTokens[initialRecord.tokenHash] = initialRecord
+
+            whenever(refreshTokenRepository.findByTokenHash(any())).thenAnswer {
+                persistedTokens[it.arguments[0] as String]
+            }
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+            mockEnabledPrincipal(userId)
+            whenever(
+                jwtTokenIssuer.generateOAuthAccessToken(
+                    userId = userId,
+                    email = user.email,
+                    clientId = "test-agent",
+                    scopes = grantedScopes,
+                    resource = "https://api.invistus.test",
+                    currentAccountId = accountId,
+                ),
+            ).thenReturn("oauth-access-token-1", "oauth-access-token-2")
+            whenever(jwtTokenIssuer.generateRefreshToken(userId))
+                .thenReturn(secondRefreshToken, thirdRefreshToken)
+            whenever(refreshTokenRepository.save(any())).thenAnswer {
+                val saved = it.arguments[0] as RefreshTokenEntity
+                persistedTokens[saved.tokenHash] = saved
+                saved
+            }
+
+            refreshTokenService.refreshAccessToken(firstRefreshToken)
+            refreshTokenService.refreshAccessToken(secondRefreshToken)
+
+            assertThat(persistedTokens[hashToken(secondRefreshToken)]?.accountId).isEqualTo(accountId)
+            assertThat(persistedTokens[hashToken(thirdRefreshToken)]?.accountId).isEqualTo(accountId)
+            verify(authContextFactory, never()).build(any())
+        }
+
+        @Test
+        fun `should throw when OAuth refresh token record has null accountId`() {
+            val userId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(id = userId, email = "test@example.com")
+            val refreshToken = "oauth-refresh-token-missing-account"
+            val tokenRecord =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = hashToken(refreshToken),
+                    familyId = UUID.randomUUID(),
+                    clientId = "test-agent",
+                    grantedScopes = "finance:cashflow:read",
+                    resource = "https://api.invistus.test",
+                    accountId = null,
+                    issuedAt = Instant.now().minusSeconds(3600),
+                    expiresAt = Instant.now().plusSeconds(604800L),
+                )
+
+            whenever(refreshTokenRepository.findByTokenHash(tokenRecord.tokenHash)).thenReturn(tokenRecord)
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+            mockEnabledPrincipal(userId)
+
+            assertThrows<AuthenticationRequiredException> {
+                refreshTokenService.refreshAccessToken(refreshToken)
+            }
+        }
+
+        @Test
+        fun `should throw when OAuth refresh token record has null resource`() {
+            val userId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(id = userId, email = "test@example.com")
+            val refreshToken = "oauth-refresh-token-missing-resource"
+            val tokenRecord =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = hashToken(refreshToken),
+                    familyId = UUID.randomUUID(),
+                    clientId = "test-agent",
+                    grantedScopes = "finance:cashflow:read",
+                    resource = null,
+                    accountId = UUID.randomUUID(),
+                    issuedAt = Instant.now().minusSeconds(3600),
+                    expiresAt = Instant.now().plusSeconds(604800L),
+                )
+
+            whenever(refreshTokenRepository.findByTokenHash(tokenRecord.tokenHash)).thenReturn(tokenRecord)
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+            mockEnabledPrincipal(userId)
+
+            assertThrows<AuthenticationRequiredException> {
+                refreshTokenService.refreshAccessToken(refreshToken)
+            }
+        }
+
+        @Test
+        fun `should throw when OAuth refresh token record has null granted scopes`() {
+            val userId = UUID.randomUUID()
+            val user = SecurityTestDataBuilders.user(id = userId, email = "test@example.com")
+            val refreshToken = "oauth-refresh-token-missing-scopes"
+            val tokenRecord =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = hashToken(refreshToken),
+                    familyId = UUID.randomUUID(),
+                    clientId = "test-agent",
+                    grantedScopes = null,
+                    resource = "https://api.invistus.test",
+                    accountId = UUID.randomUUID(),
+                    issuedAt = Instant.now().minusSeconds(3600),
+                    expiresAt = Instant.now().plusSeconds(604800L),
+                )
+
+            whenever(refreshTokenRepository.findByTokenHash(tokenRecord.tokenHash)).thenReturn(tokenRecord)
+            whenever(userRepository.findById(userId)).thenReturn(Optional.of(user))
+            mockEnabledPrincipal(userId)
+
+            assertThrows<AuthenticationRequiredException> {
+                refreshTokenService.refreshAccessToken(refreshToken)
+            }
             verify(authContextFactory, never()).build(any())
             verify(jwtTokenIssuer, never()).generateAccessToken(any<AuthContext>())
         }

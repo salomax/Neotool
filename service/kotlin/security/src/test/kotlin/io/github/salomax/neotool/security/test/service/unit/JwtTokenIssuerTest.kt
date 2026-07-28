@@ -137,6 +137,7 @@ class JwtTokenIssuerTest {
     @Test
     fun `should issue OAuth access token with requested resource as audience`() {
         val resource = "https://api.invistus.test"
+        val accountId = UUID.randomUUID()
         val token =
             issuer.generateOAuthAccessToken(
                 userId = UUID.randomUUID(),
@@ -144,11 +145,13 @@ class JwtTokenIssuerTest {
                 clientId = "test-agent",
                 scopes = listOf("finance:cashflow:read"),
                 resource = resource,
+                currentAccountId = accountId,
             )
 
         val claims = parseClaims(token)
 
         assertThat(claims.audience).containsExactly(resource)
+        assertThat(claims["current_account"]).isEqualTo(accountId.toString())
         assertThat(claims["resource"]).isNull()
     }
 

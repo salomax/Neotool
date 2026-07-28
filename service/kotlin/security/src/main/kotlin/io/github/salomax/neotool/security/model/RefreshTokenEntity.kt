@@ -44,6 +44,8 @@ open class RefreshTokenEntity(
     open var grantedScopes: String? = null,
     @Column(name = "resource")
     open var resource: String? = null,
+    @Column(name = "account_id", columnDefinition = "uuid")
+    open var accountId: UUID? = null,
     @Column(name = "issued_at", nullable = false)
     open val issuedAt: Instant = Instant.now(),
     @Column(name = "expires_at", nullable = false)
