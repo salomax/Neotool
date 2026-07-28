@@ -6,6 +6,8 @@ LOG=/tmp/neotool-agent.log
 MGR="python3 /workspaces/invistus/.devcontainer/agents/session-mgr.py"
 STATUS="/workspaces/invistus/.devcontainer/agents/slack-status.sh"
 META="/workspaces/invistus/.devcontainer/agents/wrapper_meta.sh"
+# Route Claude Code through Headroom (same default as remoteEnv / zshrc).
+export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-http://127.0.0.1:8787}"
 # shellcheck source=/dev/null
 source "$META"
 SESSION=$($MGR load claude 2>/dev/null || true)
