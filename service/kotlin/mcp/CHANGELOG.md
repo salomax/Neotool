@@ -1,3 +1,13 @@
+## 0.7.3 (2026-07-28)
+
+### 🩹 Fixes
+
+- validate MCP GraphQL documents against synced schemas ([060fe986](https://github.com/invistus/invistus/commit/060fe986))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.2 (2026-07-28)
 
 ### 🩹 Fixes
