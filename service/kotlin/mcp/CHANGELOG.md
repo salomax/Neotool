@@ -1,3 +1,13 @@
+## 0.7.5 (2026-07-28)
+
+### 🩹 Fixes
+
+- update Rover Dockerfile and enhance GraphQL schema ([2c282248](https://github.com/invistus/invistus/commit/2c282248))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.4 (2026-07-28)
 
 ### 🩹 Fixes
