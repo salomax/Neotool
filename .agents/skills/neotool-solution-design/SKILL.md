@@ -26,6 +26,8 @@ heading and serve as direct input for `neotool-backlog-gen`.
    > What is the issue number? e.g. `#42`
 3. **Every factual claim about the code is grounded, not assumed.** When the analysis states what the code does, it must be tagged with its source — `verified in File.kt:123` — or explicitly marked `assumed`. Reading a method's *signature* is not verification: read its *body*. If a cited method throws, is a stub, caps a value, or returns early, the analysis says so. Most design errors in this project came from citing a signature whose body contradicted the claim (a method that threw `UnsupportedOperationException`; a list path that silently capped; a scope that mapped imprecisely rather than not at all). One grep-and-open per cited symbol is cheaper than one wrong backlog.
 
+   **Read the predicate that selects a branch, not only the branch body.** When the fix lives inside one arm of a conditional, the condition choosing that arm is part of the code under analysis. Issue #492 is the counterexample: the analysis correctly read the OAuth refresh branch and prescribed fail-closed handling for the two fields it named, but never read the selector `if (clientId != null && grantedScopes != null)`. A record with a non-null `client_id` and a null `granted_scopes` therefore fell through to the *first-party* arm and minted a full-permission token — an escalation that reached code review because the predicate was never opened. If your proposal changes behaviour inside a branch, quote its selector in the analysis.
+
 ## Workflow
 
 ### 1. Read the issue and gather context
@@ -58,6 +60,7 @@ Prefer concrete evidence from the code over abstract opinion.
 - **What transports it** across each hop (JWT claim, HTTP header, GraphQL arg, DB column) — and does anything on the path (Apollo Router propagate allowlist, a subgraph, a mapper) drop, rename, or fail to forward it? The router forwards only `authorization`, `x-request-id`, `traceparent`, `tracestate`, `baggage` — anything else is stripped.
 - **Who could forge or strip it**, and what happens if they do — does the system fail *closed* (reject / ignore / default to the safe value) or *open* (trust it)?
 - **Where it is enforced** — name the single line/gate that decides, and confirm it is on the trusted side of the boundary.
+- **What selects the privileged path, and which sibling fields the selector assumes.** When a persisted record chooses between a broader- and a narrower-permission branch (a `client_id` that means "OAuth grant, scoped", a tenant id, a provenance flag), list the selector field, the sibling fields that branch requires to be well-formed, and what happens when each is null or invalid. "This is an OAuth record" and "this OAuth record is complete" are two decisions; if one missing sibling silently routes the record to the *more* privileged branch, that is the finding. Prescribing fail-closed handling for the fields you happened to notice is not enough — enumerate the whole set.
 
 Write this as a short "Trust-boundary trace" subsection in the analysis. If tracing it reveals the value cannot arrive intact or cannot be made unforgeable on the chosen path, that is a design finding to resolve *now* — not a review finding to discover three rounds later.
 

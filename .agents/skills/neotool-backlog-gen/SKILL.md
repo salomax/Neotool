@@ -74,6 +74,8 @@ Break the solution into small, clear, and reviewable tasks. Rules:
 - Name tasks in imperative form, specific to the change
 - Include a one-line rationale
 - Avoid vague tasks like "adjust backend" or "fix frontend"
+- **Name the behaviour a task must deliver, not the file that should hold it.** Prescribing a filename invites the implementer to trust it over the repo. In issue #492 the backlog named `OAuthTokenControllerIntegrationTest` for the refresh-cycle test; that file exists, but the OAuth server HTTP flow is owned by `OAuth2AuthorizationServerIntegrationTest`, so the prescription was confidently wrong. Write "the integration suite that already owns the OAuth authorization-server HTTP flow" and let the implementer locate it. Name a file only when you have opened it and confirmed it owns that flow.
+- **When a task exists to make a check unavoidable, say how the check discovers what it inspects.** Naming only the contract change lets an implementer satisfy the mechanism and defeat the intent, with every criterion green. In issue #491 the task read "add `graphQLDocuments` to `McpToolHandler` and `all()` to the registry" — the production-side change, correctly identified — but never said the validation must enumerate handlers through dependency injection. The implementation added both, then hardcoded a 19-handler list in the test, so a handler added tomorrow escapes the very check the task existed to build. Write the discovery requirement into the task: "enumerate via the DI-managed registry so a newly added handler is picked up without editing the test." The same applies to classpath scans, file globs, and registry walks.
 
 **Default ordering for backend → frontend features:**
 
@@ -107,6 +109,8 @@ If a task is purely mechanical (e.g., running codegen, adding a migration with n
 - the created artifact is actually usable at step N+1 on the real path
 
 Issue #488 is the model case: proving that DCR returned 201 was not enough; the backlog also needed an explicit follow-up assertion that a client registered without `scope` / `resources` could then complete `/oauth2/authorize` with the defaulted values.
+
+**When a persisted field selects a privileged branch, generate a malformed-state test task per sibling field.** If the technical analysis describes a flow where a stored marker (`client_id`, tenant id, provenance flag, account binding) chooses between a narrower- and a broader-permission path, "the happy path works" is only half the coverage. Add tasks proving that each field the privileged branch requires fails closed *individually*, and — the assertion that actually matters — that the malformed record does not fall through to the more privileged branch. In issue #492 the fail-closed tests for two fields all passed while a third field, missing, still routed an OAuth record into the first-party branch; the test that closed it asserted `verify(jwtTokenIssuer, never()).generateAccessToken(...)`, not merely that a throw occurred.
 
 ### 6. Post on the issue
 
