@@ -161,7 +161,7 @@ class JwtTokenIssuer(
         clientId: String,
         scopes: List<String>,
         resource: String,
-        currentAccountId: UUID? = null,
+        currentAccountId: UUID,
         expiresAt: Instant? = null,
     ): String {
         val now = Instant.now()
@@ -183,10 +183,7 @@ class JwtTokenIssuer(
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
                 .issuer(jwtConfig.issuer)
-
-        currentAccountId?.let {
-            builder.claim("current_account", it.toString())
-        }
+                .claim("current_account", currentAccountId.toString())
 
         return signBuilder(builder).compact()
     }

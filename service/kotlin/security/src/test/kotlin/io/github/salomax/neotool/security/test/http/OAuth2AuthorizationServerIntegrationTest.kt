@@ -412,6 +412,11 @@ open class OAuth2AuthorizationServerIntegrationTest :
         assertThat(refreshResponse.status()).isEqualTo(HttpStatus.OK)
         assertThat(refreshedTokenResponse.refresh_token).isNotEqualTo(firstRefreshToken)
         assertThat(refreshedTokenResponse.scope).isEqualTo("finance:cashflow:read")
+        assertThat(jwtTokenValidator.getCurrentAccountIdFromToken(refreshedTokenResponse.access_token)).isNotNull()
+        assertThat(jwtTokenValidator.getAudienceFromToken(refreshedTokenResponse.access_token))
+            .isEqualTo("https://api.invistus.test")
+        assertThat(normalizedClaims(firstTokenResponse.access_token))
+            .isEqualTo(normalizedClaims(refreshedTokenResponse.access_token))
 
         val reuseException =
             assertThrows<HttpClientResponseException> {
@@ -825,6 +830,19 @@ open class OAuth2AuthorizationServerIntegrationTest :
                     body,
                 ).contentType(MediaType.APPLICATION_JSON),
         )
+
+    private fun normalizedClaims(token: String): Map<String, Any?> {
+        val claims = jwtTokenValidator.validateToken(token)
+        val normalized =
+            claims.entries
+                .filterNot { (key, _) -> key in setOf("iat", "exp", "jti") }
+                .associate { (key, value) -> key to value }
+                .toMutableMap()
+        normalized["sub"] = claims.subject
+        normalized["iss"] = claims.issuer
+        normalized["aud"] = claims.audience.toList()
+        return normalized.toSortedMap()
+    }
 
     private fun registerRuntimeClient(
         body: Map<String, Any> =

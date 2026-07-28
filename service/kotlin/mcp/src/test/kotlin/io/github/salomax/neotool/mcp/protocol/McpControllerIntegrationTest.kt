@@ -198,6 +198,65 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
     }
 
     @Test
+    fun `refresh grant shaped token authenticates successfully at MCP boundary`() {
+        val accountId = UUID.randomUUID()
+        catalogTools = listOf(tool(name = "list_transactions", requiredScope = transactionsReadScope))
+
+        val response =
+            retrieve(
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "call-refresh-shape",
+                        "method" to "tools/call",
+                        "params" to
+                            mapOf(
+                                "name" to "list_transactions",
+                                "arguments" to mapOf("first" to 1),
+                            ),
+                    ),
+                token = McpJwtTestFixture.accessToken(accountId = accountId, scope = transactionsReadScope),
+            )
+
+        assertThat((response["result"] as Map<*, *>)["isError"]).isEqualTo(false)
+        assertThat(capturedBankingPrincipal?.principal?.currentAccountId).isEqualTo(accountId)
+    }
+
+    @Test
+    fun `token without current account is rejected with invalid token`() {
+        val exception =
+            assertThrows<HttpClientResponseException> {
+                client
+                    .toBlocking()
+                    .exchange(
+                        HttpRequest
+                            .POST(
+                                "/mcp",
+                                mapOf(
+                                    "jsonrpc" to "2.0",
+                                    "id" to "call-missing-account",
+                                    "method" to "tools/list",
+                                ),
+                            ).header(
+                                HttpHeaders.AUTHORIZATION,
+                                "Bearer ${
+                                    McpJwtTestFixture.accessToken(
+                                        accountId = null,
+                                        scope = transactionsReadScope,
+                                    )
+                                }",
+                            ),
+                        String::class.java,
+                    )
+            }
+
+        val body = exception.response.getBody(String::class.java).orElse("")
+        assertThat(exception.status).isEqualTo(HttpStatus.UNAUTHORIZED)
+        assertThat(body).contains("invalid_token")
+        assertThat(body).contains("current_account")
+    }
+
+    @Test
     fun `unsupported crafted account id argument is rejected before banking dispatch`() {
         val accountId = UUID.randomUUID()
         catalogTools = listOf(tool(name = "list_transactions", requiredScope = transactionsReadScope))

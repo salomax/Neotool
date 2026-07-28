@@ -18,6 +18,7 @@ import io.github.salomax.neotool.security.service.oauth2.OAuth2InvalidGrantExcep
 import io.github.salomax.neotool.security.service.oauth2.OAuth2TokenExchangeRateLimiter
 import io.github.salomax.neotool.security.service.oauth2.OAuth2TokenExchangeResourceResolver
 import io.github.salomax.neotool.security.service.oauth2.OAuth2TokenExchangeService
+import io.jsonwebtoken.Jwts
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
@@ -28,6 +29,7 @@ import org.mockito.kotlin.whenever
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.time.Instant
+import java.util.Date
 import java.util.UUID
 
 class OAuth2TokenExchangeServiceTest {
@@ -161,14 +163,7 @@ class OAuth2TokenExchangeServiceTest {
     fun `rejects subject token without current account`() {
         whenever(servicePrincipalService.validateServiceCredentials(authenticatedClientId, "secret"))
             .thenReturn(servicePrincipal(UUID.randomUUID()))
-        val subjectToken =
-            issuer.generateOAuthAccessToken(
-                userId = UUID.randomUUID(),
-                email = "user@example.com",
-                clientId = "agent",
-                scopes = listOf("finance:cashflow:read"),
-                resource = "https://mcp.invistus.test",
-            )
+        val subjectToken = oauthSubjectTokenWithoutCurrentAccount()
 
         assertThatThrownBy { exchangeService.exchange(validRequest(subjectToken)) }
             .isInstanceOf(OAuth2InvalidGrantException::class.java)
@@ -324,6 +319,32 @@ class OAuth2TokenExchangeServiceTest {
             currentAccountId = UUID.randomUUID(),
             expiresAt = expiresAt,
         )
+
+    private fun oauthSubjectTokenWithoutCurrentAccount(
+        userId: UUID = UUID.randomUUID(),
+        scopes: List<String> = listOf("finance:cashflow:read"),
+        expiresAt: Instant? = null,
+    ): String {
+        val now = Instant.now()
+        val expiration = expiresAt ?: now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
+        return Jwts
+            .builder()
+            .subject(userId.toString())
+            .claim("email", "user@example.com")
+            .claim("type", "access")
+            .claim("client_id", "agent")
+            .claim("scope", scopes.joinToString(" "))
+            .claim("permissions", scopes)
+            .audience()
+            .add("https://mcp.invistus.test")
+            .and()
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(expiration))
+            .issuer(jwtConfig.issuer)
+            .id(UUID.randomUUID().toString())
+            .signWith(keyPair.private)
+            .compact()
+    }
 
     private fun servicePrincipal(id: UUID) =
         PrincipalEntity(

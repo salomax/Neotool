@@ -98,18 +98,29 @@ open class RefreshTokenService(
             throw AuthenticationRequiredException("User disabled")
         }
 
-        val grantedScopes = tokenRecord.grantedScopes?.split(" ")?.filter { it.isNotBlank() }
         val clientId = tokenRecord.clientId
 
         // Generate new token pair
         val newAccessToken =
-            if (clientId != null && grantedScopes != null) {
+            if (clientId != null) {
+                val grantedScopes =
+                    tokenRecord.grantedScopes
+                        ?.split(" ")
+                        ?.filter { it.isNotBlank() }
+                        ?: throw AuthenticationRequiredException("OAuth refresh token is missing granted scopes")
+                val resource =
+                    tokenRecord.resource
+                        ?: throw AuthenticationRequiredException("OAuth refresh token is missing resource")
+                val accountId =
+                    tokenRecord.accountId
+                        ?: throw AuthenticationRequiredException("OAuth refresh token is missing account binding")
                 jwtTokenIssuer.generateOAuthAccessToken(
                     userId = user.id!!,
                     email = user.email,
                     clientId = clientId,
                     scopes = grantedScopes,
-                    resource = tokenRecord.resource ?: "oauth2",
+                    resource = resource,
+                    currentAccountId = accountId,
                 )
             } else {
                 // First-party app refresh tokens still rehydrate the full user auth context.
@@ -130,6 +141,7 @@ open class RefreshTokenService(
                 clientId = tokenRecord.clientId,
                 grantedScopes = tokenRecord.grantedScopes,
                 resource = tokenRecord.resource,
+                accountId = tokenRecord.accountId,
                 issuedAt = now,
                 expiresAt = now.plusSeconds(jwtConfig.refreshTokenExpirationSeconds),
             )
@@ -197,6 +209,7 @@ open class RefreshTokenService(
         clientId: String,
         grantedScopes: List<String>,
         resource: String,
+        accountId: UUID,
     ): Pair<String, UUID> {
         userRepository.findById(userId).orElseThrow {
             IllegalStateException("User not found with id: $userId")
@@ -212,6 +225,7 @@ open class RefreshTokenService(
                 clientId = clientId,
                 grantedScopes = grantedScopes.joinToString(" "),
                 resource = resource,
+                accountId = accountId,
                 issuedAt = now,
                 expiresAt = now.plusSeconds(jwtConfig.refreshTokenExpirationSeconds),
             ),

@@ -106,6 +106,10 @@ open class OAuth2TokenService(
                 ?.split(" ")
                 ?.filter { it.isNotBlank() }
                 ?: emptyList()
+        val currentAccountId =
+            authorizationRequest.accountId
+                ?: authContextFactory.build(user).currentAccountId
+                ?: throw OAuth2InvalidGrantException("Authorization request has no account")
         val accessToken =
             jwtTokenIssuer.generateOAuthAccessToken(
                 userId = userId,
@@ -113,9 +117,7 @@ open class OAuth2TokenService(
                 clientId = clientId,
                 scopes = grantedScopes,
                 resource = authorizationRequest.resource,
-                currentAccountId =
-                    authorizationRequest.accountId
-                        ?: authContextFactory.build(user).currentAccountId,
+                currentAccountId = currentAccountId,
             )
         val (refreshToken, familyId) =
             refreshTokenService.createOAuthRefreshToken(
@@ -123,6 +125,7 @@ open class OAuth2TokenService(
                 clientId = clientId,
                 grantedScopes = grantedScopes,
                 resource = authorizationRequest.resource,
+                accountId = currentAccountId,
             )
         authorizationCodeRepository.markIssuedTokens(
             codeHash = codeHash,

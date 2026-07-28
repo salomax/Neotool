@@ -40,7 +40,7 @@ object McpJwtTestFixture {
     fun accessToken(
         userId: UUID = UUID.randomUUID(),
         clientId: String = "test-agent",
-        accountId: UUID = UUID.randomUUID(),
+        accountId: UUID? = UUID.randomUUID(),
         audience: String? = AUDIENCE,
         additionalAudiences: List<String> = emptyList(),
         scope: String? = "mcp:tools:call",
@@ -53,15 +53,17 @@ object McpJwtTestFixture {
                 .subject(userId.toString())
                 .issuer(ISSUER)
                 .claim("type", "access")
+                .claim("email", "oauth-$userId@example.test")
                 .claim("client_id", clientId)
-                .claim("current_account", accountId.toString())
                 .issuedAt(Date.from(issuedAt))
                 .expiration(Date.from(issuedAt.plusSeconds(expirationSeconds)))
                 .id(UUID.randomUUID().toString())
 
+        accountId?.let { builder.claim("current_account", it.toString()) }
         audience?.let { builder.audience().add(it).and() }
         additionalAudiences.forEach { builder.audience().add(it).and() }
         scope?.let { builder.claim("scope", it) }
+        scope?.let { builder.claim("permissions", it.split(' ').filter(String::isNotBlank)) }
 
         return builder
             .header()
