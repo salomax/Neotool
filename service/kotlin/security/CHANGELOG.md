@@ -1,3 +1,13 @@
+## 0.15.1 (2026-07-28)
+
+### 🩹 Fixes
+
+- preserve oauth account binding across refresh ([#509](https://github.com/invistus/invistus/pull/509))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.15.0 (2026-07-26)
 
 ### 🚀 Features
