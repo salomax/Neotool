@@ -1,3 +1,13 @@
+## 0.1.8 (2026-07-28)
+
+### 🩹 Fixes
+
+- **workers/golang:** update dependencies for improved compatibility ([54645e1a](https://github.com/invistus/invistus/commit/54645e1a))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.1.7 (2026-07-22)
 
 This was a version bump only for cvm-funds-job to align it with other projects, there were no code changes.

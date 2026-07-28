@@ -1,3 +1,18 @@
+## 0.10.3 (2026-07-28)
+
+### 🩹 Fixes
+
+- **workers/golang:** update dependencies for improved compatibility ([54645e1a](https://github.com/invistus/invistus/commit/54645e1a))
+- **web:** update package.json and pnpm-lock.yaml for dependency management ([c041858b](https://github.com/invistus/invistus/commit/c041858b))
+- **web:** harden test-exclude for minimatch 10 coverage crash ([60052f43](https://github.com/invistus/invistus/commit/60052f43))
+- **web:** pin test-exclude to minimatch 3 for coverage ([df0695e4](https://github.com/invistus/invistus/commit/df0695e4))
+- correct transaction table corner radius, highlight, and form width ([#313](https://github.com/invistus/invistus/issues/313))
+
+### ❤️ Thank You
+
+- Cursor @cursoragent
+- Marcos Salomão @salomax
+
 ## 0.10.2 (2026-07-28)
 
 ### 🩹 Fixes

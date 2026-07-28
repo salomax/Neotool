@@ -1,3 +1,13 @@
+## 0.2.13 (2026-07-28)
+
+### 🩹 Fixes
+
+- **workers/golang:** update dependencies for improved compatibility ([54645e1a](https://github.com/invistus/invistus/commit/54645e1a))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.2.12 (2026-07-22)
 
 This was a version bump only for bacen-ifdata-cronjob to align it with other projects, there were no code changes.
