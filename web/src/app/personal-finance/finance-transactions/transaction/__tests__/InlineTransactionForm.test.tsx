@@ -169,7 +169,7 @@ describe.sequential('InlineTransactionForm — BALANCE_ADJUSTMENT edit', () => {
     });
   });
 
-  it('does not span into the trailing actions column', () => {
+  it('spans the full table colSpan on the outer form cell (not colSpan - 1)', () => {
     const initialValues = {
       id: 'tx-1',
       financialAccountId: 'acc-1',
@@ -195,10 +195,23 @@ describe.sequential('InlineTransactionForm — BALANCE_ADJUSTMENT edit', () => {
 
     expect(screen.getByTestId('inline-transaction-form')).toBeInTheDocument();
 
-    const cells = screen.getAllByRole('cell');
-    expect(cells).toHaveLength(2);
-    expect(cells[0]).toHaveAttribute('colspan', '6');
-    expect(cells[1]).toBeEmptyDOMElement();
+    const formCell = screen.getByTestId('inline-transaction-form-cell');
+    // selectedAccountId set → TransactionTable / form colSpan is 7 (not 6 = colSpan - 1)
+    expect(formCell).toHaveAttribute('colspan', '7');
+    expect(screen.getAllByRole('cell')).toHaveLength(1);
+  });
+
+  it('uses colSpan 8 when viewing all accounts (no selectedAccountId)', () => {
+    renderInTable(
+      <InlineTransactionForm
+        isOpen
+        onClose={vi.fn()}
+        onSuccess={vi.fn()}
+        selectedAccountId={null}
+      />,
+    );
+
+    expect(screen.getByTestId('inline-transaction-form-cell')).toHaveAttribute('colspan', '8');
   });
 });
 

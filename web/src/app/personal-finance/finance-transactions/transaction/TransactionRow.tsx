@@ -177,7 +177,7 @@ export const TransactionRow = memo(function TransactionRow({
         </TableCell>
 
         {/* Description + installment progress */}
-        <TableCell component="th" scope="row">
+        <TableCell>
           <Stack spacing={0.5}>
             <Typography
               variant="body2"
