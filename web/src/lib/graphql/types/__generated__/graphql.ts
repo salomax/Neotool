@@ -794,6 +794,11 @@ export type ConfirmInvestmentImportInput = {
   rowPatches: Array<InvestmentImportRowPatchInput>;
 };
 
+export type ConfirmPendingActionResult = {
+  __typename: 'ConfirmPendingActionResult';
+  pendingAction: AccountPendingAction;
+};
+
 export enum ConflictResolution {
   KeepExisting = 'KEEP_EXISTING',
   Update = 'UPDATE'
@@ -1208,6 +1213,12 @@ export type DateRange = {
   __typename: 'DateRange';
   from: Maybe<Scalars['Date']['output']>;
   to: Maybe<Scalars['Date']['output']>;
+};
+
+export type DeleteTransactionResult = {
+  __typename: 'DeleteTransactionResult';
+  deleted: Scalars['Boolean']['output'];
+  pendingAction: Maybe<AccountPendingAction>;
 };
 
 /** User resolution for a duplicate candidate (incoming row vs existing transaction(s)). */
@@ -2288,6 +2299,20 @@ export type MaturityCashMovementInput = {
   financialAccountId: Scalars['ID']['input'];
 };
 
+export type McpChangeLogEntry = {
+  __typename: 'McpChangeLogEntry';
+  action: Scalars['String']['output'];
+  after: Scalars['JSON']['output'];
+  before: Scalars['JSON']['output'];
+  clientId: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  resourceId: Scalars['ID']['output'];
+  resourceType: Scalars['String']['output'];
+  tokenId: Maybe<Scalars['ID']['output']>;
+  toolCallId: Scalars['ID']['output'];
+};
+
 export enum MembershipStatus {
   Active = 'ACTIVE',
   Pending = 'PENDING',
@@ -2451,6 +2476,8 @@ export type Mutation = {
   /** Confirm fixed-income maturity: records MATURITY, closes the holding, completes the pending action, optional cash credit. */
   confirmHoldingMaturity: ConfirmHoldingMaturityResult;
   confirmInvestmentImport: InvestmentImportJob;
+  /** Confirm a pending action that was created by a deferred agent write. */
+  confirmPendingAction: ConfirmPendingActionResult;
   confirmRecurringPayment: RecurringPayment;
   /**
    * Step 1: Create asset upload and get pre-signed URL.
@@ -2543,7 +2570,7 @@ export type Mutation = {
   deleteRecurringPayment: Scalars['Boolean']['output'];
   deleteRole: Scalars['Boolean']['output'];
   /** Soft-delete a manual transaction. */
-  deleteTransaction: Scalars['Boolean']['output'];
+  deleteTransaction: DeleteTransactionResult;
   /** Soft-delete a custom transaction category (and its subcategories when deleting a root). */
   deleteTransactionCategory: Scalars['Boolean']['output'];
   /** Soft-delete a user-owned transaction rule. System rules cannot be deleted. */
@@ -2594,6 +2621,7 @@ export type Mutation = {
   resetPassword: ResetPasswordPayload;
   resolveImportDuplicate: TransactionImport;
   resumeRecurringPayment: RecurringPayment;
+  revertToolCallChanges: BulkOperationResult;
   /**
    * Enables/disables a system transaction rule for the authenticated account.
    * This does not mutate the global system rule itself.
@@ -2658,6 +2686,7 @@ export type MutationApplyTransactionEditToSimilarArgs = {
 
 export type MutationApplyTransactionRuleToHistoricalArgs = {
   id: Scalars['ID']['input'];
+  idempotencyKey?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -2691,6 +2720,7 @@ export type MutationAttachFileToTransactionArgs = {
 
 export type MutationBulkCategorizeArgs = {
   categoryId: Scalars['ID']['input'];
+  idempotencyKey?: InputMaybe<Scalars['String']['input']>;
   transactionIds: Array<Scalars['ID']['input']>;
 };
 
@@ -2745,6 +2775,11 @@ export type MutationConfirmHoldingMaturityArgs = {
 
 export type MutationConfirmInvestmentImportArgs = {
   input: ConfirmInvestmentImportInput;
+};
+
+
+export type MutationConfirmPendingActionArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -2816,6 +2851,7 @@ export type MutationCreateRoleArgs = {
 
 
 export type MutationCreateTransactionArgs = {
+  idempotencyKey?: InputMaybe<Scalars['String']['input']>;
   input: CreateTransactionInput;
 };
 
@@ -2826,6 +2862,7 @@ export type MutationCreateTransactionCategoryArgs = {
 
 
 export type MutationCreateTransactionRuleArgs = {
+  idempotencyKey?: InputMaybe<Scalars['String']['input']>;
   input: CreateTransactionRuleInput;
 };
 
@@ -2882,6 +2919,7 @@ export type MutationDeleteRoleArgs = {
 
 export type MutationDeleteTransactionArgs = {
   id: Scalars['ID']['input'];
+  idempotencyKey?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -3066,6 +3104,11 @@ export type MutationResumeRecurringPaymentArgs = {
 };
 
 
+export type MutationRevertToolCallChangesArgs = {
+  toolCallId: Scalars['ID']['input'];
+};
+
+
 export type MutationSetSystemTransactionRuleEnabledArgs = {
   enabled: Scalars['Boolean']['input'];
   id: Scalars['ID']['input'];
@@ -3195,6 +3238,7 @@ export type MutationUpdateRoleArgs = {
 
 export type MutationUpdateTransactionArgs = {
   id: Scalars['ID']['input'];
+  idempotencyKey?: InputMaybe<Scalars['String']['input']>;
   input: UpdateTransactionInput;
 };
 
@@ -3329,9 +3373,10 @@ export enum PendingActionStatus {
 }
 
 export enum PendingActionType {
+  /** Confirmation required for a deferred agent write. */
+  AgentWriteConfirmation = 'AGENT_WRITE_CONFIRMATION',
   /** Bank account balance went negative after a paired investment cash transfer (informational). */
   BankAccountNegativeBalance = 'BANK_ACCOUNT_NEGATIVE_BALANCE',
-  AgentWriteConfirmation = 'AGENT_WRITE_CONFIRMATION',
   /** Coupon payment is due for a coupon-bearing fixed income holding. */
   CouponPaymentDue = 'COUPON_PAYMENT_DUE',
   InvestmentMatured = 'INVESTMENT_MATURED',
@@ -3705,6 +3750,7 @@ export type Query = {
    */
   issuers: Array<Issuer>;
   listedAssetDailyPrices: ListedAssetDailyPriceConnection;
+  mcpChangeLog: Array<McpChangeLogEntry>;
   /** Merchant logo preview asset resolved through federation. */
   merchantLogoPreview: Maybe<Asset>;
   /** Paginated merchants (system + user-created) available to the authenticated account. */
@@ -4117,6 +4163,15 @@ export type QueryListedAssetDailyPricesArgs = {
 };
 
 
+export type QueryMcpChangeLogArgs = {
+  clientId?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  tokenId?: InputMaybe<Scalars['ID']['input']>;
+  toolCallId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
 export type QueryMerchantLogoPreviewArgs = {
   domain: Scalars['String']['input'];
 };
@@ -4374,6 +4429,8 @@ export type QueryTransactionsArgs = {
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   month?: InputMaybe<Scalars['Int']['input']>;
+  originClientId?: InputMaybe<Scalars['String']['input']>;
+  originToolCallId?: InputMaybe<Scalars['ID']['input']>;
   search?: InputMaybe<Scalars['String']['input']>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   types?: InputMaybe<Array<TransactionType>>;
@@ -4562,6 +4619,7 @@ export type RegisterToolInput = {
   name: Scalars['String']['input'];
   outputSchema?: InputMaybe<Scalars['JSON']['input']>;
   retryPolicy?: InputMaybe<Scalars['JSON']['input']>;
+  sensitiveInputFields?: InputMaybe<Array<Scalars['String']['input']>>;
   status?: InputMaybe<ToolStatus>;
   timeoutMs: Scalars['Int']['input'];
 };
@@ -4793,6 +4851,7 @@ export type Tool = {
   name: Scalars['String']['output'];
   outputSchema: Scalars['JSON']['output'];
   retryPolicy: Maybe<Scalars['JSON']['output']>;
+  sensitiveInputFields: Array<Scalars['String']['output']>;
   status: ToolStatus;
   timeoutMs: Scalars['Int']['output'];
   updatedAt: Scalars['String']['output'];

@@ -1415,8 +1415,9 @@ dev_sync() {
         if "$NEOTOOL" graphql all --all; then
             log "✓ Supergraph updated" "$GREEN"
         else
-            log "⚠ Supergraph generation failed (see above) — continuing with remaining steps" "$YELLOW"
+            log "✗ Supergraph generation failed; aborting sync before router restart/codegen" "$RED"
             log "  If rover/plugin is missing: ./neotool dev up --recreate" "$YELLOW"
+            return 1
         fi
 
         echo ""
@@ -1452,8 +1453,9 @@ dev_sync() {
         if "$NEOTOOL" graphql all --all --docker; then
             log "✓ Supergraph updated" "$GREEN"
         else
-            log "⚠ Supergraph generation failed (see above) — continuing with remaining steps" "$YELLOW"
+            log "✗ Supergraph generation failed; aborting sync before router restart/codegen" "$RED"
             log "  If image missing: ./neotool dev up --recreate  (or build-rover-image.sh)" "$YELLOW"
+            return 1
         fi
 
         echo ""

@@ -16,12 +16,22 @@ IMAGE_TAG="invistus-rover:${ROVER_VERSION}-sg${SUPERGRAPH_PLUGIN_VERSION}"
 
 echo "▶ Building ${IMAGE_TAG} (Rover ${ROVER_VERSION} + supergraph ${SUPERGRAPH_PLUGIN_VERSION})..."
 # shellcheck disable=SC2086
-$DOCKER_CMD build \
+if ! $DOCKER_CMD build \
   --build-arg "ROVER_VERSION=${ROVER_VERSION}" \
   --build-arg "SUPERGRAPH_PLUGIN_VERSION=${SUPERGRAPH_PLUGIN_VERSION}" \
   -f "$DEVCONTAINER_DIR/Dockerfile.rover" \
   -t "$IMAGE_TAG" \
   -t "invistus-rover:latest" \
-  "$DEVCONTAINER_DIR"
+  "$DEVCONTAINER_DIR"; then
+  echo ""
+  echo "✗ Failed to build ${IMAGE_TAG}"
+  echo "  The build now downloads the official rover and supergraph binaries directly."
+  echo "  Check outbound access to:"
+  echo "    - https://rover.apollo.dev"
+  echo "    - https://github.com/apollographql/rover/releases"
+  echo "  Then retry:"
+  echo "    ./scripts/cli/commands/graphql/build-rover-image.sh"
+  exit 1
+fi
 
 echo "✓ Built ${IMAGE_TAG} (also tagged invistus-rover:latest)"

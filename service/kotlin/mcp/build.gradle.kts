@@ -83,17 +83,19 @@ tasks.test {
 
 val bankingContractsSchemaFile =
     rootProject.projectDir.parentFile.parentFile.resolve("contracts/graphql/subgraphs/banking/schema.graphqls")
-require(bankingContractsSchemaFile.isFile) {
-    "Missing banking contracts schema at ${bankingContractsSchemaFile.absolutePath}"
-}
 
 val assistantContractsSchemaFile =
     rootProject.projectDir.parentFile.parentFile.resolve("contracts/graphql/subgraphs/assistant/schema.graphqls")
-require(assistantContractsSchemaFile.isFile) {
-    "Missing assistant contracts schema at ${assistantContractsSchemaFile.absolutePath}"
-}
 
 tasks.withType<Test>().configureEach {
+    doFirst {
+        require(bankingContractsSchemaFile.isFile) {
+            "Missing banking contracts schema at ${bankingContractsSchemaFile.absolutePath}"
+        }
+        require(assistantContractsSchemaFile.isFile) {
+            "Missing assistant contracts schema at ${assistantContractsSchemaFile.absolutePath}"
+        }
+    }
     systemProperty("mcp.contracts.bankingSchemaPath", bankingContractsSchemaFile.absolutePath)
     systemProperty("mcp.contracts.assistantSchemaPath", assistantContractsSchemaFile.absolutePath)
 }

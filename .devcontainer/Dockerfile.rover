@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
-# Invistus Rover — official Rover image with the supergraph composition plugin baked in.
-# Built once during `neotool dev up` / `--recreate` so `graphql generate --docker` never
-# downloads plugins at runtime (sandbox / DinD / CI).
+# Invistus Rover — build the rover binary and the supergraph composition plugin from
+# the official download endpoints so local/dev sync does not depend on a pre-authenticated
+# container registry image.
 
 ARG ROVER_VERSION=0.40.0
 ARG SUPERGRAPH_PLUGIN_VERSION=2.15.0
@@ -22,14 +22,35 @@ RUN apk add --no-cache curl ca-certificates \
     && cp /tmp/dist/supergraph "/out/supergraph-v${SUPERGRAPH_PLUGIN_VERSION}" \
     && chmod 755 "/out/supergraph-v${SUPERGRAPH_PLUGIN_VERSION}"
 
-FROM ghcr.io/apollographql/rover:${ROVER_VERSION}
+FROM alpine:3.20 AS rover
+ARG ROVER_VERSION
+ARG TARGETARCH
+RUN apk add --no-cache curl ca-certificates tar \
+    && case "${TARGETARCH}" in \
+         amd64) RARCH=x86_64-unknown-linux-gnu ;; \
+         arm64) RARCH=aarch64-unknown-linux-gnu ;; \
+         *) echo "Unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+       esac \
+    && echo "Downloading rover v${ROVER_VERSION} (${RARCH})..." \
+    && mkdir -p /out \
+    && curl -fsSL "https://rover.apollo.dev/tar/rover/${RARCH}/v${ROVER_VERSION}" \
+         | tar -xz -C /tmp \
+    && cp /tmp/dist/rover /out/rover \
+    && chmod 755 /out/rover
+
+FROM debian:bookworm-slim
 ARG SUPERGRAPH_PLUGIN_VERSION
-USER root
-RUN mkdir -p /home/rover/.rover/bin /home/rover/.config/rover
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 10001 --shell /usr/sbin/nologin rover \
+    && mkdir -p /home/rover/.rover/bin /home/rover/.config/rover
+COPY --from=rover /out/rover /usr/local/bin/rover
 COPY --from=plugin /out/supergraph-v${SUPERGRAPH_PLUGIN_VERSION} /home/rover/.rover/bin/supergraph-v${SUPERGRAPH_PLUGIN_VERSION}
 # Accept ELv2 so compose never prompts in non-interactive environments.
 RUN printf 'accepted = true\n' > /home/rover/.config/rover/elv2_license.toml \
-    && chown -R 10001:10001 /home/rover/.rover /home/rover/.config
+    && chown -R 10001:10001 /home/rover /usr/local/bin/rover
 USER 10001
 ENV HOME=/home/rover \
     APOLLO_ELV2_LICENSE=accept
+ENTRYPOINT ["rover"]

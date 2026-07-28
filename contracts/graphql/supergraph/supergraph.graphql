@@ -334,11 +334,16 @@ type Query @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(
     creditDebitType: CreditDebitType,
     """Filter to one or more transaction types (e.g. SALARY, TRANSFER)."""
     types: [TransactionType!],
+    """Filter to transactions last stamped by a specific MCP client id."""
+    originClientId: String,
+    """Filter to transactions last stamped by a specific MCP tool call id."""
+    originToolCallId: ID,
     month: Int,
     year: Int,
     first: Int,
     after: String,
   ): TransactionConnection! @join__field(graph: BANKING)
+  mcpChangeLog(clientId: String, tokenId: ID, toolCallId: ID, limit: Int = 50, offset: Int = 0): [McpChangeLogEntry!]! @join__field(graph: BANKING)
   """
   Recurring payment templates for one account or all tenant accounts when omitted.
   """
@@ -591,11 +596,11 @@ type Mutation @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__ty
   updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
   deleteFinancialAccount(id: ID!): Boolean! @join__field(graph: BANKING)
   """Create a new manual transaction."""
-  createTransaction(input: CreateTransactionInput!): CreateTransactionPayload! @join__field(graph: BANKING)
+  createTransaction(input: CreateTransactionInput!, idempotencyKey: String): CreateTransactionPayload! @join__field(graph: BANKING)
   """Update an existing manual transaction."""
-  updateTransaction(id: ID!, input: UpdateTransactionInput!): Transaction! @join__field(graph: BANKING)
+  updateTransaction(id: ID!, input: UpdateTransactionInput!, idempotencyKey: String): Transaction! @join__field(graph: BANKING)
   """Soft-delete a manual transaction."""
-  deleteTransaction(id: ID!): Boolean! @join__field(graph: BANKING)
+  deleteTransaction(id: ID!, idempotencyKey: String): DeleteTransactionResult! @join__field(graph: BANKING)
   createRecurringPayment(input: CreateRecurringPaymentInput!): RecurringPayment! @join__field(graph: BANKING)
   updateRecurringPayment(id: ID!, input: UpdateRecurringPaymentInput!): RecurringPayment! @join__field(graph: BANKING)
   pauseRecurringPayment(id: ID!): RecurringPayment! @join__field(graph: BANKING)
@@ -691,14 +696,14 @@ type Mutation @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__ty
   """
   Create a transaction rule for auto-categorization and/or merchant suggestion. Invalid REGEX pattern returns a validation error.
   """
-  createTransactionRule(input: CreateTransactionRuleInput!): TransactionRule! @join__field(graph: BANKING)
+  createTransactionRule(input: CreateTransactionRuleInput!, idempotencyKey: String): TransactionRule! @join__field(graph: BANKING)
   """Update a user-owned transaction rule."""
   updateTransactionRule(id: ID!, input: UpdateTransactionRuleInput!): TransactionRule! @join__field(graph: BANKING)
   """
   Applies the given transaction rule to historical (non-manual) transactions that match it.
   Does not override MANUAL categories; other fields may be updated according to rule actions.
   """
-  applyTransactionRuleToHistorical(id: ID!): BulkOperationResult! @join__field(graph: BANKING)
+  applyTransactionRuleToHistorical(id: ID!, idempotencyKey: String): BulkOperationResult! @join__field(graph: BANKING)
   """
   Soft-delete a user-owned transaction rule. System rules cannot be deleted.
   """
@@ -716,7 +721,8 @@ type Mutation @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__ty
   """
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """
-  bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult! @join__field(graph: BANKING)
+  bulkCategorize(transactionIds: [ID!]!, categoryId: ID!, idempotencyKey: String): BulkOperationResult! @join__field(graph: BANKING)
+  revertToolCallChanges(toolCallId: ID!): BulkOperationResult! @join__field(graph: BANKING)
   applyTransactionEditToSimilar(id: ID!, matchDescription: String!, input: UpdateTransactionInput!, applyToFuture: Boolean = true, applyToExisting: Boolean = true): SimilarTransactionEditResult! @join__field(graph: BANKING)
   """
   Attach an already-uploaded asset to a transaction. The asset must be in READY status.
@@ -740,6 +746,8 @@ type Mutation @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__ty
   Confirm fixed-income maturity: records MATURITY, closes the holding, completes the pending action, optional cash credit.
   """
   confirmHoldingMaturity(command: ConfirmHoldingMaturityInput!): ConfirmHoldingMaturityResult! @join__field(graph: BANKING)
+  """Confirm a pending action that was created by a deferred agent write."""
+  confirmPendingAction(id: ID!): ConfirmPendingActionResult! @join__field(graph: BANKING)
   """
   Confirms a fixed-income coupon payment and optionally completes a pending coupon action.
   """
@@ -937,6 +945,7 @@ type Tool @join__type(graph: ASSISTANT) {
   retryPolicy: JSON
   mcpExposed: Boolean!
   mcpRequiredScope: String
+  sensitiveInputFields: [String!]!
   status: ToolStatus!
   createdAt: String!
   updatedAt: String!
@@ -954,6 +963,7 @@ input RegisterToolInput @join__type(graph: ASSISTANT) {
   retryPolicy: JSON
   mcpExposed: Boolean
   mcpRequiredScope: String
+  sensitiveInputFields: [String!]
   status: ToolStatus
 }
 
@@ -2314,6 +2324,8 @@ enum PendingActionType @join__type(graph: BANKING) {
   BANK_ACCOUNT_NEGATIVE_BALANCE @join__enumValue(graph: BANKING)
   """A recurring payment is approaching the due date."""
   RECURRING_PAYMENT_DUE @join__enumValue(graph: BANKING)
+  """Confirmation required for a deferred agent write."""
+  AGENT_WRITE_CONFIRMATION @join__enumValue(graph: BANKING)
 }
 
 enum PendingActionSeverity @join__type(graph: BANKING) {
@@ -3429,10 +3441,39 @@ type CreateTransactionPayload @join__type(graph: BANKING) {
   appliedRules: [TransactionRule!]
 }
 
+enum BulkOperationOutcome @join__type(graph: BANKING) {
+  EXECUTED @join__enumValue(graph: BANKING)
+  CONFIRMATION_REQUIRED @join__enumValue(graph: BANKING)
+}
+
 """Result of a bulk operation (e.g. bulkCategorize)."""
 type BulkOperationResult @join__type(graph: BANKING) {
   affectedCount: Int!
   errors: [String!]!
+  outcome: BulkOperationOutcome!
+  pendingAction: AccountPendingAction
+}
+
+type DeleteTransactionResult @join__type(graph: BANKING) {
+  deleted: Boolean!
+  pendingAction: AccountPendingAction
+}
+
+type ConfirmPendingActionResult @join__type(graph: BANKING) {
+  pendingAction: AccountPendingAction!
+}
+
+type McpChangeLogEntry @join__type(graph: BANKING) {
+  id: ID!
+  toolCallId: ID!
+  clientId: String
+  tokenId: ID
+  resourceType: String!
+  resourceId: ID!
+  action: String!
+  before: JSON!
+  after: JSON!
+  createdAt: DateTime!
 }
 
 enum EmailBodyFormat @join__type(graph: COMMS) {

@@ -45,6 +45,7 @@ ensure_invistus_rover_image() {
     echo "     ./neotool dev up --recreate"
     echo "   Or:"
     echo "     $PROJECT_ROOT/scripts/cli/commands/graphql/build-rover-image.sh"
+    echo "   If the build fails, verify outbound access to rover.apollo.dev and GitHub releases."
     echo "   Override with ROVER_DOCKER_IMAGE=<image> if you manage your own image."
     return 1
 }
@@ -81,6 +82,12 @@ generate_with_docker() {
         echo "   Image: $ROVER_DOCKER_IMAGE"
         if grep -qi "pull access denied\|not found\|manifest unknown" "$error_log"; then
             echo "   Rebuild with: ./neotool dev up --recreate"
+        fi
+        if grep -qi "failed to fetch oauth token\|denied: denied\|authentication required" "$error_log"; then
+            echo "   Registry authentication failed while trying to resolve the rover image."
+            echo "   Rebuild the baked image locally with:"
+            echo "     ./scripts/cli/commands/graphql/build-rover-image.sh"
+            echo "   If that also fails, check outbound access to rover.apollo.dev and GitHub releases."
         fi
         rm -f "$error_log"
         return 1
