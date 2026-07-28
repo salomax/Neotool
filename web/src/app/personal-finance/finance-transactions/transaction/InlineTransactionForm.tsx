@@ -47,7 +47,8 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
     onBusyEnd,
   });
   const { form, save, t } = controller;
-  const contentColSpan = Math.max(1, form.colSpan - 1);
+  // Full row width including the actions column (was previously colSpan - 1).
+  const contentColSpan = form.colSpan;
 
   const [shouldRender, setShouldRender] = useState(isOpen);
   useEffect(() => {
@@ -62,7 +63,11 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
   return (
     <>
       <TableRow sx={{ position: 'relative', zIndex: 3 }}>
-        <TableCell colSpan={contentColSpan} sx={{ p: 0, borderBottom: 'none', bgcolor: 'transparent' }}>
+        <TableCell
+          colSpan={contentColSpan}
+          data-testid="inline-transaction-form-cell"
+          sx={{ p: 0, borderBottom: 'none', bgcolor: 'transparent' }}
+        >
           <Collapse
             in={isOpen}
             timeout={250}
@@ -127,7 +132,6 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
             </Box>
           </Collapse>
         </TableCell>
-        <TableCell sx={{ p: 0, borderBottom: 'none', bgcolor: 'transparent' }} />
       </TableRow>
 
       <SimilarEditDialog

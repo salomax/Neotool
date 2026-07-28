@@ -1,0 +1,22 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+deleted file mode 100644
+index 9fb9ce015eb7ef36f714b0cbfead3f8e0363d87e..0000000000000000000000000000000000000000
+diff --git a/index.js b/index.js
+index aecb72d02adcc32a77824b4f61428e2a5234124f..fd5e720312a330806fb7d677ab23c98bb8ab1aa9 100644
+--- a/index.js
++++ b/index.js
+@@ -3,7 +3,13 @@
+ const path = require('path');
+ const { promisify } = require('util');
+ const glob = promisify(require('glob'));
+-const minimatch = require('minimatch');
++// minimatch v9+/v10 export a namespace (`{ minimatch }`); v3 exports the function.
++// Vitest coverage crashes with "minimatch is not a function" when v10 is linked.
++const minimatchModule = require('minimatch');
++const minimatch =
++  typeof minimatchModule === 'function'
++    ? minimatchModule
++    : minimatchModule.minimatch;
+ const { defaults } = require('@istanbuljs/schema');
+ const isOutsideDir = require('./is-outside-dir');
+ 
