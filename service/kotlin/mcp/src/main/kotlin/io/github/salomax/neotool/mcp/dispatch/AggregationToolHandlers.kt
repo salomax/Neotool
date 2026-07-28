@@ -10,6 +10,7 @@ class GetMonthSummaryToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.GET_MONTH_SUMMARY
+    override val graphQLDocuments: List<String> = listOf(MONTH_SUMMARY_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -91,6 +92,7 @@ class GetPeriodSummaryToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.GET_PERIOD_SUMMARY
+    override val graphQLDocuments: List<String> = listOf(PERIOD_SUMMARY_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -171,6 +173,7 @@ class GetCashFlowSeriesToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.GET_CASH_FLOW_SERIES
+    override val graphQLDocuments: List<String> = listOf(CASH_FLOW_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -238,6 +241,7 @@ class GetSpendingByCategoryToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.GET_SPENDING_BY_CATEGORY
+    override val graphQLDocuments: List<String> = listOf(CATEGORY_MONTH_QUERY, CATEGORY_RANGE_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -410,6 +414,7 @@ class GetSpendingByTagToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.GET_SPENDING_BY_TAG
+    override val graphQLDocuments: List<String> = listOf(TAG_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -481,6 +486,7 @@ class GetTopMerchantsToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.GET_TOP_MERCHANTS
+    override val graphQLDocuments: List<String> = listOf(TOP_MERCHANTS_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,

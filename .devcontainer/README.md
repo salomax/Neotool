@@ -192,6 +192,7 @@ command -v rtk semble headroom claude codex
 rtk --version && rtk gain
 semble --help >/dev/null
 curl -sf http://127.0.0.1:8787/readyz
+echo "$ANTHROPIC_BASE_URL"   # http://127.0.0.1:8787 (Claude → Headroom)
 # OAuth (obrigatório no primeiro up e após --recreate):
 claude login
 codex login
@@ -230,7 +231,7 @@ seeded de `.devcontainer/agent-home/` em `postCreate` (`setup-agent-homes.sh` �
 | `claude` / `codex` | imagem (npm global) | OAuth: `claude login` / `codex login` |
 | `rtk` | imagem + hooks no postCreate | Prefixo de shell commands |
 | `semble` | imagem + MCP no postCreate | Busca semântica |
-| `headroom` | imagem + proxy no postStart | `127.0.0.1:8787`; Codex usa `openai_base_url` |
+| `headroom` | imagem + proxy no postStart | `127.0.0.1:8787`; Codex → `openai_base_url`; Claude → `ANTHROPIC_BASE_URL` (`remoteEnv` + `.zshrc` + `claude-dev`) |
 
 **Novo PC:** `devpod up` → smoke acima → só OAuth (e `gh auth login` se precisar).
 Não é necessário instalar rtk/semble/headroom no Mac para o sandbox.

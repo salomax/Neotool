@@ -95,6 +95,7 @@ class McpToolResultRenderer(
                 "paymentReason",
                 "merchantName",
                 "issuerName",
+                "ticker",
                 "pattern",
                 "descriptionOverride",
                 "tagsOverride",
@@ -103,6 +104,7 @@ class McpToolResultRenderer(
             setOf(
                 "merchant",
                 "category",
+                "linkedInvestmentAsset",
                 "financialAccounts",
                 "categories",
                 "transactionCategories",

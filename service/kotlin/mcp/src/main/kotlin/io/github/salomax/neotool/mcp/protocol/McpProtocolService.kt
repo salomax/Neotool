@@ -211,7 +211,11 @@ class McpProtocolService(
                 resultRenderer.render(result, principal.scopes),
             )
         } catch (e: McpToolExecutionException) {
-            logger.debug(e) { "MCP tool returned mapped error: $name" }
+            if (e.internal) {
+                logger.error(e) { "MCP tool hit internal defect while dispatching: $name" }
+            } else {
+                logger.debug(e) { "MCP tool returned mapped error: $name" }
+            }
             val mappedError = errorMapper.toResult(e)
             recordAudit(
                 principal = principal,

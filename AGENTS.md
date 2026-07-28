@@ -51,12 +51,19 @@ Details: `.agents/skills/neotool-conventions/references/semble-search.md`.
 
 ## Headroom — token-saving proxy
 
-DevPod runs `headroom proxy` on `http://127.0.0.1:8787`. Codex is seeded with
-`openai_base_url` pointing at that proxy. Host `agents-proxy/` is optional legacy
-for Mac-side use only — not required inside the DevPod.
+DevPod runs `headroom proxy` on `http://127.0.0.1:8787` (`start-headroom.sh` on
+postStart). Both agents are wired by default:
+
+- **Codex** — `openai_base_url` in seeded `~/.codex/config.toml`
+- **Claude Code** — `ANTHROPIC_BASE_URL=http://127.0.0.1:8787` via
+  `devcontainer.json` `remoteEnv`, `.zshrc`, and the `claude-dev` Slack wrapper
+
+Host `agents-proxy/` is optional legacy for Mac-side use only — not required
+inside the DevPod.
 
 ```bash
 curl -sf http://127.0.0.1:8787/readyz
+echo "$ANTHROPIC_BASE_URL"   # expect http://127.0.0.1:8787
 ```
 
 ## Shared workflow

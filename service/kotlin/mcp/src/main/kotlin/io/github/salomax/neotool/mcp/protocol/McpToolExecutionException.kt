@@ -5,5 +5,18 @@ class McpToolExecutionException(
     val service: String,
     val field: List<String>? = null,
     val parameters: Map<String, Any?> = emptyMap(),
+    val detail: String? = null,
+    val internal: Boolean = false,
     cause: Throwable? = null,
-) : RuntimeException("MCP tool execution failed: $code", cause)
+) : RuntimeException(buildMessage(code, detail), cause) {
+    companion object {
+        private fun buildMessage(
+            code: String,
+            detail: String?,
+        ): String =
+            detail
+                ?.takeIf { it.isNotBlank() }
+                ?.let { "MCP tool execution failed: $code - $it" }
+                ?: "MCP tool execution failed: $code"
+    }
+}

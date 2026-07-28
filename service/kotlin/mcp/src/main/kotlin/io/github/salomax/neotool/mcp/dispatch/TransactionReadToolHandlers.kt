@@ -10,6 +10,7 @@ class ListTransactionsToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.LIST_TRANSACTIONS
+    override val graphQLDocuments: List<String> = listOf(TRANSACTIONS_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -102,7 +103,7 @@ class ListTransactionsToolHandler(
             linkedInvestmentAsset {
               id
               name
-              symbol
+              ticker
             }
             createdAt
             updatedAt
@@ -159,6 +160,7 @@ class GetTransactionToolHandler(
     bankingClient: McpBankingGraphQLClient,
 ) : AbstractMcpBankingToolHandler(bankingClient) {
     override val name: String = FinanceReadMcpTools.GET_TRANSACTION
+    override val graphQLDocuments: List<String> = listOf(TRANSACTION_QUERY)
 
     override fun call(
         arguments: Map<String, Any?>,
@@ -221,7 +223,7 @@ class GetTransactionToolHandler(
                 linkedInvestmentAsset {
                   id
                   name
-                  symbol
+                  ticker
                 }
                 createdAt
                 updatedAt

@@ -1,3 +1,8 @@
+# ── Headroom (Claude Code → local proxy) ──────────────────────────────────────
+# Codex uses openai_base_url in ~/.codex/config.toml; Claude uses this env.
+# Proxy is started by .devcontainer/start-headroom.sh on postStart.
+export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-http://127.0.0.1:8787}"
+
 # ── History ───────────────────────────────────────────────────────────────────
 HISTFILE=~/.zsh_history
 HISTSIZE=20000
