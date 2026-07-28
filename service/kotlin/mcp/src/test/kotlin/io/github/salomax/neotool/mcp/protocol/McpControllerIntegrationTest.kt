@@ -2,11 +2,15 @@ package io.github.salomax.neotool.mcp.protocol
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.common.service.GraphQLResponse
+import io.github.salomax.neotool.mcp.audit.ToolCallAuditOutcome
+import io.github.salomax.neotool.mcp.audit.ToolCallAuditRecord
 import io.github.salomax.neotool.mcp.audit.ToolCallAuditService
 import io.github.salomax.neotool.mcp.catalog.McpCatalogTool
 import io.github.salomax.neotool.mcp.catalog.McpToolCatalog
 import io.github.salomax.neotool.mcp.dispatch.McpBankingGraphQLClient
+import io.github.salomax.neotool.mcp.observability.McpObservabilityLogger
 import io.github.salomax.neotool.mcp.security.ConnectionRevocationStore
+import io.github.salomax.neotool.mcp.security.McpAuthenticationFailureCause
 import io.github.salomax.neotool.mcp.security.McpPrincipal
 import io.github.salomax.neotool.mcp.security.OAuthError
 import io.github.salomax.neotool.mcp.test.McpJwtTestFixture
@@ -27,7 +31,10 @@ import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.reset
+import org.mockito.kotlin.verify
 import java.time.Instant
 import java.util.UUID
 
@@ -74,6 +81,7 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
         capturedBankingVariables = null
         capturedBankingPrincipal = null
         bankingDispatchCount = 0
+        reset(auditServiceMock, observabilityLoggerMock)
     }
 
     @Test
@@ -818,6 +826,44 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
             }
 
         assertThat(exception.status).isEqualTo(HttpStatus.UNAUTHORIZED)
+        val body = exception.response.getBody(OAuthError::class.java).orElseThrow()
+        assertThat(body.error).isEqualTo("invalid_request")
+        assertThat(body.error_description).isEqualTo("Bearer token is required")
+        verify(observabilityLoggerMock).recordAuthenticationFailure(
+            "/mcp",
+            McpAuthenticationFailureCause.MISSING_BEARER_TOKEN,
+            "invalid_request",
+        )
+    }
+
+    @Test
+    fun `rejected tools call records disambiguated audit error code while keeping hidden response`() {
+        catalogTools = listOf(tool(name = "list_transactions", requiredScope = transactionsReadScope))
+
+        val response =
+            retrieve(
+                body =
+                    mapOf(
+                        "jsonrpc" to "2.0",
+                        "id" to "call-scope-rejected",
+                        "method" to "tools/call",
+                        "params" to
+                            mapOf(
+                                "name" to "list_transactions",
+                                "arguments" to mapOf("first" to 5),
+                            ),
+                    ),
+                token = McpJwtTestFixture.accessToken(scope = "finance:cashflow:read"),
+            )
+
+        assertThat(response["result"]).isNull()
+        assertThat((response["error"] as Map<*, *>)["message"]).isEqualTo("Unknown tool")
+
+        val captor = argumentCaptor<ToolCallAuditRecord>()
+        verify(auditServiceMock).record(captor.capture())
+        assertThat(captor.firstValue.outcome).isEqualTo(ToolCallAuditOutcome.REJECTED)
+        assertThat(captor.firstValue.errorCode).isEqualTo("insufficient_scope")
+        assertThat(captor.firstValue.toolName).isEqualTo("list_transactions")
     }
 
     @Test
@@ -915,7 +961,15 @@ open class McpControllerIntegrationTest : TestPropertyProvider {
         }
 
     @MockBean(ToolCallAuditService::class)
-    fun toolCallAuditService(): ToolCallAuditService = mock()
+    fun toolCallAuditService(): ToolCallAuditService = auditServiceMock
+
+    @MockBean(McpObservabilityLogger::class)
+    fun mcpObservabilityLogger(): McpObservabilityLogger = observabilityLoggerMock
+
+    companion object {
+        private val auditServiceMock: ToolCallAuditService = mock()
+        private val observabilityLoggerMock: McpObservabilityLogger = mock()
+    }
 
     private fun tool(
         name: String,

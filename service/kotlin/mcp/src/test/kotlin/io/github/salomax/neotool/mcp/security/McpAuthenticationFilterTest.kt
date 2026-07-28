@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.mcp.security
 
+import io.github.salomax.neotool.mcp.observability.McpObservabilityLogger
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.HttpStatus
 import io.micronaut.http.MutableHttpResponse
@@ -25,11 +26,18 @@ class McpAuthenticationFilterTest {
                     metadataUrl = "https://mcp.example.test/.well-known/oauth-protected-resource",
                 ),
             )
-        val filter = McpAuthenticationFilter(authenticationService, errorResponseFactory)
+        val observabilityLogger = mock<McpObservabilityLogger>()
+        val filter = McpAuthenticationFilter(authenticationService, errorResponseFactory, observabilityLogger)
         val chain = RecordingServerFilterChain()
 
         whenever(authenticationService.authenticate(any(), isNull()))
-            .thenThrow(McpAuthenticationException("invalid_request", "Bearer token is required"))
+            .thenThrow(
+                McpAuthenticationException(
+                    "invalid_request",
+                    "Bearer token is required",
+                    McpAuthenticationFailureCause.MISSING_BEARER_TOKEN,
+                ),
+            )
 
         val response =
             Flux
@@ -39,6 +47,50 @@ class McpAuthenticationFilterTest {
         assertThat(response?.status).isEqualTo(HttpStatus.UNAUTHORIZED)
         assertThat(chain.proceeded).isFalse()
         verify(authenticationService).authenticate(any(), isNull())
+        verify(observabilityLogger)
+            .recordAuthenticationFailure(
+                "other",
+                McpAuthenticationFailureCause.MISSING_BEARER_TOKEN,
+                "invalid_request",
+            )
+    }
+
+    @Test
+    fun `unrouted mcp paths collapse to other authentication endpoint tag`() {
+        val authenticationService = mock<McpAuthenticationService>()
+        val errorResponseFactory =
+            OAuthErrorResponseFactory(
+                McpResourceConfig(
+                    audience = "https://mcp.example.test",
+                    metadataUrl = "https://mcp.example.test/.well-known/oauth-protected-resource",
+                ),
+            )
+        val observabilityLogger = mock<McpObservabilityLogger>()
+        val filter = McpAuthenticationFilter(authenticationService, errorResponseFactory, observabilityLogger)
+        val chain = RecordingServerFilterChain()
+
+        whenever(authenticationService.authenticate(any(), isNull()))
+            .thenThrow(
+                McpAuthenticationException(
+                    "invalid_request",
+                    "Bearer token is required",
+                    McpAuthenticationFailureCause.MISSING_BEARER_TOKEN,
+                ),
+            )
+
+        val response =
+            Flux
+                .from(filter.doFilter(HttpRequest.GET<Any>("/mcp/zz-attacker-chosen-9f3a"), chain))
+                .blockFirst()
+
+        assertThat(response?.status).isEqualTo(HttpStatus.UNAUTHORIZED)
+        assertThat(chain.proceeded).isFalse()
+        verify(observabilityLogger)
+            .recordAuthenticationFailure(
+                "other",
+                McpAuthenticationFailureCause.MISSING_BEARER_TOKEN,
+                "invalid_request",
+            )
     }
 
     private class RecordingServerFilterChain : ServerFilterChain {

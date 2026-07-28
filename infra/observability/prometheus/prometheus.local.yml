@@ -43,6 +43,13 @@ scrape_configs:
       - targets: ['host.docker.internal:8080']  # Host machine port where security runs locally
     metrics_path: '/prometheus'
 
+  # Monitor the MCP service
+  # Service runs locally on port 8086 (from application.yml)
+  - job_name: 'mcp'
+    static_configs:
+      - targets: ['host.docker.internal:8086']  # Host machine port where MCP runs locally
+    metrics_path: '/prometheus'
+
   # Monitor PostgreSQL database
   # PostgreSQL exporter runs in Docker, so use service name
   - job_name: 'postgres'
@@ -57,4 +64,3 @@ scrape_configs:
       - targets: ['router:9090']  # Docker service name + internal metrics port
     metrics_path: '/metrics'
     
-

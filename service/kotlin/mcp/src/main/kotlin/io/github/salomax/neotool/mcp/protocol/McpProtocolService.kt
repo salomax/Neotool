@@ -8,6 +8,7 @@ import io.github.salomax.neotool.mcp.audit.ToolCallAuditService
 import io.github.salomax.neotool.mcp.catalog.McpCatalogTool
 import io.github.salomax.neotool.mcp.catalog.McpToolCatalog
 import io.github.salomax.neotool.mcp.dispatch.McpToolHandlerRegistry
+import io.github.salomax.neotool.mcp.observability.McpObservabilityLogger
 import io.github.salomax.neotool.mcp.render.McpToolErrorMapper
 import io.github.salomax.neotool.mcp.render.McpToolErrorResult
 import io.github.salomax.neotool.mcp.render.McpToolResultRenderer
@@ -27,23 +28,83 @@ class McpProtocolService(
     private val resultRenderer: McpToolResultRenderer,
     private val errorMapper: McpToolErrorMapper,
     private val auditService: ToolCallAuditService,
+    private val observabilityLogger: McpObservabilityLogger,
 ) {
     fun handle(
         request: Map<String, Any?>,
         principal: McpPrincipal,
     ): JsonRpcResponse? {
+        val startedNanos = System.nanoTime()
         val id = request["id"]
         val method = request["method"] as? String
+        val protocolMethod = normalizeProtocolMethod(method)
         if (request["jsonrpc"] != "2.0" || method.isNullOrBlank()) {
-            return error(id, JsonRpcErrorCodes.INVALID_REQUEST, "Invalid JSON-RPC request")
+            return error(id, JsonRpcErrorCodes.INVALID_REQUEST, "Invalid JSON-RPC request").also { response ->
+                recordProtocolRequestSafely(
+                    method = "invalid_request",
+                    outcome = "error",
+                    latencyMs = elapsedMillis(startedNanos),
+                    clientId = principal.clientId,
+                    attributes = rawMethodAttributes(method),
+                )
+            }
         }
 
-        return when (method) {
-            "initialize" -> success(id, initialize(request.params()))
-            "notifications/initialized" -> null
-            "tools/list" -> success(id, listTools(principal))
-            "tools/call" -> callTool(id, request.params(), principal)
-            else -> error(id, JsonRpcErrorCodes.METHOD_NOT_FOUND, "Method not found")
+        val params = request.params()
+        return try {
+            val result =
+                when (protocolMethod) {
+                    "initialize" -> {
+                        val initializeResult = initialize(params)
+                        ProtocolHandlingResult(
+                            response = success(id, initializeResult),
+                            outcome = "success",
+                            attributes = initializeAttributes(params, initializeResult),
+                        )
+                    }
+
+                    "notifications/initialized" -> ProtocolHandlingResult(response = null, outcome = "accepted")
+                    "tools/list" -> {
+                        val listToolsResult = listTools(principal)
+                        ProtocolHandlingResult(
+                            response = success(id, listToolsResult),
+                            outcome = "success",
+                            attributes = mapOf("tool_count" to listToolsResult.tools.size),
+                        )
+                    }
+
+                    "tools/call" -> {
+                        val response = callTool(id, params, principal)
+                        ProtocolHandlingResult(
+                            response = response,
+                            outcome = toolCallOutcome(response),
+                        )
+                    }
+
+                    else ->
+                        ProtocolHandlingResult(
+                            response = error(id, JsonRpcErrorCodes.METHOD_NOT_FOUND, "Method not found"),
+                            outcome = "method_not_found",
+                            attributes = rawMethodAttributes(method),
+                        )
+                }
+            recordProtocolRequestSafely(
+                method = protocolMethod,
+                outcome = result.outcome,
+                latencyMs = elapsedMillis(startedNanos),
+                clientId = principal.clientId,
+                attributes = result.attributes,
+            )
+            result.response
+        } catch (e: Exception) {
+            recordProtocolRequestSafely(
+                method = protocolMethod,
+                outcome = "error",
+                latencyMs = elapsedMillis(startedNanos),
+                clientId = principal.clientId,
+                attributes = if (protocolMethod == "unknown") rawMethodAttributes(method) else emptyMap(),
+            )
+            throw e
         }
     }
 
@@ -76,9 +137,8 @@ class McpProtocolService(
 
     private fun listTools(principal: McpPrincipal): ListToolsResult {
         val tools =
-            toolCatalog
-                .listTools()
-                .filter { it.isVisibleTo(principal.scopes) }
+            loadCatalogTools(method = "tools/list", clientId = principal.clientId)
+                .filter { it.visibilityFor(principal.scopes) is ToolVisibility.Visible }
                 .map {
                     McpTool(
                         name = it.name,
@@ -119,7 +179,7 @@ class McpProtocolService(
         val toolCallId = UUID.randomUUID()
         var catalogTool: McpCatalogTool? = null
         try {
-            val catalogTools = toolCatalog.listTools()
+            val catalogTools = loadCatalogTools(method = "tools/call", clientId = principal.clientId)
             val rawTool = catalogTools.firstOrNull { it.name == name }
             if (rawTool == null) {
                 return auditedToolError(
@@ -140,23 +200,26 @@ class McpProtocolService(
                     jsonRpcData = mapOf("code" to "tool_not_found", "toolName" to name),
                 )
             }
-            if (!rawTool.isVisibleTo(principal.scopes)) {
-                return auditedToolError(
-                    id = id,
-                    principal = principal,
-                    toolCallId = toolCallId,
-                    occurredAt = startedAt,
-                    startedNanos = startedNanos,
-                    toolName = name,
-                    arguments = arguments,
-                    sensitiveInputFields = rawTool.sensitiveInputFields,
-                    outcome = ToolCallAuditOutcome.REJECTED,
-                    errorCode = "insufficient_scope",
-                    errorMessage = "Tool requires additional scope",
-                    jsonRpcCode = JsonRpcErrorCodes.INVALID_PARAMS,
-                    jsonRpcMessage = "Unknown tool",
-                    jsonRpcData = mapOf("code" to "tool_not_found", "toolName" to name),
-                )
+            when (val visibility = rawTool.visibilityFor(principal.scopes)) {
+                is ToolVisibility.Visible -> Unit
+                else -> {
+                    return auditedToolError(
+                        id = id,
+                        principal = principal,
+                        toolCallId = toolCallId,
+                        occurredAt = startedAt,
+                        startedNanos = startedNanos,
+                        toolName = name,
+                        arguments = arguments,
+                        sensitiveInputFields = rawTool.sensitiveInputFields,
+                        outcome = ToolCallAuditOutcome.REJECTED,
+                        errorCode = visibility.errorCode,
+                        errorMessage = "Tool requires additional scope",
+                        jsonRpcCode = JsonRpcErrorCodes.INVALID_PARAMS,
+                        jsonRpcMessage = "Unknown tool",
+                        jsonRpcData = mapOf("code" to "tool_not_found", "toolName" to name),
+                    )
+                }
             }
             catalogTool = rawTool
             val handler =
@@ -337,12 +400,107 @@ class McpProtocolService(
         )
     }
 
-    private fun McpCatalogTool.isVisibleTo(scopes: Set<String>): Boolean {
-        if (!mcpExposed) {
-            return false
+    private fun loadCatalogTools(
+        method: String,
+        clientId: String,
+    ): List<McpCatalogTool> =
+        try {
+            toolCatalog.listTools().also { catalogTools ->
+                if (catalogTools.none { it.mcpExposed && !it.mcpRequiredScope.isNullOrBlank() }) {
+                    observabilityLogger.recordCatalogEmpty(
+                        method = method,
+                        clientId = clientId,
+                        rawToolCount = catalogTools.size,
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            observabilityLogger.recordCatalogFetchFailure(method = method, clientId = clientId, error = e)
+            throw e
         }
-        val requiredScope = mcpRequiredScope?.takeIf { it.isNotBlank() } ?: return false
-        return requiredScope in scopes
+
+    private fun McpCatalogTool.visibilityFor(scopes: Set<String>): ToolVisibility {
+        if (!mcpExposed) {
+            return ToolVisibility.ToolNotExposed
+        }
+        val requiredScope = mcpRequiredScope?.takeIf { it.isNotBlank() } ?: return ToolVisibility.NoRequiredScope
+        return if (requiredScope in scopes) ToolVisibility.Visible else ToolVisibility.InsufficientScope
+    }
+
+    private fun initializeAttributes(
+        params: Map<String, Any?>,
+        result: InitializeResult,
+    ): Map<String, Any?> {
+        val clientInfo = params["clientInfo"] as? Map<*, *>
+        return mapOf(
+            "requested_protocol_version" to params["protocolVersion"]?.toString(),
+            "negotiated_protocol_version" to result.protocolVersion,
+            "client_name" to clientInfo?.get("name")?.toString(),
+            "client_version" to clientInfo?.get("version")?.toString(),
+        )
+    }
+
+    private fun toolCallOutcome(response: JsonRpcResponse): String =
+        when {
+            response.error != null -> "error"
+            (response.result as? CallToolResult)?.isError == true -> "error"
+            else -> "success"
+        }
+
+    private fun normalizeProtocolMethod(method: String?): String =
+        when (method) {
+            "initialize", "notifications/initialized", "tools/list", "tools/call" -> method
+            null, "" -> "invalid_request"
+            else -> "unknown"
+        }
+
+    private fun rawMethodAttributes(method: String?): Map<String, Any?> =
+        method?.takeIf { it.isNotBlank() }?.let { mapOf("raw_method" to it) } ?: emptyMap()
+
+    private fun recordProtocolRequestSafely(
+        method: String,
+        outcome: String,
+        latencyMs: Long,
+        clientId: String?,
+        attributes: Map<String, Any?> = emptyMap(),
+    ) {
+        runCatching {
+            observabilityLogger.recordProtocolRequest(
+                method = method,
+                outcome = outcome,
+                latencyMs = latencyMs,
+                clientId = clientId,
+                attributes = attributes,
+            )
+        }
+    }
+
+    private fun elapsedMillis(startedNanos: Long): Long =
+        ((System.nanoTime() - startedNanos) / 1_000_000).coerceAtLeast(0)
+
+    private data class ProtocolHandlingResult(
+        val response: JsonRpcResponse?,
+        val outcome: String,
+        val attributes: Map<String, Any?> = emptyMap(),
+    )
+
+    private sealed interface ToolVisibility {
+        data object Visible : ToolVisibility
+
+        data object ToolNotExposed : ToolVisibility
+
+        data object NoRequiredScope : ToolVisibility
+
+        data object InsufficientScope : ToolVisibility
+
+        val errorCode: String
+            get() =
+                when (this) {
+                    Visible -> error("Visible tools do not map to error codes")
+                    ToolNotExposed -> "tool_not_exposed"
+                    NoRequiredScope -> "no_required_scope"
+                    InsufficientScope -> "insufficient_scope"
+                }
     }
 
     private fun Map<String, Any?>.params(): Map<String, Any?> =

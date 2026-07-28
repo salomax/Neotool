@@ -37,6 +37,7 @@ dependencies {
     implementation("io.micronaut:micronaut-http")
     implementation("io.micronaut:micronaut-management")
     implementation("io.micronaut:micronaut-jackson-databind")
+    implementation("io.micronaut.micrometer:micronaut-micrometer-registry-prometheus")
 
     implementation("io.micronaut.data:micronaut-data-hibernate-jpa")
     implementation("io.micronaut.sql:micronaut-jdbc-hikari")

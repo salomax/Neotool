@@ -3,6 +3,7 @@ package io.github.salomax.neotool.mcp.http
 import io.github.salomax.neotool.mcp.audit.ToolCallAuditOutcome
 import io.github.salomax.neotool.mcp.audit.ToolCallAuditRecord
 import io.github.salomax.neotool.mcp.audit.ToolCallAuditService
+import io.github.salomax.neotool.mcp.observability.McpObservabilityLogger
 import io.github.salomax.neotool.mcp.protocol.McpProtocolService
 import io.github.salomax.neotool.mcp.ratelimit.McpRequestRateLimiter
 import io.github.salomax.neotool.mcp.security.McpAuthenticationException
@@ -30,6 +31,7 @@ class McpController(
     private val errorResponseFactory: OAuthErrorResponseFactory,
     private val auditService: ToolCallAuditService,
     private val requestRateLimiter: McpRequestRateLimiter,
+    private val observabilityLogger: McpObservabilityLogger,
 ) {
     @Post
     @Consumes(MediaType.APPLICATION_JSON)
@@ -42,6 +44,7 @@ class McpController(
             try {
                 authenticationService.authenticate(request)
             } catch (e: McpAuthenticationException) {
+                observabilityLogger.recordAuthenticationFailure("/mcp", e.failureCause, e.error)
                 auditRejectedToolCall(body, e.error, e.message ?: "Authentication failed")
                 return errorResponseFactory.unauthorized(e)
             }

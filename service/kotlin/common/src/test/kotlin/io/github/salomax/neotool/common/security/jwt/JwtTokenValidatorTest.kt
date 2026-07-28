@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.common.security.jwt
 
 import io.github.salomax.neotool.common.security.config.JwtConfig
+import io.github.salomax.neotool.common.security.exception.AuthenticationFailureCause
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.key.KeyManager
 import io.github.salomax.neotool.common.security.key.KeyManagerFactory
@@ -90,6 +91,7 @@ class JwtTokenValidatorTest {
                 }
 
             assertThat(exception.message).contains("Token validation failed")
+            assertThat(exception.failureCause).isEqualTo(AuthenticationFailureCause.TOKEN_INVALID_SIGNATURE)
         }
 
         @Test
@@ -104,6 +106,7 @@ class JwtTokenValidatorTest {
                 }
 
             assertThat(exception.message).contains("Token validation failed")
+            assertThat(exception.failureCause).isEqualTo(AuthenticationFailureCause.TOKEN_EXPIRED)
         }
 
         @Test
@@ -118,6 +121,19 @@ class JwtTokenValidatorTest {
                 }
 
             assertThat(exception.message).contains("Token validation failed")
+            assertThat(exception.failureCause).isEqualTo(AuthenticationFailureCause.TOKEN_INVALID_ISSUER)
+        }
+
+        @Test
+        fun `should keep exception message behavior additive when failure cause is present`() {
+            val token = JwtTestFixture.createExpiredToken(expirationSecondsAgo = 3600)
+
+            val exception =
+                assertThrows<AuthenticationRequiredException> {
+                    validator.validateToken(token)
+                }
+
+            assertThat(exception.message ?: "").contains("Token validation failed")
         }
 
         @Test
