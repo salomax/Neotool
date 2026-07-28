@@ -1,3 +1,13 @@
+## 0.7.4 (2026-07-28)
+
+### 🩹 Fixes
+
+- add MCP request observability ([4719e013](https://github.com/invistus/invistus/commit/4719e013))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.3 (2026-07-28)
 
 ### 🩹 Fixes
