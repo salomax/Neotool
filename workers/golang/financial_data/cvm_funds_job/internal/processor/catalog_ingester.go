@@ -43,9 +43,15 @@ var rcvm175Cols = catalogColMap{
 	name:     "Denominacao_Social",
 	classe:   "Classificacao_Anbima",
 	tipo:     "Tipo_Classe",
-	manager:  "Controlador",
 	situacao: "Situacao",
 }
+
+const (
+	rcvm175ClasseEntryName      = "registro_classe.csv"
+	rcvm175FundoEntryName       = "registro_fundo.csv"
+	rcvm175RegistroFundoIDCol   = "ID_Registro_Fundo"
+	rcvm175ManagerSourceColName = "Gestor"
+)
 
 // CatalogIngester streams cad_fi.csv from CVM, accumulates chunk-sized slices
 // of FundRecord, and submits CatalogChunkTask items to the worker pool.
@@ -123,7 +129,7 @@ func (ci *CatalogIngester) Run(ctx context.Context) (total, submitted, skipped i
 		return 0, 0, 0, fmt.Errorf("reading catalog header: %w", err)
 	}
 
-	if err = ci.streamRows(ctx, reader, shared.ColumnIndex(header), legacyCols, existingHashes, state); err != nil {
+	if err = ci.streamRows(ctx, reader, shared.ColumnIndex(header), legacyCols, existingHashes, state, nil); err != nil {
 		return state.total, state.submitted, state.skipped, err
 	}
 
@@ -134,14 +140,39 @@ func (ci *CatalogIngester) Run(ctx context.Context) (total, submitted, skipped i
 	}
 	defer cleanup()
 
-	zr, csvRC, err := cvmhttp.OpenFirstCSVFromZip(zipPath)
+	zrFund, fundCSVRC, err := cvmhttp.OpenNamedCSVFromZip(zipPath, rcvm175FundoEntryName)
 	if err != nil {
-		return 0, 0, 0, fmt.Errorf("opening fund classe CSV: %w", err)
+		return 0, 0, 0, fmt.Errorf("opening fund catalog %s: %w", rcvm175FundoEntryName, err)
 	}
-	defer zr.Close()
-	defer csvRC.Close()
+	defer zrFund.Close()
+	defer fundCSVRC.Close()
 
-	reader2 := csv.NewReader(charmap.ISO8859_1.NewDecoder().Reader(csvRC))
+	fundReader := csv.NewReader(charmap.ISO8859_1.NewDecoder().Reader(fundCSVRC))
+	fundReader.Comma = ';'
+	fundReader.LazyQuotes = true
+	fundReader.TrimLeadingSpace = true
+	fundReader.ReuseRecord = true
+
+	fundHeader, err := fundReader.Read()
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("reading fund catalog header: %w", err)
+	}
+
+	// registro_fundo.csv is materially smaller than registro_classe.csv, so loading
+	// the join map keeps the large class-level stream single-pass.
+	managerByRegistroFundo, err := buildManagerByRegistroFundo(fundReader, shared.ColumnIndex(fundHeader))
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("building manager join map: %w", err)
+	}
+
+	zrClasse, classeCSVRC, err := cvmhttp.OpenNamedCSVFromZip(zipPath, rcvm175ClasseEntryName)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("opening fund classe CSV %s: %w", rcvm175ClasseEntryName, err)
+	}
+	defer zrClasse.Close()
+	defer classeCSVRC.Close()
+
+	reader2 := csv.NewReader(charmap.ISO8859_1.NewDecoder().Reader(classeCSVRC))
 	reader2.Comma = ';'
 	reader2.LazyQuotes = true
 	reader2.TrimLeadingSpace = true
@@ -152,7 +183,15 @@ func (ci *CatalogIngester) Run(ctx context.Context) (total, submitted, skipped i
 		return 0, 0, 0, fmt.Errorf("reading fund classe catalog header: %w", err)
 	}
 
-	if err = ci.streamRows(ctx, reader2, shared.ColumnIndex(header2), rcvm175Cols, existingHashes, state); err != nil {
+	if err = ci.streamRows(
+		ctx,
+		reader2,
+		shared.ColumnIndex(header2),
+		rcvm175Cols,
+		existingHashes,
+		state,
+		managerFromRegistroFundoJoin(managerByRegistroFundo),
+	); err != nil {
 		return state.total, state.submitted, state.skipped, err
 	}
 
@@ -181,6 +220,7 @@ func (ci *CatalogIngester) streamRows(
 	colMap catalogColMap,
 	existingHashes map[string]string,
 	state *ingestState,
+	managerResolver func(row []string, cols map[string]int) string,
 ) error {
 	for {
 		row, readErr := reader.Read()
@@ -194,7 +234,7 @@ func (ci *CatalogIngester) streamRows(
 
 		state.total++
 
-		rec, parseErr := parseFundRow(row, cols, colMap)
+		rec, parseErr := parseFundRow(row, cols, colMap, managerResolver)
 		if parseErr != nil {
 			ci.logger.Warn("catalog ingester: skipping unparseable row",
 				"row", state.total, "error", parseErr)
@@ -219,6 +259,37 @@ func (ci *CatalogIngester) streamRows(
 	return nil
 }
 
+func buildManagerByRegistroFundo(reader *csv.Reader, cols map[string]int) (map[string]string, error) {
+	managerByRegistroFundo := make(map[string]string)
+
+	for {
+		row, err := reader.Read()
+		if err == io.EOF {
+			return managerByRegistroFundo, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("reading %s row: %w", rcvm175FundoEntryName, err)
+		}
+
+		registroFundoID := shared.GetField(row, cols, rcvm175RegistroFundoIDCol)
+		if registroFundoID == "" {
+			continue
+		}
+
+		managerByRegistroFundo[registroFundoID] = shared.GetField(row, cols, rcvm175ManagerSourceColName)
+	}
+}
+
+func managerFromRegistroFundoJoin(managerByRegistroFundo map[string]string) func(row []string, cols map[string]int) string {
+	return func(row []string, cols map[string]int) string {
+		registroFundoID := shared.GetField(row, cols, rcvm175RegistroFundoIDCol)
+		if registroFundoID == "" {
+			return ""
+		}
+		return managerByRegistroFundo[registroFundoID]
+	}
+}
+
 func (ci *CatalogIngester) submitChunk(ctx context.Context, chunk []domain.FundRecord) error {
 	task := NewCatalogChunkTask(chunk, ci.repo, ci.logger)
 	if err := ci.pool.Submit(ctx, task); err != nil {
@@ -229,7 +300,12 @@ func (ci *CatalogIngester) submitChunk(ctx context.Context, chunk []domain.FundR
 
 // parseFundRow converts one CSV row into a FundRecord using the provided column map.
 // colMap abstracts the column name differences between the legacy and RCVM 175 formats.
-func parseFundRow(row []string, cols map[string]int, colMap catalogColMap) (domain.FundRecord, error) {
+func parseFundRow(
+	row []string,
+	cols map[string]int,
+	colMap catalogColMap,
+	managerResolver func(row []string, cols map[string]int) string,
+) (domain.FundRecord, error) {
 	cnpj := shared.NormalizeCNPJ(shared.GetField(row, cols, colMap.cnpj))
 	if cnpj == "" {
 		return domain.FundRecord{}, fmt.Errorf("empty CNPJ")
@@ -238,7 +314,12 @@ func parseFundRow(row []string, cols map[string]int, colMap catalogColMap) (doma
 	name := shared.GetField(row, cols, colMap.name)
 	classe := shared.GetField(row, cols, colMap.classe)
 	tipoFundo := shared.GetField(row, cols, colMap.tipo)
-	manager := shared.GetField(row, cols, colMap.manager)
+	manager := ""
+	if managerResolver != nil {
+		manager = managerResolver(row, cols)
+	} else {
+		manager = shared.GetField(row, cols, colMap.manager)
+	}
 	situacao := shared.GetField(row, cols, colMap.situacao)
 
 	isActive := strings.EqualFold(strings.TrimSpace(situacao), "em funcionamento normal")
