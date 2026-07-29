@@ -1,3 +1,13 @@
+## 0.14.1 (2026-07-29)
+
+### 🩹 Fixes
+
+- **banking:** exclude custodian cash flow ([#531](https://github.com/invistus/invistus/issues/531))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.14.0 (2026-07-26)
 
 ### 🚀 Features
