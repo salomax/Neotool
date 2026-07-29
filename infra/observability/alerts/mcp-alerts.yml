@@ -10,3 +10,32 @@ groups:
         annotations:
           summary: "MCP requests are being rejected by rate limiting"
           description: "The MCP service rejected requests due to the {{ $labels.scope }} rate limit during the last 5 minutes."
+  - name: mcp-observability-alerts
+    rules:
+      - alert: McpAuthenticationFailuresElevated
+        expr: sum by (cause, endpoint) (increase(mcp_authentication_failures_total[15m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "MCP authentication failures are elevated"
+          description: "MCP authentication failures exceeded 5 events in 15 minutes for cause={{ $labels.cause }} on endpoint={{ $labels.endpoint }}."
+      - alert: McpProtocolErrorsDetected
+        expr: sum by (method) (increase(mcp_protocol_requests_total{outcome="error"}[15m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "MCP protocol errors were observed"
+          description: "The MCP service recorded protocol requests with outcome=error for method={{ $labels.method }} during the last 15 minutes."
+      - alert: McpToolCatalogFetchFailuresDetected
+        expr: increase(mcp_tool_catalog_fetch_failures_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "MCP tool catalog fetch failures were observed"
+          description: "The MCP service failed to fetch the tool catalog during the last 15 minutes. Check assistant availability and MCP logs."

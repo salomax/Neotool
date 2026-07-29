@@ -50,6 +50,10 @@ docker-compose -f docker-compose.local.yml up -d
 1. Create dashboard JSON in `grafana/dashboards/`
 2. Restart Grafana: `docker-compose restart grafana`
 
+### Alert Notification Gap
+- The local and production Prometheus setups currently evaluate alert rules without any Alertmanager or other notification sink.
+- A firing rule is visible in the Prometheus/Grafana UI only; it does not page, email, or message anyone yet.
+
 ### Monitoring Services
 - **API**: Micrometer metrics (when actuator endpoints are fixed)
 - **PostgreSQL**: postgres-exporter
