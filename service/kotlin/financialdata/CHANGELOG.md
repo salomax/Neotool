@@ -1,3 +1,13 @@
+## 0.8.0 (2026-07-29)
+
+### 🚀 Features
+
+- **financialdata:** interpret raw CVM fund tax maturity ([d5c667fb](https://github.com/invistus/invistus/commit/d5c667fb))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.0 (2026-07-29)
 
 ### 🚀 Features
