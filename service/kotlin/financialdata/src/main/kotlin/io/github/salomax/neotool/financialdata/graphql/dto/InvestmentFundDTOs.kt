@@ -49,6 +49,14 @@ data class InvestmentFundDTO(
     val cnpj: String,
     val assetType: String,
     val isActive: Boolean,
+    val patrimonioLiquido: String?,
+    val dataPatrimonioLiquido: String?,
+    val custodiante: String?,
+    val cnpjCustodiante: String?,
+    val auditor: String?,
+    val cnpjAuditor: String?,
+    val publicoAlvo: String?,
+    val taxProfile: String,
     val latestNav: FundDailyNavDTO?,
 )
 

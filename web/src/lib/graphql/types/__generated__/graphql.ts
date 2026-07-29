@@ -1852,12 +1852,20 @@ export enum InvestmentCashTransactionType {
 export type InvestmentFund = {
   __typename: 'InvestmentFund';
   assetType: Scalars['String']['output'];
+  auditor: Maybe<Scalars['String']['output']>;
   cnpj: Scalars['String']['output'];
+  cnpjAuditor: Maybe<Scalars['String']['output']>;
+  cnpjCustodiante: Maybe<Scalars['String']['output']>;
+  custodiante: Maybe<Scalars['String']['output']>;
+  dataPatrimonioLiquido: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
   latestNav: Maybe<FundDailyNav>;
   name: Scalars['String']['output'];
+  patrimonioLiquido: Maybe<Scalars['String']['output']>;
   priceHistory: Array<FundDailyNav>;
+  publicoAlvo: Maybe<Scalars['String']['output']>;
+  taxProfile: FundTaxProfile;
 };
 
 

@@ -57,4 +57,59 @@ class FundTaxProfileClassifierTest {
             ),
         ).isEqualTo(FundTaxProfile.PENSION)
     }
+
+    @Test
+    fun `prefers raw long-term signal over curto prazo name marker`() {
+        val profile =
+            FundTaxProfileClassifier.taxProfileFor(
+                assetType = "FIXED_INCOME_FUND",
+                fundName = "SIGMA FUNDO DE INVESTIMENTO RENDA FIXA CURTO PRAZO",
+                rawTaxMaturity = "S",
+            )
+
+        assertThat(profile).isEqualTo(FundTaxProfile.COME_COTAS_LONG)
+    }
+
+    @Test
+    fun `prefers raw short-term signal over long default name heuristic`() {
+        val profile =
+            FundTaxProfileClassifier.taxProfileFor(
+                assetType = "MULTI_MARKET_FUND",
+                fundName = "OMEGA FUNDO DE INVESTIMENTO MULTIMERCADO LONGO PRAZO",
+                rawTaxMaturity = "N",
+            )
+
+        assertThat(profile).isEqualTo(FundTaxProfile.COME_COTAS_SHORT)
+    }
+
+    @Test
+    fun `falls back to name heuristic when raw tax maturity is blank or unrecognized`() {
+        assertThat(
+            FundTaxProfileClassifier.taxProfileFor(
+                assetType = "FIXED_INCOME_FUND",
+                fundName = "ALFA FUNDO DE INVESTIMENTO RENDA FIXA CURTO PRAZO",
+                rawTaxMaturity = " ",
+            ),
+        ).isEqualTo(FundTaxProfile.COME_COTAS_SHORT)
+
+        assertThat(
+            FundTaxProfileClassifier.taxProfileFor(
+                assetType = "FIXED_INCOME_FUND",
+                fundName = "OMEGA FUNDO DE INVESTIMENTO RENDA FIXA LONGO PRAZO",
+                rawTaxMaturity = "N/A",
+            ),
+        ).isEqualTo(FundTaxProfile.COME_COTAS_LONG)
+    }
+
+    @Test
+    fun `keeps exempt-name gate ahead of raw tax maturity signal`() {
+        val profile =
+            FundTaxProfileClassifier.taxProfileFor(
+                assetType = "FIXED_INCOME_FUND",
+                fundName = "BETA FI-INFRA RENDA FIXA CURTO PRAZO DEBÊNTURES INCENTIVADAS",
+                rawTaxMaturity = "S",
+            )
+
+        assertThat(profile).isEqualTo(FundTaxProfile.UNKNOWN)
+    }
 }

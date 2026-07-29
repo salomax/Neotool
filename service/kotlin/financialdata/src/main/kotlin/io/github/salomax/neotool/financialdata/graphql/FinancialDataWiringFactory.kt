@@ -1271,6 +1271,62 @@ class FinancialDataWiringFactory(
                         },
                     )
                     .dataFetcher(
+                        "patrimonioLiquido",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.patrimonioLiquido
+                        },
+                    )
+                    .dataFetcher(
+                        "dataPatrimonioLiquido",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.dataPatrimonioLiquido
+                        },
+                    )
+                    .dataFetcher(
+                        "custodiante",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.custodiante
+                        },
+                    )
+                    .dataFetcher(
+                        "cnpjCustodiante",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.cnpjCustodiante
+                        },
+                    )
+                    .dataFetcher(
+                        "auditor",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.auditor
+                        },
+                    )
+                    .dataFetcher(
+                        "cnpjAuditor",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.cnpjAuditor
+                        },
+                    )
+                    .dataFetcher(
+                        "publicoAlvo",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.publicoAlvo
+                        },
+                    )
+                    .dataFetcher(
+                        "taxProfile",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.taxProfile
+                        },
+                    )
+                    .dataFetcher(
                         "latestNav",
                         createValidatedDataFetcher {
                                 env: DataFetchingEnvironment ->

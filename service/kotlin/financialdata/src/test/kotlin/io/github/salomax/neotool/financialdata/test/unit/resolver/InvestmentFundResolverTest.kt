@@ -212,6 +212,14 @@ class InvestmentFundResolverTest {
             cnpj = fund.cnpj,
             assetType = fund.assetType,
             isActive = fund.isActive,
+            patrimonioLiquido = fund.patrimonioLiquido,
+            dataPatrimonioLiquido = fund.dataPatrimonioLiquido,
+            custodiante = fund.custodiante,
+            cnpjCustodiante = fund.cnpjCustodiante,
+            auditor = fund.auditor,
+            cnpjAuditor = fund.cnpjAuditor,
+            publicoAlvo = fund.publicoAlvo,
+            taxProfile = "UNKNOWN",
             latestNav = FundDailyNavDTO(LocalDate.of(2024, 1, 1), 1.2, 1000000.0),
         )
 }

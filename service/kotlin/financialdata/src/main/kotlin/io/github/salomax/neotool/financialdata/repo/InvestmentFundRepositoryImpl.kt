@@ -376,6 +376,7 @@ open class InvestmentFundRepositoryImpl(
                 ia.fund_cnpj,
                 ia.asset_type,
                 ia.name,
+                ia.tributacao_longo_prazo,
                 nav.price_date,
                 nav.close_price,
                 nav.volume
@@ -398,18 +399,19 @@ open class InvestmentFundRepositoryImpl(
         val rows = q.resultList as List<Array<Any?>>
         return rows.map { row ->
             val fundName = row[2] as? String
-            val navDate = row[3] as? java.sql.Date
-            val navClose = row[4] as? BigDecimal
+            val rawTaxMaturity = row[3] as? String
+            val navDate = row[4] as? java.sql.Date
+            val navClose = row[5] as? BigDecimal
             InvestmentFundMarketSnapshot(
                 cnpj = row[0] as String,
                 assetType = row[1] as String,
-                taxProfile = taxProfileFor(row[1] as String, fundName),
+                taxProfile = taxProfileFor(row[1] as String, fundName, rawTaxMaturity),
                 latestNav =
                     if (navDate != null && navClose != null) {
                         FundDailyNav(
                             date = navDate.toLocalDate(),
                             closePrice = navClose,
-                            totalNetAssets = row[5] as? BigDecimal,
+                            totalNetAssets = row[6] as? BigDecimal,
                         )
                     } else {
                         null
@@ -559,5 +561,6 @@ open class InvestmentFundRepositoryImpl(
     private fun taxProfileFor(
         assetType: String,
         fundName: String? = null,
-    ): FundTaxProfile = FundTaxProfileClassifier.taxProfileFor(assetType, fundName)
+        rawTaxMaturity: String? = null,
+    ): FundTaxProfile = FundTaxProfileClassifier.taxProfileFor(assetType, fundName, rawTaxMaturity)
 }

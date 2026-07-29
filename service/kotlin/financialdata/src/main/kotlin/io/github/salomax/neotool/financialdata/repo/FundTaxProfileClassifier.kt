@@ -19,9 +19,11 @@ internal object FundTaxProfileClassifier {
     fun taxProfileFor(
         assetType: String,
         fundName: String? = null,
+        rawTaxMaturity: String? = null,
     ): FundTaxProfile {
         val normalizedType = assetType.trim().uppercase()
         val normalizedName = fundName.normalizeFundName()
+        val normalizedRawTaxMaturity = rawTaxMaturity.normalizeRawTaxMaturity()
 
         return when {
             normalizedType in setOf("PGBL", "VGBL") -> FundTaxProfile.PENSION
@@ -36,6 +38,8 @@ internal object FundTaxProfileClassifier {
             -> {
                 when {
                     looksTaxExempt(normalizedName) -> FundTaxProfile.UNKNOWN
+                    normalizedRawTaxMaturity == "S" -> FundTaxProfile.COME_COTAS_LONG
+                    normalizedRawTaxMaturity == "N" -> FundTaxProfile.COME_COTAS_SHORT
                     normalizedName.contains("CURTO PRAZO") -> FundTaxProfile.COME_COTAS_SHORT
                     else -> FundTaxProfile.COME_COTAS_LONG
                 }
@@ -53,4 +57,10 @@ internal object FundTaxProfileClassifier {
             ?.replace(Regex("[^A-Z0-9]+"), " ")
             ?.trim()
             .orEmpty()
+
+    private fun String?.normalizeRawTaxMaturity(): String? =
+        this
+            ?.trim()
+            ?.uppercase()
+            ?.takeIf { it.isNotBlank() }
 }
