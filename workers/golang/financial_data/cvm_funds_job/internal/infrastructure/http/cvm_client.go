@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -107,13 +108,32 @@ func (c *CVMClient) downloadZipToTempFile(ctx context.Context, url, pattern stri
 // OpenFirstCSVFromZip opens the first CSV entry inside a ZIP file.
 // Returns the ReadCloser and the zip.ReadCloser (caller must close both).
 func OpenFirstCSVFromZip(zipPath string) (*zip.ReadCloser, io.ReadCloser, error) {
+	return openCSVFromZip(zipPath, func(name string) bool {
+		return strings.HasSuffix(strings.ToLower(name), ".csv")
+	}, fmt.Sprintf("no CSV file found in ZIP %s", zipPath))
+}
+
+// OpenNamedCSVFromZip opens a specific CSV entry inside a ZIP file by matching
+// its base name with case-insensitive equality. Returns the ReadCloser and the
+// zip.ReadCloser (caller must close both).
+func OpenNamedCSVFromZip(zipPath, entryName string) (*zip.ReadCloser, io.ReadCloser, error) {
+	return openCSVFromZip(zipPath, func(name string) bool {
+		return strings.EqualFold(filepath.Base(name), entryName)
+	}, fmt.Sprintf("CSV entry %s not found in ZIP %s", entryName, zipPath))
+}
+
+func openCSVFromZip(
+	zipPath string,
+	matcher func(name string) bool,
+	notFoundMessage string,
+) (*zip.ReadCloser, io.ReadCloser, error) {
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening ZIP %s: %w", zipPath, err)
 	}
 
 	for _, f := range zr.File {
-		if strings.HasSuffix(strings.ToLower(f.Name), ".csv") {
+		if matcher(f.Name) {
 			rc, err := f.Open()
 			if err != nil {
 				_ = zr.Close()
@@ -124,7 +144,7 @@ func OpenFirstCSVFromZip(zipPath string) (*zip.ReadCloser, io.ReadCloser, error)
 	}
 
 	_ = zr.Close()
-	return nil, nil, fmt.Errorf("no CSV file found in ZIP %s", zipPath)
+	return nil, nil, fmt.Errorf("%s", notFoundMessage)
 }
 
 func (c *CVMClient) openStream(ctx context.Context, path string) (io.ReadCloser, error) {
