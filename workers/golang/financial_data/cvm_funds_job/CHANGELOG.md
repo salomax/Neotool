@@ -1,3 +1,13 @@
+## 0.1.10 (2026-07-29)
+
+### 🚀 Features
+
+- **financialdata:** persist raw rcvm175 fund fields ([c860e089](https://github.com/invistus/invistus/commit/c860e089))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.1.9 (2026-07-29)
 
 ### 🩹 Fixes
