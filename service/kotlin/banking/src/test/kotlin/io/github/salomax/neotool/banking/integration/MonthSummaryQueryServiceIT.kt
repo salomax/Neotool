@@ -99,6 +99,37 @@ open class MonthSummaryQueryServiceIT : BankingPostgresIntegrationTest() {
             ).id,
         )
 
+    private fun createInvestmentAccount(
+        accountId: UUID = this.accountId,
+        name: String = "Custodian test",
+    ): UUID =
+        requireNotNull(
+            financialAccountService.create(
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.INVESTMENT,
+                    subtype = FinancialAccountSubtype.BROKERAGE,
+                    name = name,
+                    issuerName = "Broker Test",
+                ),
+                accountId = accountId,
+                userId = userId,
+            ).id,
+        )
+
+    private fun createBenefitAccount(): UUID =
+        requireNotNull(
+            financialAccountService.create(
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.BENEFIT,
+                    subtype = FinancialAccountSubtype.FGTS,
+                    name = "Benefit test",
+                    issuerName = "Benefit Provider",
+                ),
+                accountId = accountId,
+                userId = userId,
+            ).id,
+        )
+
     @Test
     fun `getMonthSummary computes missing snapshot without transaction session errors`() {
         val created =
@@ -475,5 +506,112 @@ open class MonthSummaryQueryServiceIT : BankingPostgresIntegrationTest() {
             )
 
         assertThat(result).isEmpty()
+    }
+
+    @Test
+    fun `aggregate excludes investment account transfers and balances`() {
+        val bankAccountId = createBankAccount()
+        val investmentAccountId = createInvestmentAccount()
+        val benefitAccountId = createBenefitAccount()
+        val today = LocalDate.now()
+        val now = Instant.now()
+
+        transactionRepository.save(
+            Transaction(
+                financialAccountId = bankAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                creditDebitType = CreditDebitType.DEBIT,
+                type = TransactionType.OTHER_EXPENSE,
+                status = TransactionStatus.POSTED,
+                source = TransactionSource.MANUAL,
+                amount = BigDecimal("100.00"),
+                date = today,
+                description = "Bank expense",
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        transactionRepository.save(
+            Transaction(
+                financialAccountId = benefitAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                creditDebitType = CreditDebitType.DEBIT,
+                type = TransactionType.TRANSFER,
+                status = TransactionStatus.POSTED,
+                source = TransactionSource.MANUAL,
+                amount = BigDecimal("888.00"),
+                date = today,
+                description = "Benefit transfer",
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        transactionRepository.save(
+            Transaction(
+                financialAccountId = investmentAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                creditDebitType = CreditDebitType.DEBIT,
+                type = TransactionType.TRANSFER,
+                status = TransactionStatus.POSTED,
+                source = TransactionSource.MANUAL,
+                amount = BigDecimal("999.00"),
+                date = today,
+                description = "Holding funding",
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+
+        val includedAccountIds = transactionRepository.findFinancialAccountIdsByAccount(accountId)
+        val summary =
+            monthSummaryQueryService.getAggregateMonthlySummary(
+                accountId = accountId,
+                year = today.year,
+                month = today.monthValue,
+            )
+
+        assertThat(includedAccountIds).containsExactly(bankAccountId)
+        assertThat(summary.totalExpenses).isEqualByComparingTo("100.00")
+        assertThat(summary.transfersOut).isEqualByComparingTo(BigDecimal.ZERO)
+        assertThat(summary.openingBalance).isEqualByComparingTo(BigDecimal.ZERO)
+        assertThat(summary.closingBalance).isEqualByComparingTo("-100.00")
+    }
+
+    @Test
+    fun `investment cash flow still returns holding funding transaction`() {
+        createBankAccount()
+        val investmentAccountId = createInvestmentAccount()
+        val today = LocalDate.now()
+        val fundingTransaction =
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = investmentAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.TRANSFER,
+                    status = TransactionStatus.POSTED,
+                    source = TransactionSource.MANUAL,
+                    amount = BigDecimal("999.00"),
+                    date = today,
+                    description = "Holding funding",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+
+        val investmentCashFlow =
+            transactionRepository.findInvestmentCashTransactionsKeyset(
+                accountId = accountId,
+                financialAccountId = investmentAccountId,
+                afterDate = null,
+                afterId = null,
+                limit = 20,
+            )
+
+        assertThat(investmentCashFlow.map { it.id }).containsExactly(fundingTransaction.id)
     }
 }

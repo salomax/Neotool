@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
+import io.github.salomax.neotool.banking.domain.account.NON_CASHFLOW_ACCOUNT_TYPES
 import io.github.salomax.neotool.banking.domain.preferences.RuleCreationMode
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
@@ -416,7 +417,8 @@ open class TransactionService(
     /**
      * Resolves the exact SQL-backed transaction filter used by [listTransactions] and
      * breakdown queries. Returns null when a category filter references an inaccessible
-     * category so callers can treat the result as empty without hitting the repository.
+     * category or the all-accounts view has no eligible cash-flow accounts, so callers can
+     * treat the result as empty without hitting the repository.
      */
     private fun buildTransactionListQuery(
         accountId: UUID,
@@ -480,10 +482,22 @@ open class TransactionService(
             } else {
                 resolveCategoryFilterIds(categoryId, accountId) ?: return null
             }
+        val includedFinancialAccountIds =
+            if (effectiveFinancialAccountId == null && billId == null) {
+                financialAccountRepository
+                    .findByAccountId(accountId)
+                    .filterNot { it.type in NON_CASHFLOW_ACCOUNT_TYPES }
+                    .mapNotNull { it.id }
+                    .takeIf { it.isNotEmpty() }
+                    ?: return null
+            } else {
+                null
+            }
 
         return TransactionListQuery(
             accountId = accountId,
             financialAccountId = effectiveFinancialAccountId,
+            includedFinancialAccountIds = includedFinancialAccountIds,
             belongsToUserId = belongsToUserId,
             belongsToName = normalizedBelongsToName,
             search = normalizedSearch,
