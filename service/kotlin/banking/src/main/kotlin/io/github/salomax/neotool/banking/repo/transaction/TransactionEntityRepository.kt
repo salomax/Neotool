@@ -216,11 +216,15 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
          WHERE t.account_id = :accountId
            AND t.deleted_at IS NULL
            AND fa.include_in_net_worth = TRUE
+           AND fa.type NOT IN (:excludedAccountTypes)
            AND fa.deleted_at IS NULL
         """,
         nativeQuery = true,
     )
-    fun findFinancialAccountIdsByAccount(accountId: UUID): List<UUID>
+    fun findFinancialAccountIdsByAccount(
+        accountId: UUID,
+        excludedAccountTypes: Set<String>,
+    ): List<UUID>
 
     @Query(
         """

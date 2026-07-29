@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.repo.transaction
 
+import io.github.salomax.neotool.banking.domain.account.NON_CASHFLOW_ACCOUNT_TYPES
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CategoryBreakdownRow
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
@@ -227,7 +228,10 @@ open class DefaultTransactionRepository(
     }
 
     override fun findFinancialAccountIdsByAccount(accountId: UUID): List<UUID> =
-        entityRepository.findFinancialAccountIdsByAccount(accountId)
+        entityRepository.findFinancialAccountIdsByAccount(
+            accountId,
+            NON_CASHFLOW_ACCOUNT_TYPES.mapTo(mutableSetOf()) { it.name },
+        )
 
     override fun findInitialBalanceDate(financialAccountId: UUID): LocalDate? =
         entityRepository.findEarliestBalanceAdjustmentDate(financialAccountId.toString())

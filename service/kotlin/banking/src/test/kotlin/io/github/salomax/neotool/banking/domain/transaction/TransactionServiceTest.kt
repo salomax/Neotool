@@ -81,6 +81,13 @@ class TransactionServiceTest {
             createdAt = now,
             updatedAt = now,
         )
+    private val investmentAccount =
+        ownedAccount.copy(
+            id = UUID.randomUUID(),
+            type = FinancialAccountType.INVESTMENT,
+            subtype = FinancialAccountSubtype.BROKERAGE,
+            name = "Brokerage",
+        )
 
     private fun agentCallContext() =
         AgentCallContext(
@@ -102,6 +109,7 @@ class TransactionServiceTest {
         creditCardBillService = mock()
         accountPreferencesService = mock()
         userRuleCreationModeService = mock()
+        whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
         whenever(accountPreferencesService.get(accountId)).thenReturn(AccountPreferences.defaultsFor(accountId, now))
         whenever(userRuleCreationModeService.get(userId)).thenReturn(RuleCreationMode.ALWAYS_PROMPT)
         service =
@@ -2283,6 +2291,7 @@ class TransactionServiceTest {
                     TransactionListQuery(
                         accountId = accountId,
                         financialAccountId = null,
+                        includedFinancialAccountIds = listOf(financialAccountId),
                         belongsToUserId = null,
                         belongsToName = "Partner",
                         search = null,
@@ -2361,6 +2370,7 @@ class TransactionServiceTest {
                     TransactionListQuery(
                         accountId = accountId,
                         financialAccountId = null,
+                        includedFinancialAccountIds = listOf(financialAccountId),
                         belongsToUserId = null,
                         belongsToName = null,
                         search = null,
@@ -2401,6 +2411,81 @@ class TransactionServiceTest {
             assertThat(result.edges).hasSize(1)
             assertThat(result.edges.first().node.id).isEqualTo(tx1.id)
         }
+
+        @Test
+        fun `all accounts excludes investment accounts from transaction query`() {
+            whenever(financialAccountRepository.findByAccountId(accountId))
+                .thenReturn(listOf(ownedAccount, investmentAccount))
+            val bankTransaction =
+                Transaction(
+                    id = UUID.randomUUID(),
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("42.00"),
+                    date = today,
+                    description = "Bank transaction",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findPage(any()))
+                .thenReturn(TransactionPageResult(items = listOf(bankTransaction), totalCount = 1))
+
+            val result =
+                service.listTransactions(
+                    accountId = accountId,
+                    financialAccountId = null,
+                    belongsToUserId = null,
+                    belongsToName = null,
+                    search = null,
+                    tags = null,
+                    billId = null,
+                    categoryId = null,
+                    uncategorized = null,
+                    creditDebitType = null,
+                    types = null,
+                    month = today.monthValue,
+                    year = today.year,
+                    first = 20,
+                    after = null,
+                )
+
+            val queryCaptor = argumentCaptor<TransactionListQuery>()
+            verify(transactionRepository).findPage(queryCaptor.capture())
+            assertThat(queryCaptor.firstValue.includedFinancialAccountIds)
+                .containsExactly(financialAccountId)
+            assertThat(result.edges.map { it.node.id }).containsExactly(bankTransaction.id)
+        }
+
+        @Test
+        fun `all accounts returns empty without querying when only investment accounts exist`() {
+            whenever(financialAccountRepository.findByAccountId(accountId))
+                .thenReturn(listOf(investmentAccount))
+
+            val result =
+                service.listTransactions(
+                    accountId = accountId,
+                    financialAccountId = null,
+                    belongsToUserId = null,
+                    belongsToName = null,
+                    search = null,
+                    tags = null,
+                    billId = null,
+                    categoryId = null,
+                    uncategorized = null,
+                    creditDebitType = null,
+                    types = null,
+                    month = today.monthValue,
+                    year = today.year,
+                    first = 20,
+                    after = null,
+                )
+
+            assertThat(result.totalCount).isZero()
+            verify(transactionRepository, never()).findPage(any())
+        }
     }
 
     @Nested
@@ -2408,6 +2493,8 @@ class TransactionServiceTest {
     inner class BreakdownTests {
         @Test
         fun `getCategoryBreakdown delegates to filtered repository query`() {
+            whenever(financialAccountRepository.findByAccountId(accountId))
+                .thenReturn(listOf(ownedAccount, investmentAccount))
             whenever(
                 transactionRepository.getFilteredCategoryBreakdown(
                     any(),
@@ -2438,10 +2525,13 @@ class TransactionServiceTest {
             ).getFilteredCategoryBreakdown(queryCaptor.capture(), eq(CategoryApplicableTo.EXPENSE))
             assertThat(queryCaptor.firstValue.tags).containsExactly("Weekend")
             assertThat(queryCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
+            assertThat(queryCaptor.firstValue.includedFinancialAccountIds).containsExactly(financialAccountId)
         }
 
         @Test
         fun `getTagBreakdown delegates to filtered repository query`() {
+            whenever(financialAccountRepository.findByAccountId(accountId))
+                .thenReturn(listOf(ownedAccount, investmentAccount))
             whenever(
                 transactionRepository.getFilteredTagBreakdown(
                     any(),
@@ -2481,6 +2571,7 @@ class TransactionServiceTest {
                 transactionRepository,
             ).getFilteredTagBreakdown(queryCaptor.capture(), eq(CategoryApplicableTo.INCOME))
             assertThat(queryCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
+            assertThat(queryCaptor.firstValue.includedFinancialAccountIds).containsExactly(financialAccountId)
         }
     }
 }

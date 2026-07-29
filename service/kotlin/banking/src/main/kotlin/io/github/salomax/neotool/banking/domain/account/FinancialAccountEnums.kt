@@ -14,6 +14,12 @@ enum class FinancialAccountType {
     BENEFIT,
 }
 
+val NON_CASHFLOW_ACCOUNT_TYPES: Set<FinancialAccountType> =
+    setOf(
+        FinancialAccountType.INVESTMENT,
+        FinancialAccountType.BENEFIT,
+    )
+
 /**
  * Account subtype (banking.financial_accounts.subtype).
  */

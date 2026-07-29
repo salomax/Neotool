@@ -92,7 +92,8 @@ interface TransactionRepository {
     ): MonthTransferTotals
 
     /**
-     * Returns all financial account IDs that belong to the given [accountId] (tenant).
+     * Returns net-worth-included cash-flow account IDs for the given [accountId] (tenant),
+     * excluding investment and benefit custodian accounts.
      * Used by [MonthSummaryQueryService] for the all-accounts aggregation.
      */
     fun findFinancialAccountIdsByAccount(accountId: UUID): List<UUID>
