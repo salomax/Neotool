@@ -1,3 +1,13 @@
+## 0.1.9 (2026-07-29)
+
+### 🩹 Fixes
+
+- correct RCVM175 CVM ingestion ([b66d965a](https://github.com/invistus/invistus/commit/b66d965a))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.1.8 (2026-07-28)
 
 ### 🩹 Fixes
