@@ -92,7 +92,32 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
 # -----------------------------------------------------------------------------
 # 6. AI agent CLIs via npm
 # -----------------------------------------------------------------------------
-RUN npm install -g         pnpm         @anthropic-ai/claude-code         @openai/codex         @google/gemini-cli     && npm cache clean --force
+RUN npm install -g \
+        pnpm \
+        @anthropic-ai/claude-code \
+        @openai/codex \
+        @google/gemini-cli \
+    && npm cache clean --force
+
+# -----------------------------------------------------------------------------
+# 6b. OpenCode (anomalyco/opencode) — binary from GitHub Releases
+#     Prefer release tarball over npm: optionalDependencies for platform
+#     packages are unreliable during image builds.
+# -----------------------------------------------------------------------------
+ARG OPENCODE_VERSION=1.18.9
+RUN ARCH=$(dpkg --print-architecture) \
+    && case "$ARCH" in \
+         amd64) OC_ASSET="opencode-linux-x64.tar.gz" ;; \
+         arm64) OC_ASSET="opencode-linux-arm64.tar.gz" ;; \
+         *) echo "Unsupported arch for OpenCode: $ARCH" >&2; exit 1 ;; \
+       esac \
+    && curl -fsSL \
+         "https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/${OC_ASSET}" \
+         -o /tmp/opencode.tar.gz \
+    && tar -xzf /tmp/opencode.tar.gz -C /tmp \
+    && install -m 755 "$(find /tmp -type f -name opencode | head -1)" /usr/local/bin/opencode \
+    && rm -rf /tmp/opencode.tar.gz /tmp/opencode* \
+    && opencode --version
 
 # -----------------------------------------------------------------------------
 # 7. Cursor CLI (headless agent — cursor.com/docs/cli)

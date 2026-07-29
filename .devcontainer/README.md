@@ -188,14 +188,16 @@ Cada workspace tem git worktree próprio. Sem conflito de porta (VMs separadas).
 docker ps
 
 # Agent tooling smoke (baked na imagem + postCreate/postStart)
-command -v rtk semble headroom claude codex
+command -v rtk semble headroom claude codex opencode
 rtk --version && rtk gain
 semble --help >/dev/null
+opencode --version
 curl -sf http://127.0.0.1:8787/readyz
 echo "$ANTHROPIC_BASE_URL"   # http://127.0.0.1:8787 (Claude → Headroom)
 # OAuth (obrigatório no primeiro up e após --recreate):
 claude login
 codex login
+# OpenCode: rode `opencode` e use /connect no TUI
 
 # Subir Apollo Router (depois de gerar o supergraph)
 # Rover + plugin: baked no DevPod (`neotool dev up --recreate`) e na imagem
@@ -220,7 +222,7 @@ neotool validate --web
 
 ---
 
-## Agent tooling (Claude / Codex) — self-contained
+## Agent tooling (Claude / Codex / OpenCode) — self-contained
 
 O DevPod **não** monta `~/.claude` / `~/.codex` do host. Homes são container-local,
 seeded de `.devcontainer/agent-home/` em `postCreate` (`setup-agent-homes.sh` →
@@ -229,6 +231,7 @@ seeded de `.devcontainer/agent-home/` em `postCreate` (`setup-agent-homes.sh` �
 | Ferramenta | Onde | Notas |
 |------------|------|--------|
 | `claude` / `codex` | imagem (npm global) | OAuth: `claude login` / `codex login` |
+| `opencode` | imagem (GitHub release binary) | Auth no TUI: `/connect` |
 | `rtk` | imagem + hooks no postCreate | Prefixo de shell commands |
 | `semble` | imagem + MCP no postCreate | Busca semântica |
 | `headroom` | imagem + proxy no postStart | `127.0.0.1:8787`; Codex → `openai_base_url`; Claude → `ANTHROPIC_BASE_URL` (`remoteEnv` + `.zshrc` + `claude-dev`) |

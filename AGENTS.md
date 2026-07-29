@@ -14,11 +14,12 @@ On a new machine (or after `--recreate` / `devpod delete`):
 claude login
 codex login
 # optional: gh auth login
+# OpenCode: opencode  →  /connect
 ```
 
 `devpod stop` / `devpod up` without recreate keeps the container filesystem (OAuth
-sessions survive). Tooling is baked in the image: `claude`, `codex`, `rtk`,
-`semble`, `headroom` (proxy on `127.0.0.1:8787` via `start-headroom.sh`).
+sessions survive). Tooling is baked in the image: `claude`, `codex`, `opencode`,
+`rtk`, `semble`, `headroom` (proxy on `127.0.0.1:8787` via `start-headroom.sh`).
 
 ## RTK (Rust Token Killer) — shell output discipline
 
