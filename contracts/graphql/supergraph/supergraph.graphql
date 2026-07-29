@@ -3907,6 +3907,14 @@ type InvestmentFund @join__type(graph: FINANCIALDATA) {
   cnpj: String!
   assetType: String!
   isActive: Boolean!
+  patrimonioLiquido: String
+  dataPatrimonioLiquido: String
+  custodiante: String
+  cnpjCustodiante: String
+  auditor: String
+  cnpjAuditor: String
+  publicoAlvo: String
+  taxProfile: FundTaxProfile!
   latestNav: FundDailyNav
   priceHistory(from: Date, to: Date, last: Int): [FundDailyNav!]!
 }

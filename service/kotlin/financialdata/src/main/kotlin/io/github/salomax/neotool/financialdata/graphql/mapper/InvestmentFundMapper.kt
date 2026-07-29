@@ -12,6 +12,7 @@ import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundEdgeDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundMarketSnapshotDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.PageInfoDTO
+import io.github.salomax.neotool.financialdata.repo.FundTaxProfileClassifier
 import jakarta.inject.Singleton
 
 @Singleton
@@ -56,6 +57,17 @@ class InvestmentFundMapper {
             cnpj = fund.cnpj,
             assetType = fund.assetType,
             isActive = fund.isActive,
+            patrimonioLiquido = fund.patrimonioLiquido,
+            dataPatrimonioLiquido = fund.dataPatrimonioLiquido,
+            custodiante = fund.custodiante,
+            cnpjCustodiante = fund.cnpjCustodiante,
+            auditor = fund.auditor,
+            cnpjAuditor = fund.cnpjAuditor,
+            publicoAlvo = fund.publicoAlvo,
+            taxProfile =
+                FundTaxProfileClassifier
+                    .taxProfileFor(fund.assetType, fund.name, fund.tributacaoLongoPrazo)
+                    .name,
             latestNav = fund.latestNav?.let { toNavDTO(it) },
         )
 
