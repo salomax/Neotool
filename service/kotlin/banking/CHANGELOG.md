@@ -1,3 +1,13 @@
+## 0.14.2 (2026-07-29)
+
+### 💅 Refactors
+
+- **tax:** add fixed-income regimes ([#537](https://github.com/invistus/invistus/issues/537))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.14.1 (2026-07-29)
 
 ### 🩹 Fixes
