@@ -31,22 +31,38 @@ const (
 
 	upsertFundSQL = `
 		INSERT INTO financial_data.investment_asset
-			(id, name, asset_type, fund_cnpj, is_active, source, content_hash,
+			(id, name, asset_type, fund_cnpj, is_active, manager, administrador,
+			 tributacao_longo_prazo, publico_alvo, patrimonio_liquido,
+			 data_patrimonio_liquido, cnpj_auditor, auditor, cnpj_custodiante,
+			 custodiante, source, content_hash,
 			 fund_search_text, fund_search_tokens,
 			 currency_code, lot_size, price_factor, created_at, updated_at)
 		VALUES
-			(gen_random_uuid(), $1, $2, $3, $4, 'CVM', $5,
+			(gen_random_uuid(), $1, $2, $3, $4, $5, $6,
+			 $7, $8, $9,
+			 $10, $11, $12, $13,
+			 $14, 'CVM', $15,
 			 financial_data.build_fund_search_text($1), financial_data.build_fund_search_tokens($1),
 			 'BRL', 1, 1, NOW(), NOW())
 		ON CONFLICT (fund_cnpj)
 		DO UPDATE SET
-			name              = EXCLUDED.name,
-			asset_type        = EXCLUDED.asset_type,
-			is_active         = EXCLUDED.is_active,
-			content_hash      = EXCLUDED.content_hash,
-			fund_search_text  = EXCLUDED.fund_search_text,
+			name               = EXCLUDED.name,
+			asset_type         = EXCLUDED.asset_type,
+			is_active          = EXCLUDED.is_active,
+			manager            = EXCLUDED.manager,
+			administrador      = EXCLUDED.administrador,
+			tributacao_longo_prazo = EXCLUDED.tributacao_longo_prazo,
+			publico_alvo       = EXCLUDED.publico_alvo,
+			patrimonio_liquido = EXCLUDED.patrimonio_liquido,
+			data_patrimonio_liquido = EXCLUDED.data_patrimonio_liquido,
+			cnpj_auditor       = EXCLUDED.cnpj_auditor,
+			auditor            = EXCLUDED.auditor,
+			cnpj_custodiante   = EXCLUDED.cnpj_custodiante,
+			custodiante        = EXCLUDED.custodiante,
+			content_hash       = EXCLUDED.content_hash,
+			fund_search_text   = EXCLUDED.fund_search_text,
 			fund_search_tokens = EXCLUDED.fund_search_tokens,
-			updated_at        = NOW()
+			updated_at         = NOW()
 		WHERE financial_data.investment_asset.content_hash IS DISTINCT FROM EXCLUDED.content_hash
 	`
 )
@@ -143,7 +159,24 @@ func (r *AssetRepository) UpsertFundBatch(ctx context.Context, records []domain.
 func (r *AssetRepository) sendFundBatch(ctx context.Context, records []domain.FundRecord) error {
 	batch := &pgx.Batch{}
 	for _, rec := range records {
-		batch.Queue(upsertFundSQL, rec.Name, rec.AssetType, rec.CNPJ, rec.IsActive, rec.ContentHash)
+		batch.Queue(
+			upsertFundSQL,
+			rec.Name,
+			rec.AssetType,
+			rec.CNPJ,
+			rec.IsActive,
+			rec.Manager,
+			rec.Administrador,
+			rec.TributacaoLongoPrazo,
+			rec.PublicoAlvo,
+			rec.PatrimonioLiquido,
+			rec.DataPatrimonioLiquido,
+			rec.CNPJAuditor,
+			rec.Auditor,
+			rec.CNPJCustodiante,
+			rec.Custodiante,
+			rec.ContentHash,
+		)
 	}
 
 	br := r.pool.SendBatch(ctx, batch)
