@@ -48,6 +48,16 @@ open class InvestmentFundRepositoryImpl(
                 ia.fund_cnpj,
                 ia.asset_type,
                 ia.is_active,
+                ia.manager,
+                ia.administrador,
+                ia.tributacao_longo_prazo,
+                ia.publico_alvo,
+                ia.patrimonio_liquido,
+                ia.data_patrimonio_liquido,
+                ia.cnpj_auditor,
+                ia.auditor,
+                ia.cnpj_custodiante,
+                ia.custodiante,
                 financial_data.similarity(
                     COALESCE(ia.fund_search_text, financial_data.build_fund_search_text(ia.name)),
                     p.normalized_query
@@ -137,10 +147,10 @@ open class InvestmentFundRepositoryImpl(
 
         @Suppress("UNCHECKED_CAST")
         val rows = q.resultList as List<Array<Any?>>
-        val totalCount = (rows.firstOrNull()?.get(9) as? Number)?.toLong() ?: 0L
+        val totalCount = (rows.firstOrNull()?.get(19) as? Number)?.toLong() ?: 0L
         val funds =
             rows.map { row ->
-                val simScore = (row[5] as? Number)?.toDouble() ?: 0.0
+                val simScore = (row[15] as? Number)?.toDouble() ?: 0.0
                 mapFundRow(row, includeNav = true, simScore = simScore)
             }
         return Pair(funds, totalCount)
@@ -191,6 +201,16 @@ open class InvestmentFundRepositoryImpl(
                 ia.fund_cnpj,
                 ia.asset_type,
                 ia.is_active,
+                ia.manager,
+                ia.administrador,
+                ia.tributacao_longo_prazo,
+                ia.publico_alvo,
+                ia.patrimonio_liquido,
+                ia.data_patrimonio_liquido,
+                ia.cnpj_auditor,
+                ia.auditor,
+                ia.cnpj_custodiante,
+                ia.custodiante,
                 $similaritySelect
                 nav.price_date  AS nav_date,
                 nav.close_price AS nav_close_price,
@@ -228,6 +248,16 @@ open class InvestmentFundRepositoryImpl(
                 ia.fund_cnpj,
                 ia.asset_type,
                 ia.is_active,
+                ia.manager,
+                ia.administrador,
+                ia.tributacao_longo_prazo,
+                ia.publico_alvo,
+                ia.patrimonio_liquido,
+                ia.data_patrimonio_liquido,
+                ia.cnpj_auditor,
+                ia.auditor,
+                ia.cnpj_custodiante,
+                ia.custodiante,
                 0.0 AS sim_score,
                 nav.price_date  AS nav_date,
                 nav.close_price AS nav_close_price,
@@ -469,11 +499,18 @@ open class InvestmentFundRepositoryImpl(
     /**
      * Maps a result row to [InvestmentFund].
      *
-     * Autocomplete (includeNav=false): id(0), name(1), fund_cnpj(2), asset_type(3), is_active(4)
+     * Autocomplete (includeNav=false): id(0), name(1), fund_cnpj(2), asset_type(3), is_active(4),
+     *                                   manager(5), administrador(6), tributacao_longo_prazo(7),
+     *                                   publico_alvo(8), patrimonio_liquido(9),
+     *                                   data_patrimonio_liquido(10), cnpj_auditor(11), auditor(12),
+     *                                   cnpj_custodiante(13), custodiante(14), sim_score(15)
      * List/detail  (includeNav=true):  id(0), name(1), fund_cnpj(2), asset_type(3), is_active(4),
-     *                                   sim_score(5), nav_date(6), nav_close_price(7),
-     *                                   nav_total_net_assets(8)
-     * searchFunds adds total_count(9) via COUNT(*) OVER() — extracted separately before calling this.
+     *                                   manager(5), administrador(6), tributacao_longo_prazo(7),
+     *                                   publico_alvo(8), patrimonio_liquido(9),
+     *                                   data_patrimonio_liquido(10), cnpj_auditor(11), auditor(12),
+     *                                   cnpj_custodiante(13), custodiante(14), sim_score(15),
+     *                                   nav_date(16), nav_close_price(17), nav_total_net_assets(18)
+     * searchFunds adds total_count(19) via COUNT(*) OVER() — extracted separately before calling this.
      */
     private fun mapFundRow(
         row: Array<Any?>,
@@ -482,14 +519,14 @@ open class InvestmentFundRepositoryImpl(
     ): InvestmentFund {
         val latestNav =
             if (includeNav) {
-                val navDate = row[6] as? java.sql.Date
-                val navClose = row[7] as? BigDecimal
+                val navDate = row[16] as? java.sql.Date
+                val navClose = row[17] as? BigDecimal
                 if (navDate != null && navClose != null) {
                     FundDailyNav(
                         date = navDate.toLocalDate(),
                         closePrice = navClose,
                         // volume stores CVM's VL_TOTAL (total net assets), not trading volume.
-                        totalNetAssets = row[8] as? BigDecimal,
+                        totalNetAssets = row[18] as? BigDecimal,
                     )
                 } else {
                     null
@@ -504,6 +541,16 @@ open class InvestmentFundRepositoryImpl(
             cnpj = row[2] as String,
             assetType = row[3] as String,
             isActive = row[4] as Boolean,
+            manager = row[5] as? String,
+            administrador = row[6] as? String,
+            tributacaoLongoPrazo = row[7] as? String,
+            publicoAlvo = row[8] as? String,
+            patrimonioLiquido = row[9] as? String,
+            dataPatrimonioLiquido = row[10] as? String,
+            cnpjAuditor = row[11] as? String,
+            auditor = row[12] as? String,
+            cnpjCustodiante = row[13] as? String,
+            custodiante = row[14] as? String,
             latestNav = latestNav,
             simScore = simScore,
         )

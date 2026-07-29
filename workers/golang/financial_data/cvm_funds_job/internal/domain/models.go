@@ -23,14 +23,23 @@ const (
 
 // FundRecord is one parsed row from cad_fi.csv.
 type FundRecord struct {
-	CNPJ        string // normalized: 14 raw digits, zero-padded
-	Name        string
-	Classe      string // "Fundo de Ações", "Renda Fixa", "Multimercado", "Cambial"
-	TipoFundo   string // "PGBL", "VGBL", "FIC", "Master", etc.
-	Manager     string
-	IsActive    bool   // SITUACAO == "EM FUNCIONAMENTO NORMAL"
-	AssetType   string // resolved: PGBL | VGBL | MUTUAL_FUND
-	ContentHash string // SHA-256 of mutable catalog fields
+	CNPJ                  string // normalized: 14 raw digits, zero-padded
+	Name                  string
+	Classe                string // "Fundo de Ações", "Renda Fixa", "Multimercado", "Cambial"
+	TipoFundo             string // "PGBL", "VGBL", "FIC", "Master", etc.
+	Manager               string
+	Administrador         string
+	TributacaoLongoPrazo  string
+	PublicoAlvo           string
+	PatrimonioLiquido     string
+	DataPatrimonioLiquido string
+	CNPJAuditor           string
+	Auditor               string
+	CNPJCustodiante       string
+	Custodiante           string
+	IsActive              bool   // SITUACAO == "EM FUNCIONAMENTO NORMAL"
+	AssetType             string // resolved: PGBL | VGBL | MUTUAL_FUND
+	ContentHash           string // SHA-256 of mutable catalog fields
 }
 
 // NavUpsertParam is one price row destined for asset_daily_price.

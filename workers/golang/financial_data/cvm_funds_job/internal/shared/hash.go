@@ -17,15 +17,32 @@ func ComputeHash(data []byte) string {
 // This avoids the map/sort/json.Marshal allocations of the previous implementation
 // in the hot per-row loop (~500k rows per catalog import).
 //
-// Field order (alphabetical by key): classe|cnpj|is_active|manager|name|tipo_fundo
-func ComputeFundHash(cnpj, name, classe, tipoFundo, manager string, isActive bool) string {
-	canonical := fmt.Sprintf("%s|%s|%t|%s|%s|%s",
+// Field order (alphabetical by key):
+// administrador|auditor|classe|cnpj|cnpj_auditor|cnpj_custodiante|custodiante|
+// data_patrimonio_liquido|is_active|manager|name|patrimonio_liquido|publico_alvo|
+// tipo_fundo|tributacao_longo_prazo
+func ComputeFundHash(
+	cnpj, name, classe, tipoFundo, manager, administrador, tributacaoLongoPrazo,
+	publicoAlvo, patrimonioLiquido, dataPatrimonioLiquido, cnpjAuditor, auditor,
+	cnpjCustodiante, custodiante string,
+	isActive bool,
+) string {
+	canonical := fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s|%s|%t|%s|%s|%s|%s|%s|%s",
+		normStr(administrador),
+		normStr(auditor),
 		normStr(classe),
 		normStr(cnpj),
+		normStr(cnpjAuditor),
+		normStr(cnpjCustodiante),
+		normStr(custodiante),
+		normStr(dataPatrimonioLiquido),
 		isActive,
 		normStr(manager),
 		normStr(name),
+		normStr(patrimonioLiquido),
+		normStr(publicoAlvo),
 		normStr(tipoFundo),
+		normStr(tributacaoLongoPrazo),
 	)
 	return ComputeHash([]byte(canonical))
 }

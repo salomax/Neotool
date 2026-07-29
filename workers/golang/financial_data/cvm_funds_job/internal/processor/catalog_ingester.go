@@ -19,12 +19,20 @@ import (
 
 // catalogColMap maps logical field names to the actual CSV column name for a given format.
 type catalogColMap struct {
-	cnpj     string
-	name     string
-	classe   string
-	tipo     string
-	manager  string
-	situacao string
+	cnpj                  string
+	name                  string
+	classe                string
+	tipo                  string
+	manager               string
+	situacao              string
+	tributacaoLongoPrazo  string
+	publicoAlvo           string
+	patrimonioLiquido     string
+	dataPatrimonioLiquido string
+	cnpjAuditor           string
+	auditor               string
+	cnpjCustodiante       string
+	custodiante           string
 }
 
 // Legacy format (cad_fi.csv): funds registered before RCVM 175.
@@ -39,11 +47,19 @@ var legacyCols = catalogColMap{
 
 // New format (registro_fundo_classe.zip): funds registered under RCVM 175 (post-2024).
 var rcvm175Cols = catalogColMap{
-	cnpj:     "CNPJ_Classe",
-	name:     "Denominacao_Social",
-	classe:   "Classificacao_Anbima",
-	tipo:     "Tipo_Classe",
-	situacao: "Situacao",
+	cnpj:                  "CNPJ_Classe",
+	name:                  "Denominacao_Social",
+	classe:                "Classificacao_Anbima",
+	tipo:                  "Tipo_Classe",
+	situacao:              "Situacao",
+	tributacaoLongoPrazo:  "Tributacao_Longo_Prazo",
+	publicoAlvo:           "Publico_Alvo",
+	patrimonioLiquido:     "Patrimonio_Liquido",
+	dataPatrimonioLiquido: "Data_Patrimonio_Liquido",
+	cnpjAuditor:           "CNPJ_Auditor",
+	auditor:               "Auditor",
+	cnpjCustodiante:       "CNPJ_Custodiante",
+	custodiante:           "Custodiante",
 }
 
 const (
@@ -51,7 +67,13 @@ const (
 	rcvm175FundoEntryName       = "registro_fundo.csv"
 	rcvm175RegistroFundoIDCol   = "ID_Registro_Fundo"
 	rcvm175ManagerSourceColName = "Gestor"
+	rcvm175AdminSourceColName   = "Administrador"
 )
+
+type registroFundoJoinData struct {
+	Gestor        string
+	Administrador string
+}
 
 // CatalogIngester streams cad_fi.csv from CVM, accumulates chunk-sized slices
 // of FundRecord, and submits CatalogChunkTask items to the worker pool.
@@ -220,7 +242,7 @@ func (ci *CatalogIngester) streamRows(
 	colMap catalogColMap,
 	existingHashes map[string]string,
 	state *ingestState,
-	managerResolver func(row []string, cols map[string]int) string,
+	joinResolver func(row []string, cols map[string]int) registroFundoJoinData,
 ) error {
 	for {
 		row, readErr := reader.Read()
@@ -234,7 +256,7 @@ func (ci *CatalogIngester) streamRows(
 
 		state.total++
 
-		rec, parseErr := parseFundRow(row, cols, colMap, managerResolver)
+		rec, parseErr := parseFundRow(row, cols, colMap, joinResolver)
 		if parseErr != nil {
 			ci.logger.Warn("catalog ingester: skipping unparseable row",
 				"row", state.total, "error", parseErr)
@@ -259,8 +281,8 @@ func (ci *CatalogIngester) streamRows(
 	return nil
 }
 
-func buildManagerByRegistroFundo(reader *csv.Reader, cols map[string]int) (map[string]string, error) {
-	managerByRegistroFundo := make(map[string]string)
+func buildManagerByRegistroFundo(reader *csv.Reader, cols map[string]int) (map[string]registroFundoJoinData, error) {
+	managerByRegistroFundo := make(map[string]registroFundoJoinData)
 
 	for {
 		row, err := reader.Read()
@@ -276,15 +298,20 @@ func buildManagerByRegistroFundo(reader *csv.Reader, cols map[string]int) (map[s
 			continue
 		}
 
-		managerByRegistroFundo[registroFundoID] = shared.GetField(row, cols, rcvm175ManagerSourceColName)
+		managerByRegistroFundo[registroFundoID] = registroFundoJoinData{
+			Gestor:        shared.GetField(row, cols, rcvm175ManagerSourceColName),
+			Administrador: shared.GetField(row, cols, rcvm175AdminSourceColName),
+		}
 	}
 }
 
-func managerFromRegistroFundoJoin(managerByRegistroFundo map[string]string) func(row []string, cols map[string]int) string {
-	return func(row []string, cols map[string]int) string {
+func managerFromRegistroFundoJoin(
+	managerByRegistroFundo map[string]registroFundoJoinData,
+) func(row []string, cols map[string]int) registroFundoJoinData {
+	return func(row []string, cols map[string]int) registroFundoJoinData {
 		registroFundoID := shared.GetField(row, cols, rcvm175RegistroFundoIDCol)
 		if registroFundoID == "" {
-			return ""
+			return registroFundoJoinData{}
 		}
 		return managerByRegistroFundo[registroFundoID]
 	}
@@ -304,7 +331,7 @@ func parseFundRow(
 	row []string,
 	cols map[string]int,
 	colMap catalogColMap,
-	managerResolver func(row []string, cols map[string]int) string,
+	joinResolver func(row []string, cols map[string]int) registroFundoJoinData,
 ) (domain.FundRecord, error) {
 	cnpj := shared.NormalizeCNPJ(shared.GetField(row, cols, colMap.cnpj))
 	if cnpj == "" {
@@ -315,26 +342,62 @@ func parseFundRow(
 	classe := shared.GetField(row, cols, colMap.classe)
 	tipoFundo := shared.GetField(row, cols, colMap.tipo)
 	manager := ""
-	if managerResolver != nil {
-		manager = managerResolver(row, cols)
+	administrador := ""
+	if joinResolver != nil {
+		joinData := joinResolver(row, cols)
+		manager = joinData.Gestor
+		administrador = joinData.Administrador
 	} else {
 		manager = shared.GetField(row, cols, colMap.manager)
 	}
+	tributacaoLongoPrazo := shared.GetField(row, cols, colMap.tributacaoLongoPrazo)
+	publicoAlvo := shared.GetField(row, cols, colMap.publicoAlvo)
+	patrimonioLiquido := shared.GetField(row, cols, colMap.patrimonioLiquido)
+	dataPatrimonioLiquido := shared.GetField(row, cols, colMap.dataPatrimonioLiquido)
+	cnpjAuditor := shared.GetField(row, cols, colMap.cnpjAuditor)
+	auditor := shared.GetField(row, cols, colMap.auditor)
+	cnpjCustodiante := shared.GetField(row, cols, colMap.cnpjCustodiante)
+	custodiante := shared.GetField(row, cols, colMap.custodiante)
 	situacao := shared.GetField(row, cols, colMap.situacao)
 
 	isActive := strings.EqualFold(strings.TrimSpace(situacao), "em funcionamento normal")
 	assetType := resolveAssetType(tipoFundo, classe)
-	contentHash := shared.ComputeFundHash(cnpj, name, classe, tipoFundo, manager, isActive)
+	contentHash := shared.ComputeFundHash(
+		cnpj,
+		name,
+		classe,
+		tipoFundo,
+		manager,
+		administrador,
+		tributacaoLongoPrazo,
+		publicoAlvo,
+		patrimonioLiquido,
+		dataPatrimonioLiquido,
+		cnpjAuditor,
+		auditor,
+		cnpjCustodiante,
+		custodiante,
+		isActive,
+	)
 
 	return domain.FundRecord{
-		CNPJ:        cnpj,
-		Name:        name,
-		Classe:      classe,
-		TipoFundo:   tipoFundo,
-		Manager:     manager,
-		IsActive:    isActive,
-		AssetType:   assetType,
-		ContentHash: contentHash,
+		CNPJ:                  cnpj,
+		Name:                  name,
+		Classe:                classe,
+		TipoFundo:             tipoFundo,
+		Manager:               manager,
+		Administrador:         administrador,
+		TributacaoLongoPrazo:  tributacaoLongoPrazo,
+		PublicoAlvo:           publicoAlvo,
+		PatrimonioLiquido:     patrimonioLiquido,
+		DataPatrimonioLiquido: dataPatrimonioLiquido,
+		CNPJAuditor:           cnpjAuditor,
+		Auditor:               auditor,
+		CNPJCustodiante:       cnpjCustodiante,
+		Custodiante:           custodiante,
+		IsActive:              isActive,
+		AssetType:             assetType,
+		ContentHash:           contentHash,
 	}, nil
 }
 
