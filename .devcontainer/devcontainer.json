@@ -54,6 +54,11 @@
       "target": "/home/dev/.cloudflare",
       "type": "bind",
       "readonly": true
+    },
+    {
+      "source": "${localEnv:HOME}/src/invistus/invistus-flux",
+      "target": "/workspaces/invistus-flux",
+      "type": "bind"
     }
   ],
   "forwardPorts": [
