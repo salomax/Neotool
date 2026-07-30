@@ -1,0 +1,278 @@
+{
+  "version": 1,
+  "frozen_after_baseline": true,
+  "questions": [
+    {
+      "id": "backend-graphql-permissions",
+      "layer": "backend",
+      "question": "Como criar um resolver GraphQL no banking com autenticação e checagem de permissão?",
+      "expected_files": [
+        "docs/05-backend/patterns/graphql-resolver-pattern.md",
+        "service/kotlin/banking/src/main/kotlin/io/github/salomax/neotool/banking/graphql/config/BankingWiringFactory.kt",
+        "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/graphql/AuthenticatedGraphQLWiringFactory.kt",
+        "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/graphql/GraphQLPermissionHelper.kt"
+      ],
+      "forbidden_files": [
+        "service/kotlin/asset/resolver/AssetResolver.kt",
+        "docs/02-architecture/backend-structure.md"
+      ]
+    },
+    {
+      "id": "backend-flyway-uuid-v7",
+      "layer": "backend",
+      "question": "Qual é o padrão de migration Flyway e a convenção atual de UUID v7?",
+      "expected_files": [
+        "docs/04-domain/database-schema-standards.md",
+        "docs/04-domain/uuid-v7-standard.md",
+        "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/util/UUIDUtil.kt",
+        "service/kotlin/assets/src/main/resources/db/migration/V0_1__create_assets_table.sql"
+      ],
+      "forbidden_files": [
+        "docs/04-development/migrations.md"
+      ]
+    },
+    {
+      "id": "backend-financial-account-ownership",
+      "layer": "backend",
+      "question": "Como uma operação de transação garante isolamento por conta e ownership da conta financeira?",
+      "expected_files": [
+        "docs/09-security/financial-account-ownership-guard.md",
+        "service/kotlin/banking/src/main/kotlin/io/github/salomax/neotool/banking/service/account/FinancialAccountGuard.kt",
+        "service/kotlin/banking/src/main/kotlin/io/github/salomax/neotool/banking/service/transaction/TransactionService.kt"
+      ],
+      "forbidden_files": [
+        "docs/03-features/security/authorization.md"
+      ]
+    },
+    {
+      "id": "backend-bills-month-summary",
+      "layer": "backend",
+      "question": "Como fatura, BILL_PAYMENT e resumo mensal interagem sem dupla contagem?",
+      "expected_files": [
+        "docs/03-features/personal-finance/requirements/03-credit-card-bills.md",
+        "docs/03-features/personal-finance/requirements/04-monthly-summaries.md",
+        "service/kotlin/banking/src/main/kotlin/io/github/salomax/neotool/banking/service/transaction/CreditCardBillService.kt",
+        "service/kotlin/banking/src/main/kotlin/io/github/salomax/neotool/banking/service/transaction/MonthSummaryQueryService.kt"
+      ],
+      "forbidden_files": [
+        "docs/03-features/personal-finance/backlogs/phase-2-monthly-summary-snapshots.md",
+        "docs/03-features/personal-finance/backlogs/phase-3-credit-card-bills.md"
+      ]
+    },
+    {
+      "id": "cross-layer-graphql-errors",
+      "layer": "cross-layer",
+      "question": "Como erros de domínio viram payload GraphQL e mensagem compreensível no web?",
+      "expected_files": [
+        "docs/06-contracts/graphql-standards.md",
+        "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/graphql/payload/GraphQLPayload.kt",
+        "web/src/shared/utils/error.ts"
+      ],
+      "forbidden_files": []
+    },
+    {
+      "id": "backend-kafka-retry-dlq",
+      "layer": "backend",
+      "question": "Qual é o padrão de consumer Kafka para retry, métricas e DLQ?",
+      "expected_files": [
+        "docs/05-backend/patterns/kafka-consumer-standard.md",
+        "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/batch/AbstractKafkaConsumer.kt",
+        "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/batch/DlqPublisherService.kt"
+      ],
+      "forbidden_files": []
+    },
+    {
+      "id": "contracts-pdf-import-done",
+      "layer": "contracts",
+      "question": "Onde ficam os schemas Kafka do import de PDF e qual é o contrato do evento done?",
+      "expected_files": [
+        "docs/06-contracts/kafka/banking-pdf-import/README.md",
+        "docs/06-contracts/kafka/banking-pdf-import/schemas/assistant.banking-pdf-reader.done.v1.schema.json",
+        "service/kotlin/assistant/src/main/kotlin/io/github/salomax/neotool/assistant/infra/kafka/AssistantBankingReaderDoneProducer.kt",
+        "service/kotlin/banking/src/main/kotlin/io/github/salomax/neotool/banking/job/import/BillImportStatusConsumer.kt"
+      ],
+      "forbidden_files": []
+    },
+    {
+      "id": "backend-service-to-service-graphql",
+      "layer": "backend",
+      "question": "Como um serviço Kotlin obtém token e chama outro subgrafo GraphQL?",
+      "expected_files": [
+        "docs/09-security/service-to-service-auth.md",
+        "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/service/ServiceTokenClient.kt",
+        "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/service/GraphQLServiceClient.kt"
+      ],
+      "forbidden_files": [
+        "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/security/service/ServiceTokenClient.kt",
+        "service/kotlin/common/src/main/kotlin/io/github/salomax/neotool/common/security/service/GraphQLServiceClient.kt"
+      ]
+    },
+    {
+      "id": "backend-assets-upload",
+      "layer": "backend",
+      "question": "Como funciona o fluxo atual de upload direto de asset, confirmação e acesso público ou privado?",
+      "expected_files": [
+        "docs/03-features/assets/asset-service/README.md",
+        "service/kotlin/assets/src/main/kotlin/io/github/salomax/neotool/assets/graphql/resolver/AssetMutationResolver.kt",
+        "service/kotlin/assets/src/main/kotlin/io/github/salomax/neotool/assets/service/AssetService.kt",
+        "service/kotlin/assets/src/main/kotlin/io/github/salomax/neotool/assets/storage/S3StorageClient.kt"
+      ],
+      "forbidden_files": [
+        "service/kotlin/asset/service/AssetService.kt",
+        "service/kotlin/asset/resolver/AssetResolver.kt"
+      ]
+    },
+    {
+      "id": "web-mutation-feedback",
+      "layer": "web",
+      "question": "Qual é o padrão de mutation no web, incluindo feedback obrigatório e refetch?",
+      "expected_files": [
+        "docs/07-frontend/patterns/graphql-mutation-pattern.md",
+        "web/src/shared/hooks/mutations/useMutationWithRefetch.ts",
+        "web/src/shared/hooks/mutations/useToggleStatus.ts"
+      ],
+      "forbidden_files": [
+        "client/src/"
+      ]
+    },
+    {
+      "id": "web-form-pattern",
+      "layer": "web",
+      "question": "Como implementar um formulário web com React Hook Form, validação e componentes compartilhados?",
+      "expected_files": [
+        "docs/07-frontend/patterns/form-pattern.md",
+        "web/src/shared/components/ui/forms/form/FormField.tsx",
+        "web/src/app/personal-finance/finance-transactions/transaction/TransactionDrawer.tsx"
+      ],
+      "forbidden_files": [
+        "docs/03-features/forms/README.md",
+        "client/src/components/ui/"
+      ]
+    },
+    {
+      "id": "web-graphql-pagination",
+      "layer": "web",
+      "question": "Como implementar paginação GraphQL no web sem corromper o cache Apollo?",
+      "expected_files": [
+        "docs/07-frontend/patterns/graphql-query-pattern.md",
+        "web/src/lib/graphql/client.ts",
+        "web/src/app/personal-finance/finance-transactions/hooks/usePaginatedTransactions.ts"
+      ],
+      "forbidden_files": [
+        "docs/06-contracts/graphql-query-pattern.md",
+        "client/src/"
+      ]
+    },
+    {
+      "id": "web-i18n",
+      "layer": "web",
+      "question": "Como adicionar traduções co-localizadas a uma feature web?",
+      "expected_files": [
+        "docs/07-frontend/patterns/i18n-pattern.md",
+        "web/src/shared/i18n/hooks/useTranslation.ts",
+        "web/src/app/(authentication)/signin/i18n/index.ts"
+      ],
+      "forbidden_files": [
+        "client/src/"
+      ]
+    },
+    {
+      "id": "web-responsive-transactions",
+      "layer": "web",
+      "question": "Como adaptar a tela operacional de transações para desktop e mobile?",
+      "expected_files": [
+        "docs/07-frontend/patterns/responsive-operational-ui-pattern.md",
+        "web/src/app/personal-finance/finance-transactions/transaction/TransactionMobileRow.tsx",
+        "web/src/app/personal-finance/finance-transactions/transaction/MobileTransactionDrawer.tsx"
+      ],
+      "forbidden_files": [
+        "client/src/features/settings/"
+      ]
+    },
+    {
+      "id": "web-playwright-transactions",
+      "layer": "web",
+      "question": "Como escrever um teste E2E Playwright para uma tela de transações?",
+      "expected_files": [
+        "docs/07-frontend/patterns/e2e-testing-pattern.md",
+        "web/tests/e2e/CONVENTIONS.md",
+        "web/tests/e2e/fixtures/personal-finance.ts",
+        "web/tests/e2e/personal-finance/transactions.e2e.spec.ts"
+      ],
+      "forbidden_files": [
+        "docs/05-testing/",
+        "client/tests/e2e/"
+      ]
+    },
+    {
+      "id": "mobile-route-guards",
+      "layer": "mobile",
+      "question": "Como proteger rotas autenticadas e públicas no app Expo Router?",
+      "expected_files": [
+        "docs/07-frontend/standards/mobile-navigation.md",
+        "mobile/app/_layout.tsx",
+        "mobile/app/(tabs)/_layout.tsx",
+        "mobile/app/__tests__/route-guards.test.tsx"
+      ],
+      "forbidden_files": [
+        "client/src/",
+        "web/src/shared/config/auth-route-policy.ts"
+      ]
+    },
+    {
+      "id": "mobile-apollo-offline",
+      "layer": "mobile",
+      "question": "Como inicializar Apollo no mobile e restaurar ou persistir cache para uso offline?",
+      "expected_files": [
+        "mobile/src/lib/apollo-client.ts",
+        "mobile/src/lib/cache-persistence.ts",
+        "mobile/src/shared/providers/ApolloProvider.tsx"
+      ],
+      "forbidden_files": [
+        "web/src/lib/graphql/client.ts"
+      ]
+    },
+    {
+      "id": "mobile-md3-theme",
+      "layer": "mobile",
+      "question": "Como aplicar o tema MD3 e alternar modo claro ou escuro no mobile?",
+      "expected_files": [
+        "mobile/src/shared/theme/theme.ts",
+        "mobile/src/shared/providers/ThemeProvider.tsx",
+        "mobile/src/shared/hooks/useTheme.ts"
+      ],
+      "forbidden_files": [
+        "web/src/shared/theme/"
+      ]
+    },
+    {
+      "id": "mobile-i18n",
+      "layer": "mobile",
+      "question": "Como adicionar e persistir traduções no mobile respeitando o idioma do dispositivo?",
+      "expected_files": [
+        "mobile/src/shared/config/i18n.ts",
+        "mobile/src/shared/i18n/hooks/useTranslation.ts",
+        "mobile/app/(tabs)/settings.tsx"
+      ],
+      "forbidden_files": [
+        "web/src/shared/i18n/",
+        "client/src/"
+      ]
+    },
+    {
+      "id": "cross-layer-graphql-contracts",
+      "layer": "cross-layer",
+      "question": "Qual é a fonte dos schemas GraphQL e como sincronizar contratos e regenerar tipos web ou mobile?",
+      "expected_files": [
+        "scripts/cli/commands/graphql/sync-schemas.sh",
+        "contracts/graphql/subgraphs/banking/schema.graphqls",
+        "web/codegen.ts",
+        "mobile/codegen.ts"
+      ],
+      "forbidden_files": [
+        "web/src/lib/graphql/types/__generated__/graphql.ts",
+        "libs/shared-graphql/src/generated/graphql.ts"
+      ]
+    }
+  ]
+}
