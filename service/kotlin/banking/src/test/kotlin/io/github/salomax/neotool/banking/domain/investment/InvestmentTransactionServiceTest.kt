@@ -19,15 +19,18 @@ import io.github.salomax.neotool.banking.repo.attachment.HoldingAttachmentReposi
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
+import io.github.salomax.neotool.banking.repo.investment.TaxRecalculationJobRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.service.investment.InvestmentTransactionService
 import io.github.salomax.neotool.banking.service.investment.PortfolioFlowEventService
+import io.github.salomax.neotool.banking.service.investment.TaxRecalculationService
 import io.github.salomax.neotool.banking.service.investment.lifecycle.CouponPendingActionHandler
 import io.github.salomax.neotool.banking.service.investment.lifecycle.CustodianCashLedgerHandler
 import io.github.salomax.neotool.banking.service.investment.lifecycle.InvestmentTransactionLifecycleOrchestrator
 import io.github.salomax.neotool.banking.service.investment.lifecycle.MaturityPendingActionHandler
 import io.github.salomax.neotool.banking.service.investment.lifecycle.PortfolioFlowEventHandler
+import io.github.salomax.neotool.banking.service.investment.lifecycle.TaxRecalculationHandler
 import io.github.salomax.neotool.banking.service.investment.recalculation.HoldingPositionEvolution
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import org.assertj.core.api.Assertions.assertThat
@@ -64,6 +67,7 @@ class InvestmentTransactionServiceTest {
     private lateinit var transactionCategoryEntityRepository: TransactionCategoryEntityRepository
     private lateinit var portfolioFlowEventService: PortfolioFlowEventService
     private lateinit var holdingAttachmentRepository: HoldingAttachmentRepository
+    private lateinit var taxRecalculationJobRepository: TaxRecalculationJobRepository
     private lateinit var service: InvestmentTransactionService
 
     private val accountId = UUID.randomUUID()
@@ -100,11 +104,13 @@ class InvestmentTransactionServiceTest {
     private fun fundAsset(
         type: AssetType = AssetType.MUTUAL_FUND,
         fundCnpj: String? = "12345678000199",
+        anbimaCategory: AnbimaCategory? = AnbimaCategory.MULTIMERCADO,
     ) = Asset(
         id = assetId,
         name = "Fundo XP",
         assetType = type,
         fundCnpj = fundCnpj,
+        anbimaCategory = anbimaCategory,
         createdAt = now,
         updatedAt = now,
     )
@@ -164,6 +170,13 @@ class InvestmentTransactionServiceTest {
         transactionCategoryEntityRepository = mock()
         portfolioFlowEventService = mock()
         holdingAttachmentRepository = mock()
+        taxRecalculationJobRepository = mock()
+        val taxRecalculationService =
+            TaxRecalculationService(
+                holdingRepository = holdingRepository,
+                assetRepository = assetRepository,
+                taxRecalculationJobRepository = taxRecalculationJobRepository,
+            )
         val lifecycleOrchestrator =
             InvestmentTransactionLifecycleOrchestrator(
                 listOf(
@@ -174,6 +187,7 @@ class InvestmentTransactionServiceTest {
                         portfolioFlowEventService = portfolioFlowEventService,
                     ),
                     PortfolioFlowEventHandler(portfolioFlowEventService),
+                    TaxRecalculationHandler(taxRecalculationService),
                     MaturityPendingActionHandler(pendingActionRepository),
                     CouponPendingActionHandler(
                         pendingActionRepository = pendingActionRepository,
@@ -208,6 +222,13 @@ class InvestmentTransactionServiceTest {
         whenever(transactionRepository.findByInvestmentTransactionIds(any(), any())).thenReturn(emptyList())
         whenever(transactionService.delete(any(), any(), anyOrNull())).thenReturn(true)
         whenever(portfolioFlowEventService.deleteEventsByRelatedHolding(any(), any())).thenReturn(0)
+        whenever(taxRecalculationJobRepository.findPendingByHolding(any())).thenReturn(null)
+        whenever(taxRecalculationJobRepository.findProcessingByHolding(any())).thenReturn(null)
+        whenever(taxRecalculationJobRepository.save(any())).thenAnswer { inv ->
+            (inv.arguments[0] as io.github.salomax.neotool.banking.domain.investment.TaxRecalculationJob)
+                .copy(id = UUID.randomUUID())
+        }
+        whenever(taxRecalculationJobRepository.update(any())).thenAnswer { inv -> inv.arguments[0] }
         whenever(holdingAttachmentRepository.deleteByHoldingIdAndAccountId(any(), any())).thenReturn(0)
         whenever(pendingActionRepository.cancelByEntityAndType(any(), any(), any(), any())).thenReturn(false)
         whenever(pendingActionRepository.findPendingByEntityAndType(any(), any(), any())).thenReturn(null)
@@ -429,6 +450,65 @@ class InvestmentTransactionServiceTest {
         }
 
         @Test
+        fun `delete on long profile fund enqueues tax recalculation from earliest checkpoint on or after trade date`() {
+            val deletedTxId = UUID.randomUUID()
+            val deletedTx =
+                InvestmentTransaction(
+                    id = deletedTxId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("10"),
+                    unitPrice = BigDecimal("100.00"),
+                    grossValue = BigDecimal("1000.00"),
+                    tradeDate = LocalDate.of(2026, 4, 10),
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val remainingTx =
+                InvestmentTransaction(
+                    id = UUID.randomUUID(),
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("5"),
+                    unitPrice = BigDecimal("110.00"),
+                    grossValue = BigDecimal("550.00"),
+                    tradeDate = LocalDate.of(2026, 6, 1),
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now.plusSeconds(60),
+                    updatedAt = now.plusSeconds(60),
+                )
+            val holding =
+                holdingWith(quantity = "15", averageCost = "103.33").copy(
+                    comeCotasEnabled = true,
+                )
+
+            whenever(assetRepository.findById(assetId)).thenReturn(fundAsset())
+            whenever(investmentTransactionRepository.findById(deletedTxId, accountId)).thenReturn(deletedTx)
+            whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(holding)
+            whenever(investmentTransactionRepository.softDelete(deletedTxId, accountId)).thenReturn(true)
+            whenever(
+                investmentTransactionRepository.findByHolding(holdingId, accountId),
+            ).thenReturn(listOf(remainingTx))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val deleted = service.delete(deletedTxId, accountId)
+
+            assertThat(deleted).isTrue()
+            val jobCaptor = argumentCaptor<TaxRecalculationJob>()
+            verify(taxRecalculationJobRepository).save(jobCaptor.capture())
+            assertThat(jobCaptor.firstValue.recalculateFrom).isEqualTo(LocalDate.of(2026, 5, 29))
+        }
+
+        @Test
         fun `soft deletes holding when the deleted transaction was the last one`() {
             val deletedTxId = UUID.randomUUID()
             val currentHolding = holdingWith(quantity = "100", averageCost = "28.50")
@@ -640,6 +720,42 @@ class InvestmentTransactionServiceTest {
             verify(investmentTransactionRepository).softDelete(purchaseTxId, accountId)
             verify(investmentTransactionRepository).softDelete(withholdingTxId, accountId)
             verify(holdingRepository).softDelete(holdingId, accountId)
+        }
+
+        @Test
+        fun `deleteHolding on come-cotas fund does not enqueue tax recalculation job`() {
+            val purchaseTxId = UUID.randomUUID()
+            val purchaseTx =
+                InvestmentTransaction(
+                    id = purchaseTxId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("100"),
+                    unitPrice = BigDecimal("10.00"),
+                    grossValue = BigDecimal("1000.00"),
+                    tradeDate = LocalDate.of(2026, 4, 10),
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now.minusSeconds(60),
+                    updatedAt = now.minusSeconds(60),
+                )
+
+            whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(
+                holdingWith("100", "10.00").copy(comeCotasEnabled = true),
+            )
+            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(purchaseTx))
+            whenever(investmentTransactionRepository.softDelete(purchaseTxId, accountId)).thenReturn(true)
+            whenever(holdingRepository.softDelete(holdingId, accountId)).thenReturn(true)
+            whenever(assetRepository.findById(assetId)).thenReturn(fundAsset())
+
+            val deleted = service.deleteHolding(holdingId, accountId)
+
+            assertThat(deleted).isTrue()
+            verify(taxRecalculationJobRepository, never()).save(any())
+            verify(taxRecalculationJobRepository, never()).update(any())
         }
 
         @Test
@@ -1580,6 +1696,56 @@ class InvestmentTransactionServiceTest {
             assertThat(updateCaptor.firstValue.unitPrice).isEqualByComparingTo(
                 BigDecimal("22").divide(BigDecimal("2"), HoldingPositionEvolution.COST_SCALE, RoundingMode.HALF_UP),
             )
+        }
+
+        @Test
+        fun `update on fixed-income holding never enqueues tax recalculation`() {
+            val txId = UUID.randomUUID()
+            val existingTx =
+                InvestmentTransaction(
+                    id = txId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("2"),
+                    unitPrice = BigDecimal("10"),
+                    grossValue = BigDecimal("20"),
+                    tradeDate = LocalDate.of(2026, 4, 10),
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val updatedRef = AtomicReference<InvestmentTransaction>()
+            whenever(assetRepository.findById(assetId)).thenReturn(asset.copy(assetType = AssetType.CDB, ticker = null))
+            whenever(investmentTransactionRepository.findById(txId, accountId)).thenReturn(existingTx)
+            whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(holdingWith("2", "10"))
+            whenever(investmentTransactionRepository.update(any())).thenAnswer { inv ->
+                val arg = inv.arguments[0] as InvestmentTransaction
+                updatedRef.set(arg)
+                savedTransaction(arg)
+            }
+            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenAnswer {
+                listOf(updatedRef.get() ?: error("expected update before recompute"))
+            }
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val updateCmd =
+                UpdateInvestmentTransactionCommand(
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("2"),
+                    unitPrice = BigDecimal("11"),
+                    grossValue = BigDecimal("22"),
+                    tradeDate = LocalDate.of(2026, 4, 10),
+                )
+
+            service.update(txId, updateCmd, accountId, userId)
+
+            verify(taxRecalculationJobRepository, never()).save(any())
+            verify(taxRecalculationJobRepository, never()).update(any())
         }
     }
 

@@ -6,6 +6,9 @@ import java.math.BigDecimal
  * Supplies the rates used to tax an investment lot after a given number of calendar days.
  */
 interface TaxRegime {
+    val hasPeriodicWithholding: Boolean
+        get() = false
+
     fun iofRate(elapsedDays: Int): BigDecimal = BigDecimal.ZERO
 
     fun periodicWithholdingRate(elapsedDays: Int): BigDecimal?
