@@ -10,6 +10,10 @@ import java.util.UUID
 @TraceExecution(layer = "repository")
 @Repository
 interface OAuth2ConsentRepository : JpaRepository<OAuth2ConsentEntity, UUID> {
+    fun findByAccountIdAndRevokedAtIsNullOrderByLastGrantedAtDesc(accountId: UUID): List<OAuth2ConsentEntity>
+
+    fun findOneByIdAndRevokedAtIsNull(id: UUID): Optional<OAuth2ConsentEntity>
+
     fun findOneByUserIdAndClientIdAndAccountIdAndRevokedAtIsNull(
         userId: UUID,
         clientId: String,

@@ -79,6 +79,44 @@ type AccountMember {
   isCurrentUser: Boolean!
 }
 
+enum ConnectedAgentActivityOutcome {
+  SUCCESS
+  ERROR
+  REJECTED
+}
+
+type ConnectedAgentScope {
+  name: String!
+  description: String!
+}
+
+type ConnectedAgentRecentActivity {
+  id: ID!
+  occurredAt: DateTime!
+  toolName: String
+  outcome: ConnectedAgentActivityOutcome!
+  errorCode: String
+  errorMessage: String
+  latencyMs: Long!
+}
+
+type ConnectedAgent {
+  connectionId: ID!
+  clientId: String!
+  clientName: String!
+  connectedAt: DateTime!
+  lastGrantedAt: DateTime!
+  scopes: [ConnectedAgentScope!]!
+  recentActivity(first: Int = 20): [ConnectedAgentRecentActivity!]!
+}
+
+type RevokeConnectedAgentPayload {
+  connectionId: ID!
+  clientId: String!
+  accountId: ID!
+  revokedAt: DateTime!
+}
+
 input InviteMemberInput {
   accountId: ID!
   email: String!
@@ -114,6 +152,7 @@ extend type Query {
   userPreferences: UserPreferences!
   myAccounts: [Account!]!
   accountMembers(accountId: ID!): [AccountMember!]!
+  connectedAgents(accountId: ID!): [ConnectedAgent!]!
 
   # Authorization management queries
   user(id: ID!): User
@@ -148,6 +187,7 @@ extend type Mutation {
   removeMember(accountId: ID!, membershipId: ID!): Boolean!
   changeMemberRole(accountId: ID!, membershipId: ID!, role: AccountRole!): AccountMember!
   leaveAccount(accountId: ID!): Boolean!
+  revokeConnectedAgent(connectionId: ID!): RevokeConnectedAgentPayload!
 
   # Authorization management mutations
   enableUser(userId: ID!): User!
