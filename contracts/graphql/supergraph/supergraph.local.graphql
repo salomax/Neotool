@@ -37,20 +37,21 @@ enum join__Graph {
   BANKING @join__graph(name: "banking", url: "http://host.docker.internal:8092/graphql")
   COMMS @join__graph(name: "comms", url: "http://host.docker.internal:8084/graphql")
   FINANCIALDATA @join__graph(name: "financialdata", url: "http://host.docker.internal:8091/graphql")
+  MCP @join__graph(name: "mcp", url: "http://host.docker.internal:8086/graphql")
   SECURITY @join__graph(name: "security", url: "http://host.docker.internal:8080/graphql")
 }
 
 scalar join__FieldSet
 
-scalar Long @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: FINANCIALDATA) @join__type(graph: SECURITY)
+scalar Long @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: FINANCIALDATA) @join__type(graph: MCP) @join__type(graph: SECURITY)
 
-scalar Date @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: FINANCIALDATA) @join__type(graph: SECURITY)
+scalar Date @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: FINANCIALDATA) @join__type(graph: MCP) @join__type(graph: SECURITY)
 
-scalar DateTime @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: FINANCIALDATA) @join__type(graph: SECURITY)
+scalar DateTime @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: FINANCIALDATA) @join__type(graph: MCP) @join__type(graph: SECURITY)
 
-scalar JSON @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: FINANCIALDATA) @join__type(graph: SECURITY)
+scalar JSON @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: FINANCIALDATA) @join__type(graph: MCP) @join__type(graph: SECURITY)
 
-scalar UUID @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: FINANCIALDATA) @join__type(graph: SECURITY)
+scalar UUID @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: FINANCIALDATA) @join__type(graph: MCP) @join__type(graph: SECURITY)
 
 """Asset visibility level - determines access control and URL generation."""
 enum AssetVisibility @join__type(graph: ASSETS) {
@@ -158,7 +159,7 @@ input ConfirmAssetUploadInput @join__type(graph: ASSETS) {
   checksum: String
 }
 
-type Query @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: FINANCIALDATA) @join__type(graph: SECURITY) {
+type Query @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: FINANCIALDATA) @join__type(graph: MCP) @join__type(graph: SECURITY) {
   """
   Get asset by ID.
   Returns null if asset not found or user doesn't have access.
@@ -489,6 +490,11 @@ type Query @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(
   listedAssetDailyPrices(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, tickers: [String!]): ListedAssetDailyPriceConnection! @join__field(graph: FINANCIALDATA)
   economicIndicatorVariationPoints(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, indicators: [String!], variations: [String!]): EconomicIndicatorPointConnection! @join__field(graph: FINANCIALDATA)
   assetCorporateEvents(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, tickers: [String!], isins: [String!]): AssetCorporateEventConnection! @join__field(graph: FINANCIALDATA)
+  """
+  Internal-only primitive for delegated service callers. The current audit schema
+  supports scoping by userId + clientId only; there is no account dimension yet.
+  """
+  recentActivity(userId: ID!, clientId: String!, first: Int = 20): [McpRecentActivityEntry!]! @join__field(graph: MCP)
   currentUser: User @join__field(graph: SECURITY)
   myVerificationStatus: VerificationStatus @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
@@ -506,7 +512,7 @@ type Query @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(
   permissions(first: Int, after: String, query: String): PermissionConnection! @join__field(graph: SECURITY)
 }
 
-type Mutation @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: SECURITY) {
+type Mutation @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(graph: BANKING) @join__type(graph: COMMS) @join__type(graph: MCP) @join__type(graph: SECURITY) {
   """
   Step 1: Create asset upload and get pre-signed URL.
 
@@ -759,6 +765,11 @@ type Mutation @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__ty
   """Dismiss a pending action (e.g. mark informational item as seen)."""
   dismissPendingAction(id: ID!): AccountPendingAction! @join__field(graph: BANKING)
   requestEmailSend(input: EmailSendRequestInput!): EmailSendResult! @join__field(graph: COMMS)
+  """
+  Internal-only primitive for delegated service callers. Repeated calls assert the
+  same revoked state idempotently.
+  """
+  revokeConnection(userId: ID!, clientId: String!, accountId: ID!): McpConnectionRevocation! @join__field(graph: MCP)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
   signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
@@ -4085,6 +4096,35 @@ type ListedAssetAutocompleteItem @join__type(graph: FINANCIALDATA) {
   assetType: String!
   isActive: Boolean!
   logoAsset: Asset
+}
+
+enum McpToolCallOutcome @join__type(graph: MCP) {
+  SUCCESS @join__enumValue(graph: MCP)
+  ERROR @join__enumValue(graph: MCP)
+  REJECTED @join__enumValue(graph: MCP)
+}
+
+type McpConnectionRevocation @join__type(graph: MCP) {
+  userId: ID!
+  clientId: String!
+  accountId: ID!
+  revokedAt: DateTime!
+  revokedUntil: DateTime
+  reason: String
+}
+
+type McpRecentActivityEntry @join__type(graph: MCP) {
+  id: ID!
+  occurredAt: DateTime!
+  userId: ID!
+  clientId: String!
+  tokenId: String
+  toolName: String
+  outcome: McpToolCallOutcome!
+  errorCode: String
+  errorMessage: String
+  latencyMs: Long!
+  createdAt: DateTime!
 }
 
 type User @join__type(graph: SECURITY, key: "id") {

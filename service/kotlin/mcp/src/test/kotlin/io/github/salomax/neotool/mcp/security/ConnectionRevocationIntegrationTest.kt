@@ -116,6 +116,66 @@ open class ConnectionRevocationIntegrationTest :
         assertThat(repository.existsById(permanent.id)).isTrue()
     }
 
+    @Test
+    fun `graphQL revocation rejects the next probe call`() {
+        val userId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+        val clientId = "agent-${UUID.randomUUID()}"
+        val serviceToken =
+            McpJwtTestFixture.serviceToken(
+                userId = userId,
+                currentAccountId = accountId,
+            )
+
+        httpClient
+            .toBlocking()
+            .retrieve(
+                HttpRequest
+                    .POST(
+                        "/graphql",
+                        mapOf(
+                            "query" to
+                                """
+                                mutation RevokeConnection(${'$'}userId: ID!, ${'$'}clientId: String!, ${'$'}accountId: ID!) {
+                                  revokeConnection(userId: ${'$'}userId, clientId: ${'$'}clientId, accountId: ${'$'}accountId) {
+                                    userId
+                                  }
+                                }
+                                """.trimIndent(),
+                            "variables" to
+                                mapOf(
+                                    "userId" to userId.toString(),
+                                    "clientId" to clientId,
+                                    "accountId" to accountId.toString(),
+                                ),
+                        ),
+                    ).header(HttpHeaders.AUTHORIZATION, "Bearer $serviceToken"),
+            )
+
+        val exception =
+            assertThrows<HttpClientResponseException> {
+                httpClient
+                    .toBlocking()
+                    .exchange(
+                        probeRequest(
+                            McpJwtTestFixture.accessToken(
+                                userId = userId,
+                                accountId = accountId,
+                                clientId = clientId,
+                                issuedAt = Instant.now().plusSeconds(1),
+                            ),
+                        ),
+                        OAuthError::class.java,
+                    )
+            }
+
+        assertThat(exception.status).isEqualTo(HttpStatus.UNAUTHORIZED)
+        assertThat(exception.response.getBody(OAuthError::class.java)).hasValueSatisfying {
+            assertThat(it.error).isEqualTo("invalid_token")
+            assertThat(it.error_description).isEqualTo("The connection has been revoked")
+        }
+    }
+
     private fun probeRequest(token: String): HttpRequest<Any> =
         HttpRequest.GET<Any>("/mcp/probe").header(HttpHeaders.AUTHORIZATION, "Bearer $token")
 }

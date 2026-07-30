@@ -24,3 +24,7 @@ subgraphs:
     routing_url: http://host.docker.internal:8082/graphql
     schema:
       file: ../subgraphs/assistant/schema.graphqls
+  mcp:
+    routing_url: http://host.docker.internal:8086/graphql
+    schema:
+      file: ../subgraphs/mcp/schema.graphqls

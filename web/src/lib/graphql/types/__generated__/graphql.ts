@@ -2321,6 +2321,37 @@ export type McpChangeLogEntry = {
   toolCallId: Scalars['ID']['output'];
 };
 
+export type McpConnectionRevocation = {
+  __typename: 'McpConnectionRevocation';
+  accountId: Scalars['ID']['output'];
+  clientId: Scalars['String']['output'];
+  reason: Maybe<Scalars['String']['output']>;
+  revokedAt: Scalars['DateTime']['output'];
+  revokedUntil: Maybe<Scalars['DateTime']['output']>;
+  userId: Scalars['ID']['output'];
+};
+
+export type McpRecentActivityEntry = {
+  __typename: 'McpRecentActivityEntry';
+  clientId: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  errorCode: Maybe<Scalars['String']['output']>;
+  errorMessage: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  latencyMs: Scalars['Long']['output'];
+  occurredAt: Scalars['DateTime']['output'];
+  outcome: McpToolCallOutcome;
+  tokenId: Maybe<Scalars['String']['output']>;
+  toolName: Maybe<Scalars['String']['output']>;
+  userId: Scalars['ID']['output'];
+};
+
+export enum McpToolCallOutcome {
+  Error = 'ERROR',
+  Rejected = 'REJECTED',
+  Success = 'SUCCESS'
+}
+
 export enum MembershipStatus {
   Active = 'ACTIVE',
   Pending = 'PENDING',
@@ -2630,6 +2661,11 @@ export type Mutation = {
   resolveImportDuplicate: TransactionImport;
   resumeRecurringPayment: RecurringPayment;
   revertToolCallChanges: BulkOperationResult;
+  /**
+   * Internal-only primitive for delegated service callers. Repeated calls assert the
+   * same revoked state idempotently.
+   */
+  revokeConnection: McpConnectionRevocation;
   /**
    * Enables/disables a system transaction rule for the authenticated account.
    * This does not mutate the global system rule itself.
@@ -3114,6 +3150,13 @@ export type MutationResumeRecurringPaymentArgs = {
 
 export type MutationRevertToolCallChangesArgs = {
   toolCallId: Scalars['ID']['input'];
+};
+
+
+export type MutationRevokeConnectionArgs = {
+  accountId: Scalars['ID']['input'];
+  clientId: Scalars['String']['input'];
+  userId: Scalars['ID']['input'];
 };
 
 
@@ -3812,6 +3855,11 @@ export type Query = {
   prompts: Array<Prompt>;
   purchaseItems: Array<PurchaseItem>;
   ratingIssuers: Array<RatingIssuer>;
+  /**
+   * Internal-only primitive for delegated service callers. The current audit schema
+   * supports scoping by userId + clientId only; there is no account dimension yet.
+   */
+  recentActivity: Array<McpRecentActivityEntry>;
   recurringPayment: Maybe<RecurringPayment>;
   /** Recurring payment templates for one account or all tenant accounts when omitted. */
   recurringPayments: Array<RecurringPayment>;
@@ -4320,6 +4368,13 @@ export type QueryPromptsArgs = {
 
 export type QueryPurchaseItemsArgs = {
   transactionId: Scalars['ID']['input'];
+};
+
+
+export type QueryRecentActivityArgs = {
+  clientId: Scalars['String']['input'];
+  first?: InputMaybe<Scalars['Int']['input']>;
+  userId: Scalars['ID']['input'];
 };
 
 
@@ -5562,6 +5617,7 @@ export enum Join__Graph {
   Banking = 'BANKING',
   Comms = 'COMMS',
   Financialdata = 'FINANCIALDATA',
+  Mcp = 'MCP',
   Security = 'SECURITY'
 }
 
