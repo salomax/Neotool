@@ -1,3 +1,13 @@
+## 0.14.7 (2026-07-30)
+
+### 🩹 Fixes
+
+- align fund valuation tax path ([#543](https://github.com/invistus/invistus/issues/543))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.14.6 (2026-07-30)
 
 ### 🩹 Fixes
