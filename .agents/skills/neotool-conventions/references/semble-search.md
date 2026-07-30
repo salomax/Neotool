@@ -1,8 +1,8 @@
 # Semble — semantic code search for agents
 
-[Semble](https://github.com/MinishLab/semble) is the preferred way to find code during
-diagnosis and implementation. It returns only the relevant snippets (~98% fewer tokens than
-grep+read), runs on CPU, and needs **no API key**.
+[Semble](https://github.com/MinishLab/semble) is the semantic code-search tool for Invistus
+agents. It returns only the relevant snippets (~98% fewer tokens than grep+read), runs on CPU,
+and needs **no API key**.
 
 DevPod installs a pinned `semble[mcp]==0.5.2` (via `uv`) and wires the MCP server for Claude
 Code, Cursor, and Codex on `postCreate` (`.devcontainer/setup-semble.sh`). Project Cursor
@@ -10,13 +10,28 @@ config: `.cursor/mcp.json`.
 
 ## When to use
 
-Prefer Semble **before** broad `Grep`/`Read` sweeps when you need to answer:
+The **mandatory** code-discovery gate (when Semble is required vs. when direct Grep/Read is
+allowed) is defined in [token-discipline.md](token-discipline.md) §2. This file covers **how**
+to call Semble — do not re-author the gate here.
+
+**`semble search`** — locate unknown implementations:
 
 - “Where is X implemented?”
 - “How does auth / idempotency / GraphQL wiring work?”
 - “Which files own this failing test / error code?”
 
-Fall back to targeted Grep/Read when you already know the exact path or symbol.
+**`semble find-related`** — after you have a known `file:line` (from search, a diff, or a
+stack frame), expand its neighborhood instead of manually opening siblings/callers. Example:
+you found `IdempotencyService.kt` via search or a stack trace; the next question is “what else
+touches this?” (callers, GraphQL wiring, nearby tests) — run `find-related` on that path
+rather than browsing adjacent files by hand:
+
+```bash
+semble find-related service/kotlin/banking/src/main/kotlin/.../IdempotencyService.kt 40 .
+```
+
+Do not use `find-related` when you already have the exact path you need to edit (read-before-edit
+is an exception in token-discipline §2).
 
 ## MCP (preferred)
 
@@ -46,5 +61,5 @@ Semble respects `.gitignore` and optional `.sembleignore`. It already skips `nod
 ## Relationship to RTK / token-discipline
 
 - **RTK** bounds *shell/CLI* output volume.
-- **Semble** bounds *code-discovery* tokens (replaces exploratory grep+read).
+- **Semble** bounds *code-discovery* tokens (mandatory gate in token-discipline §2).
 - Both apply under [token-discipline.md](token-discipline.md).

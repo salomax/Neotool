@@ -9,7 +9,7 @@ description: >
   An issue number is required — ask for it immediately if not provided.
 metadata:
   author: invistus
-  version: "1.2"
+  version: "1.3"
 ---
 
 # Solution Design — Invistus
@@ -38,7 +38,9 @@ If the description is ambiguous or incomplete, flag this explicitly in the analy
 
 ### 2. Map the impact on the actual codebase
 
-Inspect the local code before proposing a solution. Look for:
+Inspect the local code before proposing a solution. Apply the code-discovery gate in
+[token-discipline.md](../neotool-conventions/references/token-discipline.md) §2 before any
+exploratory Grep/Read. Look for:
 
 - Affected layers
 - Similar flows already implemented

@@ -9,7 +9,7 @@ description: >
   An issue number is required — ask for it immediately if not provided.
 metadata:
   author: invistus
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Backlog Generator — Invistus
@@ -63,7 +63,9 @@ Read the relevant local skills before listing tasks:
 - Personal finance domain → `neotool-finance-domain`
 - Cross-cutting rules → `neotool-conventions`
 
-Do not invent generic conventions if a local skill covers the topic.
+Do not invent generic conventions if a local skill covers the topic. When locating owning files
+or verifying flows before naming tasks, apply the code-discovery gate in
+[token-discipline.md](../neotool-conventions/references/token-discipline.md) §2.
 
 ### 4. Generate the backlog
 

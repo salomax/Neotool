@@ -9,7 +9,7 @@ description: >
   neotool-kotlin-service or neotool-nextjs-app for any implementation task.
 metadata:
   author: invistus
-  version: "1.1"
+  version: "1.2"
 ---
 
 # Shared Conventions — Invistus
@@ -20,7 +20,7 @@ Conventions that apply to both backend AND frontend. Load reference files as nee
 - Error handling or user feedback questions → read [references/error-handling.md](references/error-handling.md)
 - i18n, strings, or localization questions → read [references/i18n-strategy.md](references/i18n-strategy.md)
 - Implementation / validation token discipline (narrow tests, CLI bounds, rerun cap, metadata lookups) → read [references/token-discipline.md](references/token-discipline.md) — **load for every implementation task**
-- Semantic code search during diagnosis → read [references/semble-search.md](references/semble-search.md) — prefer Semble MCP over exploratory grep+read
+- Semantic code search during diagnosis → read [references/semble-search.md](references/semble-search.md) — **load before any exploratory code discovery** (gate in token-discipline.md §2)
 
 ## Fundamental rule
 

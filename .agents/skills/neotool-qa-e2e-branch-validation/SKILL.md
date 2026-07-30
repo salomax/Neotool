@@ -12,7 +12,7 @@ description: >
 compatibility: Requires Playwright configured in web/ and an existing web/tests/e2e/ suite.
 metadata:
   author: invistus
-  version: "1.0"
+  version: "1.1"
 ---
 
 # QA E2E Branch Validation
@@ -46,6 +46,9 @@ git status --short
 Use the merge-base diff as the primary view of branch changes. Include worktree and staged diffs when the branch is not clean.
 
 ### 2. Translate file changes into user-visible risk
+
+When exploring product code to map journeys (beyond the known `web/tests/e2e` suite), apply
+the code-discovery gate in [token-discipline.md](../neotool-conventions/references/token-discipline.md) §2.
 
 Group the diff by behavior, not by file list. Identify:
 
