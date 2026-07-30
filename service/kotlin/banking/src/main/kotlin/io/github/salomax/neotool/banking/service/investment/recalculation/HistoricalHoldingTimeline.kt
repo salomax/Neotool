@@ -153,6 +153,7 @@ class HistoricalHoldingTimeline(
             val result =
                 fixedIncomeValuationService.estimate(
                     holding = currentState,
+                    assetType = asset.assetType,
                     indicatorRates = rateMap,
                     valuationReferenceDate = date,
                     monthlySeries = monthlySeries,
