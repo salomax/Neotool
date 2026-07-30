@@ -1,3 +1,13 @@
+## 0.10.7 (2026-07-30)
+
+### 🚀 Features
+
+- **profile:** add connected agents section ([f62d45bd](https://github.com/invistus/invistus/commit/f62d45bd))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.10.6 (2026-07-30)
 
 ### 🚀 Features
