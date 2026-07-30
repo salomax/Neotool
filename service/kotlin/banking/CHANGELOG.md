@@ -1,3 +1,18 @@
+## 0.14.4 (2026-07-30)
+
+### 💅 Refactors
+
+- **tax:** add fund tax regimes ([25ae73c0](https://github.com/invistus/invistus/commit/25ae73c0))
+- **tax:** add fund tax regimes ([b768065d](https://github.com/invistus/invistus/commit/b768065d))
+- **tax:** add fund tax regimes ([40b1aef8](https://github.com/invistus/invistus/commit/40b1aef8))
+- **tax:** add fund tax regimes ([9b907115](https://github.com/invistus/invistus/commit/9b907115))
+- **tax:** add fund tax regimes ([19194fe2](https://github.com/invistus/invistus/commit/19194fe2))
+- **tax:** add fund tax regimes ([1dfdead6](https://github.com/invistus/invistus/commit/1dfdead6))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.14.3 (2026-07-30)
 
 ### 💅 Refactors
