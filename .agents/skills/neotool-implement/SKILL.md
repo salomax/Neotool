@@ -11,7 +11,7 @@ description: >
 compatibility: Requires GitHub MCP or gh CLI. Reads skills from .agents/skills/ at the project root.
 metadata:
   author: invistus
-  version: "1.3"
+  version: "1.4"
 ---
 
 # Implementation Orchestrator — Invistus
@@ -109,6 +109,15 @@ Work through the backlog checklist top to bottom. For each task:
 
 Treat each checkbox as a unit of work. Complete one before starting the next.
 
+**Important GraphQL contract sync step:**
+- Whenever the implementation changes any GraphQL contract artifact — subgraph schema, supergraph manifest, or generated composed supergraph output — run:
+
+```bash
+./neotool dev sync
+```
+
+- This is mandatory even if the local file edit looks small. It is the repo-standard way to force subgraph and supergraph artifacts back into sync before validation or summary.
+
 **If a task is blocked or unclear:**
 - Do not skip silently
 - Post a comment on the issue describing the blocker
@@ -138,6 +147,13 @@ touched module.
 ./gradlew ktlintCheck --console=plain
 ./gradlew test --console=plain
 ```
+
+**GraphQL contract sync gate (required when applicable):**
+```bash
+./neotool dev sync
+```
+Run this before concluding validation whenever the issue touched any GraphQL contract artifact
+(subgraph schema, supergraph manifest, or generated composed supergraph output).
 
 **Failure handling (mandatory):**
 1. Summarize the failure (command, failing tests, one-line hypothesis) **before** any re-run.
