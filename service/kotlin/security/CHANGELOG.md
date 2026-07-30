@@ -1,3 +1,13 @@
+## 0.16.0 (2026-07-30)
+
+### 🚀 Features
+
+- **security:** add connected agents resolvers ([8cf33991](https://github.com/invistus/invistus/commit/8cf33991))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.15.1 (2026-07-28)
 
 ### 🩹 Fixes

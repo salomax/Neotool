@@ -1,3 +1,13 @@
+## 0.14.5 (2026-07-30)
+
+### 🩹 Fixes
+
+- **banking:** absorb come-cotas eligibility ([#540](https://github.com/invistus/invistus/issues/540))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.14.4 (2026-07-30)
 
 ### 💅 Refactors
