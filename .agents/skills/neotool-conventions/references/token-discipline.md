@@ -31,8 +31,16 @@ If multiple modules changed, run ring 1 per touched module before escalating any
 - Prefer RTK-compressed shell output when the hook is active (see escape hatch below).
 - Cap follow-up reads: summarize what failed (test name, assertion, first stack frame) before
   opening more files.
-- For **code discovery**, prefer the Semble MCP / CLI over exploratory Grep+Read sweeps — see
-  [semble-search.md](semble-search.md).
+- **Code discovery gate (mandatory):** Before any exploratory `Grep`/`Read`/`find`/`rg`, you
+  MUST run a Semble call first — how: [semble-search.md](semble-search.md). Direct reads without
+  Semble are allowed only when:
+  - The exact file path is already known (from a diff, stack trace, issue, or a prior Semble
+    result).
+  - The file will be edited — read-before-edit is required and is not exploration.
+  - Listing a directory for structural orientation.
+  - Spot-checking a symbol whose owning file is already identified.
+  After the first Semble hit, expand the neighborhood of a known point with `find-related`
+  instead of opening adjacent files by hand.
 
 ## 2.5. Sandbox-friendly JVM / Gradle defaults
 

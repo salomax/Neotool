@@ -10,7 +10,7 @@ description: >
   An issue number is required — ask for it immediately if not provided.
 metadata:
   author: invistus
-  version: "1.1"
+  version: "1.2"
 ---
 
 # Code Review — Invistus
@@ -64,6 +64,9 @@ Read the relevant local skills based on what the diff touches:
 Judge the code against these skills. A deviation from a documented convention is a finding, not a matter of taste.
 
 ### 4. Review the diff
+
+When you need code outside the diff (blast radius, related flows), apply the code-discovery
+gate in [token-discipline.md](../neotool-conventions/references/token-discipline.md) §2.
 
 Evaluate the change across these dimensions. Be specific — cite file and, where possible, the concern:
 

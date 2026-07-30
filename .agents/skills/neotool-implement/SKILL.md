@@ -11,7 +11,7 @@ description: >
 compatibility: Requires GitHub MCP or gh CLI. Reads skills from .agents/skills/ at the project root.
 metadata:
   author: invistus
-  version: "1.4"
+  version: "1.5"
 ---
 
 # Implementation Orchestrator — Invistus
@@ -19,10 +19,11 @@ metadata:
 Coordinate the full implementation of a GitHub issue by reading its backlog, loading the right
 skills for the scope, and executing tasks one by one.
 
-**Token discipline (v1.3):** apply
+**Token discipline:** apply
 [neotool-conventions/references/token-discipline.md](../neotool-conventions/references/token-discipline.md)
-for every implementation — narrowest tests first, bound CLI output, summarize before re-run,
-broad-rerun cap, minimal-path GitHub lookups. Do not re-author those rules here.
+for every implementation — code-discovery gate, narrowest tests first, bound CLI output,
+summarize before re-run, broad-rerun cap, minimal-path GitHub lookups. Do not re-author those
+rules here.
 
 ## Non-negotiable rules
 
@@ -102,7 +103,7 @@ Skip branch creation — proceed with implementation. The user will handle the g
 Work through the backlog checklist top to bottom. For each task:
 
 1. Read the task description
-2. Locate the relevant code area (explore the codebase — do not guess file paths)
+2. Locate the relevant code area (apply the code-discovery gate in `token-discipline.md` §2 — do not guess file paths)
 3. Implement the change following the loaded skill conventions
 4. Verify the change compiles / lints before moving on
 5. Update the task checkbox on the issue comment to `[x]`

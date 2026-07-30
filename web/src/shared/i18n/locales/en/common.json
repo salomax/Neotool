@@ -113,6 +113,33 @@
         "REMOVED": "Removed"
       }
     },
+    "connectedAgents": {
+      "title": "Connected agents",
+      "loading": "Loading connected agents...",
+      "loadError": "Could not load connected agents.",
+      "empty": "No connected agents found.",
+      "connectedAtLabel": "Connected at: {{value}}",
+      "lastGrantedAtLabel": "Last granted at: {{value}}",
+      "noRecentActivity": "No recent activity.",
+      "unknownTool": "Unknown tool",
+      "revokeAction": "Revoke access",
+      "revokeConfirmTitle": "Revoke connected agent?",
+      "revokeConfirmDescription": "Are you sure you want to revoke {{name}}?",
+      "revokeSuccess": "Connected agent revoked successfully.",
+      "actionError": "Could not update the connected agent. Please try again.",
+      "table": {
+        "ariaLabel": "Connected agents table",
+        "agent": "Agent",
+        "access": "Access",
+        "recentActivity": "Recent activity",
+        "actions": "Actions"
+      },
+      "activityOutcome": {
+        "SUCCESS": "Success",
+        "ERROR": "Error",
+        "REJECTED": "Rejected"
+      }
+    },
     "invitation": {
       "acceptedTitle": "Invitation accepted",
       "acceptedDescription": "You now have access to {{accountName}}.",

@@ -113,6 +113,33 @@
         "REMOVED": "Removido"
       }
     },
+    "connectedAgents": {
+      "title": "Agentes conectados",
+      "loading": "Carregando agentes conectados...",
+      "loadError": "Não foi possível carregar os agentes conectados.",
+      "empty": "Nenhum agente conectado encontrado.",
+      "connectedAtLabel": "Conectado em: {{value}}",
+      "lastGrantedAtLabel": "Última concessão em: {{value}}",
+      "noRecentActivity": "Sem atividade recente.",
+      "unknownTool": "Ferramenta desconhecida",
+      "revokeAction": "Revogar acesso",
+      "revokeConfirmTitle": "Revogar agente conectado?",
+      "revokeConfirmDescription": "Tem certeza de que deseja revogar {{name}}?",
+      "revokeSuccess": "Agente conectado revogado com sucesso.",
+      "actionError": "Não foi possível atualizar o agente conectado. Tente novamente.",
+      "table": {
+        "ariaLabel": "Tabela de agentes conectados",
+        "agent": "Agente",
+        "access": "Acesso",
+        "recentActivity": "Atividade recente",
+        "actions": "Ações"
+      },
+      "activityOutcome": {
+        "SUCCESS": "Sucesso",
+        "ERROR": "Erro",
+        "REJECTED": "Rejeitado"
+      }
+    },
     "invitation": {
       "acceptedTitle": "Convite aceito",
       "acceptedDescription": "Agora você tem acesso a {{accountName}}.",

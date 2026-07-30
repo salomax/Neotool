@@ -13,7 +13,7 @@ description: >
 compatibility: Requires GitHub MCP (preferred) or gh CLI for issue and branch creation.
 metadata:
   author: invistus
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Open Issue — Invistus
@@ -40,6 +40,9 @@ If Marcos has already described the requirement, move to Step 2 immediately.
 If the thread just started, ask: "What's the requirement or problem you want to capture?"
 
 ## Step 2 — Fill the issue template
+
+When inspecting the codebase to ground scope or services, apply the code-discovery gate in
+[token-discipline.md](../neotool-conventions/references/token-discipline.md) §2.
 
 Produce a structured draft using the fields below. Present it clearly in the thread.
 
