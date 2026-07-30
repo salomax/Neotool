@@ -57,6 +57,7 @@ class FixedIncomeValuationServiceTest {
         val result =
             service.estimate(
                 holding = h,
+                assetType = AssetType.CDB,
                 indicatorRates = emptyMap(),
             )
 
@@ -82,6 +83,7 @@ class FixedIncomeValuationServiceTest {
         val result =
             service.estimate(
                 holding = h,
+                assetType = AssetType.CDB,
                 indicatorRates = mapOf(Indexer.CDI to cdiAnnual),
             )
 
@@ -150,6 +152,7 @@ class FixedIncomeValuationServiceTest {
         val result =
             service.estimate(
                 holding = h,
+                assetType = AssetType.CDB,
                 indicatorRates = mapOf(Indexer.CDI to BigDecimal("0.1449119371")),
                 monthlySeries = monthlySeries,
             )
@@ -176,6 +179,7 @@ class FixedIncomeValuationServiceTest {
         val result =
             service.estimate(
                 holding = h,
+                assetType = AssetType.CDB,
                 indicatorRates = mapOf(Indexer.IPCA to ipcaAnnual),
             )
 
@@ -208,6 +212,7 @@ class FixedIncomeValuationServiceTest {
         val result =
             service.estimate(
                 holding = h,
+                assetType = AssetType.LCI,
                 indicatorRates = emptyMap(),
             )
 
@@ -232,6 +237,7 @@ class FixedIncomeValuationServiceTest {
         val resultAtMaturity =
             service.estimate(
                 holding = h,
+                assetType = AssetType.CDB,
                 indicatorRates = emptyMap(),
             )
 
@@ -239,6 +245,7 @@ class FixedIncomeValuationServiceTest {
         val resultExactMaturity =
             serviceAtMaturity.estimate(
                 holding = h,
+                assetType = AssetType.CDB,
                 indicatorRates = emptyMap(),
             )
 
@@ -262,6 +269,7 @@ class FixedIncomeValuationServiceTest {
         val result =
             service.estimate(
                 holding = h,
+                assetType = AssetType.CDB,
                 indicatorRates = emptyMap(),
             )
 
@@ -285,6 +293,7 @@ class FixedIncomeValuationServiceTest {
         val result =
             service.estimate(
                 holding = h,
+                assetType = AssetType.CDB,
                 indicatorRates = mapOf(Indexer.CDI to BigDecimal("0.12")),
             )
 
@@ -311,6 +320,7 @@ class FixedIncomeValuationServiceTest {
         val result =
             service.estimate(
                 holding = h,
+                assetType = AssetType.CDB,
                 indicatorRates = emptyMap(),
             )
 
@@ -371,6 +381,7 @@ class FixedIncomeValuationServiceTest {
         val result =
             service.estimate(
                 holding = h,
+                assetType = AssetType.CDB,
                 indicatorRates = mapOf(Indexer.IPCA to BigDecimal("0.0701")),
                 monthlySeries = monthlySeries,
             )
@@ -422,6 +433,7 @@ class FixedIncomeValuationServiceTest {
         val historical =
             service.estimate(
                 holding = h,
+                assetType = AssetType.CDB,
                 indicatorRates = mapOf(Indexer.IPCA to BigDecimal("0.0701")),
                 monthlySeries = monthlySeries,
                 asOfDate = LocalDate.of(2026, 3, 27),
@@ -429,6 +441,7 @@ class FixedIncomeValuationServiceTest {
         val projected =
             service.estimate(
                 holding = h,
+                assetType = AssetType.CDB,
                 indicatorRates = mapOf(Indexer.IPCA to BigDecimal("0.0701")),
                 monthlySeries = monthlySeries,
                 asOfDate = LocalDate.of(2026, 3, 28),
@@ -471,12 +484,14 @@ class FixedIncomeValuationServiceTest {
         val withCoupon =
             service.estimate(
                 holding = holding,
+                assetType = AssetType.CDB,
                 indicatorRates = mapOf(Indexer.CDI to BigDecimal("0.12")),
                 transactions = listOf(lastCouponPayment),
             )
         val withoutCoupon =
             service.estimate(
                 holding = holding,
+                assetType = AssetType.CDB,
                 indicatorRates = mapOf(Indexer.CDI to BigDecimal("0.12")),
             )
 
@@ -484,5 +499,36 @@ class FixedIncomeValuationServiceTest {
         assertThat(withoutCoupon.grossValue).isNotNull
         assertThat(withCoupon.grossValue!!).isGreaterThan(BigDecimal("10000.00"))
         assertThat(withCoupon.grossValue!!).isLessThan(withoutCoupon.grossValue)
+    }
+
+    @Test
+    fun `DEBENTURES tax exemption flag changes income tax treatment`() {
+        val tPlus200 = startDate.plusDays(250)
+        val service = FixedIncomeValuationService { tPlus200 }
+        val taxableHolding =
+            holding(
+                indexer = Indexer.PRE_FIXADO,
+                quantity = "10000.00",
+                averageCost = "1.00",
+                fixedAnnualRate = "0.12",
+                isTaxExempt = false,
+            )
+        val exemptHolding = taxableHolding.copy(isTaxExempt = true)
+
+        val taxableResult =
+            service.estimate(
+                holding = taxableHolding,
+                assetType = AssetType.DEBENTURES,
+                indicatorRates = emptyMap(),
+            )
+        val exemptResult =
+            service.estimate(
+                holding = exemptHolding,
+                assetType = AssetType.DEBENTURES,
+                indicatorRates = emptyMap(),
+            )
+
+        assertThat(taxableResult.incomeTax).isGreaterThan(BigDecimal.ZERO)
+        assertThat(exemptResult.incomeTax).isEqualByComparingTo(BigDecimal.ZERO)
     }
 }
