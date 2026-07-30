@@ -1,3 +1,13 @@
+## 0.10.5 (2026-07-30)
+
+### 🚀 Features
+
+- **contracts:** udpate graphql contracts ([170fd965](https://github.com/invistus/invistus/commit/170fd965))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.10.4 (2026-07-29)
 
 ### 🚀 Features
