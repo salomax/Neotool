@@ -1,3 +1,13 @@
+## 0.15.0 (2026-07-30)
+
+### 🚀 Features
+
+- **banking:** add tax recalculation queue ([d586fbe5](https://github.com/invistus/invistus/commit/d586fbe5))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.14.7 (2026-07-30)
 
 ### 🩹 Fixes
