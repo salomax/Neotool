@@ -1,3 +1,16 @@
+## 0.14.3 (2026-07-30)
+
+### 💅 Refactors
+
+- **banking:** migrate fixed income valuation ([7f053e30](https://github.com/invistus/invistus/commit/7f053e30))
+- **banking:** migrate fixed income valuation ([f2ea99c0](https://github.com/invistus/invistus/commit/f2ea99c0))
+- **banking:** migrate fixed income valuation ([3a46f2b1](https://github.com/invistus/invistus/commit/3a46f2b1))
+- **banking:** migrate fixed income valuation ([ec90b6e2](https://github.com/invistus/invistus/commit/ec90b6e2))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.14.2 (2026-07-29)
 
 ### 💅 Refactors
