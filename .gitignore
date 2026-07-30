@@ -132,6 +132,7 @@ terraform.rc
 .cursor/*
 !.cursor/mcp.json
 .codex/
+.opencode/
 .mcp.json
 
 # Drafting ideas
@@ -145,6 +146,10 @@ web/tsconfig.vitest.tsbuildinfo
 web/core 
 
 .neotool/
+
+# Graphify knowledge-graph output (local / DevPod)
+graphify-out/
+.graphify_detect.json
 
 *_stderr.txt
 *_stdout.txt

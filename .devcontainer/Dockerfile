@@ -185,6 +185,17 @@ RUN uv tool install "headroom-ai[proxy]==${HEADROOM_VERSION}" \
     && command -v headroom
 
 # -----------------------------------------------------------------------------
+# 7e. Graphify (knowledge-graph skill/CLI) — pinned via uv tool, same pattern as
+#     Semble. Agent skill wiring runs in postCreate via setup-graphify.sh.
+#     Package name on PyPI is temporarily `graphifyy`; CLI remains `graphify`.
+#     Docs: https://github.com/Graphify-Labs/graphify
+# -----------------------------------------------------------------------------
+ARG GRAPHIFY_VERSION=0.9.30
+RUN uv tool install "graphifyy[mcp]==${GRAPHIFY_VERSION}" \
+    && graphify --help >/dev/null \
+    && command -v graphify
+
+# -----------------------------------------------------------------------------
 # 8. Python agent dependencies
 # -----------------------------------------------------------------------------
 RUN pip3 install --break-system-packages slack-bolt
@@ -309,6 +320,7 @@ RUN java -version \
     && uv --version \
     && semble --help >/dev/null \
     && headroom --help >/dev/null \
+    && graphify --help >/dev/null \
     && test -x "/home/${USERNAME}/.rover/bin/supergraph-v${SUPERGRAPH_PLUGIN_VERSION}" \
     && cursor --help > /dev/null 2>&1 || true \
     && cloudflared --version 2>&1 || true

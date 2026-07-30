@@ -19,7 +19,8 @@ codex login
 
 `devpod stop` / `devpod up` without recreate keeps the container filesystem (OAuth
 sessions survive). Tooling is baked in the image: `claude`, `codex`, `opencode`,
-`rtk`, `semble`, `headroom` (proxy on `127.0.0.1:8787` via `start-headroom.sh`).
+`rtk`, `semble`, `graphify`, `headroom` (proxy on `127.0.0.1:8787` via
+`start-headroom.sh`).
 
 ## RTK (Rust Token Killer) — shell output discipline
 
@@ -51,6 +52,25 @@ DevPod pins `semble[mcp]==0.5.2` and wires the MCP server on `postCreate`
 semble search "how is MCP write idempotency claimed" .
 semble find-related path/to/File.kt 42 .
 ```
+
+## Graphify — knowledge graph
+
+[Graphify](https://github.com/Graphify-Labs/graphify) turns a folder (code + docs)
+into a queryable local knowledge graph (`graphify-out/`). Use it for architecture
+maps, cross-file paths, and god-node exploration — **not** as a replacement for
+Semble when you only need to locate a symbol/snippet.
+
+DevPod pins `graphifyy[mcp]==0.9.30` (CLI is still `graphify`) and wires Claude /
+Codex / OpenCode skills on `postCreate` (`.devcontainer/setup-graphify.sh`).
+
+```bash
+/graphify .                                 # build / refresh the graph
+graphify query "how is OAuth consent stored?"
+graphify path "ConnectedAgentsService" "OAuth2ConsentRepository"
+graphify explain "SecurityWiringFactory"
+```
+
+Output lives under `graphify-out/` (gitignored). AST code passes need no LLM.
 
 ## Headroom — token-saving proxy
 

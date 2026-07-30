@@ -36,10 +36,17 @@ await getTransactions(accountId, token, importFixtureTransactionQuery());
 
 ## Locators
 
+Prefer role / testid over substring text. Title strings often appear again in loading/empty copy
+(strict-mode violation when `getByText` matches both).
+
 ```typescript
 // ❌ page.getByTestId('pending-action-btn').toHaveCount(1)
 // ✅ scope to row
 await expect(holdingRow.getByTestId('pending-action-btn')).toBeVisible();
+
+// ❌ page.getByText(/Connected agents/i)  // also matches "Loading connected agents..."
+// ✅ page.getByRole('heading', { name: /Connected agents|Agentes conectados/i })
+// ✅ page.getByTestId('connected-agents-section')
 ```
 
 ## Idempotency / TWR stress

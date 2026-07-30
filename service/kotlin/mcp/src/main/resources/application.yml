@@ -84,7 +84,7 @@ security:
 mcp:
   dispatch:
     banking-service:
-      url: ${MCP_BANKING_SERVICE_URL:http://localhost:8092/graphql}
+      url: ${MCP_BANKING_SERVICE_URL}
       target-audience: ${MCP_BANKING_SERVICE_AUDIENCE:banking}
   resource:
     audience: ${MCP_RESOURCE_AUDIENCE}
