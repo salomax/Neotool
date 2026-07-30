@@ -74,7 +74,11 @@ open class McpRateLimitIntegrationTest :
     @Test
     fun `tool call over the limit returns 429 with retry after and succeeds again after window rollover`() {
         val token = McpJwtTestFixture.accessToken(scope = transactionsReadScope)
-        exhaustDefaultReadLimit(token) { toolCallRequest(it) }
+        // One allowed call creates the current-window counter rows; saturating via SQL avoids
+        // burning through the default 60-request / 60s window (which flakes across minute boundaries).
+        val underLimit = client.toBlocking().exchange(toolCallRequest(token), String::class.java)
+        assertThat(underLimit.status).isEqualTo(HttpStatus.OK)
+        saturateCounters()
 
         val exception =
             assertThrows<HttpClientResponseException> {
@@ -84,21 +88,23 @@ open class McpRateLimitIntegrationTest :
         val countersAfterLimit = findCounters()
 
         assertThat(overLimit.status)
-            .withFailMessage("expected 429 on the 61st request; counters were %s", countersAfterLimit)
+            .withFailMessage("expected 429 after saturating counters; counters were %s", countersAfterLimit)
             .isEqualTo(HttpStatus.TOO_MANY_REQUESTS)
         val retryAfterSeconds = overLimit.header("Retry-After")!!.toLong()
         assertThat(retryAfterSeconds).isPositive()
 
         expireCounters()
 
-        val third = client.toBlocking().exchange(toolCallRequest(token), String::class.java)
-        assertThat(third.status).isEqualTo(HttpStatus.OK)
+        val afterRollover = client.toBlocking().exchange(toolCallRequest(token), String::class.java)
+        assertThat(afterRollover.status).isEqualTo(HttpStatus.OK)
     }
 
     @Test
     fun `sse endpoint returns json 429 with retry after once the read limit is exceeded`() {
         val token = McpJwtTestFixture.accessToken(scope = transactionsReadScope)
-        exhaustDefaultReadLimit(token) { eventsRequest(it) }
+        val underLimit = client.toBlocking().exchange(eventsRequest(token), String::class.java)
+        assertThat(underLimit.status).isEqualTo(HttpStatus.OK)
+        saturateCounters()
 
         val exception =
             assertThrows<HttpClientResponseException> {
@@ -108,18 +114,6 @@ open class McpRateLimitIntegrationTest :
         assertThat(exception.status).isEqualTo(HttpStatus.TOO_MANY_REQUESTS)
         assertThat(exception.response.contentType.orElse(null)).isEqualTo(MediaType.APPLICATION_JSON_TYPE)
         assertThat(exception.response.header("Retry-After")).isNotBlank()
-    }
-
-    private fun exhaustDefaultReadLimit(
-        token: String,
-        requestFactory: (String) -> HttpRequest<Map<String, Any>>,
-    ) {
-        repeat(60) { attempt ->
-            val response = client.toBlocking().exchange(requestFactory(token), String::class.java)
-            assertThat(response.status)
-                .withFailMessage("expected request %s to remain under the default read limit", attempt + 1)
-                .isEqualTo(HttpStatus.OK)
-        }
     }
 
     private fun toolCallRequest(token: String): HttpRequest<Map<String, Any>> =
@@ -172,6 +166,20 @@ open class McpRateLimitIntegrationTest :
         }
     }
 
+    private fun saturateCounters() {
+        val container = getPgContainer()
+        DriverManager.getConnection(container.jdbcUrl, container.username, container.password).use { conn ->
+            conn.createStatement().use { stmt ->
+                stmt.execute(
+                    """
+                    UPDATE mcp.rate_limit_counters
+                    SET request_count = 100000
+                    """.trimIndent(),
+                )
+            }
+        }
+    }
+
     private fun expireCounters() {
         val container = getPgContainer()
         DriverManager.getConnection(container.jdbcUrl, container.username, container.password).use { conn ->
@@ -179,7 +187,7 @@ open class McpRateLimitIntegrationTest :
                 stmt.execute(
                     """
                     UPDATE mcp.rate_limit_counters
-                    SET window_start = window_start - INTERVAL '2 minutes'
+                    SET window_start = window_start - ((window_size_ms + 1000) * INTERVAL '1 millisecond')
                     """.trimIndent(),
                 )
             }
