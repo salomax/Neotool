@@ -1,3 +1,13 @@
+## 0.14.6 (2026-07-30)
+
+### 🩹 Fixes
+
+- **banking:** reconcile checkpoint withholding ([#542](https://github.com/invistus/invistus/issues/542))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.14.5 (2026-07-30)
 
 ### 🩹 Fixes
