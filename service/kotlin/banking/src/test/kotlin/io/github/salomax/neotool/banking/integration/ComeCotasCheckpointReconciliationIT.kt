@@ -11,14 +11,23 @@ import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
+import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
+import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
 import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.UpdateInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointJobRepository
 import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
+import io.github.salomax.neotool.banking.repo.investment.TaxRecalculationJobRepository
+import io.github.salomax.neotool.banking.repo.portfolio.AssetDailyPriceRepository
+import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
+import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJobRepository
 import io.github.salomax.neotool.banking.service.investment.ComeCotasCheckpointService
 import io.github.salomax.neotool.banking.service.investment.ComeCotasSupport
 import io.github.salomax.neotool.banking.service.investment.InvestmentTransactionService
+import io.github.salomax.neotool.banking.service.investment.PortfolioRecalculationService
+import io.github.salomax.neotool.banking.service.investment.TaxRecalculationService
 import io.micronaut.context.annotation.Replaces
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
@@ -28,6 +37,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.sql.DriverManager
 import java.time.LocalDate
 import java.util.UUID
@@ -62,6 +72,24 @@ class ComeCotasCheckpointReconciliationIT : BankingPostgresIntegrationTest() {
 
     @Inject
     lateinit var holdingRepository: HoldingRepository
+
+    @Inject
+    lateinit var taxRecalculationService: TaxRecalculationService
+
+    @Inject
+    lateinit var taxRecalculationJobRepository: TaxRecalculationJobRepository
+
+    @Inject
+    lateinit var portfolioRecalculationService: PortfolioRecalculationService
+
+    @Inject
+    lateinit var portfolioRecalculationJobRepository: PortfolioRecalculationJobRepository
+
+    @Inject
+    lateinit var portfolioQuotaRepository: PortfolioQuotaRepository
+
+    @Inject
+    lateinit var assetDailyPriceRepository: AssetDailyPriceRepository
 
     private lateinit var accountId: UUID
     private lateinit var userId: UUID
@@ -241,6 +269,31 @@ class ComeCotasCheckpointReconciliationIT : BankingPostgresIntegrationTest() {
         assertThat(withholding.grossValue).isEqualByComparingTo("29.39")
     }
 
+    @Test
+    fun `historical purchase edit converges checkpoint transaction and quota history regardless of order`() {
+        val editThenReprocess =
+            runHistoricalEditScenario(
+                preEditAction = { _, _ -> },
+                editedQuantity = BigDecimal("1200.00000000"),
+            )
+        val reprocessThenEdit =
+            runHistoricalEditScenario(
+                preEditAction = { holdingId, checkpointDate ->
+                    taxRecalculationService.requestRecalculation(
+                        holdingId = holdingId,
+                        accountId = accountId,
+                        recalculateFrom = checkpointDate,
+                        triggeredBy = "integration:no-op-prepass",
+                    )
+                    processPendingTaxRecalculationJobs(holdingId)
+                    processPendingPortfolioJobs()
+                },
+                editedQuantity = BigDecimal("1200.00000000"),
+            )
+
+        assertThat(editThenReprocess).isEqualTo(reprocessThenEdit)
+    }
+
     private fun processCheckpoint(
         holdingId: UUID,
         checkpointDate: LocalDate,
@@ -258,6 +311,130 @@ class ComeCotasCheckpointReconciliationIT : BankingPostgresIntegrationTest() {
                 )
         checkpointService.process(requireNotNull(job.id))
     }
+
+    private fun processPendingTaxRecalculationJobs(holdingId: UUID) {
+        while (true) {
+            val pending = taxRecalculationJobRepository.findPendingByHolding(holdingId) ?: break
+            taxRecalculationService.process(requireNotNull(pending.id))
+        }
+    }
+
+    private fun processPendingPortfolioJobs() {
+        while (true) {
+            val pending = portfolioRecalculationJobRepository.findPendingByAccount(accountId) ?: break
+            portfolioRecalculationService.process(requireNotNull(pending.id))
+        }
+    }
+
+    private fun upsertPrice(
+        date: LocalDate,
+        closePrice: String,
+    ) {
+        assetDailyPriceRepository.upsert(
+            InvestmentAssetDailyPrice(
+                assetId = assetId,
+                priceDate = date,
+                closePrice = BigDecimal(closePrice),
+                source = "TEST",
+            ),
+        )
+    }
+
+    private fun runHistoricalEditScenario(
+        preEditAction: (UUID, LocalDate) -> Unit,
+        editedQuantity: BigDecimal,
+    ): RecalculationCascadeSnapshot {
+        setUpFixture()
+        val purchaseDate = LocalDate.of(2025, 6, 2)
+        val checkpointDate = LocalDate.of(2025, 11, 28)
+        val today = LocalDate.of(2026, 7, 30)
+
+        upsertPrice(purchaseDate, "1.00")
+        upsertPrice(checkpointDate, "1.10")
+        upsertPrice(today, "1.20")
+
+        val purchase =
+            investmentTransactionService.record(
+                command =
+                    RecordInvestmentTransactionCommand(
+                        financialAccountId = financialAccountId,
+                        assetId = assetId,
+                        direction = InvestmentTransactionDirection.INFLOW,
+                        type = InvestmentTransactionType.PURCHASE,
+                        quantity = BigDecimal("1000.00000000"),
+                        unitPrice = BigDecimal("1.00000000"),
+                        grossValue = BigDecimal("1000.00"),
+                        netValue = BigDecimal("1000.00"),
+                        tradeDate = purchaseDate,
+                        settlementDate = purchaseDate,
+                        source = InvestmentSource.MANUAL,
+                    ),
+                accountId = accountId,
+                userId = userId,
+            )
+        val holdingId =
+            requireNotNull(
+                holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId),
+            ).id.let(::requireNotNull)
+
+        processPendingPortfolioJobs()
+        processCheckpoint(holdingId, checkpointDate)
+        processPendingPortfolioJobs()
+
+        preEditAction(holdingId, checkpointDate)
+
+        investmentTransactionService.update(
+            id = requireNotNull(purchase.id),
+            command =
+                UpdateInvestmentTransactionCommand(
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = editedQuantity,
+                    unitPrice = BigDecimal("1.00000000"),
+                    grossValue = editedQuantity.setScale(2, RoundingMode.HALF_UP),
+                    netValue = editedQuantity.setScale(2, RoundingMode.HALF_UP),
+                    tradeDate = purchaseDate,
+                    settlementDate = purchaseDate,
+                ),
+            accountId = accountId,
+            userId = userId,
+        )
+
+        processPendingTaxRecalculationJobs(holdingId)
+        processPendingPortfolioJobs()
+
+        val checkpoint =
+            checkpointRepository.findByHoldingAndDateRange(holdingId, checkpointDate, checkpointDate).single()
+        val withholding =
+            investmentTransactionRepository.findByHolding(holdingId, accountId)
+                .single { it.type == InvestmentTransactionType.WITHHOLDING_TAX }
+        val quotaSnapshot =
+            portfolioQuotaRepository.findByAccountAndDateRange(
+                financialAccountId = financialAccountId,
+                dimensionType = PortfolioDimensionType.PORTFOLIO,
+                dimensionKey = null,
+                from = purchaseDate.minusDays(1),
+                to = today,
+            ).sortedBy { it.quotaDate }.map { row ->
+                "${row.quotaDate}|${row.quotaValue}|${row.totalQuotas}|${row.totalPortfolioValue}"
+            }
+
+        return RecalculationCascadeSnapshot(
+            checkpointComputedAmount = checkpoint.computedAmount,
+            checkpointWithheldAmount = checkpoint.withheldAmount,
+            withholdingGrossValue = withholding.grossValue,
+            withholdingQuantity = requireNotNull(withholding.quantity),
+            quotaSnapshot = quotaSnapshot,
+        )
+    }
+
+    private data class RecalculationCascadeSnapshot(
+        val checkpointComputedAmount: BigDecimal,
+        val checkpointWithheldAmount: BigDecimal,
+        val withholdingGrossValue: BigDecimal,
+        val withholdingQuantity: BigDecimal,
+        val quotaSnapshot: List<String>,
+    )
 
     private fun openConnection() =
         getPgContainer().let { container ->

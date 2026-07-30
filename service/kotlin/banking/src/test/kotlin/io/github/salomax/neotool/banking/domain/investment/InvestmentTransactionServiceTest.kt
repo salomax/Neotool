@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.domain.investment
 
+import io.github.salomax.neotool.banking.client.investment.financialdata.FundMarketDataProvider
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
@@ -17,11 +18,13 @@ import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransaction
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.attachment.HoldingAttachmentRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.repo.investment.TaxRecalculationJobRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.investment.ConfirmWithholdingTaxService
 import io.github.salomax.neotool.banking.service.investment.InvestmentTransactionService
 import io.github.salomax.neotool.banking.service.investment.PortfolioFlowEventService
 import io.github.salomax.neotool.banking.service.investment.TaxRecalculationService
@@ -33,6 +36,7 @@ import io.github.salomax.neotool.banking.service.investment.lifecycle.PortfolioF
 import io.github.salomax.neotool.banking.service.investment.lifecycle.TaxRecalculationHandler
 import io.github.salomax.neotool.banking.service.investment.recalculation.HoldingPositionEvolution
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
+import jakarta.inject.Provider
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -68,6 +72,9 @@ class InvestmentTransactionServiceTest {
     private lateinit var portfolioFlowEventService: PortfolioFlowEventService
     private lateinit var holdingAttachmentRepository: HoldingAttachmentRepository
     private lateinit var taxRecalculationJobRepository: TaxRecalculationJobRepository
+    private lateinit var checkpointRepository: ComeCotasCheckpointRepository
+    private lateinit var fundMarketDataProvider: FundMarketDataProvider
+    private lateinit var confirmWithholdingTaxService: ConfirmWithholdingTaxService
     private lateinit var service: InvestmentTransactionService
 
     private val accountId = UUID.randomUUID()
@@ -171,10 +178,21 @@ class InvestmentTransactionServiceTest {
         portfolioFlowEventService = mock()
         holdingAttachmentRepository = mock()
         taxRecalculationJobRepository = mock()
+        checkpointRepository = mock()
+        fundMarketDataProvider = mock()
+        confirmWithholdingTaxService = mock()
         val taxRecalculationService =
             TaxRecalculationService(
                 holdingRepository = holdingRepository,
                 assetRepository = assetRepository,
+                checkpointRepository = checkpointRepository,
+                investmentTransactionRepository = investmentTransactionRepository,
+                fundMarketDataProvider = fundMarketDataProvider,
+                confirmWithholdingTaxServiceProvider =
+                    object : Provider<ConfirmWithholdingTaxService> {
+                        override fun get(): ConfirmWithholdingTaxService = confirmWithholdingTaxService
+                    },
+                portfolioFlowEventService = portfolioFlowEventService,
                 taxRecalculationJobRepository = taxRecalculationJobRepository,
             )
         val lifecycleOrchestrator =

@@ -24,7 +24,9 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.WITHHOLDING_TAX
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
 import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionType
+import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.model.dto.investment.ConfirmWithholdingTaxCommand
 import io.github.salomax.neotool.banking.model.dto.investment.ManualFundValuation
 import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.model.dto.investment.UpdateInvestmentTransactionCommand
@@ -342,6 +344,107 @@ open class InvestmentTransactionService(
             triggeredBy = "investment_tx_delete:$id",
         )
         return true
+    }
+
+    @Transactional
+    open fun reconcileSystemWithholdingTax(
+        holding: Holding,
+        command: ConfirmWithholdingTaxCommand,
+        accountId: UUID,
+        userId: UUID,
+    ): InvestmentTransaction? {
+        val holdingId = requireNotNull(holding.id) { "Holding id must not be null" }
+        val now = Instant.now()
+        val existing =
+            command.providerTransactionId?.let { providerTransactionId ->
+                investmentTransactionRepository.findByProviderTransactionId(
+                    financialAccountId = holding.financialAccountId,
+                    accountId = accountId,
+                    providerTransactionId = providerTransactionId,
+                )
+            }
+        val amount = command.irValue.setScale(2, RoundingMode.HALF_UP)
+        val quantity = command.quotasDeducted.setScale(8, RoundingMode.HALF_UP)
+
+        if (amount <= BigDecimal.ZERO || quantity <= BigDecimal.ZERO) {
+            if (existing != null) {
+                val existingId = requireNotNull(existing.id) { "Investment transaction id must not be null" }
+                val deleted = investmentTransactionRepository.softDelete(existingId, accountId)
+                check(deleted) { "Failed to soft-delete synthetic withholding transaction $existingId" }
+                recomputeHoldingAfterDelete(holding, accountId)
+                portfolioFlowEventService.deleteEventBySourceReference(
+                    sourceReferenceId = existingId,
+                    sourceReferenceType = PORTFOLIO_EVENT_SOURCE_INVESTMENT_TRANSACTION,
+                )
+            }
+            return null
+        }
+
+        if (existing == null) {
+            require(holding.quantity >= quantity) {
+                "Come-cotas quantity ($quantity) exceeds current holding quantity (${holding.quantity})"
+            }
+            val unitPrice = amount.divide(quantity, HOLDING_TAX_UNIT_PRICE_SCALE, RoundingMode.HALF_UP)
+            return record(
+                command =
+                    RecordInvestmentTransactionCommand(
+                        financialAccountId = holding.financialAccountId,
+                        assetId = holding.assetId,
+                        direction = OUTFLOW,
+                        type = WITHHOLDING_TAX,
+                        grossValue = amount,
+                        netValue = amount,
+                        incomeTax = amount,
+                        quantity = quantity,
+                        unitPrice = unitPrice,
+                        tradeDate = command.tradeDate,
+                        settlementDate = command.tradeDate,
+                        source = command.source,
+                        providerInvestmentId = holding.providerInvestmentId,
+                        providerTransactionId = command.providerTransactionId,
+                    ),
+                accountId = accountId,
+                userId = userId,
+            )
+        }
+
+        require(existing.holdingId == holdingId) {
+            "Synthetic withholding transaction ${existing.id} does not belong to holding $holdingId"
+        }
+        require(existing.type == WITHHOLDING_TAX && existing.source == InvestmentSource.SYSTEM) {
+            "Only system WITHHOLDING_TAX transactions can be reconciled"
+        }
+        val restoredQuantity = holding.quantity.add(existing.quantity ?: BigDecimal.ZERO)
+        require(restoredQuantity >= quantity) {
+            "Come-cotas quantity ($quantity) exceeds restored holding quantity ($restoredQuantity)"
+        }
+
+        val updatedTx =
+            existing.copy(
+                grossValue = amount,
+                netValue = amount,
+                incomeTax = amount,
+                quantity = quantity,
+                unitPrice = amount.divide(quantity, HOLDING_TAX_UNIT_PRICE_SCALE, RoundingMode.HALF_UP),
+                tradeDate = command.tradeDate,
+                settlementDate = command.tradeDate,
+                updatedAt = now,
+            )
+        val savedTx = investmentTransactionRepository.update(updatedTx)
+        requireNotNull(recomputeHoldingState(holding, accountId, null, now)) {
+            "Holding $holdingId cannot be empty after synthetic withholding reconciliation"
+        }
+        portfolioFlowEventService.recordEvent(
+            financialAccountId = savedTx.financialAccountId,
+            accountId = accountId,
+            eventDate = savedTx.tradeDate,
+            eventType = PortfolioFlowEventType.INCOME_TAX,
+            grossAmount = savedTx.netValue ?: savedTx.grossValue,
+            relatedHoldingId = holdingId,
+            sourceReferenceId = requireNotNull(savedTx.id),
+            sourceReferenceType = PORTFOLIO_EVENT_SOURCE_INVESTMENT_TRANSACTION,
+        )
+        return savedTx
     }
 
     /**
@@ -841,6 +944,11 @@ open class InvestmentTransactionService(
                 "manualValuation requires pricingMode = MANUAL"
             }
         }
+    }
+
+    private companion object {
+        const val HOLDING_TAX_UNIT_PRICE_SCALE = 8
+        const val PORTFOLIO_EVENT_SOURCE_INVESTMENT_TRANSACTION = "INVESTMENT_TRANSACTION"
     }
 }
 

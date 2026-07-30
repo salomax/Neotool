@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.investment
 
-import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
@@ -16,7 +15,6 @@ internal data class OpenLot(
     val quantity: BigDecimal,
     val unitPrice: BigDecimal,
     val tradeDate: LocalDate,
-    val withholdingPaid: BigDecimal = BigDecimal.ZERO,
 )
 
 internal object ComeCotasSupport {
@@ -62,36 +60,6 @@ internal object ComeCotasSupport {
         windowDays: Long = RECONCILIATION_WINDOW_DAYS,
     ): ClosedRange<LocalDate> = checkpointDate.minusDays(windowDays)..checkpointDate.plusDays(windowDays)
 
-    fun estimateProjectedComeCotas(
-        taxProfile: FundTaxProfile,
-        gain: BigDecimal,
-        tradeDate: LocalDate,
-        referenceDate: LocalDate,
-    ): BigDecimal {
-        val checkpointRate =
-            when (taxProfile) {
-                FundTaxProfile.COME_COTAS_LONG -> BigDecimal("0.15")
-                FundTaxProfile.COME_COTAS_SHORT -> BigDecimal("0.20")
-                else -> return BigDecimal.ZERO
-            }
-
-        val totalDays = calendarDaysBetween(tradeDate, referenceDate)
-        if (totalDays <= 0) return BigDecimal.ZERO
-
-        var prepaid = BigDecimal.ZERO
-        var lastAccruedGain = BigDecimal.ZERO
-        checkpointDatesBetween(tradeDate, referenceDate).forEach { checkpoint ->
-            val elapsed = calendarDaysBetween(tradeDate, checkpoint)
-            val accruedGain =
-                gain.multiply(BigDecimal(elapsed), mathContext)
-                    .divide(BigDecimal(totalDays), mathContext)
-            val incrementalGain = (accruedGain - lastAccruedGain).max(BigDecimal.ZERO)
-            prepaid = prepaid.add(incrementalGain.multiply(checkpointRate, mathContext), mathContext)
-            lastAccruedGain = accruedGain
-        }
-        return prepaid
-    }
-
     fun reconstructOpenLots(transactions: List<InvestmentTransaction>): List<OpenLot> {
         val openLots = ArrayDeque<OpenLot>()
         transactions.sortedWith(
@@ -126,12 +94,8 @@ internal object ComeCotasSupport {
                     }
                 }
 
-                tx.type == InvestmentTransactionType.WITHHOLDING_TAX -> {
-                    allocateWithholding(
-                        openLots = openLots,
-                        amount = tx.incomeTax ?: tx.grossValue ?: BigDecimal.ZERO,
-                        quantityDeducted = tx.quantity ?: BigDecimal.ZERO,
-                    )
+                tx.type == InvestmentTransactionType.WITHHOLDING_TAX && tx.quantity != null -> {
+                    consumeLots(openLots, tx.quantity)
                 }
             }
         }
@@ -154,68 +118,9 @@ internal object ComeCotasSupport {
                 remaining = remaining.subtract(lot.quantity, mathContext)
             } else {
                 val remainingQuantity = lot.quantity.subtract(remaining, mathContext)
-                val remainingWithholding = prorateAmount(lot.withholdingPaid, remainingQuantity, lot.quantity)
-                openLots.addFirst(
-                    lot.copy(
-                        quantity = remainingQuantity,
-                        withholdingPaid = remainingWithholding,
-                    ),
-                )
+                openLots.addFirst(lot.copy(quantity = remainingQuantity))
                 remaining = BigDecimal.ZERO
             }
         }
-    }
-
-    private fun allocateWithholding(
-        openLots: ArrayDeque<OpenLot>,
-        amount: BigDecimal,
-        quantityDeducted: BigDecimal,
-    ) {
-        if ((amount <= BigDecimal.ZERO && quantityDeducted <= BigDecimal.ZERO) || openLots.isEmpty()) return
-
-        val lots = openLots.toList()
-        val totalQuantity = lots.fold(BigDecimal.ZERO) { acc, lot -> acc.add(lot.quantity, mathContext) }
-        if (totalQuantity <= BigDecimal.ZERO) return
-
-        openLots.clear()
-        var allocated = BigDecimal.ZERO
-        var deducted = BigDecimal.ZERO
-        lots.forEachIndexed { index, lot ->
-            val withholdingShare =
-                if (index == lots.lastIndex) {
-                    amount.subtract(allocated, mathContext)
-                } else {
-                    prorateAmount(amount, lot.quantity, totalQuantity)
-                }
-            val quantityShare =
-                if (index == lots.lastIndex) {
-                    quantityDeducted.subtract(deducted, mathContext)
-                } else {
-                    prorateAmount(quantityDeducted, lot.quantity, totalQuantity)
-                }
-            allocated = allocated.add(withholdingShare, mathContext)
-            deducted = deducted.add(quantityShare, mathContext)
-
-            val remainingQuantity = lot.quantity.subtract(quantityShare, mathContext).max(BigDecimal.ZERO)
-            if (remainingQuantity > BigDecimal.ZERO) {
-                openLots.addLast(
-                    lot.copy(
-                        quantity = remainingQuantity,
-                        withholdingPaid = lot.withholdingPaid.add(withholdingShare, mathContext),
-                    ),
-                )
-            }
-            // A pro-rata come-cotas should never fully consume all open quantity here because the
-            // checkpoint flow rejects quotasDeducted > holding.quantity before persisting the event.
-        }
-    }
-
-    private fun prorateAmount(
-        amount: BigDecimal,
-        part: BigDecimal,
-        total: BigDecimal,
-    ): BigDecimal {
-        if (amount == BigDecimal.ZERO || part == BigDecimal.ZERO || total == BigDecimal.ZERO) return BigDecimal.ZERO
-        return amount.multiply(part, mathContext).divide(total, mathContext)
     }
 }
