@@ -66,47 +66,6 @@ interface InvestmentTransactionEntityRepository : JpaRepository<InvestmentTransa
 
     @Query(
         """
-        SELECT EXISTS(
-            SELECT 1
-              FROM banking.investment_transactions
-             WHERE holding_id = :holdingId
-               AND account_id = :accountId
-               AND trade_date = :tradeDate
-               AND type = 'WITHHOLDING_TAX'
-               AND deleted_at IS NULL
-        )
-        """,
-        nativeQuery = true,
-    )
-    fun existsWithholdingTaxForHoldingOnTradeDate(
-        holdingId: UUID,
-        accountId: UUID,
-        tradeDate: LocalDate,
-    ): Boolean
-
-    @Query(
-        """
-        SELECT EXISTS(
-            SELECT 1
-              FROM banking.investment_transactions
-             WHERE holding_id = :holdingId
-               AND account_id = :accountId
-               AND trade_date BETWEEN :from AND :to
-               AND type = 'WITHHOLDING_TAX'
-               AND deleted_at IS NULL
-        )
-        """,
-        nativeQuery = true,
-    )
-    fun existsWithholdingTaxForHoldingInDateRange(
-        holdingId: UUID,
-        accountId: UUID,
-        from: LocalDate,
-        to: LocalDate,
-    ): Boolean
-
-    @Query(
-        """
         UPDATE banking.investment_transactions
            SET deleted_at = :deletedAt,
                updated_at = :deletedAt

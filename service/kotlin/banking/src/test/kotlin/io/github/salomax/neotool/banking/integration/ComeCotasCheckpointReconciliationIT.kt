@@ -13,6 +13,7 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointJobRepository
+import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.service.investment.ComeCotasCheckpointService
@@ -52,6 +53,9 @@ class ComeCotasCheckpointReconciliationIT : BankingPostgresIntegrationTest() {
 
     @Inject
     lateinit var jobRepository: ComeCotasCheckpointJobRepository
+
+    @Inject
+    lateinit var checkpointRepository: ComeCotasCheckpointRepository
 
     @Inject
     lateinit var investmentTransactionRepository: InvestmentTransactionRepository
@@ -139,12 +143,15 @@ class ComeCotasCheckpointReconciliationIT : BankingPostgresIntegrationTest() {
 
         // Checkpoint 1 (Nov, NAV 1.10): IR 15.00 → 13.63636364 quotas removed.
         processCheckpoint(holdingId, novCheckpoint)
-        val afterNov = requireNotNull(holdingRepository.findById(holdingId, accountId))
-        assertThat(afterNov.quantity).isEqualByComparingTo("986.36363636")
+        val afterNovReconstructed =
+            ComeCotasSupport.reconstructOpenLots(
+                investmentTransactionRepository.findByHolding(holdingId, accountId),
+            ).fold(BigDecimal.ZERO) { acc, lot -> acc.add(lot.quantity) }
+        assertThat(afterNovReconstructed).isEqualByComparingTo("986.36363636")
 
-        // Checkpoint 2 (May, NAV 1.20): must tax only the 986.36363636 quotas that survived Nov.
+        // Checkpoint 2 (May, NAV 1.20): computes from the surviving base at that checkpoint's NAV,
+        // but nets against the amount already withheld at the prior checkpoint.
         processCheckpoint(holdingId, mayCheckpoint)
-        val afterMay = requireNotNull(holdingRepository.findById(holdingId, accountId))
 
         val withholdings =
             investmentTransactionRepository.findByHolding(holdingId, accountId)
@@ -152,18 +159,86 @@ class ComeCotasCheckpointReconciliationIT : BankingPostgresIntegrationTest() {
         assertThat(withholdings).hasSize(2)
         assertThat(withholdings.all { it.source == InvestmentSource.SYSTEM }).isTrue()
 
-        // Surviving-base method yields 12.15833333 quotas. On the original (unreduced) base the
-        // bug would deduct 12.50000000, leaving 973.86363636 — this assertion pins the fix.
+        // The May checkpoint runs on the surviving 986.36363636 quotas and only withholds the
+        // incremental amount after netting the Nov checkpoint row.
         val mayQuotas = requireNotNull(withholdings.single { it.tradeDate == mayCheckpoint }.quantity)
         assertThat(mayQuotas).isEqualByComparingTo("12.15833333")
-        assertThat(afterMay.quantity).isEqualByComparingTo("974.20530303")
-
-        // Valuation consistency: the reconstructed open lots stay aligned with holding.quantity.
         val reconstructed =
             ComeCotasSupport.reconstructOpenLots(
                 investmentTransactionRepository.findByHolding(holdingId, accountId),
             ).fold(BigDecimal.ZERO) { acc, lot -> acc.add(lot.quantity) }
-        assertThat(reconstructed).isEqualByComparingTo(afterMay.quantity)
+        assertThat(reconstructed).isEqualByComparingTo("974.20530303")
+
+        val persistedCheckpoints =
+            checkpointRepository.findByHoldingAndDateRange(
+                holdingId = holdingId,
+                from = novCheckpoint,
+                to = mayCheckpoint,
+            )
+        assertThat(persistedCheckpoints).hasSize(2)
+        val mayCheckpointRow = persistedCheckpoints.single { it.checkpointDate == mayCheckpoint }
+        assertThat(mayCheckpointRow.computedAmount).isEqualByComparingTo("29.59")
+        assertThat(mayCheckpointRow.withheldAmount).isEqualByComparingTo("14.59")
+    }
+
+    @Test
+    @DisplayName(
+        "processing a later checkpoint nets prior withholding without charging the skipped one",
+    )
+    fun `processing a later checkpoint after skipping an intermediate one`() {
+        val purchaseDate = LocalDate.of(2025, 6, 2)
+        val firstProcessedCheckpoint = LocalDate.of(2025, 11, 28)
+        val skippedCheckpoint = LocalDate.of(2026, 5, 29)
+        val followingCheckpoint = LocalDate.of(2026, 11, 30)
+
+        investmentTransactionService.record(
+            command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("1000.00000000"),
+                    unitPrice = BigDecimal("1.00000000"),
+                    grossValue = BigDecimal("1000.00"),
+                    netValue = BigDecimal("1000.00"),
+                    tradeDate = purchaseDate,
+                    settlementDate = purchaseDate,
+                    source = InvestmentSource.MANUAL,
+                ),
+            accountId = accountId,
+            userId = userId,
+        )
+
+        val holdingId =
+            requireNotNull(
+                holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId),
+            ).id.let(::requireNotNull)
+
+        processCheckpoint(holdingId, firstProcessedCheckpoint)
+        processCheckpoint(holdingId, followingCheckpoint)
+
+        val checkpoints =
+            checkpointRepository.findByHoldingAndDateRange(
+                holdingId = holdingId,
+                from = firstProcessedCheckpoint,
+                to = followingCheckpoint,
+            )
+        assertThat(checkpoints).hasSize(2)
+        val followingCheckpointRow = checkpoints.single { it.checkpointDate == followingCheckpoint }
+        assertThat(followingCheckpointRow.computedAmount).isEqualByComparingTo("44.39")
+        assertThat(followingCheckpointRow.withheldAmount).isEqualByComparingTo("29.39")
+
+        val withholdings =
+            investmentTransactionRepository.findByHolding(holdingId, accountId)
+                .filter { it.type == InvestmentTransactionType.WITHHOLDING_TAX }
+        assertThat(withholdings).hasSize(2)
+        assertThat(withholdings.none { it.tradeDate == skippedCheckpoint }).isTrue()
+        val withholding = withholdings.single { it.tradeDate == followingCheckpoint }
+        assertThat(withholding.tradeDate).isEqualTo(followingCheckpoint)
+        assertThat(withholding.source).isEqualTo(InvestmentSource.SYSTEM)
+        assertThat(withholding.quantity).isEqualByComparingTo("22.60769231")
+        assertThat(withholding.grossValue).isEqualByComparingTo("29.39")
     }
 
     private fun processCheckpoint(
@@ -215,7 +290,12 @@ class ComeCotasCheckpointReconciliationIT : BankingPostgresIntegrationTest() {
             from: LocalDate,
             to: LocalDate,
         ): List<Pair<LocalDate, BigDecimal>> {
-            val nav = if (!to.isAfter(LocalDate.of(2025, 12, 31))) BigDecimal("1.10") else BigDecimal("1.20")
+            val nav =
+                when {
+                    !to.isAfter(LocalDate.of(2025, 12, 31)) -> BigDecimal("1.10")
+                    !to.isAfter(LocalDate.of(2026, 5, 29)) -> BigDecimal("1.20")
+                    else -> BigDecimal("1.30")
+                }
             return listOf(to to nav)
         }
     }

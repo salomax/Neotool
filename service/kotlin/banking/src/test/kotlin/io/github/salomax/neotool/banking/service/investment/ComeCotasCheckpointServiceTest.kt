@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.service.investment
 import io.github.salomax.neotool.banking.client.investment.financialdata.FundMarketDataProvider
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.AssetType
+import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpoint
 import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpointJob
 import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpointJobStatus
 import io.github.salomax.neotool.banking.domain.investment.FundMarketNav
@@ -16,6 +17,7 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.model.dto.investment.ConfirmWithholdingTaxCommand
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointJobRepository
+import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.common.error.CommonErrorCode
@@ -41,6 +43,7 @@ class ComeCotasCheckpointServiceTest {
     private lateinit var jobRepository: ComeCotasCheckpointJobRepository
     private lateinit var holdingRepository: HoldingRepository
     private lateinit var assetRepository: AssetRepository
+    private lateinit var checkpointRepository: ComeCotasCheckpointRepository
     private lateinit var transactionRepository: InvestmentTransactionRepository
     private lateinit var fundMarketDataProvider: FundMarketDataProvider
     private lateinit var confirmWithholdingTaxService: ConfirmWithholdingTaxService
@@ -51,6 +54,7 @@ class ComeCotasCheckpointServiceTest {
     private val financialAccountId = UUID.randomUUID()
     private val assetId = UUID.randomUUID()
     private val holdingId = UUID.randomUUID()
+    private val priorCheckpointDate = LocalDate.of(2026, 5, 29)
     private val checkpointDate = LocalDate.of(2026, 11, 30)
     private val fundCnpj = "12345678000199"
 
@@ -77,6 +81,7 @@ class ComeCotasCheckpointServiceTest {
         jobRepository = mock()
         holdingRepository = mock()
         assetRepository = mock()
+        checkpointRepository = mock()
         transactionRepository = mock()
         fundMarketDataProvider = mock()
         confirmWithholdingTaxService = mock()
@@ -85,6 +90,7 @@ class ComeCotasCheckpointServiceTest {
                 jobRepository = jobRepository,
                 holdingRepository = holdingRepository,
                 assetRepository = assetRepository,
+                checkpointRepository = checkpointRepository,
                 investmentTransactionRepository = transactionRepository,
                 fundMarketDataProvider = fundMarketDataProvider,
                 confirmWithholdingTaxService = confirmWithholdingTaxService,
@@ -127,7 +133,7 @@ class ComeCotasCheckpointServiceTest {
     }
 
     @Test
-    fun `uses prior withholding tax to materialize only the incremental checkpoint amount`() {
+    fun `nets checkpoint tax against the persisted checkpoint amount`() {
         val job = claimedJob(attemptCount = 1)
         stubBase(
             job,
@@ -140,6 +146,14 @@ class ComeCotasCheckpointServiceTest {
                         tradeDate = LocalDate.of(2026, 5, 29),
                         quantity = "5.00000000",
                         amount = "1.50",
+                    ),
+                ),
+            persistedCheckpoints =
+                listOf(
+                    checkpoint(
+                        checkpointDate = priorCheckpointDate,
+                        computedAmount = "3.00",
+                        withheldAmount = "1.50",
                     ),
                 ),
         )
@@ -165,6 +179,12 @@ class ComeCotasCheckpointServiceTest {
         assertThat(commandCaptor.firstValue.source).isEqualTo(InvestmentSource.SYSTEM)
         assertThat(commandCaptor.firstValue.irValue).isEqualByComparingTo("1.35")
         assertThat(commandCaptor.firstValue.quotasDeducted).isEqualByComparingTo("1.12500000")
+        val checkpointCaptor = argumentCaptor<ComeCotasCheckpoint>()
+        verify(checkpointRepository).upsert(checkpointCaptor.capture())
+        assertThat(checkpointCaptor.firstValue.holdingId).isEqualTo(holdingId)
+        assertThat(checkpointCaptor.firstValue.checkpointDate).isEqualTo(checkpointDate)
+        assertThat(checkpointCaptor.firstValue.computedAmount).isEqualByComparingTo("2.85")
+        assertThat(checkpointCaptor.firstValue.withheldAmount).isEqualByComparingTo("1.35")
 
         val updatedJob = captureUpdatedJob()
         assertThat(updatedJob.status).isEqualTo(ComeCotasCheckpointJobStatus.COMPLETED)
@@ -184,6 +204,14 @@ class ComeCotasCheckpointServiceTest {
                         tradeDate = LocalDate.of(2026, 5, 29),
                         quantity = "5.00000000",
                         amount = "1.50",
+                    ),
+                ),
+            persistedCheckpoints =
+                listOf(
+                    checkpoint(
+                        checkpointDate = priorCheckpointDate,
+                        computedAmount = "3.00",
+                        withheldAmount = "1.50",
                     ),
                 ),
         )
@@ -211,6 +239,53 @@ class ComeCotasCheckpointServiceTest {
         val updatedJob = captureUpdatedJob()
         assertThat(updatedJob.status).isEqualTo(ComeCotasCheckpointJobStatus.COMPLETED)
         assertThat(updatedJob.errorCode).isNull()
+    }
+
+    @Test
+    fun `reprocessing the same checkpoint converges without posting a duplicate withholding`() {
+        val job = claimedJob(attemptCount = 1)
+        stubBase(
+            job,
+            holding = holding.copy(quantity = BigDecimal("98.50000000")),
+            asset = asset,
+            transactions =
+                listOf(
+                    purchase(quantity = "100", unitPrice = "1.00"),
+                    withholdingTax(
+                        tradeDate = checkpointDate,
+                        quantity = "1.25000000",
+                        amount = "1.50",
+                    ),
+                ),
+            persistedCheckpoints =
+                listOf(
+                    checkpoint(
+                        checkpointDate = checkpointDate,
+                        computedAmount = "1.50",
+                        withheldAmount = "1.50",
+                    ),
+                ),
+        )
+        whenever(fundMarketDataProvider.getSnapshotsByCnpj(setOf(fundCnpj))).thenReturn(
+            mapOf(
+                fundCnpj to
+                    FundMarketSnapshot(
+                        fundCnpj = fundCnpj,
+                        assetType = "MUTUAL_FUND",
+                        taxProfile = FundTaxProfile.COME_COTAS_LONG,
+                        latestNav = FundMarketNav(date = checkpointDate, closePrice = BigDecimal("1.10")),
+                    ),
+            ),
+        )
+        whenever(fundMarketDataProvider.getNavSeries(fundCnpj, LocalDate.of(2026, 1, 2), checkpointDate)).thenReturn(
+            listOf(checkpointDate to BigDecimal("1.10")),
+        )
+
+        service.process(requireNotNull(job.id))
+
+        verify(confirmWithholdingTaxService, never()).confirm(any(), any(), any())
+        val updatedJob = captureUpdatedJob()
+        assertThat(updatedJob.status).isEqualTo(ComeCotasCheckpointJobStatus.COMPLETED)
     }
 
     @Test
@@ -242,42 +317,6 @@ class ComeCotasCheckpointServiceTest {
         val updatedJob = captureUpdatedJob()
         assertThat(updatedJob.status).isEqualTo(ComeCotasCheckpointJobStatus.FAILED)
         assertThat(updatedJob.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT.code)
-        verify(confirmWithholdingTaxService, never()).confirm(any(), any(), any())
-    }
-
-    @Test
-    fun `completes without posting when withholding tax already exists in checkpoint window`() {
-        val job = claimedJob(attemptCount = 1)
-        stubBase(
-            job,
-            holding = holding,
-            asset = asset,
-            transactions = listOf(purchase(quantity = "100", unitPrice = "1.00")),
-        )
-        whenever(fundMarketDataProvider.getSnapshotsByCnpj(setOf(fundCnpj))).thenReturn(
-            mapOf(
-                fundCnpj to
-                    FundMarketSnapshot(
-                        fundCnpj = fundCnpj,
-                        assetType = "MUTUAL_FUND",
-                        taxProfile = FundTaxProfile.COME_COTAS_LONG,
-                        latestNav = FundMarketNav(date = checkpointDate, closePrice = BigDecimal("1.20")),
-                    ),
-            ),
-        )
-        whenever(
-            transactionRepository.existsWithholdingTaxForHoldingInDateRange(
-                holdingId,
-                accountId,
-                checkpointDate.minusDays(ComeCotasSupport.RECONCILIATION_WINDOW_DAYS),
-                checkpointDate.plusDays(ComeCotasSupport.RECONCILIATION_WINDOW_DAYS),
-            ),
-        ).thenReturn(true)
-
-        service.process(requireNotNull(job.id))
-
-        val updatedJob = captureUpdatedJob()
-        assertThat(updatedJob.status).isEqualTo(ComeCotasCheckpointJobStatus.COMPLETED)
         verify(confirmWithholdingTaxService, never()).confirm(any(), any(), any())
     }
 
@@ -315,22 +354,17 @@ class ComeCotasCheckpointServiceTest {
         holding: Holding,
         asset: Asset,
         transactions: List<InvestmentTransaction>,
+        persistedCheckpoints: List<ComeCotasCheckpoint> =
+            emptyList(),
     ) {
+        val firstTradeDate = transactions.minOfOrNull { it.tradeDate } ?: checkpointDate
         whenever(jobRepository.tryClaimJob(eq(requireNotNull(job.id)), any())).thenReturn(job)
         whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(holding)
         whenever(assetRepository.findById(assetId)).thenReturn(asset)
-        whenever(
-            transactionRepository.existsWithholdingTaxForHoldingOnTradeDate(holdingId, accountId, checkpointDate),
-        ).thenReturn(false)
-        whenever(
-            transactionRepository.existsWithholdingTaxForHoldingInDateRange(
-                holdingId,
-                accountId,
-                checkpointDate.minusDays(ComeCotasSupport.RECONCILIATION_WINDOW_DAYS),
-                checkpointDate.plusDays(ComeCotasSupport.RECONCILIATION_WINDOW_DAYS),
-            ),
-        ).thenReturn(false)
         whenever(transactionRepository.findByHolding(holdingId, accountId)).thenReturn(transactions)
+        whenever(checkpointRepository.findByHoldingAndDateRange(holdingId, firstTradeDate, checkpointDate))
+            .thenReturn(persistedCheckpoints)
+        whenever(checkpointRepository.upsert(any())).thenAnswer { it.arguments[0] }
         whenever(jobRepository.update(any())).thenAnswer { it.arguments[0] as ComeCotasCheckpointJob }
     }
 
@@ -391,4 +425,15 @@ class ComeCotasCheckpointServiceTest {
             createdAt = tradeDate.atStartOfDay().plusHours(12).toInstant(java.time.ZoneOffset.UTC),
             updatedAt = tradeDate.atStartOfDay().plusHours(12).toInstant(java.time.ZoneOffset.UTC),
         )
+
+    private fun checkpoint(
+        checkpointDate: LocalDate,
+        computedAmount: String,
+        withheldAmount: String,
+    ) = ComeCotasCheckpoint(
+        holdingId = holdingId,
+        checkpointDate = checkpointDate,
+        computedAmount = BigDecimal(computedAmount),
+        withheldAmount = BigDecimal(withheldAmount),
+    )
 }
