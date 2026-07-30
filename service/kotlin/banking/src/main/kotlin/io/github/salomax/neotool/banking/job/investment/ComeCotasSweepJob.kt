@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.job.investment
 
 import io.github.salomax.neotool.banking.client.investment.financialdata.FundMarketDataProvider
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpointJob
 import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpointJobStatus
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
@@ -9,6 +10,9 @@ import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.service.investment.ComeCotasEligibility
 import io.github.salomax.neotool.banking.service.investment.ComeCotasSupport
+import io.github.salomax.neotool.banking.service.investment.tax.ComeCotasLongRegime
+import io.github.salomax.neotool.banking.service.investment.tax.ComeCotasShortRegime
+import io.github.salomax.neotool.banking.service.investment.tax.TaxRegimeRegistry
 import io.micronaut.context.annotation.Requires
 import io.micronaut.context.annotation.Value
 import io.micronaut.scheduling.annotation.Scheduled
@@ -61,7 +65,12 @@ open class ComeCotasSweepJob(
                     asset,
                     snapshotsByCnpj[fundCnpj]?.taxProfile,
                 )
-            if (!ComeCotasEligibility.isEligible(holding, asset, taxProfile)) return@forEach
+            val eligible =
+                asset.assetType == AssetType.MUTUAL_FUND &&
+                    TaxRegimeRegistry.resolveFund(asset.assetType, taxProfile, holding.comeCotasEnabled).let { regime ->
+                        regime is ComeCotasLongRegime || regime is ComeCotasShortRegime
+                    }
+            if (!eligible) return@forEach
 
             val transactions =
                 transactionsByHolding[holdingId].orEmpty()
