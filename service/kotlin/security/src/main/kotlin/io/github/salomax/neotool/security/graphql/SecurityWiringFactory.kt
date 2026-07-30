@@ -29,6 +29,7 @@ import io.github.salomax.neotool.security.graphql.dataloader.UserPermissionsData
 import io.github.salomax.neotool.security.graphql.dataloader.UserRolesDataLoader
 import io.github.salomax.neotool.security.graphql.dto.AccountDTO
 import io.github.salomax.neotool.security.graphql.dto.AuthorizationResultDTO
+import io.github.salomax.neotool.security.graphql.dto.ConnectedAgentDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupEdgeDTO
@@ -53,6 +54,7 @@ import io.github.salomax.neotool.security.graphql.mapper.RoleManagementMapper
 import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
 import io.github.salomax.neotool.security.graphql.resolver.AccountMembershipResolver
 import io.github.salomax.neotool.security.graphql.resolver.AccountResolver
+import io.github.salomax.neotool.security.graphql.resolver.ConnectedAgentsResolver
 import io.github.salomax.neotool.security.graphql.resolver.GroupManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.PermissionManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.RoleManagementResolver
@@ -69,6 +71,7 @@ class SecurityWiringFactory(
     private val userPreferencesResolver: UserPreferencesResolver,
     private val accountResolver: AccountResolver,
     private val accountMembershipResolver: AccountMembershipResolver,
+    private val connectedAgentsResolver: ConnectedAgentsResolver,
     private val authResolver: SecurityAuthResolver,
     private val emailVerificationResolver: EmailVerificationResolver,
     private val authorizationResolver: io.github.salomax.neotool.security.graphql.resolver.AuthorizationResolver,
@@ -218,6 +221,13 @@ class SecurityWiringFactory(
                     val principal = env.principal()
                     val accountId = getRequiredString(env, "accountId")
                     accountMembershipResolver.accountMembers(accountId, principal)
+                },
+            ).dataFetcher(
+                "connectedAgents",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val accountId = getRequiredString(env, "accountId")
+                    connectedAgentsResolver.connectedAgents(accountId, principal)
                 },
             ).dataFetcher(
                 "checkPermission",
@@ -480,6 +490,13 @@ class SecurityWiringFactory(
                     val principal = env.principal()
                     val accountId = getRequiredString(env, "accountId")
                     accountMembershipResolver.leaveAccount(accountId, principal)
+                },
+            ).dataFetcher(
+                "revokeConnectedAgent",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val connectionId = getRequiredString(env, "connectionId")
+                    connectedAgentsResolver.revokeConnectedAgent(connectionId, principal)
                 },
             ).dataFetcher(
                 "enableUser",
@@ -813,6 +830,18 @@ class SecurityWiringFactory(
                     "isOwner",
                     createValidatedDataFetcher { env ->
                         env.getSource<AccountDTO>()?.isOwner
+                    },
+                )
+            }.type("ConnectedAgent") { type ->
+                type.dataFetcher(
+                    "recentActivity",
+                    createValidatedDataFetcher { env ->
+                        val principal = env.principal()
+                        val connection =
+                            env.getSource<ConnectedAgentDTO>()
+                                ?: throw IllegalArgumentException("ConnectedAgent source is required")
+                        val first = env.getArgument<Int?>("first") ?: 20
+                        connectedAgentsResolver.recentActivity(connection, first, principal)
                     },
                 )
             }.type("SignInPayload") { type ->
