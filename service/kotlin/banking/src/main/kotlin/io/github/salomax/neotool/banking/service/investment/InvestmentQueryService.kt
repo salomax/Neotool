@@ -287,6 +287,7 @@ class InvestmentQueryService(
             val points =
                 buildFixedIncomePerformancePoints(
                     holding = valuationHolding,
+                    assetType = asset.assetType,
                     transactions = transactions,
                     rateMap = rateMap,
                     valuationReferenceDate = valuationReferenceDate,
@@ -747,12 +748,15 @@ class InvestmentQueryService(
                 ?: effectiveHolding.marketDataValuation(asset, marketSnapshotsByCnpj, holdingTransactionsById)
                 ?: effectiveHolding.listedAssetMarketValuation(asset, listedAssetPricesByTicker)
                 ?: effectiveHolding.providerValuation()
-                ?: effectiveHolding.estimatedFixedIncomeValuation(
-                    rateMap,
-                    fixedIncomeRefDate,
-                    monthlySeries,
-                    holdingTransactionsById,
-                )
+                ?: asset?.let {
+                    effectiveHolding.estimatedFixedIncomeValuation(
+                        assetType = it.assetType,
+                        rateMap = rateMap,
+                        refDate = fixedIncomeRefDate,
+                        monthlySeries = monthlySeries,
+                        holdingTransactionsById = holdingTransactionsById,
+                    )
+                }
                 ?: Valuation(null, null, null, null, ValuationSource.UNAVAILABLE, null)
         val scheduleTransactions = id?.let { holdingId -> holdingTransactionsById[holdingId].orEmpty() }.orEmpty()
         val couponSchedule =
@@ -904,6 +908,7 @@ class InvestmentQueryService(
     }
 
     private fun Holding.estimatedFixedIncomeValuation(
+        assetType: AssetType,
         rateMap: Map<Indexer, BigDecimal>,
         refDate: LocalDate?,
         monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>>,
@@ -918,6 +923,7 @@ class InvestmentQueryService(
             val result =
                 fixedIncomeValuationService.estimate(
                     holding = valuationHolding,
+                    assetType = assetType,
                     indicatorRates = rateMap,
                     valuationReferenceDate = refDate,
                     monthlySeries = monthlySeries,
@@ -938,6 +944,7 @@ class InvestmentQueryService(
 
     private fun buildFixedIncomePerformancePoints(
         holding: Holding,
+        assetType: AssetType,
         transactions: List<InvestmentTransaction>,
         rateMap: Map<Indexer, BigDecimal>,
         valuationReferenceDate: LocalDate?,
@@ -987,6 +994,7 @@ class InvestmentQueryService(
 
             createPerformancePoint(
                 holding = state,
+                assetType = assetType,
                 investedPrincipal = investedPrincipal,
                 netContributions = netContributions,
                 pointDate = pointDate,
@@ -1241,6 +1249,7 @@ class InvestmentQueryService(
 
     private fun createPerformancePoint(
         holding: Holding,
+        assetType: AssetType,
         investedPrincipal: BigDecimal,
         netContributions: BigDecimal,
         pointDate: DatedPerformancePoint,
@@ -1274,6 +1283,7 @@ class InvestmentQueryService(
         val valuation =
             fixedIncomeValuationService.estimate(
                 holding = holding,
+                assetType = assetType,
                 indicatorRates = rateMap,
                 valuationReferenceDate = valuationReferenceDate,
                 monthlySeries = monthlySeries,
