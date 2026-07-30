@@ -12,29 +12,26 @@ import java.util.UUID
 
 class ComeCotasEligibilityTest {
     @Test
-    fun `mutual fund with long profile is eligible by default`() {
-        val holding = baseHolding()
-        val asset = baseAsset()
-
-        assertThat(ComeCotasEligibility.isEligible(holding, asset, FundTaxProfile.COME_COTAS_LONG)).isTrue()
-    }
-
-    @Test
-    fun `override false disables eligible fund`() {
-        val holding = baseHolding().copy(comeCotasEnabled = false)
-        val asset = baseAsset()
-
-        assertThat(ComeCotasEligibility.isEligible(holding, asset, FundTaxProfile.COME_COTAS_LONG)).isFalse()
-    }
-
-    @Test
     fun `manual override forces unknown profile into long come cotas`() {
         val holding = baseHolding().copy(comeCotasEnabled = true)
         val asset = baseAsset().copy(anbimaCategory = null)
         val effective = ComeCotasEligibility.resolveEffectiveTaxProfile(holding, asset, FundTaxProfile.UNKNOWN)
 
         assertThat(effective).isEqualTo(FundTaxProfile.COME_COTAS_LONG)
-        assertThat(ComeCotasEligibility.isEligible(holding, asset, effective)).isTrue()
+    }
+
+    @Test
+    fun `manual override forces non unknown profile into long come cotas`() {
+        val holding = baseHolding().copy(comeCotasEnabled = true)
+        val asset = baseAsset().copy(anbimaCategory = AnbimaCategory.ACOES)
+        val effective =
+            ComeCotasEligibility.resolveEffectiveTaxProfile(
+                holding,
+                asset,
+                FundTaxProfile.VARIABLE_INCOME_15,
+            )
+
+        assertThat(effective).isEqualTo(FundTaxProfile.COME_COTAS_LONG)
     }
 
     @Test

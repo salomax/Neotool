@@ -12,6 +12,9 @@ import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointJobR
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.service.investment.ComeCotasEligibility
 import io.github.salomax.neotool.banking.service.investment.ComeCotasSupport
+import io.github.salomax.neotool.banking.service.investment.tax.ComeCotasLongRegime
+import io.github.salomax.neotool.banking.service.investment.tax.ComeCotasShortRegime
+import io.github.salomax.neotool.banking.service.investment.tax.TaxRegimeRegistry
 import io.micronaut.context.annotation.Value
 import io.micronaut.context.event.ApplicationEventPublisher
 import io.micronaut.transaction.TransactionDefinition.Propagation
@@ -168,7 +171,14 @@ open class ComeCotasPurchaseBackfillHandler(
                 context.asset,
                 snapshotTaxProfile,
             )
-        val eligible = ComeCotasEligibility.isEligible(context.holding, context.asset, taxProfile)
+        val eligible =
+            TaxRegimeRegistry.resolveFund(
+                context.asset.assetType,
+                taxProfile,
+                context.holding.comeCotasEnabled,
+            ).let { regime ->
+                regime is ComeCotasLongRegime || regime is ComeCotasShortRegime
+            }
         return BackfillDecision(
             supported = eligible,
             reason = if (eligible) "eligible" else "ineligible",

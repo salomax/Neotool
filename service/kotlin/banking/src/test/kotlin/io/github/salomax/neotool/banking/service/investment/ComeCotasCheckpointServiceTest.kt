@@ -281,6 +281,35 @@ class ComeCotasCheckpointServiceTest {
         verify(confirmWithholdingTaxService, never()).confirm(any(), any(), any())
     }
 
+    @Test
+    fun `skips non mutual fund holdings before fund regime resolution would throw`() {
+        val job = claimedJob(attemptCount = 1)
+        stubBase(
+            job,
+            holding = holding,
+            asset = asset.copy(assetType = AssetType.STOCK),
+            transactions = listOf(purchase(quantity = "100", unitPrice = "1.00")),
+        )
+        whenever(fundMarketDataProvider.getSnapshotsByCnpj(setOf(fundCnpj))).thenReturn(
+            mapOf(
+                fundCnpj to
+                    FundMarketSnapshot(
+                        fundCnpj = fundCnpj,
+                        assetType = AssetType.STOCK.name,
+                        taxProfile = FundTaxProfile.COME_COTAS_LONG,
+                        latestNav = FundMarketNav(date = checkpointDate, closePrice = BigDecimal("1.20")),
+                    ),
+            ),
+        )
+
+        service.process(requireNotNull(job.id))
+
+        val updatedJob = captureUpdatedJob()
+        assertThat(updatedJob.status).isEqualTo(ComeCotasCheckpointJobStatus.COMPLETED)
+        verify(confirmWithholdingTaxService, never()).confirm(any(), any(), any())
+        verify(transactionRepository, never()).findByHolding(any(), any())
+    }
+
     private fun stubBase(
         job: ComeCotasCheckpointJob,
         holding: Holding,

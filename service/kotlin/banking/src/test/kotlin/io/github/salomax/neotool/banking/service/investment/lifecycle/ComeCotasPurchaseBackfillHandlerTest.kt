@@ -115,11 +115,12 @@ class ComeCotasPurchaseBackfillHandlerTest {
     }
 
     @Test
-    fun `does nothing for non eligible holdings`() {
+    fun `non mutual fund holdings short circuit before resolveFund path`() {
         val context = fundPurchaseContext(assetType = AssetType.STOCK, tradeDate = LocalDate.of(2026, 5, 1))
 
         handler.onRecord(context)
 
+        verify(fundMarketDataProvider, never()).getSnapshotsByCnpj(any())
         verify(transactionRepository, never()).findByHolding(any(), any())
         verify(jobRepository, never()).save(any())
     }
@@ -181,6 +182,75 @@ class ComeCotasPurchaseBackfillHandlerTest {
         val captor = argumentCaptor<ComeCotasInlineBackfillRequestedEvent>()
         verify(inlineBackfillRequestedEventPublisher, times(1)).publishEvent(captor.capture())
         assertThat(captor.firstValue.jobIds).containsExactly(novemberId, mayId)
+    }
+
+    @Test
+    fun `manual override promotes variable income profile into eligible come cotas backfill`() {
+        val context =
+            fundPurchaseContext(
+                tradeDate = LocalDate.of(2025, 10, 22),
+                comeCotasEnabled = true,
+            )
+        val novemberId = UUID.randomUUID()
+        val mayId = UUID.randomUUID()
+        whenever(transactionRepository.findByHolding(context.holding.id!!, context.accountId))
+            .thenReturn(listOf(requireNotNull(context.transaction)))
+        whenever(fundMarketDataProvider.getSnapshotsByCnpj(setOf("27717359000130")))
+            .thenReturn(
+                mapOf(
+                    "27717359000130" to
+                        FundMarketSnapshot(
+                            fundCnpj = "27717359000130",
+                            assetType = "EQUITY_FUND",
+                            taxProfile = FundTaxProfile.VARIABLE_INCOME_15,
+                            latestNav = null,
+                        ),
+                ),
+            )
+        whenever(jobRepository.findByHoldingAndCheckpointDate(any(), any())).thenReturn(null)
+        whenever(jobRepository.save(any())).thenAnswer {
+            val job = it.arguments[0] as ComeCotasCheckpointJob
+            val jobId =
+                when (job.checkpointDate.monthValue) {
+                    11 -> novemberId
+                    5 -> mayId
+                    else -> UUID.randomUUID()
+                }
+            job.copy(id = jobId)
+        }
+
+        handler.onRecord(context)
+
+        val captor = argumentCaptor<ComeCotasInlineBackfillRequestedEvent>()
+        verify(inlineBackfillRequestedEventPublisher, times(1)).publishEvent(captor.capture())
+        assertThat(captor.firstValue.jobIds).containsExactly(novemberId, mayId)
+    }
+
+    @Test
+    fun `variable income fund without override stays ineligible for backfill`() {
+        val context =
+            fundPurchaseContext(
+                tradeDate = LocalDate.of(2025, 10, 22),
+                comeCotasEnabled = null,
+            )
+        whenever(fundMarketDataProvider.getSnapshotsByCnpj(setOf("27717359000130")))
+            .thenReturn(
+                mapOf(
+                    "27717359000130" to
+                        FundMarketSnapshot(
+                            fundCnpj = "27717359000130",
+                            assetType = "EQUITY_FUND",
+                            taxProfile = FundTaxProfile.VARIABLE_INCOME_15,
+                            latestNav = null,
+                        ),
+                ),
+            )
+
+        handler.onRecord(context)
+
+        verify(transactionRepository, never()).findByHolding(any(), any())
+        verify(jobRepository, never()).save(any())
+        verify(inlineBackfillRequestedEventPublisher, never()).publishEvent(any())
     }
 
     private fun fundPurchaseContext(
