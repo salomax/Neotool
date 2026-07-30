@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.client.investment.financialdata.FundMarketDataProvider
 import io.github.salomax.neotool.banking.domain.investment.AssetType
+import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpoint
 import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpointJob
 import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpointJobStatus
 import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile
@@ -12,6 +13,7 @@ import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.model.dto.investment.ConfirmWithholdingTaxCommand
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointJobRepository
+import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.service.investment.tax.ComeCotasLongRegime
@@ -21,7 +23,11 @@ import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.DomainException
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.common.finance.tax.engine.TaxLot
+import io.github.salomax.neotool.common.finance.tax.engine.TaxRegime
+import io.github.salomax.neotool.common.finance.tax.engine.computeTax
 import io.micronaut.context.annotation.Value
+import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.math.BigDecimal
@@ -34,10 +40,11 @@ import java.time.LocalDate
 import java.util.UUID
 
 @Singleton
-class ComeCotasCheckpointService(
+open class ComeCotasCheckpointService(
     private val jobRepository: ComeCotasCheckpointJobRepository,
     private val holdingRepository: HoldingRepository,
     private val assetRepository: AssetRepository,
+    private val checkpointRepository: ComeCotasCheckpointRepository,
     private val investmentTransactionRepository: InvestmentTransactionRepository,
     private val fundMarketDataProvider: FundMarketDataProvider,
     private val confirmWithholdingTaxService: ConfirmWithholdingTaxService,
@@ -49,7 +56,8 @@ class ComeCotasCheckpointService(
     private val logger = KotlinLogging.logger {}
     private val mathContext = MathContext(12, RoundingMode.HALF_UP)
 
-    fun process(jobId: UUID) {
+    @Transactional
+    open fun process(jobId: UUID) {
         val claimed = jobRepository.tryClaimJob(jobId, NODE_ID) ?: return
         logger.info {
             "come-cotas checkpoint claimed jobId=${claimed.id} holdingId=${claimed.holdingId} " +
@@ -96,17 +104,23 @@ class ComeCotasCheckpointService(
         val asset =
             assetRepository.findById(holding.assetId)
                 ?: throw NotFoundException(CommonErrorCode.RESOURCE_NOT_FOUND, "Asset", holding.assetId)
+        val holdingId = requireNotNull(holding.id) { "Holding id must not be null" }
         val fundCnpj =
             asset.fundCnpj?.filter(Char::isDigit)?.takeIf { it.length == 14 }
                 ?: throw ValidationException(CommonErrorCode.INVALID_INPUT, field = "asset.fundCnpj")
 
         val snapshot = fundMarketDataProvider.getSnapshotsByCnpj(setOf(fundCnpj))[fundCnpj]
         val taxProfile = ComeCotasEligibility.resolveEffectiveTaxProfile(holding, asset, snapshot?.taxProfile)
+        val regime =
+            if (asset.assetType == AssetType.MUTUAL_FUND) {
+                TaxRegimeRegistry.resolveFund(asset.assetType, taxProfile, holding.comeCotasEnabled)
+            } else {
+                null
+            }
         val eligible =
-            asset.assetType == AssetType.MUTUAL_FUND &&
-                TaxRegimeRegistry.resolveFund(asset.assetType, taxProfile, holding.comeCotasEnabled).let { regime ->
-                    regime is ComeCotasLongRegime || regime is ComeCotasShortRegime
-                }
+            regime?.let { resolved ->
+                resolved is ComeCotasLongRegime || resolved is ComeCotasShortRegime
+            } == true
         if (!eligible) {
             logger.info {
                 "come-cotas checkpoint skipped ineligible jobId=${job.id} holdingId=${holding.id} " +
@@ -117,25 +131,8 @@ class ComeCotasCheckpointService(
             return ProcessingOutcome.Completed
         }
 
-        val checkpointWindow = ComeCotasSupport.checkpointWindow(job.checkpointDate)
-        if (
-            investmentTransactionRepository.existsWithholdingTaxForHoldingInDateRange(
-                holding.id!!,
-                job.accountId,
-                checkpointWindow.start,
-                checkpointWindow.endInclusive,
-            )
-        ) {
-            logger.info {
-                "come-cotas checkpoint skipped existing withholding jobId=${job.id} holdingId=${holding.id} " +
-                    "checkpointDate=${job.checkpointDate} windowStart=${checkpointWindow.start} " +
-                    "windowEnd=${checkpointWindow.endInclusive}"
-            }
-            return ProcessingOutcome.Completed
-        }
-
         val transactions =
-            investmentTransactionRepository.findByHolding(holding.id, job.accountId)
+            investmentTransactionRepository.findByHolding(holdingId, job.accountId)
                 .sortedWith(
                     compareBy<InvestmentTransaction> { it.tradeDate }
                         .thenBy { it.createdAt }
@@ -147,7 +144,18 @@ class ComeCotasCheckpointService(
             )?.createdByUserId
                 ?: throw ValidationException(CommonErrorCode.INVALID_INPUT, field = "holding.createdByUserId")
 
-        return when (val computation = compute(holding, fundCnpj, taxProfile, transactions, job.checkpointDate)) {
+        return when (
+            val computation =
+                compute(
+                    holding,
+                    holdingId,
+                    fundCnpj,
+                    taxProfile,
+                    regime,
+                    transactions,
+                    job.checkpointDate,
+                )
+        ) {
             is ComputationResult.NoTaxDue -> {
                 logger.info {
                     "come-cotas checkpoint no-tax-due jobId=${job.id} holdingId=${holding.id} " +
@@ -164,31 +172,44 @@ class ComeCotasCheckpointService(
             is ComputationResult.Computed -> {
                 logger.info {
                     "come-cotas checkpoint computed jobId=${job.id} holdingId=${holding.id} " +
-                        "checkpointDate=${job.checkpointDate} irValue=${computation.irValue} " +
+                        "checkpointDate=${job.checkpointDate} computedAmount=${computation.computedAmount} " +
+                        "netIrValue=${computation.irValue} priorWithheld=${computation.previouslyWithheldAmount} " +
+                        "currentCheckpointWithheld=${computation.currentCheckpointWithheldAmount} " +
                         "quotasDeducted=${computation.quotasDeducted} nav=${computation.navAtCheckpoint} " +
                         "openLots=${computation.openLotCount} taxProfile=$taxProfile"
                 }
-                logger.info {
-                    "come-cotas checkpoint confirming withholding jobId=${job.id} holdingId=${holding.id} " +
-                        "checkpointDate=${job.checkpointDate}"
+                if (computation.irValue > BigDecimal.ZERO) {
+                    logger.info {
+                        "come-cotas checkpoint confirming withholding jobId=${job.id} holdingId=${holding.id} " +
+                            "checkpointDate=${job.checkpointDate}"
+                    }
+                    confirmWithholdingTaxService.confirm(
+                        command =
+                            ConfirmWithholdingTaxCommand(
+                                holdingId = holdingId,
+                                tradeDate = job.checkpointDate,
+                                irValue = computation.irValue,
+                                quotasDeducted = computation.quotasDeducted,
+                                source = InvestmentSource.SYSTEM,
+                                providerTransactionId = providerTransactionId(holdingId, job.checkpointDate),
+                            ),
+                        accountId = job.accountId,
+                        userId = actorUserId,
+                    )
+                    logger.info {
+                        "come-cotas checkpoint confirmed withholding jobId=${job.id} holdingId=${holding.id} " +
+                            "checkpointDate=${job.checkpointDate}"
+                    }
                 }
-                confirmWithholdingTaxService.confirm(
-                    command =
-                        ConfirmWithholdingTaxCommand(
-                            holdingId = holding.id,
-                            tradeDate = job.checkpointDate,
-                            irValue = computation.irValue,
-                            quotasDeducted = computation.quotasDeducted,
-                            source = InvestmentSource.SYSTEM,
-                            providerTransactionId = providerTransactionId(holding.id, job.checkpointDate),
-                        ),
-                    accountId = job.accountId,
-                    userId = actorUserId,
+
+                checkpointRepository.upsert(
+                    ComeCotasCheckpoint(
+                        holdingId = holdingId,
+                        checkpointDate = job.checkpointDate,
+                        computedAmount = computation.computedAmount,
+                        withheldAmount = computation.currentCheckpointWithheldAmount,
+                    ),
                 )
-                logger.info {
-                    "come-cotas checkpoint confirmed withholding jobId=${job.id} holdingId=${holding.id} " +
-                        "checkpointDate=${job.checkpointDate}"
-                }
 
                 ProcessingOutcome.Completed
             }
@@ -197,8 +218,10 @@ class ComeCotasCheckpointService(
 
     private fun compute(
         holding: Holding,
+        holdingId: UUID,
         fundCnpj: String,
         taxProfile: FundTaxProfile,
+        regime: TaxRegime,
         transactions: List<InvestmentTransaction>,
         checkpointDate: LocalDate,
     ): ComputationResult {
@@ -218,33 +241,57 @@ class ComeCotasCheckpointService(
             return ComputationResult.NoTaxDue("no-open-lots")
         }
         val baseQuantity = openLots.fold(BigDecimal.ZERO) { acc, lot -> acc.add(lot.quantity, mathContext) }
+        val checkpointRows =
+            checkpointRepository.findByHoldingAndDateRange(
+                holdingId = holdingId,
+                from = firstTradeDate,
+                to = checkpointDate,
+            )
+        val currentCheckpointRow = checkpointRows.find { it.checkpointDate == checkpointDate }
+        val previouslyWithheldAmount =
+            checkpointRows
+                .fold(BigDecimal.ZERO) { acc, checkpoint ->
+                    acc.add(checkpoint.withheldAmount, mathContext)
+                }.setScale(2, RoundingMode.HALF_UP)
 
-        val irValue =
-            openLots.fold(BigDecimal.ZERO) { acc, lot ->
-                val gross = lot.quantity.multiply(navAtCheckpoint.second, mathContext)
-                val costBasis = lot.quantity.multiply(lot.unitPrice, mathContext)
-                val gain = gross.subtract(costBasis, mathContext)
-                if (gain <= BigDecimal.ZERO) {
-                    acc
-                } else {
-                    val projected =
-                        ComeCotasSupport.estimateProjectedComeCotas(
-                            taxProfile = taxProfile,
-                            gain = gain,
-                            tradeDate = lot.tradeDate,
-                            referenceDate = checkpointDate,
+        val computedAmount =
+            computeTax(
+                lots =
+                    openLots.mapIndexed { index, lot ->
+                        TaxLot(
+                            id = "$holdingId-$index-${lot.tradeDate}",
+                            quantity = lot.quantity,
+                            unitCost = lot.unitPrice,
+                            acquisitionDate = lot.tradeDate,
                         )
-                    acc.add((projected - lot.withholdingPaid).max(BigDecimal.ZERO), mathContext)
-                }
-            }.setScale(2, RoundingMode.HALF_UP)
+                    },
+                regime = regime,
+                referenceDate = checkpointDate,
+            ) { date ->
+                if (date == checkpointDate) navAtCheckpoint.second else null
+            }.totalPeriodicWithholdingDue.setScale(2, RoundingMode.HALF_UP)
+        val irValue = computedAmount.subtract(previouslyWithheldAmount, mathContext).max(BigDecimal.ZERO)
+        val currentCheckpointWithheldAmount =
+            currentCheckpointRow
+                ?.withheldAmount
+                ?.add(irValue, mathContext)
+                ?.setScale(2, RoundingMode.HALF_UP)
+                ?: irValue.setScale(2, RoundingMode.HALF_UP)
 
-        if (irValue <= BigDecimal.ZERO) return ComputationResult.NoTaxDue("non-positive-ir-value")
-        val quotasDeducted = irValue.divide(navAtCheckpoint.second, 8, RoundingMode.HALF_UP)
+        if (computedAmount <= BigDecimal.ZERO) return ComputationResult.NoTaxDue("non-positive-computed-amount")
+        val quotasDeducted =
+            if (irValue > BigDecimal.ZERO) {
+                irValue.divide(navAtCheckpoint.second, 8, RoundingMode.HALF_UP)
+            } else {
+                BigDecimal.ZERO.setScale(8, RoundingMode.HALF_UP)
+            }
         if (quotasDeducted <= BigDecimal.ZERO) return ComputationResult.NoTaxDue("non-positive-quotas-deducted")
         logger.info {
             "come-cotas checkpoint diagnostics holdingId=${holding.id} checkpointDate=$checkpointDate " +
                 "base_quantity=$baseQuantity nav_used=${navAtCheckpoint.second} " +
-                "irValue=$irValue quotasDeducted=$quotasDeducted"
+                "computedAmount=$computedAmount previouslyWithheld=$previouslyWithheldAmount " +
+                "currentCheckpointWithheld=$currentCheckpointWithheldAmount " +
+                "irValue=$irValue quotasDeducted=$quotasDeducted taxProfile=$taxProfile"
         }
         if (quotasDeducted > holding.quantity) {
             throw ValidationException(
@@ -259,6 +306,9 @@ class ComeCotasCheckpointService(
             )
         }
         return ComputationResult.Computed(
+            computedAmount = computedAmount,
+            previouslyWithheldAmount = previouslyWithheldAmount,
+            currentCheckpointWithheldAmount = currentCheckpointWithheldAmount,
             irValue = irValue,
             quotasDeducted = quotasDeducted,
             navAtCheckpoint = navAtCheckpoint.second,
@@ -360,6 +410,9 @@ class ComeCotasCheckpointService(
         ) : ComputationResult
 
         data class Computed(
+            val computedAmount: BigDecimal,
+            val previouslyWithheldAmount: BigDecimal,
+            val currentCheckpointWithheldAmount: BigDecimal,
             val irValue: BigDecimal,
             val quotasDeducted: BigDecimal,
             val navAtCheckpoint: BigDecimal,
