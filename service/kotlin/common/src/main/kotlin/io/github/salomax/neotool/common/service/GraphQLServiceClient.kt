@@ -61,6 +61,7 @@ open class GraphQLServiceClient(
         variables: Map<String, Any>? = null,
         targetAudience: String = "apollo-router",
         delegatedBy: String? = null,
+        subjectToken: String? = null,
     ): GraphQLResponse =
         withCurrentTraceHeaders { traceHeaders ->
             executeGraphQL(
@@ -68,6 +69,7 @@ open class GraphQLServiceClient(
                 variables = variables,
                 targetAudience = targetAudience,
                 delegatedBy = delegatedBy,
+                subjectToken = subjectToken,
                 traceHeaders = traceHeaders,
             )
         }
@@ -85,6 +87,7 @@ open class GraphQLServiceClient(
         variables: Map<String, Any>? = null,
         targetAudience: String = "apollo-router",
         delegatedBy: String? = null,
+        subjectToken: String? = null,
     ): GraphQLResponse =
         withCurrentTraceHeaders { traceHeaders ->
             executeGraphQL(
@@ -92,6 +95,7 @@ open class GraphQLServiceClient(
                 variables = variables,
                 targetAudience = targetAudience,
                 delegatedBy = delegatedBy,
+                subjectToken = subjectToken,
                 traceHeaders = traceHeaders,
             )
         }
@@ -104,10 +108,17 @@ open class GraphQLServiceClient(
         variables: Map<String, Any>?,
         targetAudience: String,
         delegatedBy: String?,
+        subjectToken: String?,
         traceHeaders: Map<String, String>,
     ): GraphQLResponse {
-        // Get service token
-        val token = runBlocking { serviceTokenClient.getServiceToken(targetAudience, delegatedBy) }
+        val token =
+            runBlocking {
+                if (subjectToken != null) {
+                    serviceTokenClient.getServiceTokenWithUserContext(targetAudience, subjectToken, delegatedBy)
+                } else {
+                    serviceTokenClient.getServiceToken(targetAudience, delegatedBy)
+                }
+            }
 
         // Build GraphQL request
         val request = GraphQLRequest(query = query, variables = variables)
@@ -128,7 +139,14 @@ open class GraphQLServiceClient(
             if (e.status.code == 401) {
                 logger.warn { "Received 401, clearing token cache and retrying" }
                 serviceTokenClient.clearCache()
-                val newToken = runBlocking { serviceTokenClient.getServiceToken(targetAudience, delegatedBy) }
+                val newToken =
+                    runBlocking {
+                        if (subjectToken != null) {
+                            serviceTokenClient.getServiceTokenWithUserContext(targetAudience, subjectToken, delegatedBy)
+                        } else {
+                            serviceTokenClient.getServiceToken(targetAudience, delegatedBy)
+                        }
+                    }
 
                 val httpRequest =
                     HttpRequest

@@ -603,6 +603,55 @@ class RefreshTokenServiceTest {
         }
 
         @Test
+        fun `should revoke only oauth refresh tokens for the matching connection triple`() {
+            val userId = UUID.randomUUID()
+            val accountId = UUID.randomUUID()
+            val revokedAt = Instant.parse("2026-07-30T18:30:00Z")
+            val matchingOne =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = "hash-matching-1",
+                    familyId = UUID.randomUUID(),
+                    clientId = "agent-a",
+                    accountId = accountId,
+                    issuedAt = revokedAt.minusSeconds(600),
+                    expiresAt = revokedAt.plusSeconds(600),
+                )
+            val matchingTwo =
+                RefreshTokenEntity(
+                    userId = userId,
+                    tokenHash = "hash-matching-2",
+                    familyId = UUID.randomUUID(),
+                    clientId = "agent-a",
+                    accountId = accountId,
+                    issuedAt = revokedAt.minusSeconds(600),
+                    expiresAt = revokedAt.plusSeconds(600),
+                )
+
+            whenever(
+                refreshTokenRepository.findByUserIdAndClientIdAndAccountIdAndRevokedAtIsNull(
+                    userId,
+                    "agent-a",
+                    accountId,
+                ),
+            ).thenReturn(listOf(matchingOne, matchingTwo))
+            whenever(refreshTokenRepository.save(any())).thenAnswer { it.arguments[0] as RefreshTokenEntity }
+
+            val revokedCount =
+                refreshTokenService.revokeOAuthTokensForConnection(
+                    userId = userId,
+                    clientId = "agent-a",
+                    accountId = accountId,
+                    revokedAt = revokedAt,
+                )
+
+            assertThat(revokedCount).isEqualTo(2)
+            assertThat(matchingOne.revokedAt).isEqualTo(revokedAt)
+            assertThat(matchingTwo.revokedAt).isEqualTo(revokedAt)
+            verify(refreshTokenRepository, times(2)).save(any())
+        }
+
+        @Test
         fun `should revoke entire token family`() {
             // Arrange
             val familyId = UUID.randomUUID()

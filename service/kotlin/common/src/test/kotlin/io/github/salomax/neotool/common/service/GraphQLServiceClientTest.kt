@@ -324,6 +324,53 @@ class GraphQLServiceClientTest {
                 assertThat(result.data).isNotNull
             }
         }
+
+        @Test
+        fun `should exchange a delegated user context token when subject token is provided`() {
+            runBlocking {
+                val mutation = "mutation { revokeConnection { revokedAt } }"
+                val responseBody: Map<String, Any> =
+                    LinkedHashMap<String, Any>().apply {
+                        put(
+                            "data",
+                            LinkedHashMap<String, Any>().apply {
+                                put(
+                                    "revokeConnection",
+                                    LinkedHashMap<String, Any>().apply {
+                                        put("revokedAt", "2026-07-30T18:00:00Z")
+                                    },
+                                )
+                            },
+                        )
+                    }
+
+                whenever(
+                    serviceTokenClient.getServiceTokenWithUserContext(
+                        "apollo-router",
+                        "subject-user-token",
+                        null,
+                    ),
+                ).thenReturn("delegated-service-token")
+                val httpResponse: HttpResponse<Any> = mock()
+                whenever(httpResponse.body()).thenReturn(responseBody)
+                whenever(blockingHttpClient.exchange(any<HttpRequest<Any>>(), any<Class<*>>()))
+                    .thenReturn(httpResponse)
+
+                val result =
+                    graphQLServiceClient.mutation(
+                        mutation = mutation,
+                        subjectToken = "subject-user-token",
+                    )
+
+                assertThat(result.data).isNotNull
+                verify(serviceTokenClient).getServiceTokenWithUserContext(
+                    "apollo-router",
+                    "subject-user-token",
+                    null,
+                )
+                verify(serviceTokenClient, never()).getServiceToken("apollo-router")
+            }
+        }
     }
 
     @Nested

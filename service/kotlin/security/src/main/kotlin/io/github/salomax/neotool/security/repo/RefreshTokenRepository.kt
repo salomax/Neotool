@@ -24,6 +24,15 @@ interface RefreshTokenRepository : JpaRepository<RefreshTokenEntity, UUID> {
     fun findByUserIdAndRevokedAtIsNull(userId: UUID): List<RefreshTokenEntity>
 
     /**
+     * Find active OAuth refresh tokens for a specific connection triple.
+     */
+    fun findByUserIdAndClientIdAndAccountIdAndRevokedAtIsNull(
+        userId: UUID,
+        clientId: String,
+        accountId: UUID,
+    ): List<RefreshTokenEntity>
+
+    /**
      * Find active token by user ID and token hash.
      */
     fun findByUserIdAndTokenHashAndRevokedAtIsNull(

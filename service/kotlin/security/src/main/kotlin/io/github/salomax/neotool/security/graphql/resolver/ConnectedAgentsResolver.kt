@@ -23,8 +23,7 @@ class ConnectedAgentsResolver(
         connectionId: String,
         principal: RequestPrincipal,
     ): RevokeConnectedAgentPayloadDTO {
-        val actorUserId = requireNotNull(principal.userId) { "User ID required" }
-        return connectedAgentsService.revokeConnectedAgent(connectionId, actorUserId)
+        return connectedAgentsService.revokeConnectedAgent(connectionId, principal)
     }
 
     fun recentActivity(
@@ -32,7 +31,6 @@ class ConnectedAgentsResolver(
         first: Int,
         principal: RequestPrincipal,
     ): List<ConnectedAgentRecentActivityDTO> {
-        val actorUserId = requireNotNull(principal.userId) { "User ID required" }
-        return connectedAgentsService.recentActivity(connection, first, actorUserId)
+        return connectedAgentsService.recentActivity(connection, first, principal)
     }
 }

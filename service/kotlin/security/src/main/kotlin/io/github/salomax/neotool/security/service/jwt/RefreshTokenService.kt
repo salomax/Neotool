@@ -270,6 +270,35 @@ open class RefreshTokenService(
     }
 
     /**
+     * Revoke all active OAuth refresh tokens bound to a single connected-agent tuple.
+     */
+    @Transactional
+    open fun revokeOAuthTokensForConnection(
+        userId: UUID,
+        clientId: String,
+        accountId: UUID,
+        revokedAt: Instant = Instant.now(),
+    ): Int {
+        val tokens =
+            refreshTokenRepository.findByUserIdAndClientIdAndAccountIdAndRevokedAtIsNull(
+                userId = userId,
+                clientId = clientId,
+                accountId = accountId,
+            )
+        tokens.forEach { token ->
+            token.revokedAt = revokedAt
+            token.updatedAt = revokedAt
+            refreshTokenRepository.save(token)
+        }
+        if (tokens.isNotEmpty()) {
+            logger.info {
+                "Revoked ${tokens.size} OAuth refresh tokens for user $userId, client $clientId, account $accountId"
+            }
+        }
+        return tokens.size
+    }
+
+    /**
      * Revoke all tokens in a token family.
      * Used when token reuse is detected (theft detection).
      *

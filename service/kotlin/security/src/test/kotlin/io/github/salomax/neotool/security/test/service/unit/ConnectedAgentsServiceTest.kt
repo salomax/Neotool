@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.security.test.service.unit
 
 import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import io.github.salomax.neotool.common.service.GraphQLResponse
 import io.github.salomax.neotool.common.service.GraphQLServiceClient
 import io.github.salomax.neotool.security.error.SecurityErrorCode
@@ -11,6 +13,7 @@ import io.github.salomax.neotool.security.model.account.MembershipStatus
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.OAuth2ConsentRepository
 import io.github.salomax.neotool.security.service.connectedagents.ConnectedAgentsService
+import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
 import io.github.salomax.neotool.security.service.oauth2.OAuth2ClientRegistry
 import io.github.salomax.neotool.security.service.oauth2.OAuth2RegisteredClient
 import io.github.salomax.neotool.security.service.oauth2.OAuth2ScopeDescription
@@ -36,6 +39,7 @@ class ConnectedAgentsServiceTest {
     private lateinit var accountMembershipRepository: AccountMembershipRepository
     private lateinit var clientRegistry: OAuth2ClientRegistry
     private lateinit var scopeDescriptionService: OAuth2ScopeDescriptionService
+    private lateinit var refreshTokenService: RefreshTokenService
     private lateinit var graphQLServiceClient: GraphQLServiceClient
     private lateinit var service: ConnectedAgentsService
 
@@ -45,6 +49,7 @@ class ConnectedAgentsServiceTest {
         accountMembershipRepository = mock()
         clientRegistry = mock()
         scopeDescriptionService = mock()
+        refreshTokenService = mock()
         graphQLServiceClient = mock()
         service =
             ConnectedAgentsService(
@@ -52,6 +57,7 @@ class ConnectedAgentsServiceTest {
                 accountMembershipRepository,
                 clientRegistry,
                 scopeDescriptionService,
+                refreshTokenService,
                 graphQLServiceClient,
             )
     }
@@ -130,6 +136,16 @@ class ConnectedAgentsServiceTest {
     fun `revokeConnectedAgent derives revocation triple from persisted consent row`() =
         runBlocking {
             val actorUserId = UUID.randomUUID()
+            val actorPrincipal =
+                RequestPrincipal(
+                    principalType = PrincipalType.USER,
+                    userId = actorUserId,
+                    serviceId = null,
+                    token = "actor-access-token",
+                    tokenId = "token-id",
+                    permissionsFromToken = emptyList(),
+                    currentAccountId = UUID.randomUUID(),
+                )
             val accountId = UUID.randomUUID()
             val consentUserId = UUID.randomUUID()
             val connectionId = UUID.randomUUID()
@@ -144,7 +160,7 @@ class ConnectedAgentsServiceTest {
             stubOwner(actorUserId, accountId)
             whenever(consentRepository.findOneByIdAndRevokedAtIsNull(connectionId)).thenReturn(Optional.of(consent))
             whenever(
-                graphQLServiceClient.mutation(any(), any(), any(), anyOrNull()),
+                graphQLServiceClient.mutation(any(), any(), any(), anyOrNull(), anyOrNull()),
             ).thenReturn(
                 GraphQLResponse(
                     data =
@@ -160,10 +176,16 @@ class ConnectedAgentsServiceTest {
             )
             whenever(consentRepository.update(any())).thenAnswer { it.arguments[0] }
 
-            val payload = service.revokeConnectedAgent(connectionId.toString(), actorUserId)
+            val payload = service.revokeConnectedAgent(connectionId.toString(), actorPrincipal)
 
             val variablesCaptor = argumentCaptor<Map<String, Any>>()
-            verify(graphQLServiceClient).mutation(any(), variablesCaptor.capture(), eq("apollo-router"), anyOrNull())
+            verify(graphQLServiceClient).mutation(
+                any(),
+                variablesCaptor.capture(),
+                eq("apollo-router"),
+                anyOrNull(),
+                eq("actor-access-token"),
+            )
             assertThat(variablesCaptor.firstValue).isEqualTo(
                 mapOf(
                     "userId" to consentUserId.toString(),
@@ -175,6 +197,12 @@ class ConnectedAgentsServiceTest {
             assertThat(payload.clientId).isEqualTo("agent-a")
             assertThat(payload.revokedAt).isEqualTo(Instant.parse("2026-07-30T15:00:00Z"))
             assertThat(consent.revokedAt).isEqualTo(Instant.parse("2026-07-30T15:00:00Z"))
+            verify(refreshTokenService).revokeOAuthTokensForConnection(
+                userId = consentUserId,
+                clientId = "agent-a",
+                accountId = accountId,
+                revokedAt = Instant.parse("2026-07-30T15:00:00Z"),
+            )
         }
 
     private fun stubOwner(
