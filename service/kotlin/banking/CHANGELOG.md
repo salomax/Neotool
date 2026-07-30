@@ -1,3 +1,13 @@
+## 0.16.0 (2026-07-30)
+
+### 🚀 Features
+
+- **banking:** finish tax recalculation cascade ([4d848e7f](https://github.com/invistus/invistus/commit/4d848e7f))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.15.0 (2026-07-30)
 
 ### 🚀 Features
