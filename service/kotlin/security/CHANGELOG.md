@@ -1,3 +1,13 @@
+## 0.16.1 (2026-07-30)
+
+### 🩹 Fixes
+
+- **security:** harden agent revocation ([#562](https://github.com/invistus/invistus/issues/562))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.16.0 (2026-07-30)
 
 ### 🚀 Features

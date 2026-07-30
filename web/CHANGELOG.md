@@ -1,3 +1,13 @@
+## 0.10.8 (2026-07-30)
+
+### 🩹 Fixes
+
+- **dependencies:** update @next/swc packages to version 16.2.11 ([24e103d0](https://github.com/invistus/invistus/commit/24e103d0))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.10.7 (2026-07-30)
 
 ### 🚀 Features
