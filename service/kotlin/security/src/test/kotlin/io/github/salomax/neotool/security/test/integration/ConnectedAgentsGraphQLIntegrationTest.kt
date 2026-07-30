@@ -37,14 +37,17 @@ class RecordingConnectedAgentsGraphQLServiceClient(
     serviceTokenClient: io.github.salomax.neotool.common.service.ServiceTokenClient = mock(),
     httpClient: io.micronaut.http.client.HttpClient = mock(),
     private val mutationVariablesRef: MutableList<Map<String, Any>?> = mutableListOf(),
+    private val subjectTokensRef: MutableList<String?> = mutableListOf(),
 ) : GraphQLServiceClient(routerUrl, serviceTokenClient, httpClient) {
     override suspend fun mutation(
         mutation: String,
         variables: Map<String, Any>?,
         targetAudience: String,
         delegatedBy: String?,
+        subjectToken: String?,
     ): GraphQLResponse {
         mutationVariablesRef.add(variables)
+        subjectTokensRef.add(subjectToken)
         return GraphQLResponse(
             data =
                 mapOf(
@@ -83,11 +86,13 @@ open class ConnectedAgentsGraphQLIntegrationTest :
     lateinit var authContextFactory: AuthContextFactory
 
     private val mutationVariables = mutableListOf<Map<String, Any>?>()
+    private val subjectTokens = mutableListOf<String?>()
 
     @MockBean(GraphQLServiceClient::class)
     fun graphQLServiceClient(): GraphQLServiceClient =
         RecordingConnectedAgentsGraphQLServiceClient(
             mutationVariablesRef = mutationVariables,
+            subjectTokensRef = subjectTokens,
         )
 
     @AfterEach
@@ -97,6 +102,7 @@ open class ConnectedAgentsGraphQLIntegrationTest :
         accountRepository.deleteAll()
         userRepository.deleteAll()
         mutationVariables.clear()
+        subjectTokens.clear()
     }
 
     @Test
@@ -152,6 +158,7 @@ open class ConnectedAgentsGraphQLIntegrationTest :
         val owner = createUser()
         val account = createAccount(owner.id!!)
         grantMembership(account.id!!, owner.id!!, AccountRole.OWNER)
+        val ownerToken = tokenFor(owner)
         val consent =
             consentRepository.save(
                 OAuth2ConsentEntity(
@@ -164,7 +171,7 @@ open class ConnectedAgentsGraphQLIntegrationTest :
 
         val response =
             graphQL(
-                tokenFor(owner),
+                ownerToken,
                 """
                 mutation RevokeConnectedAgent(${'$'}connectionId: ID!) {
                   revokeConnectedAgent(connectionId: ${'$'}connectionId) {
@@ -194,6 +201,7 @@ open class ConnectedAgentsGraphQLIntegrationTest :
                 "accountId" to account.id.toString(),
             ),
         )
+        assertThat(subjectTokens).singleElement().isEqualTo(ownerToken)
     }
 
     @Test

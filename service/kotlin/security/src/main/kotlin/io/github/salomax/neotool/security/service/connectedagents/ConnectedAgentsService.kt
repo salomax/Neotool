@@ -3,6 +3,7 @@ package io.github.salomax.neotool.security.service.connectedagents
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import io.github.salomax.neotool.common.service.GraphQLResponse
 import io.github.salomax.neotool.common.service.GraphQLServiceClient
 import io.github.salomax.neotool.security.error.SecurityErrorCode
@@ -15,6 +16,7 @@ import io.github.salomax.neotool.security.model.account.AccountRole
 import io.github.salomax.neotool.security.model.account.MembershipStatus
 import io.github.salomax.neotool.security.repo.AccountMembershipRepository
 import io.github.salomax.neotool.security.repo.OAuth2ConsentRepository
+import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
 import io.github.salomax.neotool.security.service.oauth2.OAuth2ClientRegistry
 import io.github.salomax.neotool.security.service.oauth2.OAuth2ScopeDescriptionService
 import jakarta.inject.Singleton
@@ -29,6 +31,7 @@ open class ConnectedAgentsService(
     private val accountMembershipRepository: AccountMembershipRepository,
     private val clientRegistry: OAuth2ClientRegistry,
     private val scopeDescriptionService: OAuth2ScopeDescriptionService,
+    private val refreshTokenService: RefreshTokenService,
     private val graphQLServiceClient: GraphQLServiceClient,
 ) {
     fun connectedAgents(
@@ -62,8 +65,9 @@ open class ConnectedAgentsService(
     @Transactional
     open fun revokeConnectedAgent(
         connectionId: String,
-        actorUserId: UUID,
+        actorPrincipal: RequestPrincipal,
     ): RevokeConnectedAgentPayloadDTO {
+        val actorUserId = requireNotNull(actorPrincipal.userId) { "User ID required" }
         val parsedConnectionId = parseUuid(connectionId, "connectionId")
         val consent =
             consentRepository.findOneByIdAndRevokedAtIsNull(parsedConnectionId)
@@ -75,7 +79,19 @@ open class ConnectedAgentsService(
                 }
         requireOwner(consent.accountId, actorUserId)
 
-        val revocation = revokeInMcp(consent.userId, consent.clientId, consent.accountId)
+        val revocation =
+            revokeInMcp(
+                userId = consent.userId,
+                clientId = consent.clientId,
+                accountId = consent.accountId,
+                subjectToken = actorPrincipal.token,
+            )
+        refreshTokenService.revokeOAuthTokensForConnection(
+            userId = consent.userId,
+            clientId = consent.clientId,
+            accountId = consent.accountId,
+            revokedAt = revocation.revokedAt,
+        )
         consent.revokedAt = revocation.revokedAt
         consent.updatedAt = revocation.revokedAt
         consentRepository.update(consent)
@@ -91,8 +107,9 @@ open class ConnectedAgentsService(
     fun recentActivity(
         connection: ConnectedAgentDTO,
         first: Int,
-        actorUserId: UUID,
+        actorPrincipal: RequestPrincipal,
     ): List<ConnectedAgentRecentActivityDTO> {
+        val actorUserId = requireNotNull(actorPrincipal.userId) { "User ID required" }
         requireOwner(connection.accountId, actorUserId)
         if (first <= 0) {
             throw ValidationException(
@@ -113,6 +130,7 @@ open class ConnectedAgentsService(
                             "first" to first,
                         ),
                     targetAudience = "apollo-router",
+                    subjectToken = actorPrincipal.token,
                 )
             }
 
@@ -149,6 +167,7 @@ open class ConnectedAgentsService(
         userId: UUID,
         clientId: String,
         accountId: UUID,
+        subjectToken: String,
     ): RevokeConnectedAgentPayloadDTO {
         val response =
             runBlocking {
@@ -161,6 +180,7 @@ open class ConnectedAgentsService(
                             "accountId" to accountId.toString(),
                         ),
                     targetAudience = "apollo-router",
+                    subjectToken = subjectToken,
                 )
             }
 
