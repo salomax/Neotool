@@ -3,9 +3,6 @@
 # Auto-included from: service/kotlin/common/src/main/resources/graphql/base-schema.graphqls
 # ============================================================================
 
-directive @key(fields: String!) repeatable on OBJECT | INTERFACE
-directive @external on FIELD_DEFINITION
-
 scalar Long
 scalar Date
 scalar DateTime
@@ -15,18 +12,6 @@ scalar UUID
 # ============================================================================
 # Service Schema - mcp
 # ============================================================================
-
-type Query {
-  _placeholder: String
-}
-
-type Mutation {
-  _placeholder: String
-}
-
-type Subscription {
-  _placeholder: String
-}
 
 enum McpToolCallOutcome {
   SUCCESS
@@ -58,9 +43,17 @@ type McpRecentActivityEntry {
 }
 
 extend type Query {
+  """
+  Internal-only primitive for delegated service callers. The current audit schema
+  supports scoping by userId + clientId only; there is no account dimension yet.
+  """
   recentActivity(userId: ID!, clientId: String!, first: Int = 20): [McpRecentActivityEntry!]!
 }
 
 extend type Mutation {
+  """
+  Internal-only primitive for delegated service callers. Repeated calls assert the
+  same revoked state idempotently.
+  """
   revokeConnection(userId: ID!, clientId: String!, accountId: ID!): McpConnectionRevocation!
 }

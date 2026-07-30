@@ -488,7 +488,10 @@ type Query @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(
   listedAssetDailyPrices(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, tickers: [String!]): ListedAssetDailyPriceConnection! @join__field(graph: FINANCIALDATA)
   economicIndicatorVariationPoints(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, indicators: [String!], variations: [String!]): EconomicIndicatorPointConnection! @join__field(graph: FINANCIALDATA)
   assetCorporateEvents(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, tickers: [String!], isins: [String!]): AssetCorporateEventConnection! @join__field(graph: FINANCIALDATA)
-  _placeholder: String @join__field(graph: MCP)
+  """
+  Internal-only primitive for delegated service callers. The current audit schema
+  supports scoping by userId + clientId only; there is no account dimension yet.
+  """
   recentActivity(userId: ID!, clientId: String!, first: Int = 20): [McpRecentActivityEntry!]! @join__field(graph: MCP)
   currentUser: User @join__field(graph: SECURITY)
   myVerificationStatus: VerificationStatus @join__field(graph: SECURITY)
@@ -759,7 +762,10 @@ type Mutation @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__ty
   transferCustody(input: TransferCustodyInput!): TransferCustodyResult! @join__field(graph: BANKING)
   """Dismiss a pending action (e.g. mark informational item as seen)."""
   dismissPendingAction(id: ID!): AccountPendingAction! @join__field(graph: BANKING)
-  _placeholder: String @join__field(graph: MCP)
+  """
+  Internal-only primitive for delegated service callers. Repeated calls assert the
+  same revoked state idempotently.
+  """
   revokeConnection(userId: ID!, clientId: String!, accountId: ID!): McpConnectionRevocation! @join__field(graph: MCP)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
@@ -797,9 +803,8 @@ type Mutation @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__ty
   removeRoleFromGroup(groupId: ID!, roleId: ID!): Group! @join__field(graph: SECURITY)
 }
 
-type Subscription @join__type(graph: ASSISTANT) @join__type(graph: MCP) {
-  messageStream(conversationId: ID!, input: MessageInput!): CompletionChunk! @join__field(graph: ASSISTANT)
-  _placeholder: String @join__field(graph: MCP)
+type Subscription @join__type(graph: ASSISTANT) {
+  messageStream(conversationId: ID!, input: MessageInput!): CompletionChunk!
 }
 
 input ChatInput @join__type(graph: ASSISTANT) {
