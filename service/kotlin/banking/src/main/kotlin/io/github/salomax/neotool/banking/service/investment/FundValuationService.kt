@@ -1,19 +1,26 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpoint
 import io.github.salomax.neotool.banking.domain.investment.FundMarketSnapshot
 import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.model.dto.investment.FundValuationResult
-import io.github.salomax.neotool.common.finance.tax.brazil.fixedincome.BrazilianFixedIncomeTaxRules
+import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointRepository
+import io.github.salomax.neotool.banking.service.investment.tax.TaxRegimeRegistry
+import io.github.salomax.neotool.common.finance.tax.engine.TaxLot
+import io.github.salomax.neotool.common.finance.tax.engine.computeTax
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
 import java.time.LocalDate
+import java.util.UUID
 
 @Singleton
-class FundValuationService {
+class FundValuationService(
+    private val checkpointRepository: ComeCotasCheckpointRepository = NoOpComeCotasCheckpointRepository,
+) {
     private val mathContext = MathContext(12, RoundingMode.HALF_UP)
 
     fun estimate(
@@ -50,40 +57,39 @@ class FundValuationService {
                     )
                 }
 
-                val withholdingPaid =
-                    openLots.fold(BigDecimal.ZERO) { acc, lot ->
-                        acc.add(lot.withholdingPaid, mathContext)
+                val regime =
+                    TaxRegimeRegistry.resolveFund(
+                        assetType = io.github.salomax.neotool.banking.domain.investment.AssetType.MUTUAL_FUND,
+                        taxProfile = snapshot.taxProfile,
+                        comeCotasEnabled = holding.comeCotasEnabled,
+                    )
+                val computation =
+                    computeTax(
+                        lots =
+                            openLots.mapIndexed { index, lot ->
+                                TaxLot(
+                                    id = "${holding.id ?: "holding"}-$index-${lot.tradeDate}",
+                                    quantity = lot.quantity,
+                                    unitCost = lot.unitPrice,
+                                    acquisitionDate = lot.tradeDate,
+                                )
+                            },
+                        regime = regime,
+                        referenceDate = nav.date,
+                    ) { date ->
+                        if (date == nav.date) nav.closePrice else null
                     }
-
-                var totalIof = BigDecimal.ZERO
-                var totalIrDue = BigDecimal.ZERO
-
-                openLots.forEach { lot ->
-                    val lotGross = lot.quantity.multiply(nav.closePrice, mathContext)
-                    val costBasis = lot.quantity.multiply(lot.unitPrice, mathContext)
-                    val gain = lotGross.subtract(costBasis, mathContext)
-                    if (gain <= BigDecimal.ZERO) {
-                        return@forEach
-                    }
-                    val calendarDays = calendarDaysBetween(lot.tradeDate, nav.date)
-                    val iofAmount = BrazilianFixedIncomeTaxRules.computeIof(gain, calendarDays)
-                    val taxableGain = (gain - iofAmount).max(BigDecimal.ZERO)
-                    val finalIr = computeFinalIr(snapshot.taxProfile, taxableGain, calendarDays)
-                    val prepaidComeCotas =
-                        (
-                            ComeCotasSupport.estimateProjectedComeCotas(
-                                taxProfile = snapshot.taxProfile,
-                                gain = gain,
-                                tradeDate = lot.tradeDate,
-                                referenceDate = nav.date,
-                            ) - lot.withholdingPaid
-                        ).max(BigDecimal.ZERO)
-                    val residualIr = (finalIr - prepaidComeCotas).max(BigDecimal.ZERO)
-                    totalIof = totalIof.add(iofAmount, mathContext)
-                    totalIrDue = totalIrDue.add(residualIr, mathContext)
-                }
-
-                val incomeTax = (totalIrDue - withholdingPaid).max(BigDecimal.ZERO)
+                val totalPreviouslyWithheld = previouslyWithheldAmount(holding.id, openLots, nav.date)
+                val outstandingPeriodicWithholding =
+                    computation.totalPeriodicWithholdingDue
+                        .subtract(totalPreviouslyWithheld, mathContext)
+                        .max(BigDecimal.ZERO)
+                val finalResidualTax =
+                    computation.totalFinalTaxDue
+                        .subtract(computation.totalPeriodicWithholdingDue, mathContext)
+                        .max(BigDecimal.ZERO)
+                val totalIof = computation.totalIof
+                val incomeTax = outstandingPeriodicWithholding.add(finalResidualTax, mathContext)
                 val netValue = grossValue.subtract(totalIof, mathContext).subtract(incomeTax, mathContext)
 
                 FundValuationResult(
@@ -98,34 +104,27 @@ class FundValuationService {
         }
     }
 
-    private fun computeFinalIr(
-        taxProfile: FundTaxProfile,
-        taxableGain: BigDecimal,
-        calendarDays: Int,
-    ): BigDecimal =
-        when (taxProfile) {
-            FundTaxProfile.COME_COTAS_SHORT ->
-                taxableGain.multiply(
-                    if (calendarDays <= 180) BigDecimal("0.225") else BigDecimal("0.20"),
-                    mathContext,
-                )
-
-            FundTaxProfile.COME_COTAS_LONG ->
-                BrazilianFixedIncomeTaxRules.computeIr(taxableGain, calendarDays, isTaxExempt = false)
-
-            FundTaxProfile.VARIABLE_INCOME_15 ->
-                taxableGain.multiply(BigDecimal("0.15"), mathContext)
-
-            else -> BigDecimal.ZERO
-        }
-
     private fun reconstructOpenLots(transactions: List<InvestmentTransaction>): List<OpenLot> =
         ComeCotasSupport.reconstructOpenLots(transactions)
 
-    private fun calendarDaysBetween(
-        start: LocalDate,
-        end: LocalDate,
-    ): Int = ComeCotasSupport.calendarDaysBetween(start, end)
+    private fun previouslyWithheldAmount(
+        holdingId: UUID?,
+        openLots: List<OpenLot>,
+        referenceDate: LocalDate,
+    ): BigDecimal {
+        val firstTradeDate = openLots.minOfOrNull(OpenLot::tradeDate) ?: return BigDecimal.ZERO
+        val persistedWithheld =
+            holdingId
+                ?.let {
+                    checkpointRepository
+                        .findByHoldingAndDateRange(it, firstTradeDate, referenceDate)
+                        .fold(BigDecimal.ZERO) { acc, checkpoint ->
+                            acc.add(checkpoint.withheldAmount, mathContext)
+                        }
+                }
+                ?: BigDecimal.ZERO
+        return persistedWithheld.setScale(2, RoundingMode.HALF_UP)
+    }
 
     private fun unavailable(): FundValuationResult =
         FundValuationResult(
@@ -136,4 +135,14 @@ class FundValuationService {
             valuationSource = ValuationSource.UNAVAILABLE,
             valuationReferenceDate = null,
         )
+
+    private object NoOpComeCotasCheckpointRepository : ComeCotasCheckpointRepository {
+        override fun upsert(checkpoint: ComeCotasCheckpoint): ComeCotasCheckpoint = checkpoint
+
+        override fun findByHoldingAndDateRange(
+            holdingId: UUID,
+            from: LocalDate,
+            to: LocalDate,
+        ): List<ComeCotasCheckpoint> = emptyList()
+    }
 }
