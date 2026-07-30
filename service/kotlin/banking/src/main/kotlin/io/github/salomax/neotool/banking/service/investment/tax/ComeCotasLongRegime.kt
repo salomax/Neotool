@@ -5,6 +5,8 @@ import io.github.salomax.neotool.common.finance.tax.engine.TaxRegime
 import java.math.BigDecimal
 
 object ComeCotasLongRegime : TaxRegime {
+    override val hasPeriodicWithholding: Boolean = true
+
     override fun iofRate(elapsedDays: Int): BigDecimal = BrazilianFixedIncomeTaxRules.iofRate(elapsedDays)
 
     override fun periodicWithholdingRate(elapsedDays: Int): BigDecimal = BigDecimal("0.15")

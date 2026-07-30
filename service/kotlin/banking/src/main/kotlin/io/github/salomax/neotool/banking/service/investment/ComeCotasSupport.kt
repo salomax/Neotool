@@ -43,6 +43,20 @@ internal object ComeCotasSupport {
         month: Month,
     ): LocalDate = BrazilianBusinessCalendar.lastBusinessDay(year, month)
 
+    /**
+     * Inclusive boundary on purpose: edit/delete reprocessing starts at the first checkpoint
+     * that may still be affected by a transaction recorded exactly on checkpoint day.
+     */
+    fun earliestCheckpointOnOrAfter(tradeDate: LocalDate): LocalDate {
+        val sameYearCandidates =
+            listOf(
+                checkpointDateForMonth(tradeDate.year, Month.MAY),
+                checkpointDateForMonth(tradeDate.year, Month.NOVEMBER),
+            )
+        return sameYearCandidates.firstOrNull { !it.isBefore(tradeDate) }
+            ?: checkpointDateForMonth(tradeDate.year + 1, Month.MAY)
+    }
+
     fun checkpointWindow(
         checkpointDate: LocalDate,
         windowDays: Long = RECONCILIATION_WINDOW_DAYS,
