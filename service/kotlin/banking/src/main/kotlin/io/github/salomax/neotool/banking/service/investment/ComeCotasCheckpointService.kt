@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.client.investment.financialdata.FundMarketDataProvider
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpointJob
 import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpointJobStatus
 import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile
@@ -13,6 +14,9 @@ import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointJobRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
+import io.github.salomax.neotool.banking.service.investment.tax.ComeCotasLongRegime
+import io.github.salomax.neotool.banking.service.investment.tax.ComeCotasShortRegime
+import io.github.salomax.neotool.banking.service.investment.tax.TaxRegimeRegistry
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.DomainException
 import io.github.salomax.neotool.common.error.NotFoundException
@@ -98,7 +102,12 @@ class ComeCotasCheckpointService(
 
         val snapshot = fundMarketDataProvider.getSnapshotsByCnpj(setOf(fundCnpj))[fundCnpj]
         val taxProfile = ComeCotasEligibility.resolveEffectiveTaxProfile(holding, asset, snapshot?.taxProfile)
-        if (!ComeCotasEligibility.isEligible(holding, asset, taxProfile)) {
+        val eligible =
+            asset.assetType == AssetType.MUTUAL_FUND &&
+                TaxRegimeRegistry.resolveFund(asset.assetType, taxProfile, holding.comeCotasEnabled).let { regime ->
+                    regime is ComeCotasLongRegime || regime is ComeCotasShortRegime
+                }
+        if (!eligible) {
             logger.info {
                 "come-cotas checkpoint skipped ineligible jobId=${job.id} holdingId=${holding.id} " +
                     "checkpointDate=${job.checkpointDate} fundCnpj=$fundCnpj " +

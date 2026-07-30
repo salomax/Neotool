@@ -804,6 +804,45 @@ export enum ConflictResolution {
   Update = 'UPDATE'
 }
 
+export type ConnectedAgent = {
+  __typename: 'ConnectedAgent';
+  clientId: Scalars['String']['output'];
+  clientName: Scalars['String']['output'];
+  connectedAt: Scalars['DateTime']['output'];
+  connectionId: Scalars['ID']['output'];
+  lastGrantedAt: Scalars['DateTime']['output'];
+  recentActivity: Array<ConnectedAgentRecentActivity>;
+  scopes: Array<ConnectedAgentScope>;
+};
+
+
+export type ConnectedAgentRecentActivityArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export enum ConnectedAgentActivityOutcome {
+  Error = 'ERROR',
+  Rejected = 'REJECTED',
+  Success = 'SUCCESS'
+}
+
+export type ConnectedAgentRecentActivity = {
+  __typename: 'ConnectedAgentRecentActivity';
+  errorCode: Maybe<Scalars['String']['output']>;
+  errorMessage: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  latencyMs: Scalars['Long']['output'];
+  occurredAt: Scalars['DateTime']['output'];
+  outcome: ConnectedAgentActivityOutcome;
+  toolName: Maybe<Scalars['String']['output']>;
+};
+
+export type ConnectedAgentScope = {
+  __typename: 'ConnectedAgentScope';
+  description: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+};
+
 export enum ConnectionStatus {
   Connected = 'CONNECTED',
   ConsentExpired = 'CONSENT_EXPIRED',
@@ -2661,6 +2700,7 @@ export type Mutation = {
   resolveImportDuplicate: TransactionImport;
   resumeRecurringPayment: RecurringPayment;
   revertToolCallChanges: BulkOperationResult;
+  revokeConnectedAgent: RevokeConnectedAgentPayload;
   /**
    * Internal-only primitive for delegated service callers. Repeated calls assert the
    * same revoked state idempotently.
@@ -3150,6 +3190,11 @@ export type MutationResumeRecurringPaymentArgs = {
 
 export type MutationRevertToolCallChangesArgs = {
   toolCallId: Scalars['ID']['input'];
+};
+
+
+export type MutationRevokeConnectedAgentArgs = {
+  connectionId: Scalars['ID']['input'];
 };
 
 
@@ -3721,6 +3766,7 @@ export type Query = {
    */
   categoryBreakdownForRange: Array<CategoryTotal>;
   checkPermission: AuthorizationResult;
+  connectedAgents: Array<ConnectedAgent>;
   conversation: Maybe<Conversation>;
   /**
    * A specific credit card bill by business reference month.
@@ -4006,6 +4052,11 @@ export type QueryCheckPermissionArgs = {
   permission: Scalars['String']['input'];
   resourceId?: InputMaybe<Scalars['ID']['input']>;
   userId: Scalars['ID']['input'];
+};
+
+
+export type QueryConnectedAgentsArgs = {
+  accountId: Scalars['ID']['input'];
 };
 
 
@@ -4748,6 +4799,14 @@ export type ResolveImportDuplicateInput = {
   jobId: Scalars['ID']['input'];
   resolution: DuplicateResolution;
   rowIndex: Scalars['Int']['input'];
+};
+
+export type RevokeConnectedAgentPayload = {
+  __typename: 'RevokeConnectedAgentPayload';
+  accountId: Scalars['ID']['output'];
+  clientId: Scalars['String']['output'];
+  connectionId: Scalars['ID']['output'];
+  revokedAt: Scalars['DateTime']['output'];
 };
 
 export type Role = {

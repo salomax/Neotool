@@ -137,4 +137,82 @@ class ComeCotasSweepJobTest {
         verify(jobRepository, never()).saveIfAbsent(any<ComeCotasCheckpointJob>())
         verify(transactionRepository).findByHoldingIds(eq(listOf(holdingId)), eq(accountId))
     }
+
+    @Test
+    fun `skips non mutual fund candidates before fund regime resolution would throw`() {
+        val accountId = UUID.randomUUID()
+        val financialAccountId = UUID.randomUUID()
+        val assetId = UUID.randomUUID()
+        val holdingId = UUID.randomUUID()
+        val fundCnpj = "12345678000199"
+
+        val holding =
+            Holding(
+                id = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                assetId = assetId,
+                quantity = BigDecimal("88.00000000"),
+                averageCost = BigDecimal("1.00000000"),
+            )
+        val asset =
+            Asset(
+                id = assetId,
+                name = "Equity",
+                assetType = AssetType.STOCK,
+                fundCnpj = fundCnpj,
+            )
+        val transactions =
+            listOf(
+                InvestmentTransaction(
+                    id = UUID.randomUUID(),
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = UUID.randomUUID(),
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("100.00000000"),
+                    unitPrice = BigDecimal("1.00000000"),
+                    grossValue = BigDecimal("100.00"),
+                    netValue = BigDecimal("100.00"),
+                    tradeDate = LocalDate.of(2026, 1, 2),
+                    settlementDate = LocalDate.of(2026, 1, 2),
+                    source = InvestmentSource.MANUAL,
+                    createdAt = Instant.parse("2026-01-02T10:00:00Z"),
+                    updatedAt = Instant.parse("2026-01-02T10:00:00Z"),
+                ),
+            )
+
+        whenever(holdingRepository.findOpenComeCotasCandidates()).thenReturn(listOf(holding))
+        whenever(assetRepository.findByIds(setOf(assetId))).thenReturn(listOf(asset))
+        whenever(fundMarketDataProvider.getSnapshotsByCnpj(setOf(fundCnpj))).thenReturn(
+            mapOf(
+                fundCnpj to
+                    FundMarketSnapshot(
+                        fundCnpj = fundCnpj,
+                        assetType = AssetType.STOCK.name,
+                        taxProfile = FundTaxProfile.COME_COTAS_LONG,
+                        latestNav = null,
+                    ),
+            ),
+        )
+        whenever(transactionRepository.findByHoldingIds(listOf(holdingId), accountId)).thenReturn(transactions)
+
+        val job =
+            ComeCotasSweepJob(
+                holdingRepository = holdingRepository,
+                assetRepository = assetRepository,
+                transactionRepository = transactionRepository,
+                jobRepository = jobRepository,
+                fundMarketDataProvider = fundMarketDataProvider,
+                batchSize = 100,
+                since = LocalDate.of(2024, 1, 1),
+                clock = { LocalDate.of(2026, 7, 16) },
+            )
+
+        job.sweep()
+
+        verify(jobRepository, never()).saveIfAbsent(any<ComeCotasCheckpointJob>())
+    }
 }

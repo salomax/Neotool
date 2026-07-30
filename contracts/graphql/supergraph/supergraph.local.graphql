@@ -503,6 +503,7 @@ type Query @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__type(
   userPreferences: UserPreferences! @join__field(graph: SECURITY)
   myAccounts: [Account!]! @join__field(graph: SECURITY)
   accountMembers(accountId: ID!): [AccountMember!]! @join__field(graph: SECURITY)
+  connectedAgents(accountId: ID!): [ConnectedAgent!]! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
   users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection! @join__field(graph: SECURITY)
   group(id: ID!): Group @join__field(graph: SECURITY)
@@ -789,6 +790,7 @@ type Mutation @join__type(graph: ASSETS) @join__type(graph: ASSISTANT) @join__ty
   removeMember(accountId: ID!, membershipId: ID!): Boolean! @join__field(graph: SECURITY)
   changeMemberRole(accountId: ID!, membershipId: ID!, role: AccountRole!): AccountMember! @join__field(graph: SECURITY)
   leaveAccount(accountId: ID!): Boolean! @join__field(graph: SECURITY)
+  revokeConnectedAgent(connectionId: ID!): RevokeConnectedAgentPayload! @join__field(graph: SECURITY)
   enableUser(userId: ID!): User! @join__field(graph: SECURITY)
   disableUser(userId: ID!): User! @join__field(graph: SECURITY)
   updateUser(userId: ID!, input: UpdateUserInput!): User! @join__field(graph: SECURITY)
@@ -4205,6 +4207,44 @@ type AccountMember @join__type(graph: SECURITY) {
   removedAt: String
   isDefault: Boolean!
   isCurrentUser: Boolean!
+}
+
+enum ConnectedAgentActivityOutcome @join__type(graph: SECURITY) {
+  SUCCESS @join__enumValue(graph: SECURITY)
+  ERROR @join__enumValue(graph: SECURITY)
+  REJECTED @join__enumValue(graph: SECURITY)
+}
+
+type ConnectedAgentScope @join__type(graph: SECURITY) {
+  name: String!
+  description: String!
+}
+
+type ConnectedAgentRecentActivity @join__type(graph: SECURITY) {
+  id: ID!
+  occurredAt: DateTime!
+  toolName: String
+  outcome: ConnectedAgentActivityOutcome!
+  errorCode: String
+  errorMessage: String
+  latencyMs: Long!
+}
+
+type ConnectedAgent @join__type(graph: SECURITY) {
+  connectionId: ID!
+  clientId: String!
+  clientName: String!
+  connectedAt: DateTime!
+  lastGrantedAt: DateTime!
+  scopes: [ConnectedAgentScope!]!
+  recentActivity(first: Int = 20): [ConnectedAgentRecentActivity!]!
+}
+
+type RevokeConnectedAgentPayload @join__type(graph: SECURITY) {
+  connectionId: ID!
+  clientId: String!
+  accountId: ID!
+  revokedAt: DateTime!
 }
 
 input InviteMemberInput @join__type(graph: SECURITY) {
