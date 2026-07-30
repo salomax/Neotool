@@ -59,6 +59,12 @@ vi.mock("@/shared/hooks/ui/usePageTitle", () => ({
   usePageTitle: vi.fn(),
 }));
 
+vi.mock("@/features/connected-agents/components/ConnectedAgentsSection", () => ({
+  ConnectedAgentsSection: ({ accountId }: { accountId: string }) => (
+    <div data-testid="connected-agents-section">{accountId}</div>
+  ),
+}));
+
 vi.mock("@/shared/providers", () => ({
   useAuth: () => ({
     user: mockUser,
@@ -195,5 +201,49 @@ describe("ProfilePage", () => {
 
     expect(scoped.queryAllByRole("button", { name: "profile.avatar.changePhoto" })).toHaveLength(0);
     expect(scoped.queryAllByText("profile.avatar.removePhoto")).toHaveLength(0);
+  });
+
+  it("shows the connected agents section for owner accounts", () => {
+    mockUseQuery.mockReturnValue({
+      data: {
+        myAccounts: [
+          {
+            id: "account-1",
+            accountName: "Owner Account",
+            accountType: "PERSONAL",
+            accountStatus: "ACTIVE",
+            isOwner: true,
+          },
+        ],
+      },
+      loading: false,
+      refetch: vi.fn(),
+    });
+
+    const view = renderPage();
+
+    expect(within(view.container).getByTestId("connected-agents-section")).toHaveTextContent("account-1");
+  });
+
+  it("hides the connected agents section for non-owner accounts", () => {
+    mockUseQuery.mockReturnValue({
+      data: {
+        myAccounts: [
+          {
+            id: "account-1",
+            accountName: "Shared Account",
+            accountType: "BUSINESS",
+            accountStatus: "ACTIVE",
+            isOwner: false,
+          },
+        ],
+      },
+      loading: false,
+      refetch: vi.fn(),
+    });
+
+    const view = renderPage();
+
+    expect(within(view.container).queryByTestId("connected-agents-section")).toBeNull();
   });
 });

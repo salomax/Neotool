@@ -20,6 +20,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { AccountMembersSection } from "@/features/account-membership/components/AccountMembersSection";
+import { ConnectedAgentsSection } from "@/features/connected-agents/components/ConnectedAgentsSection";
 import { AccountMembersDocument } from "@/lib/graphql/operations/auth/accountMembership.generated";
 import { LEAVE_ACCOUNT } from "@/lib/graphql/operations/auth/accountMembership";
 import { Page, Container, Paper, Stack } from "@/shared/components/ui/layout";
@@ -669,6 +670,10 @@ export default function ProfilePage() {
               </Stack>
             </Paper>
           </Stack>
+
+          {primaryAccount?.isOwner ? (
+            <ConnectedAgentsSection accountId={primaryAccount.id} />
+          ) : null}
 
           {primaryAccount ? (
             <AccountMembersSection accountId={primaryAccount.id} />
