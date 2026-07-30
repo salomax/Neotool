@@ -1,0 +1,44 @@
+enum McpToolCallOutcome {
+  SUCCESS
+  ERROR
+  REJECTED
+}
+
+type McpConnectionRevocation {
+  userId: ID!
+  clientId: String!
+  accountId: ID!
+  revokedAt: DateTime!
+  revokedUntil: DateTime
+  reason: String
+}
+
+type McpRecentActivityEntry {
+  id: ID!
+  occurredAt: DateTime!
+  userId: ID!
+  clientId: String!
+  tokenId: String
+  toolName: String
+  outcome: McpToolCallOutcome!
+  errorCode: String
+  errorMessage: String
+  latencyMs: Long!
+  createdAt: DateTime!
+}
+
+extend type Query {
+  """
+  Internal-only primitive for delegated service callers. The current audit schema
+  supports scoping by userId + clientId only; there is no account dimension yet.
+  """
+  recentActivity(userId: ID!, clientId: String!, first: Int = 20): [McpRecentActivityEntry!]!
+}
+
+extend type Mutation {
+  """
+  Internal-only primitive for delegated service callers. Repeated calls assert the
+  same revoked state idempotently.
+  """
+  revokeConnection(userId: ID!, clientId: String!, accountId: ID!): McpConnectionRevocation!
+}

@@ -75,6 +75,42 @@ object McpJwtTestFixture {
 
     fun expiredAccessToken(): String = accessToken(expirationSeconds = -60)
 
+    fun serviceToken(
+        serviceId: UUID = UUID.randomUUID(),
+        userId: UUID? = null,
+        userPermissions: List<String>? = null,
+        currentAccountId: UUID? = null,
+        audience: String = "mcp-service",
+        permissions: List<String> = emptyList(),
+        expirationSeconds: Long = 900,
+        issuedAt: Instant = Instant.now(),
+    ): String {
+        val builder =
+            Jwts
+                .builder()
+                .subject(serviceId.toString())
+                .issuer(ISSUER)
+                .claim("type", "service")
+                .issuedAt(Date.from(issuedAt))
+                .expiration(Date.from(issuedAt.plusSeconds(expirationSeconds)))
+                .id(UUID.randomUUID().toString())
+
+        if (permissions.isNotEmpty()) {
+            builder.claim("permissions", permissions)
+        }
+        userId?.let { builder.claim("user_id", it.toString()) }
+        userPermissions?.let { builder.claim("user_permissions", it) }
+        currentAccountId?.let { builder.claim("current_account", it.toString()) }
+        builder.audience().add(audience).and()
+
+        return builder
+            .header()
+            .keyId(KEY_ID)
+            .and()
+            .signWith(privateKey as RSAPrivateKey)
+            .compact()
+    }
+
     fun jwks(): JwksResponse {
         val rsaPublicKey = publicKey as RSAPublicKey
         return JwksResponse(

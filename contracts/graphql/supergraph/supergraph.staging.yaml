@@ -20,3 +20,7 @@ subgraphs:
     routing_url: http://neotool-assistant-service:8080/graphql
     schema:
       file: ../subgraphs/assistant/schema.graphqls
+  mcp:
+    routing_url: http://neotool-mcp-service:8080/graphql
+    schema:
+      file: ../subgraphs/mcp/schema.graphqls
