@@ -1,3 +1,13 @@
+## 0.8.0 (2026-07-30)
+
+### 🚀 Features
+
+- **mcp:** add GraphQL revocation subgraph ([0ff4c73a](https://github.com/invistus/invistus/commit/0ff4c73a))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.7.5 (2026-07-28)
 
 ### 🩹 Fixes
