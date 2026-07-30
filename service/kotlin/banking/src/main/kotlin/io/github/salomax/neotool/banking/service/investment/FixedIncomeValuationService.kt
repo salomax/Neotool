@@ -1,12 +1,15 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.model.dto.investment.HoldingValuationResult
-import io.github.salomax.neotool.common.finance.tax.brazil.fixedincome.BrazilianFixedIncomeTaxRules
+import io.github.salomax.neotool.banking.service.investment.tax.TaxRegimeRegistry
+import io.github.salomax.neotool.common.finance.tax.engine.TaxLot
+import io.github.salomax.neotool.common.finance.tax.engine.computeTax
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.math.BigDecimal
@@ -33,6 +36,7 @@ class FixedIncomeValuationService(
 
     fun estimate(
         holding: Holding,
+        assetType: AssetType,
         indicatorRates: Map<Indexer, BigDecimal>,
         valuationReferenceDate: LocalDate? = null,
         monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>> = emptyMap(),
@@ -278,9 +282,25 @@ class FixedIncomeValuationService(
             )
         }
 
-        val iofAmount = BrazilianFixedIncomeTaxRules.computeIof(gain, calendarDays)
-        val taxableGain = gain - iofAmount
-        val incomeTax = BrazilianFixedIncomeTaxRules.computeIr(taxableGain, calendarDays, holding.isTaxExempt)
+        val regime = TaxRegimeRegistry.resolve(assetType, holding.isTaxExempt)
+        val taxResult =
+            computeTax(
+                lots =
+                    listOf(
+                        TaxLot(
+                            id = "single",
+                            quantity = BigDecimal.ONE,
+                            unitCost = principal,
+                            acquisitionDate = accrualContext.accrualStart,
+                        ),
+                    ),
+                regime = regime,
+                referenceDate = endDate,
+            ) { date ->
+                if (date == endDate) grossValue else null
+            }
+        val iofAmount = taxResult.totalIof
+        val incomeTax = taxResult.totalFinalTaxDue
 
         val netValue = grossValue - iofAmount - incomeTax
 
