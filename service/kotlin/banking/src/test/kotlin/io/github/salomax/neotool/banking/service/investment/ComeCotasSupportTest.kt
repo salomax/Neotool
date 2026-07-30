@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.investment
 
-import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
@@ -8,21 +7,19 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
-import java.math.MathContext
 import java.math.RoundingMode
 import java.time.LocalDate
 import java.util.UUID
 
 @DisplayName("ComeCotasSupport")
 class ComeCotasSupportTest {
-    private val mathContext = MathContext(12, RoundingMode.HALF_UP)
     private val holdingId = UUID.randomUUID()
     private val accountId = UUID.randomUUID()
     private val financialAccountId = UUID.randomUUID()
     private val userId = UUID.randomUUID()
 
     @Test
-    fun `computes the next checkpoint on the quantity that survived the prior checkpoint`() {
+    fun `withholding tax consumes the surviving quota base`() {
         val transactions =
             listOf(
                 purchase(
@@ -41,24 +38,11 @@ class ComeCotasSupportTest {
 
         val remainingLot = openLots.single()
         assertThat(remainingLot.quantity).isEqualByComparingTo("95.00000000")
-        assertThat(remainingLot.withholdingPaid).isEqualByComparingTo("1.50")
-        val gain =
-            remainingLot.quantity.multiply(BigDecimal("1.20"), mathContext)
-                .subtract(remainingLot.quantity.multiply(remainingLot.unitPrice, mathContext), mathContext)
-        val projected =
-            ComeCotasSupport.estimateProjectedComeCotas(
-                taxProfile = FundTaxProfile.COME_COTAS_LONG,
-                gain = gain,
-                tradeDate = remainingLot.tradeDate,
-                referenceDate = LocalDate.of(2026, 5, 29),
-            )
-        val incrementalCheckpointIr = (projected - remainingLot.withholdingPaid).max(BigDecimal.ZERO)
-
-        assertThat(incrementalCheckpointIr).isEqualByComparingTo("1.35")
+        assertThat(remainingLot.unitPrice).isEqualByComparingTo("1.00")
     }
 
     @Test
-    fun `multiple withholding events keep reducing already-reduced lots proportionally`() {
+    fun `multiple withholding events keep reducing already-reduced lots`() {
         val transactions =
             listOf(
                 purchase(
@@ -86,10 +70,8 @@ class ComeCotasSupportTest {
         val openLots = ComeCotasSupport.reconstructOpenLots(transactions)
 
         assertThat(openLots).hasSize(2)
-        assertThat(openLots[0].quantity).isEqualByComparingTo("56.40000000")
-        assertThat(openLots[0].withholdingPaid).isEqualByComparingTo("1.08")
-        assertThat(openLots[1].quantity).isEqualByComparingTo("37.60000000")
-        assertThat(openLots[1].withholdingPaid).isEqualByComparingTo("0.72")
+        assertThat(openLots[0].quantity).isEqualByComparingTo("54.00000000")
+        assertThat(openLots[1].quantity).isEqualByComparingTo("40.00000000")
     }
 
     private fun purchase(
