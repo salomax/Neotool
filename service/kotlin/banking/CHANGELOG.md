@@ -1,3 +1,13 @@
+## 0.16.1 (2026-07-31)
+
+### 💅 Refactors
+
+- **banking:** optimize tax engine hot path ([024be69f](https://github.com/invistus/invistus/commit/024be69f))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.16.0 (2026-07-30)
 
 ### 🚀 Features
