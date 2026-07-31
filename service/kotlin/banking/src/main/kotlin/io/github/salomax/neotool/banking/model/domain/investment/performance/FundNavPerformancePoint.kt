@@ -1,12 +1,15 @@
 package io.github.salomax.neotool.banking.model.domain.investment.performance
 
+import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpoint
 import io.github.salomax.neotool.banking.domain.investment.FundMarketNav
 import io.github.salomax.neotool.banking.domain.investment.FundMarketSnapshot
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceResolution
 import io.github.salomax.neotool.banking.model.dto.investment.FundValuationResult
+import io.github.salomax.neotool.banking.service.investment.ComeCotasSupport
 import io.github.salomax.neotool.banking.service.investment.FundValuationService
+import io.github.salomax.neotool.banking.service.investment.OpenLot
 import io.github.salomax.neotool.banking.service.investment.ValuationSource
 import java.math.BigDecimal
 import java.math.MathContext
@@ -52,6 +55,7 @@ internal fun buildFundNavPerformancePoints(
     navSeries: List<Pair<LocalDate, BigDecimal>>,
     taxSnapshot: FundMarketSnapshot,
     fundValuationService: FundValuationService,
+    checkpoints: List<ComeCotasCheckpoint> = emptyList(),
     resolution: HoldingPerformanceResolution = HoldingPerformanceResolution.MONTH,
     fromDate: LocalDate? = null,
     toDate: LocalDate? = null,
@@ -61,7 +65,7 @@ internal fun buildFundNavPerformancePoints(
     if (transactions.isEmpty() || navSeries.isEmpty()) return emptyList()
 
     val nav = NavSeries(navSeries)
-    val chronologicalTx = transactions.sortedWith(compareBy({ it.tradeDate }, { it.createdAt }))
+    val chronologicalTx = transactions.sortedWith(ComeCotasSupport.transactionOrdering())
     val historicalEndDate = minOf(holding.maturityDate ?: today, today)
     val startDate = chronologicalTx.first().tradeDate
     val windowEnd = minOf(toDate ?: historicalEndDate, historicalEndDate)
@@ -73,6 +77,7 @@ internal fun buildFundNavPerformancePoints(
 
     var txIndex = 0
     var state = holding.asEmptyPerformanceState()
+    val openLots = ArrayDeque<OpenLot>()
     var investedPrincipal = BigDecimal.ZERO
     var netContributions = BigDecimal.ZERO
 
@@ -84,6 +89,7 @@ internal fun buildFundNavPerformancePoints(
             ) {
                 val tx = chronologicalTx[txIndex++]
                 state = state.applyPerformanceTransaction(tx)
+                ComeCotasSupport.applyTransaction(openLots, tx)
                 when {
                     tx.isCapitalContributionForPerformance() -> {
                         investedPrincipal += tx.grossValue
@@ -106,14 +112,14 @@ internal fun buildFundNavPerformancePoints(
 
             val navAtPoint = nav.onOrBefore(pointDate) ?: continue // no NAV yet — skip point
 
-            // subList is a O(1) view; no copy, no re-sort needed (already sorted).
-            val txsUpToPoint = chronologicalTx.subList(0, txIndex)
             val valuation =
                 runCatching {
                     fundValuationService.estimate(
                         state,
                         taxSnapshot.withNav(navAtPoint),
-                        txsUpToPoint,
+                        chronologicalTx.subList(0, txIndex),
+                        checkpoints = checkpoints,
+                        precomputedOpenLots = openLots,
                     )
                 }.getOrNull() ?: continue
 

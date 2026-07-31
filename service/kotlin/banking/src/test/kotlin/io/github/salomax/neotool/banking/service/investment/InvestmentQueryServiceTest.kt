@@ -25,6 +25,7 @@ import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceRe
 import io.github.salomax.neotool.banking.model.dto.investment.FundValuationResult
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
@@ -33,8 +34,11 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
 import java.time.Instant
@@ -53,6 +57,7 @@ class InvestmentQueryServiceTest {
     private val listedAssetMarketDataProvider: ListedAssetMarketDataProvider = mock()
     private val assetDailyPriceRepository: AssetDailyPriceRepository = mock()
     private val investmentTransactionRepository: InvestmentTransactionRepository = mock()
+    private val checkpointRepository: ComeCotasCheckpointRepository = mock()
     private val indicatorRateProvider: IndicatorRateProvider = mock()
     private val transactionRepository: TransactionRepository = mock()
 
@@ -68,10 +73,15 @@ class InvestmentQueryServiceTest {
             listedAssetMarketDataProvider = listedAssetMarketDataProvider,
             assetDailyPriceRepository = assetDailyPriceRepository,
             investmentTransactionRepository = investmentTransactionRepository,
+            checkpointRepository = checkpointRepository,
             indicatorRateProvider = indicatorRateProvider,
             transactionRepository = transactionRepository,
             clock = { LocalDate.of(2025, 12, 2) },
         )
+
+    init {
+        whenever(checkpointRepository.findByHoldingIds(any())).thenReturn(emptyList())
+    }
 
     @Test
     fun `listed stock holding uses latest market price`() {
@@ -221,7 +231,9 @@ class InvestmentQueryServiceTest {
         ).thenReturn(listOf(purchase))
         whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
         whenever(indicatorRateProvider.getReferenceDate()).thenReturn(null)
-        whenever(fundValuationService.estimate(eq(holding), eq(snapshot), eq(listOf(purchase)))).thenReturn(
+        whenever(
+            fundValuationService.estimate(eq(holding), eq(snapshot), eq(listOf(purchase)), any(), anyOrNull()),
+        ).thenReturn(
             FundValuationResult(
                 grossValue = BigDecimal("1050.00"),
                 incomeTax = BigDecimal("0.00"),
@@ -241,6 +253,159 @@ class InvestmentQueryServiceTest {
         assertThat(result.first().iof).isEqualTo(0.0)
         assertThat(result.first().valuationSource).isEqualTo(ValuationSource.MARKET_DATA)
         assertThat(result.first().valuationReferenceDate).isEqualTo(LocalDate.of(2025, 12, 1))
+    }
+
+    @Test
+    fun `market-data fund holdings batch checkpoint lookup once per listing request`() {
+        val accountId = UUID.randomUUID()
+        val financialAccountId = UUID.randomUUID()
+        val firstAssetId = UUID.randomUUID()
+        val secondAssetId = UUID.randomUUID()
+        val firstHoldingId = UUID.randomUUID()
+        val secondHoldingId = UUID.randomUUID()
+        val now = Instant.parse("2025-12-02T12:00:00Z")
+        val firstFundCnpj = "12345678000199"
+        val secondFundCnpj = "22345678000199"
+
+        val firstHolding =
+            Holding(
+                id = firstHoldingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                assetId = firstAssetId,
+                quantity = BigDecimal("100"),
+                averageCost = BigDecimal("10.00"),
+                pricingMode = HoldingPricingMode.MARKET_DATA,
+                createdAt = now,
+                updatedAt = now,
+            )
+        val secondHolding =
+            Holding(
+                id = secondHoldingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                assetId = secondAssetId,
+                quantity = BigDecimal("50"),
+                averageCost = BigDecimal("20.00"),
+                pricingMode = HoldingPricingMode.MARKET_DATA,
+                createdAt = now,
+                updatedAt = now,
+            )
+        val firstAsset =
+            Asset(
+                id = firstAssetId,
+                name = "Fund One",
+                assetType = AssetType.MUTUAL_FUND,
+                fundCnpj = firstFundCnpj,
+                currencyCode = "BRL",
+                createdAt = now,
+                updatedAt = now,
+            )
+        val secondAsset =
+            Asset(
+                id = secondAssetId,
+                name = "Fund Two",
+                assetType = AssetType.MUTUAL_FUND,
+                fundCnpj = secondFundCnpj,
+                currencyCode = "BRL",
+                createdAt = now,
+                updatedAt = now,
+            )
+        val financialAccount =
+            FinancialAccount(
+                id = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                type = FinancialAccountType.INVESTMENT,
+                subtype = FinancialAccountSubtype.BROKERAGE,
+                name = "Broker",
+                createdAt = now,
+                updatedAt = now,
+            )
+        val firstPurchase =
+            InvestmentTransaction(
+                id = UUID.randomUUID(),
+                holdingId = firstHoldingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.PURCHASE,
+                quantity = BigDecimal("100"),
+                unitPrice = BigDecimal("10.00"),
+                grossValue = BigDecimal("1000.00"),
+                tradeDate = LocalDate.of(2025, 1, 1),
+                source = InvestmentSource.MANUAL,
+            )
+        val secondPurchase =
+            InvestmentTransaction(
+                id = UUID.randomUUID(),
+                holdingId = secondHoldingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.PURCHASE,
+                quantity = BigDecimal("50"),
+                unitPrice = BigDecimal("20.00"),
+                grossValue = BigDecimal("1000.00"),
+                tradeDate = LocalDate.of(2025, 1, 2),
+                source = InvestmentSource.MANUAL,
+            )
+        val firstSnapshot =
+            FundMarketSnapshot(
+                fundCnpj = firstFundCnpj,
+                assetType = "MUTUAL_FUND",
+                taxProfile = FundTaxProfile.UNKNOWN,
+                latestNav = FundMarketNav(LocalDate.of(2025, 12, 1), BigDecimal("10.50")),
+            )
+        val secondSnapshot =
+            FundMarketSnapshot(
+                fundCnpj = secondFundCnpj,
+                assetType = "MUTUAL_FUND",
+                taxProfile = FundTaxProfile.UNKNOWN,
+                latestNav = FundMarketNav(LocalDate.of(2025, 12, 1), BigDecimal("20.50")),
+            )
+
+        whenever(holdingRepository.findOpenByAccount(accountId)).thenReturn(listOf(firstHolding, secondHolding))
+        whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(financialAccount))
+        whenever(issuerRepository.findByIds(emptySet())).thenReturn(emptyList())
+        whenever(assetRepository.findByIds(setOf(firstAssetId, secondAssetId))).thenReturn(
+            listOf(firstAsset, secondAsset),
+        )
+        whenever(fundMarketDataProvider.getSnapshotsByCnpj(setOf(firstFundCnpj, secondFundCnpj))).thenReturn(
+            mapOf(
+                firstFundCnpj to firstSnapshot,
+                secondFundCnpj to secondSnapshot,
+            ),
+        )
+        whenever(listedAssetMarketDataProvider.getAssetsByTicker(emptySet())).thenReturn(emptyMap())
+        whenever(
+            investmentTransactionRepository.findByHoldingIds(listOf(firstHoldingId, secondHoldingId), accountId),
+        ).thenReturn(listOf(firstPurchase, secondPurchase))
+        whenever(checkpointRepository.findByHoldingIds(listOf(firstHoldingId, secondHoldingId))).thenReturn(emptyList())
+        whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
+        whenever(indicatorRateProvider.getReferenceDate()).thenReturn(null)
+        whenever(
+            fundValuationService.estimate(any(), any(), any(), any(), anyOrNull()),
+        ).thenAnswer { invocation ->
+            val effectiveHolding = invocation.arguments[0] as Holding
+            val snapshot = invocation.arguments[1] as FundMarketSnapshot
+            val grossValue = effectiveHolding.quantity.multiply(requireNotNull(snapshot.latestNav).closePrice)
+            FundValuationResult(
+                grossValue = grossValue,
+                incomeTax = BigDecimal.ZERO,
+                iof = BigDecimal.ZERO,
+                netValue = grossValue,
+                valuationSource = ValuationSource.MARKET_DATA,
+                valuationReferenceDate = requireNotNull(snapshot.latestNav).date,
+            )
+        }
+
+        val result = service.getHoldings(financialAccountId = null, accountId = accountId)
+
+        assertThat(result).hasSize(2)
+        verify(checkpointRepository, times(1)).findByHoldingIds(listOf(firstHoldingId, secondHoldingId))
     }
 
     @Test
@@ -341,7 +506,15 @@ class InvestmentQueryServiceTest {
             .thenReturn(listOf(purchase, withholdingTax))
         whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
         whenever(indicatorRateProvider.getReferenceDate()).thenReturn(null)
-        whenever(fundValuationService.estimate(any(), eq(snapshot), eq(listOf(purchase, withholdingTax))))
+        whenever(
+            fundValuationService.estimate(
+                any(),
+                eq(snapshot),
+                eq(listOf(purchase, withholdingTax)),
+                any(),
+                anyOrNull(),
+            ),
+        )
             .thenAnswer { invocation ->
                 val effectiveHolding = invocation.arguments[0] as Holding
                 val grossValue = effectiveHolding.quantity.multiply(BigDecimal("10.50"))
@@ -737,6 +910,7 @@ class InvestmentQueryServiceTest {
                 listedAssetMarketDataProvider = listedAssetMarketDataProvider,
                 assetDailyPriceRepository = assetDailyPriceRepository,
                 investmentTransactionRepository = investmentTransactionRepository,
+                checkpointRepository = checkpointRepository,
                 indicatorRateProvider = indicatorRateProvider,
                 transactionRepository = transactionRepository,
                 clock = { LocalDate.of(2025, 12, 2) },
@@ -844,6 +1018,7 @@ class InvestmentQueryServiceTest {
                 listedAssetMarketDataProvider = listedAssetMarketDataProvider,
                 assetDailyPriceRepository = assetDailyPriceRepository,
                 investmentTransactionRepository = investmentTransactionRepository,
+                checkpointRepository = checkpointRepository,
                 indicatorRateProvider = indicatorRateProvider,
                 transactionRepository = transactionRepository,
                 clock = { LocalDate.of(2025, 12, 2) },
@@ -941,6 +1116,7 @@ class InvestmentQueryServiceTest {
                 listedAssetMarketDataProvider = listedAssetMarketDataProvider,
                 assetDailyPriceRepository = assetDailyPriceRepository,
                 investmentTransactionRepository = investmentTransactionRepository,
+                checkpointRepository = checkpointRepository,
                 indicatorRateProvider = indicatorRateProvider,
                 transactionRepository = transactionRepository,
                 clock = { LocalDate.of(2026, 3, 27) },
@@ -1036,6 +1212,7 @@ class InvestmentQueryServiceTest {
                 listedAssetMarketDataProvider = listedAssetMarketDataProvider,
                 assetDailyPriceRepository = assetDailyPriceRepository,
                 investmentTransactionRepository = investmentTransactionRepository,
+                checkpointRepository = checkpointRepository,
                 indicatorRateProvider = indicatorRateProvider,
                 transactionRepository = transactionRepository,
                 clock = { LocalDate.of(2025, 2, 28) },
@@ -1138,6 +1315,7 @@ class InvestmentQueryServiceTest {
                 listedAssetMarketDataProvider = listedAssetMarketDataProvider,
                 assetDailyPriceRepository = assetDailyPriceRepository,
                 investmentTransactionRepository = investmentTransactionRepository,
+                checkpointRepository = checkpointRepository,
                 indicatorRateProvider = indicatorRateProvider,
                 transactionRepository = transactionRepository,
                 clock = { LocalDate.of(2025, 1, 13) },
@@ -1220,6 +1398,7 @@ class InvestmentQueryServiceTest {
         assertThat(result.points.map { LocalDate.ofInstant(it.timestamp, java.time.ZoneOffset.UTC) })
             .containsExactly(LocalDate.of(2025, 1, 11), LocalDate.of(2025, 1, 13))
         assertThat(result.points.mapNotNull { it.grossValue }).containsExactly(102.0, 104.0)
+        verify(checkpointRepository, times(1)).findByHoldingIds(listOf(holdingId))
     }
 
     @Test
@@ -1241,6 +1420,7 @@ class InvestmentQueryServiceTest {
                 listedAssetMarketDataProvider = listedAssetMarketDataProvider,
                 assetDailyPriceRepository = assetDailyPriceRepository,
                 investmentTransactionRepository = investmentTransactionRepository,
+                checkpointRepository = checkpointRepository,
                 indicatorRateProvider = indicatorRateProvider,
                 transactionRepository = transactionRepository,
                 clock = { LocalDate.of(2025, 3, 31) },
@@ -1368,6 +1548,7 @@ class InvestmentQueryServiceTest {
                 listedAssetMarketDataProvider = listedAssetMarketDataProvider,
                 assetDailyPriceRepository = assetDailyPriceRepository,
                 investmentTransactionRepository = investmentTransactionRepository,
+                checkpointRepository = checkpointRepository,
                 indicatorRateProvider = indicatorRateProvider,
                 transactionRepository = transactionRepository,
                 clock = { LocalDate.of(2025, 1, 20) },

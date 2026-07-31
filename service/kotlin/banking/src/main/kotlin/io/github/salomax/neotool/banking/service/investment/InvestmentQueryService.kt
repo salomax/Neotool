@@ -6,6 +6,7 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.AssetType
+import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpoint
 import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
 import io.github.salomax.neotool.banking.domain.investment.CouponScheduleService
 import io.github.salomax.neotool.banking.domain.investment.FundMarketSnapshot
@@ -45,6 +46,7 @@ import io.github.salomax.neotool.banking.model.domain.investment.performance.isC
 import io.github.salomax.neotool.banking.model.dto.investment.InvestmentCashTransactionCursor
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
@@ -92,6 +94,7 @@ class InvestmentQueryService(
     private val listedAssetMarketDataProvider: ListedAssetMarketDataProvider,
     private val assetDailyPriceRepository: AssetDailyPriceRepository,
     private val investmentTransactionRepository: InvestmentTransactionRepository,
+    private val checkpointRepository: ComeCotasCheckpointRepository,
     private val indicatorRateProvider: IndicatorRateProvider,
     private val transactionRepository: TransactionRepository,
     private val couponScheduleService: CouponScheduleService = CouponScheduleService(),
@@ -333,6 +336,10 @@ class InvestmentQueryService(
                             emptyList()
                         }
                     if (navSeries.isNotEmpty()) {
+                        val checkpoints =
+                            holding.id
+                                ?.let { checkpointRepository.findByHoldingIds(listOf(it)) }
+                                .orEmpty()
                         val fundPoints =
                             buildFundNavPerformancePoints(
                                 holding = holding,
@@ -340,6 +347,7 @@ class InvestmentQueryService(
                                 navSeries = navSeries,
                                 taxSnapshot = snapshot,
                                 fundValuationService = fundValuationService,
+                                checkpoints = checkpoints,
                                 resolution = resolvedResolution,
                                 fromDate = fromDate,
                                 toDate = toDate,
@@ -581,6 +589,7 @@ class InvestmentQueryService(
                 accountId = accountId,
                 includeCouponSchedule = includeCouponSchedule,
             )
+        val holdingCheckpointsById = loadHoldingCheckpointsById(holdings, assetsById, marketSnapshotsByCnpj)
         val rateMap = safeGetIndicatorRates()
         val refDate = indicatorRateProvider.getReferenceDate()
         val today = clock()
@@ -598,6 +607,7 @@ class InvestmentQueryService(
                 listedAssetPricesByTicker = listedAssetPricesByTicker,
                 marketSnapshotsByCnpj = marketSnapshotsByCnpj,
                 holdingTransactionsById = holdingTransactionsById,
+                holdingCheckpointsById = holdingCheckpointsById,
                 monthlySeries = monthlySeries,
                 includeCouponSchedule = includeCouponSchedule,
             )
@@ -661,21 +671,7 @@ class InvestmentQueryService(
         accountId: UUID,
         includeCouponSchedule: Boolean,
     ): Map<UUID, List<InvestmentTransaction>> {
-        val marketDataHoldingIds =
-            holdings
-                .mapNotNull { holding ->
-                    val asset = assetsById[holding.assetId] ?: return@mapNotNull null
-                    val normalizedCnpj = asset.fundCnpj?.normalizedFundCnpj() ?: return@mapNotNull null
-                    if (
-                        holding.pricingMode == HoldingPricingMode.MARKET_DATA &&
-                        asset.assetType.isFundAsset() &&
-                        marketSnapshotsByCnpj.containsKey(normalizedCnpj)
-                    ) {
-                        holding.id
-                    } else {
-                        null
-                    }
-                }
+        val marketDataHoldingIds = marketDataFundHoldingIds(holdings, assetsById, marketSnapshotsByCnpj)
         val fixedIncomeBackfillHoldingIds =
             holdings
                 .mapNotNull { holding ->
@@ -715,6 +711,34 @@ class InvestmentQueryService(
             .groupBy { it.holdingId }
     }
 
+    private fun loadHoldingCheckpointsById(
+        holdings: List<Holding>,
+        assetsById: Map<UUID, Asset>,
+        marketSnapshotsByCnpj: Map<String, FundMarketSnapshot>,
+    ): Map<UUID, List<ComeCotasCheckpoint>> {
+        val holdingIds = marketDataFundHoldingIds(holdings, assetsById, marketSnapshotsByCnpj)
+        if (holdingIds.isEmpty()) return emptyMap()
+        return checkpointRepository.findByHoldingIds(holdingIds)
+            .groupBy { it.holdingId }
+    }
+
+    private fun marketDataFundHoldingIds(
+        holdings: List<Holding>,
+        assetsById: Map<UUID, Asset>,
+        marketSnapshotsByCnpj: Map<String, FundMarketSnapshot>,
+    ): List<UUID> =
+        holdings
+            .mapNotNull { holding ->
+                val holdingId = holding.id ?: return@mapNotNull null
+                val asset = assetsById[holding.assetId] ?: return@mapNotNull null
+                val normalizedCnpj = asset.fundCnpj?.normalizedFundCnpj() ?: return@mapNotNull null
+                holdingId.takeIf {
+                    holding.pricingMode == HoldingPricingMode.MARKET_DATA &&
+                        asset.assetType.isFundAsset() &&
+                        marketSnapshotsByCnpj.containsKey(normalizedCnpj)
+                }
+            }
+
     private fun Holding.toDTO(
         accountsById: Map<UUID, FinancialAccount>,
         assetsById: Map<UUID, Asset>,
@@ -726,6 +750,7 @@ class InvestmentQueryService(
         listedAssetPricesByTicker: Map<String, ListedAssetMarketPrice>,
         marketSnapshotsByCnpj: Map<String, FundMarketSnapshot>,
         holdingTransactionsById: Map<UUID, List<InvestmentTransaction>>,
+        holdingCheckpointsById: Map<UUID, List<ComeCotasCheckpoint>>,
         monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>>,
         includeCouponSchedule: Boolean,
     ): InvestmentHoldingDTO {
@@ -745,7 +770,12 @@ class InvestmentQueryService(
 
         val valuation =
             effectiveHolding.manualValuation()
-                ?: effectiveHolding.marketDataValuation(asset, marketSnapshotsByCnpj, holdingTransactionsById)
+                ?: effectiveHolding.marketDataValuation(
+                    asset,
+                    marketSnapshotsByCnpj,
+                    holdingTransactionsById,
+                    holdingCheckpointsById,
+                )
                 ?: effectiveHolding.listedAssetMarketValuation(asset, listedAssetPricesByTicker)
                 ?: effectiveHolding.providerValuation()
                 ?: asset?.let {
@@ -856,6 +886,7 @@ class InvestmentQueryService(
         asset: Asset?,
         marketSnapshotsByCnpj: Map<String, FundMarketSnapshot>,
         holdingTransactionsById: Map<UUID, List<InvestmentTransaction>>,
+        holdingCheckpointsById: Map<UUID, List<ComeCotasCheckpoint>>,
     ): Valuation? {
         if (pricingMode != HoldingPricingMode.MARKET_DATA) return null
         if (asset == null || !asset.assetType.isFundAsset()) return null
@@ -863,7 +894,13 @@ class InvestmentQueryService(
         val snapshot = marketSnapshotsByCnpj[fundCnpj] ?: return null
         val holdingId = id ?: return null
         return try {
-            val result = fundValuationService.estimate(this, snapshot, holdingTransactionsById[holdingId].orEmpty())
+            val result =
+                fundValuationService.estimate(
+                    this,
+                    snapshot,
+                    holdingTransactionsById[holdingId].orEmpty(),
+                    checkpoints = holdingCheckpointsById[holdingId].orEmpty(),
+                )
             Valuation(
                 grossValue = result.grossValue?.toDouble(),
                 netValue = result.netValue?.toDouble(),

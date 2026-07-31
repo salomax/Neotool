@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.banking.domain.investment
 
-import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointRepository
+import io.github.salomax.neotool.banking.service.investment.ComeCotasSupport
 import io.github.salomax.neotool.banking.service.investment.FundValuationService
 import io.github.salomax.neotool.banking.service.investment.ValuationSource
 import org.assertj.core.api.Assertions.assertThat
@@ -13,8 +13,7 @@ import java.util.UUID
 
 @DisplayName("FundValuationService")
 class FundValuationServiceTest {
-    private val checkpointRepository = FakeComeCotasCheckpointRepository()
-    private val service = FundValuationService(checkpointRepository)
+    private val service = FundValuationService()
 
     @Test
     fun `market-data fund returns gross value with estimated IR and IOF`() {
@@ -219,14 +218,15 @@ class FundValuationServiceTest {
                 quantity = "95",
                 averageCost = "1.00",
             )
-        checkpointRepository.seed(
-            ComeCotasCheckpoint(
-                holdingId = holdingId,
-                checkpointDate = LocalDate.of(2026, 5, 29),
-                computedAmount = BigDecimal("3.00"),
-                withheldAmount = BigDecimal("1.50"),
-            ),
-        )
+        val checkpoints =
+            listOf(
+                ComeCotasCheckpoint(
+                    holdingId = holdingId,
+                    checkpointDate = LocalDate.of(2026, 5, 29),
+                    computedAmount = BigDecimal("3.00"),
+                    withheldAmount = BigDecimal("1.50"),
+                ),
+            )
         val result =
             service.estimate(
                 holding = holding,
@@ -252,12 +252,66 @@ class FundValuationServiceTest {
                             amount = "0.70",
                         ),
                     ),
+                checkpoints = checkpoints,
             )
 
         assertThat(result.grossValue).isEqualByComparingTo("114.00")
         assertThat(result.iof).isEqualByComparingTo("0")
         assertThat(result.incomeTax).isEqualByComparingTo("2.30")
         assertThat(result.netValue).isEqualByComparingTo("111.70")
+    }
+
+    @Test
+    fun `precomputed open lots keep valuation identical to reconstructing from transactions`() {
+        val checkpoints =
+            listOf(
+                ComeCotasCheckpoint(
+                    holdingId = holdingId,
+                    checkpointDate = LocalDate.of(2026, 5, 29),
+                    computedAmount = BigDecimal("3.00"),
+                    withheldAmount = BigDecimal("1.50"),
+                ),
+            )
+        val transactions =
+            listOf(
+                purchase(
+                    holdingId = holdingId,
+                    tradeDate = LocalDate.of(2026, 1, 2),
+                    quantity = "100",
+                    unitPrice = "1.00",
+                ),
+                withholdingTax(
+                    holdingId = holdingId,
+                    tradeDate = LocalDate.of(2026, 5, 29),
+                    quantity = "5.00000000",
+                    amount = "0.70",
+                ),
+            )
+        val snapshot =
+            snapshot(
+                assetType = "MUTUAL_FUND",
+                taxProfile = FundTaxProfile.COME_COTAS_LONG,
+                navDate = LocalDate.of(2026, 11, 30),
+                navPrice = "1.20",
+            )
+
+        val reconstructed =
+            service.estimate(
+                holding = holding(quantity = "95"),
+                snapshot = snapshot,
+                transactions = transactions,
+                checkpoints = checkpoints,
+            )
+        val precomputed =
+            service.estimate(
+                holding = holding(quantity = "95"),
+                snapshot = snapshot,
+                transactions = transactions,
+                checkpoints = checkpoints,
+                precomputedOpenLots = ComeCotasSupport.reconstructOpenLots(transactions),
+            )
+
+        assertThat(precomputed).isEqualTo(reconstructed)
     }
 
     private val holdingId = UUID.randomUUID()
@@ -333,32 +387,4 @@ class FundValuationServiceTest {
         createdAt = tradeDate.atStartOfDay().plusHours(12).toInstant(java.time.ZoneOffset.UTC),
         updatedAt = tradeDate.atStartOfDay().plusHours(12).toInstant(java.time.ZoneOffset.UTC),
     )
-
-    private class FakeComeCotasCheckpointRepository : ComeCotasCheckpointRepository {
-        private val checkpoints = mutableListOf<ComeCotasCheckpoint>()
-
-        fun seed(vararg rows: ComeCotasCheckpoint) {
-            checkpoints.clear()
-            checkpoints.addAll(rows)
-        }
-
-        override fun upsert(checkpoint: ComeCotasCheckpoint): ComeCotasCheckpoint {
-            checkpoints.removeIf {
-                it.holdingId == checkpoint.holdingId && it.checkpointDate == checkpoint.checkpointDate
-            }
-            checkpoints.add(checkpoint)
-            return checkpoint
-        }
-
-        override fun findByHoldingAndDateRange(
-            holdingId: UUID,
-            from: LocalDate,
-            to: LocalDate,
-        ): List<ComeCotasCheckpoint> =
-            checkpoints.filter {
-                it.holdingId == holdingId &&
-                    !it.checkpointDate.isBefore(from) &&
-                    !it.checkpointDate.isAfter(to)
-            }
-    }
 }

@@ -25,6 +25,15 @@ interface ComeCotasCheckpointEntityRepository : JpaRepository<ComeCotasCheckpoin
     @Query(
         """
         SELECT c FROM ComeCotasCheckpointEntity c
+        WHERE c.holdingId IN :holdingIds
+        ORDER BY c.holdingId ASC, c.checkpointDate ASC
+        """,
+    )
+    fun findByHoldingIds(holdingIds: List<UUID>): List<ComeCotasCheckpointEntity>
+
+    @Query(
+        """
+        SELECT c FROM ComeCotasCheckpointEntity c
         WHERE c.holdingId = :holdingId
           AND c.checkpointDate >= :from
           AND c.checkpointDate <= :to

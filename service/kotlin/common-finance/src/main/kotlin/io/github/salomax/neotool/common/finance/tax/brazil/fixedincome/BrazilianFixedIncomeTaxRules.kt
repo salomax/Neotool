@@ -13,13 +13,17 @@ import java.math.RoundingMode
  */
 object BrazilianFixedIncomeTaxRules {
     private val mc = MathContext(12, RoundingMode.HALF_UP)
+    private val irRateUpTo180Days = BigDecimal("0.225")
+    private val irRateUpTo360Days = BigDecimal("0.200")
+    private val irRateUpTo720Days = BigDecimal("0.175")
+    private val irRateAbove720Days = BigDecimal("0.150")
 
     fun irRate(calendarDays: Int): BigDecimal =
         when {
-            calendarDays <= 180 -> BigDecimal("0.225")
-            calendarDays <= 360 -> BigDecimal("0.200")
-            calendarDays <= 720 -> BigDecimal("0.175")
-            else -> BigDecimal("0.150")
+            calendarDays <= 180 -> irRateUpTo180Days
+            calendarDays <= 360 -> irRateUpTo360Days
+            calendarDays <= 720 -> irRateUpTo720Days
+            else -> irRateAbove720Days
         }
 
     fun computeIr(
