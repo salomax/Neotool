@@ -74,6 +74,42 @@ class ComeCotasSupportTest {
         assertThat(openLots[1].quantity).isEqualByComparingTo("40.00000000")
     }
 
+    @Test
+    fun `incremental transaction application matches full lot reconstruction`() {
+        val transactions =
+            listOf(
+                purchase(
+                    quantity = "60.00000000",
+                    unitPrice = "1.00",
+                    tradeDate = LocalDate.of(2025, 6, 2),
+                ),
+                purchase(
+                    quantity = "40.00000000",
+                    unitPrice = "1.05",
+                    tradeDate = LocalDate.of(2025, 7, 15),
+                ),
+                withholdingTax(
+                    quantity = "4.00000000",
+                    amount = "1.20",
+                    tradeDate = LocalDate.of(2025, 11, 28),
+                ),
+                withholdingTax(
+                    quantity = "2.00000000",
+                    amount = "0.60",
+                    tradeDate = LocalDate.of(2026, 5, 29),
+                ),
+            )
+        val sortedTransactions = transactions.sortedWith(ComeCotasSupport.transactionOrdering())
+
+        val incrementalLots = ArrayDeque<OpenLot>()
+        sortedTransactions.forEachIndexed { index, transaction ->
+            ComeCotasSupport.applyTransaction(incrementalLots, transaction)
+            assertThat(incrementalLots.toList())
+                .describedAs("prefix=%s", index + 1)
+                .isEqualTo(ComeCotasSupport.reconstructOpenLots(sortedTransactions.take(index + 1)))
+        }
+    }
+
     private fun purchase(
         quantity: String,
         unitPrice: String,

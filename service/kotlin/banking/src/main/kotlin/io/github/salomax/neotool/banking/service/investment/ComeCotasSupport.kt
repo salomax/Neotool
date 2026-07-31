@@ -19,6 +19,10 @@ internal data class OpenLot(
 
 internal object ComeCotasSupport {
     private val mathContext = MathContext(12, RoundingMode.HALF_UP)
+    private val transactionOrdering =
+        compareBy<InvestmentTransaction> {
+            it.tradeDate
+        }.thenBy { it.createdAt }.thenBy { it.id.toString() }
     const val RECONCILIATION_WINDOW_DAYS: Long = 10
 
     fun checkpointDatesBetween(
@@ -62,44 +66,46 @@ internal object ComeCotasSupport {
 
     fun reconstructOpenLots(transactions: List<InvestmentTransaction>): List<OpenLot> {
         val openLots = ArrayDeque<OpenLot>()
-        transactions.sortedWith(
-            compareBy<InvestmentTransaction> {
-                it.tradeDate
-            }.thenBy { it.createdAt }.thenBy { it.id.toString() },
-        ).forEach {
-                tx ->
-            when {
-                tx.type in setOf(InvestmentTransactionType.PURCHASE, InvestmentTransactionType.SUBSCRIPTION) &&
-                    tx.direction == InvestmentTransactionDirection.INFLOW &&
-                    tx.quantity != null &&
-                    tx.unitPrice != null -> {
+        transactions.sortedWith(transactionOrdering).forEach { tx -> applyTransaction(openLots, tx) }
+        return openLots.toList()
+    }
+
+    fun transactionOrdering(): Comparator<InvestmentTransaction> = transactionOrdering
+
+    fun applyTransaction(
+        openLots: ArrayDeque<OpenLot>,
+        tx: InvestmentTransaction,
+    ) {
+        when {
+            tx.type in setOf(InvestmentTransactionType.PURCHASE, InvestmentTransactionType.SUBSCRIPTION) &&
+                tx.direction == InvestmentTransactionDirection.INFLOW &&
+                tx.quantity != null &&
+                tx.unitPrice != null -> {
+                openLots.addLast(OpenLot(tx.quantity, tx.unitPrice, tx.tradeDate))
+            }
+
+            tx.type in setOf(InvestmentTransactionType.SALE, InvestmentTransactionType.MATURITY) &&
+                tx.quantity != null -> {
+                consumeLots(openLots, tx.quantity)
+            }
+
+            tx.type in
+                setOf(
+                    InvestmentTransactionType.CUSTODY_TRANSFER,
+                    InvestmentTransactionType.OWNERSHIP_TRANSFER,
+                    InvestmentTransactionType.QUOTA_TRANSFER,
+                ) && tx.quantity != null -> {
+                if (tx.direction == InvestmentTransactionDirection.INFLOW && tx.unitPrice != null) {
                     openLots.addLast(OpenLot(tx.quantity, tx.unitPrice, tx.tradeDate))
-                }
-
-                tx.type in setOf(InvestmentTransactionType.SALE, InvestmentTransactionType.MATURITY) &&
-                    tx.quantity != null -> {
-                    consumeLots(openLots, tx.quantity)
-                }
-
-                tx.type in
-                    setOf(
-                        InvestmentTransactionType.CUSTODY_TRANSFER,
-                        InvestmentTransactionType.OWNERSHIP_TRANSFER,
-                        InvestmentTransactionType.QUOTA_TRANSFER,
-                    ) && tx.quantity != null -> {
-                    if (tx.direction == InvestmentTransactionDirection.INFLOW && tx.unitPrice != null) {
-                        openLots.addLast(OpenLot(tx.quantity, tx.unitPrice, tx.tradeDate))
-                    } else if (tx.direction == InvestmentTransactionDirection.OUTFLOW) {
-                        consumeLots(openLots, tx.quantity)
-                    }
-                }
-
-                tx.type == InvestmentTransactionType.WITHHOLDING_TAX && tx.quantity != null -> {
+                } else if (tx.direction == InvestmentTransactionDirection.OUTFLOW) {
                     consumeLots(openLots, tx.quantity)
                 }
             }
+
+            tx.type == InvestmentTransactionType.WITHHOLDING_TAX && tx.quantity != null -> {
+                consumeLots(openLots, tx.quantity)
+            }
         }
-        return openLots.toList()
     }
 
     fun calendarDaysBetween(

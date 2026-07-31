@@ -294,6 +294,80 @@ class ComeCotasCheckpointReconciliationIT : BankingPostgresIntegrationTest() {
         assertThat(editThenReprocess).isEqualTo(reprocessThenEdit)
     }
 
+    @Test
+    fun `batch checkpoint lookup returns rows only for holdings with checkpoints`() {
+        val purchaseDate = LocalDate.of(2025, 6, 2)
+        val checkpointDate = LocalDate.of(2025, 11, 28)
+        val secondAssetId = UUID.randomUUID()
+        val secondFundCnpj = "98${UUID.randomUUID().toString().filter(Char::isDigit).padEnd(12, '0').take(12)}"
+
+        openConnection().use { conn ->
+            conn.createStatement().executeUpdate(
+                """
+                INSERT INTO banking.investment_assets (
+                    id, name, asset_type, currency_code, fund_cnpj, created_at, updated_at
+                ) VALUES (
+                    '$secondAssetId', 'FUNDO TESTE RF 2', '${AssetType.MUTUAL_FUND.name}', 'BRL', '$secondFundCnpj', NOW(), NOW()
+                )
+                """.trimIndent(),
+            )
+        }
+
+        investmentTransactionService.record(
+            command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("1000.00000000"),
+                    unitPrice = BigDecimal("1.00000000"),
+                    grossValue = BigDecimal("1000.00"),
+                    netValue = BigDecimal("1000.00"),
+                    tradeDate = purchaseDate,
+                    settlementDate = purchaseDate,
+                    source = InvestmentSource.MANUAL,
+                ),
+            accountId = accountId,
+            userId = userId,
+        )
+        investmentTransactionService.record(
+            command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = secondAssetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("500.00000000"),
+                    unitPrice = BigDecimal("1.00000000"),
+                    grossValue = BigDecimal("500.00"),
+                    netValue = BigDecimal("500.00"),
+                    tradeDate = purchaseDate,
+                    settlementDate = purchaseDate,
+                    source = InvestmentSource.MANUAL,
+                ),
+            accountId = accountId,
+            userId = userId,
+        )
+
+        val firstHoldingId =
+            requireNotNull(
+                holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId),
+            ).id.let(::requireNotNull)
+        val secondHoldingId =
+            requireNotNull(
+                holdingRepository.findByFinancialAccountAndAsset(financialAccountId, secondAssetId),
+            ).id.let(::requireNotNull)
+
+        processCheckpoint(firstHoldingId, checkpointDate)
+
+        val checkpoints = checkpointRepository.findByHoldingIds(listOf(firstHoldingId, secondHoldingId))
+
+        assertThat(checkpoints).extracting("holdingId").containsExactly(firstHoldingId)
+        assertThat(checkpoints).extracting("checkpointDate").containsExactly(checkpointDate)
+        assertThat(checkpoints.none { it.holdingId == secondHoldingId }).isTrue()
+    }
+
     private fun processCheckpoint(
         holdingId: UUID,
         checkpointDate: LocalDate,

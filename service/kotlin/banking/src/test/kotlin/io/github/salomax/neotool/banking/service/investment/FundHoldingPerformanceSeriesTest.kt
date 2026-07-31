@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.domain.investment.ComeCotasCheckpoint
 import io.github.salomax.neotool.banking.domain.investment.FundMarketNav
 import io.github.salomax.neotool.banking.domain.investment.FundMarketSnapshot
 import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile
@@ -9,12 +10,20 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
+import io.github.salomax.neotool.banking.model.domain.investment.performance.FundNavPerformancePoint
+import io.github.salomax.neotool.banking.model.domain.investment.performance.applyPerformanceTransaction
+import io.github.salomax.neotool.banking.model.domain.investment.performance.asEmptyPerformanceState
 import io.github.salomax.neotool.banking.model.domain.investment.performance.buildFundNavPerformancePoints
+import io.github.salomax.neotool.banking.model.domain.investment.performance.isCapitalContributionForPerformance
+import io.github.salomax.neotool.banking.model.domain.investment.performance.isCapitalWithdrawalForPerformance
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.math.MathContext
+import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneOffset
 import java.util.UUID
 
@@ -521,6 +530,76 @@ class FundHoldingPerformanceSeriesTest {
             .isNotEqualByComparingTo(lastNet(FundTaxProfile.COME_COTAS_LONG))
     }
 
+    @Test
+    fun `tied timestamp chart output matches legacy lot reconstruction behavior`() {
+        val holding = baseHolding()
+        val sharedInstant = Instant.parse("2025-01-05T10:00:00Z")
+        val lowerId = UUID.fromString("11111111-1111-1111-1111-111111111111")
+        val higherId = UUID.fromString("99999999-9999-9999-9999-999999999999")
+        val highCostPurchase =
+            purchase(
+                holding = holding,
+                tradeDate = LocalDate.of(2025, 1, 5),
+                qty = BigDecimal("50"),
+                price = BigDecimal("3.00"),
+                createdAt = sharedInstant,
+                id = higherId,
+            )
+        val lowCostPurchase =
+            purchase(
+                holding = holding,
+                tradeDate = LocalDate.of(2025, 1, 5),
+                qty = BigDecimal("50"),
+                price = BigDecimal.ONE,
+                createdAt = sharedInstant,
+                id = lowerId,
+            )
+        val withholding =
+            InvestmentTransaction(
+                id = UUID.randomUUID(),
+                holdingId = holding.id!!,
+                financialAccountId = holding.financialAccountId,
+                accountId = holding.accountId,
+                createdByUserId = UUID.randomUUID(),
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                type = InvestmentTransactionType.WITHHOLDING_TAX,
+                quantity = BigDecimal("50"),
+                unitPrice = BigDecimal("2.00"),
+                grossValue = BigDecimal("100.00"),
+                netValue = BigDecimal("100.00"),
+                tradeDate = LocalDate.of(2025, 2, 15),
+                source = InvestmentSource.SYSTEM,
+                createdAt = Instant.parse("2025-02-15T12:00:00Z"),
+                updatedAt = Instant.parse("2025-02-15T12:00:00Z"),
+            )
+        val transactions = listOf(highCostPurchase, lowCostPurchase, withholding)
+        val navSeries =
+            listOf(
+                LocalDate.of(2025, 1, 31) to BigDecimal("2.00"),
+                LocalDate.of(2025, 2, 28) to BigDecimal("2.00"),
+            )
+
+        val current =
+            buildFundNavPerformancePoints(
+                holding = holding,
+                transactions = transactions,
+                navSeries = navSeries,
+                taxSnapshot = snapshotUnknownTax,
+                fundValuationService = fundValuationService,
+                today = LocalDate.of(2025, 2, 28),
+            )
+        val legacy =
+            legacyMonthlyPerformancePoints(
+                holding = holding,
+                transactions = transactions,
+                navSeries = navSeries,
+                taxSnapshot = snapshotUnknownTax,
+                today = LocalDate.of(2025, 2, 28),
+            )
+
+        assertThat(current).isEqualTo(legacy)
+    }
+
     private fun baseHolding(): Holding {
         val now = Instant.parse("2025-01-01T12:00:00Z")
         return Holding(
@@ -543,9 +622,10 @@ class FundHoldingPerformanceSeriesTest {
         qty: BigDecimal,
         price: BigDecimal,
         createdAt: Instant = Instant.parse("2025-01-01T12:00:00Z"),
+        id: UUID = UUID.randomUUID(),
     ): InvestmentTransaction =
         InvestmentTransaction(
-            id = UUID.randomUUID(),
+            id = id,
             holdingId = holding.id!!,
             financialAccountId = holding.financialAccountId,
             accountId = holding.accountId,
@@ -560,6 +640,122 @@ class FundHoldingPerformanceSeriesTest {
             createdAt = createdAt,
             updatedAt = createdAt,
         )
+
+    private fun legacyMonthlyPerformancePoints(
+        holding: Holding,
+        transactions: List<InvestmentTransaction>,
+        navSeries: List<Pair<LocalDate, BigDecimal>>,
+        taxSnapshot: FundMarketSnapshot,
+        today: LocalDate,
+        checkpoints: List<ComeCotasCheckpoint> = emptyList(),
+    ): List<FundNavPerformancePoint> {
+        if (transactions.isEmpty() || navSeries.isEmpty()) return emptyList()
+
+        val mathContext = MathContext(12, RoundingMode.HALF_UP)
+        val historicalEndDate = minOf(holding.maturityDate ?: today, today)
+        val chronologicalTx = transactions.sortedWith(ComeCotasSupport.transactionOrdering())
+        val startDate = chronologicalTx.first().tradeDate
+        val pointDates = legacyMonthPointDates(startDate, historicalEndDate)
+
+        return buildList {
+            for (pointDate in pointDates) {
+                val txsUpToPoint = chronologicalTx.filter { !it.tradeDate.isAfter(pointDate) }
+                var state = holding.asEmptyPerformanceState()
+                var investedPrincipal = BigDecimal.ZERO
+                var netContributions = BigDecimal.ZERO
+                txsUpToPoint.forEach { tx ->
+                    state = state.applyPerformanceTransaction(tx)
+                    when {
+                        tx.isCapitalContributionForPerformance() -> {
+                            investedPrincipal += tx.grossValue
+                            netContributions += tx.grossValue
+                        }
+                        tx.isCapitalWithdrawalForPerformance() -> {
+                            investedPrincipal = (investedPrincipal - tx.grossValue).max(BigDecimal.ZERO)
+                            netContributions -= tx.grossValue
+                        }
+                    }
+                }
+
+                val costBasis = state.quantity.multiply(state.averageCost, mathContext)
+                val navAtPoint = navSeries.filter { !it.first.isAfter(pointDate) }.maxByOrNull { it.first } ?: continue
+                if (state.quantity <= BigDecimal.ZERO || costBasis <= BigDecimal.ZERO) {
+                    add(
+                        FundNavPerformancePoint(
+                            timestamp = pointDate.atStartOfDay().toInstant(ZoneOffset.UTC),
+                            investedPrincipal = investedPrincipal,
+                            netContributions = netContributions,
+                            currentCostBasis = BigDecimal.ZERO,
+                            grossValue = BigDecimal.ZERO,
+                            netValue = BigDecimal.ZERO,
+                            incomeTax = BigDecimal.ZERO,
+                            iof = BigDecimal.ZERO,
+                            grossGain = BigDecimal.ZERO,
+                            netGain = BigDecimal.ZERO,
+                            grossGainPercent = BigDecimal.ZERO,
+                            quantity = BigDecimal.ZERO,
+                            valuationSource = ValuationSource.MARKET_DATA,
+                            valuationReferenceDate = navAtPoint.first,
+                        ),
+                    )
+                    continue
+                }
+
+                val valuation =
+                    fundValuationService.estimate(
+                        holding = state,
+                        snapshot = taxSnapshot.copy(latestNav = FundMarketNav(navAtPoint.first, navAtPoint.second)),
+                        transactions = txsUpToPoint,
+                        checkpoints = checkpoints,
+                        precomputedOpenLots = ComeCotasSupport.reconstructOpenLots(txsUpToPoint),
+                    )
+                val grossGain = valuation.grossValue?.subtract(costBasis)
+                val netGain = valuation.netValue?.subtract(costBasis)
+                add(
+                    FundNavPerformancePoint(
+                        timestamp = pointDate.atStartOfDay().toInstant(ZoneOffset.UTC),
+                        investedPrincipal = investedPrincipal,
+                        netContributions = netContributions,
+                        currentCostBasis = costBasis,
+                        grossValue = valuation.grossValue,
+                        netValue = valuation.netValue,
+                        incomeTax = valuation.incomeTax,
+                        iof = valuation.iof,
+                        grossGain = grossGain,
+                        netGain = netGain,
+                        grossGainPercent =
+                            if (grossGain != null && costBasis > BigDecimal.ZERO) {
+                                grossGain.divide(costBasis, mathContext)
+                            } else {
+                                null
+                            },
+                        quantity = state.quantity,
+                        valuationSource = valuation.valuationSource,
+                        valuationReferenceDate = valuation.valuationReferenceDate,
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun legacyMonthPointDates(
+        startDate: LocalDate,
+        endDate: LocalDate,
+    ): List<LocalDate> {
+        val startMonth = YearMonth.from(startDate)
+        val endMonth = YearMonth.from(endDate)
+        return generateSequence(startMonth) { it.plusMonths(1) }
+            .takeWhile { !it.isAfter(endMonth) }
+            .map { month ->
+                when {
+                    startMonth == endMonth -> endDate
+                    month == startMonth -> startDate
+                    month == endMonth -> endDate
+                    else -> month.atEndOfMonth()
+                }
+            }.distinct()
+            .toList()
+    }
 
     private fun transferIn(
         holding: Holding,

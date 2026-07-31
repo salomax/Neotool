@@ -6,7 +6,6 @@ import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.model.dto.investment.FundValuationResult
-import io.github.salomax.neotool.banking.repo.investment.ComeCotasCheckpointRepository
 import io.github.salomax.neotool.banking.service.investment.tax.TaxRegimeRegistry
 import io.github.salomax.neotool.common.finance.tax.engine.TaxLot
 import io.github.salomax.neotool.common.finance.tax.engine.computeTax
@@ -15,18 +14,17 @@ import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
 import java.time.LocalDate
-import java.util.UUID
 
 @Singleton
-class FundValuationService(
-    private val checkpointRepository: ComeCotasCheckpointRepository = NoOpComeCotasCheckpointRepository,
-) {
+class FundValuationService {
     private val mathContext = MathContext(12, RoundingMode.HALF_UP)
 
-    fun estimate(
+    internal fun estimate(
         holding: Holding,
         snapshot: FundMarketSnapshot,
         transactions: List<InvestmentTransaction>,
+        checkpoints: List<ComeCotasCheckpoint> = emptyList(),
+        precomputedOpenLots: Iterable<OpenLot>? = null,
     ): FundValuationResult {
         val nav = snapshot.latestNav ?: return unavailable()
         val grossValue = holding.quantity.multiply(nav.closePrice, mathContext)
@@ -45,8 +43,8 @@ class FundValuationService(
                 )
 
             else -> {
-                val openLots = reconstructOpenLots(transactions)
-                if (openLots.isEmpty()) {
+                val openLots = precomputedOpenLots ?: reconstructOpenLots(transactions)
+                if (openLots.none()) {
                     return FundValuationResult(
                         grossValue = grossValue,
                         incomeTax = null,
@@ -79,7 +77,7 @@ class FundValuationService(
                     ) { date ->
                         if (date == nav.date) nav.closePrice else null
                     }
-                val totalPreviouslyWithheld = previouslyWithheldAmount(holding.id, openLots, nav.date)
+                val totalPreviouslyWithheld = previouslyWithheldAmount(checkpoints, openLots, nav.date)
                 val outstandingPeriodicWithholding =
                     computation.totalPeriodicWithholdingDue
                         .subtract(totalPreviouslyWithheld, mathContext)
@@ -108,21 +106,20 @@ class FundValuationService(
         ComeCotasSupport.reconstructOpenLots(transactions)
 
     private fun previouslyWithheldAmount(
-        holdingId: UUID?,
-        openLots: List<OpenLot>,
+        checkpoints: List<ComeCotasCheckpoint>,
+        openLots: Iterable<OpenLot>,
         referenceDate: LocalDate,
     ): BigDecimal {
         val firstTradeDate = openLots.minOfOrNull(OpenLot::tradeDate) ?: return BigDecimal.ZERO
         val persistedWithheld =
-            holdingId
-                ?.let {
-                    checkpointRepository
-                        .findByHoldingAndDateRange(it, firstTradeDate, referenceDate)
-                        .fold(BigDecimal.ZERO) { acc, checkpoint ->
-                            acc.add(checkpoint.withheldAmount, mathContext)
-                        }
+            checkpoints
+                .asSequence()
+                .filter { checkpoint ->
+                    !checkpoint.checkpointDate.isBefore(firstTradeDate) &&
+                        !checkpoint.checkpointDate.isAfter(referenceDate)
+                }.fold(BigDecimal.ZERO) { acc, checkpoint ->
+                    acc.add(checkpoint.withheldAmount, mathContext)
                 }
-                ?: BigDecimal.ZERO
         return persistedWithheld.setScale(2, RoundingMode.HALF_UP)
     }
 
@@ -135,14 +132,4 @@ class FundValuationService(
             valuationSource = ValuationSource.UNAVAILABLE,
             valuationReferenceDate = null,
         )
-
-    private object NoOpComeCotasCheckpointRepository : ComeCotasCheckpointRepository {
-        override fun upsert(checkpoint: ComeCotasCheckpoint): ComeCotasCheckpoint = checkpoint
-
-        override fun findByHoldingAndDateRange(
-            holdingId: UUID,
-            from: LocalDate,
-            to: LocalDate,
-        ): List<ComeCotasCheckpoint> = emptyList()
-    }
 }

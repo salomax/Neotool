@@ -28,6 +28,12 @@ open class DefaultComeCotasCheckpointRepository(
         ).let(ComeCotasCheckpointMapper::toDomain)
     }
 
+    override fun findByHoldingIds(holdingIds: List<UUID>): List<ComeCotasCheckpoint> {
+        if (holdingIds.isEmpty()) return emptyList()
+        return entityRepository.findByHoldingIds(holdingIds)
+            .map(ComeCotasCheckpointMapper::toDomain)
+    }
+
     override fun findByHoldingAndDateRange(
         holdingId: UUID,
         from: LocalDate,

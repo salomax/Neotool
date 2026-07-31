@@ -5,9 +5,11 @@ import io.github.salomax.neotool.common.finance.tax.engine.TaxRegime
 import java.math.BigDecimal
 
 object VariableIncomeFundRegime : TaxRegime {
+    private val finalRate = BigDecimal("0.15")
+
     override fun iofRate(elapsedDays: Int): BigDecimal = BrazilianFixedIncomeTaxRules.iofRate(elapsedDays)
 
     override fun periodicWithholdingRate(elapsedDays: Int): BigDecimal? = null
 
-    override fun finalRate(elapsedDays: Int): BigDecimal = BigDecimal("0.15")
+    override fun finalRate(elapsedDays: Int): BigDecimal = finalRate
 }
