@@ -9,7 +9,7 @@ description: >
   An issue number is required — ask for it immediately if not provided.
 metadata:
   author: invistus
-  version: "1.3"
+  version: "1.4"
 ---
 
 # Solution Design — Invistus
@@ -66,6 +66,14 @@ Prefer concrete evidence from the code over abstract opinion.
 
 Write this as a short "Trust-boundary trace" subsection in the analysis. If tracing it reveals the value cannot arrive intact or cannot be made unforgeable on the chosen path, that is a design finding to resolve *now* — not a review finding to discover three rounds later.
 
+**Data-access trace (required whenever the proposal introduces or modifies a function called from a loop, `.map`/`.forEach`, or a per-item/per-field resolver).** N+1 query patterns on this project have consistently survived design and review because each call site looked reasonable in isolation — the function read fine on its own, and only calling it from a loop turned one query into N. Issue #570 is the concrete case: `FundValuationService.estimate()` looked correct read alone, but it fetched come-cotas checkpoints internally via `checkpointRepository.findByHoldingAndDateRange()` on every call, even though the same service already established the batch-once pattern elsewhere (`InvestmentQueryService.loadHoldingTransactionsById()` fetches into a `Map<UUID, List<...>>` once per request). Nothing forced a check that would have caught the inconsistency before merge. So for every function the proposal adds or changes that is invoked per-item (inside a loop, a `.map`, or a resolver called once per parent/field), the analysis must state explicitly:
+
+- **Does it perform I/O** (DB query, HTTP call, cache round-trip)? If not, no further tracing is needed.
+- **Is that I/O batched once per request, or does it repeat once per item?** Name the call site and the loop/resolver that invokes it.
+- **If it repeats per item, is there already an established batch-fetch pattern in the same service/module** (a sibling method that loads into a `Map<Key, List<...>>` once) that this call should reuse instead of introducing its own per-item fetch?
+
+Write this as a short "Data-access trace" subsection. Omit it only if the change adds no function called from a loop/map/per-item resolver context.
+
 ### 3. Load the project conventions
 
 Read the relevant local skills based on the type of change:
@@ -117,6 +125,9 @@ Publish the analysis on the issue. Use the following format:
 
 ### Trust-boundary trace
 [Required for `security` / cross-service issues; omit only if the change moves no trust-sensitive value. For each value: who sets it · what transports it across each hop (and whether anything strips/renames it) · who could forge or strip it · fail-closed or fail-open · the single line/gate that enforces it.]
+
+### Data-access trace
+[Required whenever the change adds/modifies a function called from a loop, `.map`, or per-item resolver; omit only if no such call site exists. For each such function: does it perform I/O · is it batched once per request or repeated per item · if per-item, does an established batch-fetch pattern already exist nearby that it should reuse instead.]
 
 ### Risks and considerations
 - [Risk 1]

@@ -10,7 +10,7 @@ description: >
   An issue number is required — ask for it immediately if not provided.
 metadata:
   author: invistus
-  version: "1.2"
+  version: "1.3"
 ---
 
 # Code Review — Invistus
@@ -81,6 +81,7 @@ Evaluate the change across these dimensions. Be specific — cite file and, wher
 
   **Treat enumeration-based tests as vacuous until proven otherwise.** A test shaped `collection.forEach { assert(...) }` passes trivially when the collection is empty, and passes incompletely when it is partial. Whenever coverage depends on a discovered set — injected beans, classpath scan, glob of files — check that something asserts the set is non-empty and of the expected size. Discovery that silently returns nothing is the failure mode these harnesses are least able to report.
 - **Data & migrations** — migrations safe, reversible where expected, and consistent with entity changes.
+- **Performance / data access** — for any function the diff adds or changes that is called from a loop, `.map`/`.forEach`, or a per-item/per-field resolver: does it perform I/O (DB query, HTTP call), and is that I/O batched once per request or does it repeat once per item (N+1)? Cite the call site and the loop/resolver invoking it. Issue #570 is the counterexample this dimension exists to catch: `FundValuationService.estimate()` fetched come-cotas checkpoints via a per-call repository query, even though the same service already had an established batch-once-per-request pattern (`InvestmentQueryService.loadHoldingTransactionsById()`) that the review should have flagged as the pattern to reuse. If an established batch-fetch sibling exists in the same service/module and the new code doesn't reuse it, that is at minimum a Major finding.
 - **Simplicity** — no unnecessary complexity, dead code, or scope creep beyond the issue.
 
 ### 5. Classify findings by severity
