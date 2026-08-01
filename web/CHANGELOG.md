@@ -1,3 +1,13 @@
+## 0.10.9 (2026-08-01)
+
+### 🚀 Features
+
+- **dev-env:** enhance environment variable loading to support DevPod overrides ([c2cd3fd7](https://github.com/invistus/invistus/commit/c2cd3fd7))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.10.8 (2026-07-30)
 
 ### 🩹 Fixes
