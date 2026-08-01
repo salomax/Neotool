@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Development script that loads environment variables from .env.local
- * and then starts Next.js dev server
+ * Development script that loads environment variables from .env.local and
+ * lets .env.devpod override workspace-aware values when present.
  */
 
 import { spawn } from 'child_process';
@@ -13,38 +13,56 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Path to infra/.env.local relative to this script
-const envPath = join(__dirname, '../.env.local');
 const env = { ...process.env };
+const processEnvKeys = new Set(Object.keys(process.env));
 
-if (existsSync(envPath)) {
+function loadEnvFile(envPath, { override = false } = {}) {
+  if (!existsSync(envPath)) {
+    return false;
+  }
+
   const envContent = readFileSync(envPath, 'utf-8');
   const lines = envContent.split('\n');
-  
+
   for (const line of lines) {
-    // Skip comments and empty lines
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) {
       continue;
     }
-    
-    // Parse KEY=VALUE format
+
     const match = trimmed.match(/^([^=]+)=(.*)$/);
-    if (match) {
-      const [, key, value] = match;
-      // Remove quotes if present
-      const cleanValue = value.replace(/^["']|["']$/g, '');
-      // Only set if not already set (env vars take precedence)
-      if (!env[key]) {
-        env[key] = cleanValue;
-      }
+    if (!match) {
+      continue;
+    }
+
+    const [, key, value] = match;
+    const cleanValue = value.replace(/^["']|["']$/g, '');
+    if (processEnvKeys.has(key)) {
+      continue;
+    }
+    if (override || !env[key]) {
+      env[key] = cleanValue;
     }
   }
-  
-  console.log(`✓ Loaded environment variables from ${envPath}`);
-} else {
-  console.warn(`⚠ Environment file not found: ${envPath}`);
-  console.warn('  Create infra/.env.local or use web/.env.local for local development');
+
+  return true;
+}
+
+const localEnvPath = join(__dirname, '../.env.local');
+const devpodEnvPath = join(__dirname, '../.env.devpod');
+
+const loadedLocal = loadEnvFile(localEnvPath);
+const loadedDevpod = loadEnvFile(devpodEnvPath, { override: true });
+
+if (loadedLocal) {
+  console.log(`✓ Loaded environment variables from ${localEnvPath}`);
+}
+if (loadedDevpod) {
+  console.log(`✓ Applied DevPod overrides from ${devpodEnvPath}`);
+}
+if (!loadedLocal && !loadedDevpod) {
+  console.warn(`⚠ Environment files not found: ${localEnvPath}, ${devpodEnvPath}`);
+  console.warn('  Create web/.env.local or let the DevPod bootstrap generate web/.env.devpod');
 }
 
 // Start Next.js dev server with the loaded environment variables.
@@ -77,4 +95,3 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
   nextDev.kill('SIGTERM');
 });
-
