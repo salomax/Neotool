@@ -358,8 +358,9 @@ start_kotlin() {
     env_cmd=$(load_env_cmd "$env_file")
     # JAVA_HOME: detecta arch automaticamente
     local java_home_cmd="export JAVA_HOME=\$(ls -d /usr/lib/jvm/temurin-21-jdk-* 2>/dev/null | head -1) && "
+    local server_host_cmd='export MICRONAUT_SERVER_HOST="${MICRONAUT_SERVER_HOST:-0.0.0.0}" && '
     # gradlew-dev serializes :classes with flock before :run to avoid fileHashes lock contention
-    new_window "$name" "bash -c '${java_home_cmd}${env_cmd}\"$GRADLEW_DEV\" :${name}:run'"
+    new_window "$name" "bash -c '${java_home_cmd}${env_cmd}${server_host_cmd}\"$GRADLEW_DEV\" :${name}:run'"
     log "  ✓ $name → tmux window '$name' (port $port)" "$GREEN"
 }
 

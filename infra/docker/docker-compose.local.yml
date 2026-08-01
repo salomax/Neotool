@@ -131,6 +131,8 @@ services:
       - "4000:4000"
       - "8088:8088"  # Health check port
       - "9091:9090"  # Metrics port (changed to avoid conflict with Prometheus)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ../../contracts/graphql/supergraph/supergraph.local.graphql:/dist/supergraph.graphql:ro
       - ../../infra/router/router.local.yaml:/dist/router.yaml:ro
