@@ -10,13 +10,17 @@ description: >
   An issue number is required — ask for it immediately if not provided.
 metadata:
   author: invistus
-  version: "1.3"
+  version: "1.4"
 ---
 
 # Code Review — Invistus
 
 Run an objective, convention-grounded code review for a change linked to a GitHub issue, and publish
 the result as an issue comment so the review history lives with the work item.
+
+Perform the review in an independent, clean review context. Reconstruct the relevant facts from the
+canonical issue, current diff, and current code. Technical analysis, backlog, and implementation
+summary are navigation indices, not evidence; verify their claims before using them in a verdict.
 
 The output of this skill must be good enough to become an issue comment with a `🔍 Code Review`
 heading and give a clear, defensible merge decision.
@@ -40,7 +44,7 @@ Determine the change under review, in this order:
 
 If none is clear, ask which branch or PR to review. Never review from memory — always inspect the real diff.
 
-**Re-reviews (round 2+):** when a prior `🔍 Code Review` comment already exists on the issue, review only the **delta** since it — the follow-up commits or the changed files listed in the author's response — plus the direct blast radius of those changes. Do not re-read and re-summarise the whole diff. Open the previous review's findings, confirm each is resolved (and how), and report only what changed. This keeps later rounds cheap and focused on whether the flagged items were actually closed.
+**Re-reviews (round 2+):** when a prior `🔍 Code Review` comment already exists on the issue, review only the **delta** since it — the follow-up commits or the changed files listed in the author's response — plus the direct blast radius of those changes. Do not re-read and re-summarise the whole diff. Open the previous review's stable `CR-N` findings, confirm each as closed or still open with evidence, preserve its ID, and report only the delta. Assign a new `CR-N` only to a genuinely new finding. Follow the two-round cap in [token-discipline.md](../neotool-conventions/references/token-discipline.md) §9; unresolved blockers or majors after round 2 return to solution design.
 
 ### 2. Read the issue and its history
 
@@ -88,12 +92,16 @@ Evaluate the change across these dimensions. Be specific — cite file and, wher
 
 Every finding gets a severity so the merge decision is unambiguous:
 
+Assign each finding a stable `CR-N` ID, numbered independently within the issue. Link it to every
+relevant upstream `AC-N`, `D-N`, `A-N`, or `IR-N`. Never renumber a published finding.
+
 - **🔴 Blocker** — must be fixed before merge (bug, security hole, broken acceptance criterion, missing required test).
 - **🟠 Major** — should be fixed before merge; convention violation or real risk without a clear justification.
 - **🟡 Minor** — worth fixing but not blocking (readability, small inconsistencies).
 - **🟢 Nit** — optional polish; state it is non-blocking.
 
-Praise what is done well too — a review is not only a list of problems.
+Record positive signals only when they materially support the verdict or demonstrate that a risky
+criterion or invariant was proven. Do not add ceremonial praise.
 
 ### 6. Decide the verdict
 
@@ -123,19 +131,19 @@ Publish the review on the referenced issue. Use the following format:
 ### Findings
 
 **🔴 Blockers**
-- `path/to/file` — [what's wrong and why it blocks]
+- `CR-1` (`AC-2`, `D-1`) — `path/to/file` — [what's wrong and why it blocks]
 
 **🟠 Major**
-- `path/to/file` — [issue + suggested direction]
+- `CR-2` (`AC-N`, `D-N`, `A-N`, or `IR-N`) — `path/to/file` — [issue + suggested direction]
 
 **🟡 Minor**
-- `path/to/file` — [issue]
+- `CR-3` (`AC-N`, `D-N`, `A-N`, or `IR-N`) — `path/to/file` — [issue]
 
 **🟢 Nits**
-- `path/to/file` — [optional polish]
+- `CR-4` (`AC-N`, `D-N`, `A-N`, or `IR-N`) — `path/to/file` — [optional polish]
 
-### What's good
-- [Something done well]
+### Relevant signals
+- [Optional evidence that materially supports the verdict; omit when absent]
 
 ### Tests
 - [Coverage assessment — what's covered, what's missing]
@@ -145,6 +153,7 @@ Publish the review on the referenced issue. Use the following format:
 ```
 
 If there are no findings in a severity bucket, omit that bucket rather than writing "none".
+Omit `Relevant signals` when there is no decision-relevant positive evidence.
 
 After commenting, tell the user the verdict, the blocker count, and whether the change is ready to merge.
 

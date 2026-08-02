@@ -136,3 +136,34 @@ When adding or adjusting a small number of tests:
 3. Only then broaden to the full module suite.
 
 This reduces tokens and helps distinguish code failures from unrelated module noise.
+
+## 9. Cross-agent delivery contract
+
+Use the GitHub issue as the canonical transactional knowledge base for design, backlog,
+implementation, and review. GitHub Project fields hold only workflow metadata: status, priority,
+owner, and milestone. Do not copy technical analysis, task rationale, findings, or implementation
+evidence into Project fields.
+
+Use stable IDs so every handoff can point to the decision-grade source without repeating its
+narrative:
+
+- `AC-N` — acceptance criterion
+- `D-N` — technical decision
+- `A-N` — explicit assumption
+- `IR-N` — implementation-readiness gap
+- `CR-N` — code-review finding
+
+Number each type independently from 1 within an issue and never renumber an ID after publication.
+Later comments reference the original IDs and add only new evidence or status. The technical
+analysis owns `AC-N`, `D-N`, and `A-N`; readiness review owns `IR-N`; code review owns `CR-N`.
+
+Each role starts with a clean task context and reconstructs only what it needs from the issue,
+current code, and current diff. Design summaries and implementation summaries are navigation
+indices, not proof: verify claims against the canonical issue artifact or code before relying on
+them. Keep the backlog an executable index into the delivery contract, not a second knowledge base.
+
+On re-review, inspect only the delta since the prior review, its direct blast radius, and the status
+of existing `CR-N` findings. Preserve finding IDs until they are closed; assign new IDs only to new
+findings. Allow at most two review/fix rounds. If a blocker or major remains after round 2, or the
+same ambiguity keeps generating findings, stop the loop and return the issue to solution design to
+repair its criteria, decisions, assumptions, or invariants.

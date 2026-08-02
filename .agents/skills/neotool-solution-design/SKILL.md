@@ -9,7 +9,7 @@ description: >
   An issue number is required — ask for it immediately if not provided.
 metadata:
   author: invistus
-  version: "1.4"
+  version: "1.5"
 ---
 
 # Solution Design — Invistus
@@ -89,6 +89,19 @@ Ground the proposal in these skills. Do not suggest architecture that contradict
 
 Produce a solution that objectively answers: what needs to change, in which layers, in what order, what the main risks are, and how to validate.
 
+Close the proposal with a compact delivery contract, following
+[token-discipline.md](../neotool-conventions/references/token-discipline.md) §9:
+
+- Assign stable `AC-N` IDs to objectively testable acceptance criteria.
+- Assign stable `D-N` IDs to decisions that constrain implementation.
+- Assign stable `A-N` IDs to assumptions that still require verification.
+- State the invariants that must remain true across implementation and review, referencing the
+  relevant IDs where possible.
+
+Keep each entry short and decision-grade. Do not repeat the problem narrative, impacted-layer
+summary, or implementation detail already stated elsewhere. The contract must be usable by any
+later role without depending on a particular model, provider, or conversation context.
+
 When more than one viable approach exists, choose the recommended one, document 1–2 short alternatives, and explain why the chosen approach is better for the current context.
 
 ### 5. Identify gaps and open questions
@@ -136,6 +149,19 @@ Publish the analysis on the issue. Use the following format:
 - [Relevant unit test]
 - [Relevant integration test]
 - [Relevant E2E test, if applicable]
+
+### Delivery contract
+**Acceptance criteria**
+- `AC-1` [Objectively testable outcome]
+
+**Decisions**
+- `D-1` [Implementation constraint or chosen approach]
+
+**Assumptions**
+- `A-1` [Unverified premise and how it will be checked]
+
+**Invariants**
+- [Invariant that must remain true; reference `AC-N` / `D-N` where relevant]
 
 ### Suggested implementation order
 1. [Recommended order]

@@ -8,16 +8,17 @@ description: >
   "let's implement #N", "start coding #N", or any prompt that combines an action verb
   (implement, build, code, develop, execute, work on) with a GitHub issue reference.
   An issue number is required — ask for it immediately if not provided.
-compatibility: Requires GitHub MCP or gh CLI. Reads skills from .agents/skills/ at the project root.
 metadata:
   author: invistus
-  version: "1.5"
+  version: "1.6"
 ---
 
 # Implementation Orchestrator — Invistus
 
 Coordinate the full implementation of a GitHub issue by reading its backlog, loading the right
 skills for the scope, and executing tasks one by one.
+
+Requires GitHub MCP or `gh` CLI and reads supporting skills from `.agents/skills/` at the project root.
 
 **Token discipline:** apply
 [neotool-conventions/references/token-discipline.md](../neotool-conventions/references/token-discipline.md)
@@ -100,6 +101,31 @@ Skip branch creation — proceed with implementation. The user will handle the g
 
 ### Step 4 — Execute tasks in order
 
+Before editing any file, run an implementation-readiness review in a clean implementation context.
+Use the issue and current code as evidence; treat the technical analysis and backlog as indices, not
+proof. Apply [token-discipline.md](../neotool-conventions/references/token-discipline.md) §9 and verify:
+
+- every referenced `AC-N` is objective and testable
+- every `D-N` is compatible with the current code and project conventions
+- every implementation-critical `A-N` is verified or has an explicit proof task before dependent work
+- required dependencies and invariants are present and mutually consistent
+
+If no gap exists, proceed silently; do not post a ceremonial approval comment. If an invalid
+assumption, ambiguous criterion, missing dependency, or code conflict exists, publish an issue
+comment headed `## 🔍 Implementation Readiness Review`. Assign stable `IR-N` IDs, link each gap to
+the relevant `AC-N`, `D-N`, or `A-N`, cite the evidence, and stop before editing. Return the issue to
+solution design or backlog refinement rather than improvising a fix.
+
+Example:
+
+```markdown
+## 🔍 Implementation Readiness Review
+
+- `IR-1` (`A-2`, `D-1`) — [gap, evidence, and required resolution]
+```
+
+### Step 4.1 — Execute tasks in order
+
 Work through the backlog checklist top to bottom. For each task:
 
 1. Read the task description
@@ -109,6 +135,28 @@ Work through the backlog checklist top to bottom. For each task:
 5. Update the task checkbox on the issue comment to `[x]`
 
 Treat each checkbox as a unit of work. Complete one before starting the next.
+
+### Step 4.2 — Respond to code-review findings
+
+When invoked after a `🔍 Code Review`, enter review-response mode instead of replaying the full
+backlog. Start from a clean implementation context, read the current code, the review comment, and
+only the delta needed for each open `CR-N`. For every finding:
+
+- Mark **Accepted** when the evidence confirms it; implement the smallest fix and run the narrowest
+  validation that proves closure.
+- Mark **Rejected** only when current code or a validation result disproves it; cite that evidence.
+- Do not silently ignore, renumber, or merge findings.
+
+Publish a `## 🔍 Review Response` comment mapping each stable `CR-N` to `Accepted` or `Rejected`,
+changed files or code evidence, and the targeted validation result. Follow the two-round cap in
+`token-discipline.md` §9; after round 2, unresolved blockers or majors return to solution design.
+
+```markdown
+## 🔍 Review Response
+
+- `CR-1` — **Accepted** — [fix evidence] — [targeted validation]
+- `CR-2` — **Rejected** — [code/test evidence]
+```
 
 **Important GraphQL contract sync step:**
 - Whenever the implementation changes any GraphQL contract artifact — subgraph schema, supergraph manifest, or generated composed supergraph output — run:

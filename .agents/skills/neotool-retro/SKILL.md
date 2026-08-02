@@ -10,11 +10,11 @@ description: >
   "retro", "faz uma retro", "o que podemos melhorar", "lições aprendidas", "how can we improve",
   "what should we do differently next time", "gera uma retro do que aconteceu", "improve this issue",
   "review this draft", "is this too vague", or any explicit request to reflect on process, tooling,
-  skill gaps, or the quality of a work-definition artifact. Do not run automatically at the end of
+  skill gaps, or the quality of a work artifact. Do not run automatically at the end of
   every task — only when explicitly requested.
 metadata:
   author: invistus
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Retro — Invistus
@@ -33,6 +33,11 @@ This skill supports two explicit modes:
 2. **Ground every finding in real material.** For work retros, use what actually happened in the session. For artifact retros, use the actual draft and any decisions already made in the thread. Do not invent generic best-practice advice detached from the concrete work artifact.
 3. **Never silently edit shared artifacts.** Skills, SDD/architecture docs, and `settings.json` are used by other engineers and other agents. Propose the change, categorize it, and get confirmation before writing to any of them. Memory entries scoped to this project are the exception — apply those directly, per the memory system's own rules.
 4. **A finding must be actionable** — name the exact file/skill/doc to change and what changes, or say explicitly "this needs a human decision" (e.g. changing a personal global tool's config or behavior).
+5. **Promote repeated friction, not coincidences.** When the same friction is confirmed in two
+   independent issues or sessions, propose a durable change in a shared skill/reference, ADR/SDD,
+   or automation. A first confirmed case may be promoted immediately only when recurrence could
+   cause a critical security, integrity, or data-loss risk. Keep issue-specific lessons on the
+   issue; do not promote local implementation details or one-off coincidences.
 
 ## Workflow
 
@@ -104,6 +109,12 @@ For artifact retro, use this tighter output shape:
 ```
 
 If the artifact is already strong, keep the review brief and say why no major rewrite is needed.
+
+For every proposed promotion, cite the two independent issues/sessions that establish recurrence,
+or state the critical security/integrity/data-loss risk that justifies first-case promotion. Choose
+the smallest durable target: shared workflow behavior belongs in a skill/reference, architectural
+decisions in an ADR/SDD, and reliably detectable repetition in automation. The approval gate for
+shared artifacts still applies regardless of promotion threshold.
 
 ### 4. Apply approved changes
 
