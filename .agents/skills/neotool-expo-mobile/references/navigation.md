@@ -64,8 +64,8 @@ scheme and universal/app links in `app.config.ts` / `app.json`.
 
 - Prefer native stack transitions; use gesture-based back (enabled by default on iOS).
 - Bottom tab bar is the primary authenticated nav; a bottom-sheet/drawer holds secondary items
-  (Settings, theme, sign out) — mirror intent of `docs/07-frontend/standards/mobile-navigation.md`
-  but implement natively, not as the web component.
+  (Settings, theme, sign out) — follow `docs/02-development/mobile-expo.md`
+  and implement natively, not as a web component.
 - Honor safe areas with `react-native-safe-area-context`; the tab bar must not overlap content
   (add bottom inset padding on scroll containers).
 - Titles/headers reduced and simplified vs desktop; no breadcrumbs.

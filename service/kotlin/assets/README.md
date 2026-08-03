@@ -217,9 +217,9 @@ query {
 
 ## References
 
-- [Asset Service Specification](../../../docs/03-features/assets/asset-service/README.md)
-- [ADR-0007: Asset Service with Cloudflare R2](../../../docs/09-adr/0007-asset-service-cloudflare-r2.md)
-- [Technical Decisions](../../../docs/03-features/assets/asset-service/DECISIONS.md)
+- [ADR-0007: Asset Service with Cloudflare R2](../../../docs/04-decisions/0007-asset-service-cloudflare-r2.md)
+- [Cloudflare R2 runbook](../../../docs/05-runbooks/cloudflare-r2.md)
+- [Backend Kotlin standards](../../../docs/02-development/backend-kotlin.md)
 
 ## Development Workflow
 
@@ -275,7 +275,7 @@ open http://localhost:8083/graphiql
 
 ## Contributing
 
-Follow the [Neotool Development Workflow](../../../docs/06-workflows/feature-development.md).
+Follow the [agent delivery flow](../../../docs/03-agent-workflow/issue-delivery-flow.md).
 
 ## License
 

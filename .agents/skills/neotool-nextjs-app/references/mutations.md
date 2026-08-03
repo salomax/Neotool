@@ -37,4 +37,4 @@ const handleSave = async (data: FormData) => {
 
 ## Referência completa
 
-`docs/07-frontend/patterns/mutation-pattern.md`
+`docs/02-development/frontend-web.md`

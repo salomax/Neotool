@@ -1,17 +1,14 @@
 ---
 name: neotool-retro
 description: >
-  Use this skill to run a retrospective after a piece of work (an implementation, a code review, a
-  bugfix, a session) to extract concrete improvements to the Invistus SDLC — not just a summary of what
-  happened on that one task. Also use it when the user explicitly wants to tighten a requirement
-  artifact such as an issue draft, spec, backlog item, or refinement notes by questioning whether the
-  content has irrelevant detail, shallow or ambiguous points, missing decisions that may cause rework,
-  or a presentation format that could be more assertive or token-efficient. Trigger on requests like
-  "retro", "faz uma retro", "o que podemos melhorar", "lições aprendidas", "how can we improve",
-  "what should we do differently next time", "gera uma retro do que aconteceu", "improve this issue",
-  "review this draft", "is this too vague", or any explicit request to reflect on process, tooling,
-  skill gaps, or the quality of a work artifact. Do not run automatically at the end of
-  every task — only when explicitly requested.
+  Use this skill to run a retrospective after implementation, review, bugfix, or a session to extract
+  concrete improvements to the Invistus SDLC, not just summarize the task. Also use it to tighten a
+  requirement artifact such as an issue draft, spec, backlog item, or refinement notes by removing
+  noise, clarifying ambiguity, capturing missing decisions, and improving token efficiency. Trigger on
+  requests like "retro", "faz uma retro", "o que podemos melhorar", "lições aprendidas", "how can we
+  improve", "improve this issue", "review this draft", "is this too vague", any explicit request to
+  reflect on process, tooling, skill gaps, or artifact quality, or when invoked by `neotool-close`
+  during delivery close. Do not run automatically at the end of every task outside `neotool-close`.
 metadata:
   author: invistus
   version: "1.1"
@@ -29,7 +26,9 @@ This skill supports two explicit modes:
 
 ## Non-negotiable rules
 
-1. **Only run when explicitly asked.** Retros triggered automatically after every task turn into noise and dilute signal — this skill is never self-invoked.
+1. **Only run when explicitly asked or invoked by `neotool-close`.** Retros triggered automatically
+   after every task turn into noise and dilute signal. This skill is never self-invoked, but
+   `neotool-close` may call it as the controlled closeout learning step.
 2. **Ground every finding in real material.** For work retros, use what actually happened in the session. For artifact retros, use the actual draft and any decisions already made in the thread. Do not invent generic best-practice advice detached from the concrete work artifact.
 3. **Never silently edit shared artifacts.** Skills, SDD/architecture docs, and `settings.json` are used by other engineers and other agents. Propose the change, categorize it, and get confirmation before writing to any of them. Memory entries scoped to this project are the exception — apply those directly, per the memory system's own rules.
 4. **A finding must be actionable** — name the exact file/skill/doc to change and what changes, or say explicitly "this needs a human decision" (e.g. changing a personal global tool's config or behavior).

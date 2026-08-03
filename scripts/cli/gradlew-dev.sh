@@ -32,6 +32,14 @@ if [[ -z "${JAVA_HOME:-}" ]]; then
     fi
 fi
 
+# The DevPod image exports JAVA_TOOL_OPTIONS globally for app runtime memory caps.
+# Gradle/Kotlin daemons already have explicit heap settings in service/kotlin/gradle.properties.
+# Leaving JAVA_TOOL_OPTIONS set here can be concatenated into kotlin.daemon.jvmargs and produce
+# invalid JVM flags like "-Xms256m,-Xmx1024m,...".
+unset JAVA_TOOL_OPTIONS
+unset JDK_JAVA_OPTIONS
+unset _JAVA_OPTIONS
+
 if [[ "${DEVPOD:-}" == "true" ]]; then
     DEVPOD_GRADLE_BASE="${NEOTOOL_GRADLE_BASE:-${HOME}/.cache/neotool-gradle/${DEVPOD_WORKSPACE_UID:-default}}"
     export NEOTOOL_GRADLE_BUILD_ROOT="${NEOTOOL_GRADLE_BUILD_ROOT:-${DEVPOD_GRADLE_BASE}/builds}"
@@ -56,4 +64,9 @@ if [[ -n "$module" ]]; then
     fi
 fi
 
-exec ./gradlew "$gradle_task" "${GRADLE_ARGS[@]}" "$@"
+RUN_ARGS=()
+if [[ "$gradle_task" =~ :run$ ]]; then
+    RUN_ARGS+=(--no-daemon)
+fi
+
+exec ./gradlew "$gradle_task" "${GRADLE_ARGS[@]}" "${RUN_ARGS[@]}" "$@"

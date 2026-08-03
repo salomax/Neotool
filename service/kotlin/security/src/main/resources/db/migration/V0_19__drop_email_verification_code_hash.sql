@@ -1,5 +1,5 @@
 -- Remove code-based verification; keep only magic link (token).
--- See docs/03-features/security/authentication/signup/email-verification-design.md
+-- See spec/features/security/authentication/signup/email-verification-design.md
 
 SET search_path TO security, public;
 

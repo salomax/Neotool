@@ -91,4 +91,4 @@ mobile/
 
 - Cross-cutting concerns (auth, errors, i18n): **neotool-conventions**
 - Personal-finance / investments domain rules: **neotool-finance-domain**
-- The mobile strategy and parity scope: `docs/07-frontend/mobile/README.md`
+- The mobile strategy and parity scope: `docs/02-development/mobile-expo.md`

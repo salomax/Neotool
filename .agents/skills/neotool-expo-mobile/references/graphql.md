@@ -26,7 +26,7 @@ const { data, loading, error } = useQuery(GetInstitutions, {
 
 > Note: this differs from web, which imports pre-generated hooks from
 > `@/lib/graphql/operations/*.generated.ts`. Keep the operation **shape** aligned with the
-> web equivalent so a future shared GraphQL library is a lift, not a rewrite (contract drift is a tracked risk — see `docs/07-frontend/mobile/README.md`).
+> web equivalent so a future shared GraphQL library is a lift, not a rewrite (contract drift is a tracked risk — see `docs/02-development/mobile-expo.md`).
 
 ## Apollo client is already configured
 

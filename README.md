@@ -32,7 +32,7 @@ Invistus is implemented on top of NeoTool.
 
 ## What Invistus Delivers
 
-- Spec-driven product development with architecture and standards living in `docs/`
+- Spec-driven product development with durable engineering docs in `docs/`
 - Polyglot monorepo with explicit separation between API services and async workers
 - Federated GraphQL platform with Kotlin services and Next.js frontend
 - Cloudflare integration for edge delivery (CDN/DNS/TLS) and object storage (R2)
@@ -43,14 +43,14 @@ Invistus is implemented on top of NeoTool.
 
 | Layer | Components | What It Solves | Primary Docs |
 | --- | --- | --- | --- |
-| **Experience** | `web/`, `mobile/` | Product UX and client interactions | [`docs/02-architecture/frontend-architecture.md`](docs/02-architecture/frontend-architecture.md), [`docs/92-adr/0004-typescript-nextjs-frontend.md`](docs/92-adr/0004-typescript-nextjs-frontend.md) |
-| **API Composition** | GraphQL router + contracts | Unified API across independent services | [`docs/02-architecture/api-architecture.md`](docs/02-architecture/api-architecture.md), [`docs/06-contracts/graphql-standards.md`](docs/06-contracts/graphql-standards.md) |
-| **Domain Services** | Kotlin services in `service/kotlin/` | Core business logic with clear service boundaries | [`docs/02-architecture/service-architecture.md`](docs/02-architecture/service-architecture.md), [`docs/92-adr/0003-kotlin-micronaut-backend.md`](docs/92-adr/0003-kotlin-micronaut-backend.md) |
-| **Async Workloads** | Go jobs/consumers in `workers/golang/` | Batch ingestion, enrichment, event-driven processing | [`docs/92-adr/0003-nx-monorepo-tooling.md`](docs/92-adr/0003-nx-monorepo-tooling.md), [`docs/05-backend/patterns/batch-processing-pattern.md`](docs/05-backend/patterns/batch-processing-pattern.md) |
-| **Data + Object Storage** | PostgreSQL, R2/MinIO | Transactional data + binary asset storage | [`docs/02-architecture/data-architecture.md`](docs/02-architecture/data-architecture.md), [`docs/92-adr/0005-postgresql-database.md`](docs/92-adr/0005-postgresql-database.md), [`docs/92-adr/0007-asset-service-cloudflare-r2.md`](docs/92-adr/0007-asset-service-cloudflare-r2.md) |
-| **Infrastructure** | Docker, K3S/Kubernetes, Vault, Flux | Repeatable, auditable operations from dev to prod | [`docs/11-infrastructure/architecture.md`](docs/11-infrastructure/architecture.md), [`docs/11-infrastructure/k8s-runbook.md`](docs/11-infrastructure/k8s-runbook.md) |
-| **Observability** | Prometheus, Grafana, Loki, Promtail | Health visibility, troubleshooting, SLO tracking | [`docs/10-observability/observability-overview.md`](docs/10-observability/observability-overview.md), [`docs/03-features/infrastructure/observability/observability-vps-k3s.md`](docs/03-features/infrastructure/observability/observability-vps-k3s.md) |
-| **Delivery** | GitHub Actions + Nx + Flux GitOps | Faster CI and controlled production changes | [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`docs/11-infrastructure/k8s-runbook.md`](docs/11-infrastructure/k8s-runbook.md), [`docs/08-workflows/deployment-workflow.md`](docs/08-workflows/deployment-workflow.md) |
+| **Experience** | `web/`, `mobile/` | Product UX and client interactions | [`docs/02-development/frontend-web.md`](docs/02-development/frontend-web.md), [`docs/02-development/mobile-expo.md`](docs/02-development/mobile-expo.md), [`docs/04-decisions/0004-typescript-nextjs-frontend.md`](docs/04-decisions/0004-typescript-nextjs-frontend.md) |
+| **API Composition** | GraphQL router + contracts | Unified API across independent services | [`docs/01-architecture/graphql-and-contracts.md`](docs/01-architecture/graphql-and-contracts.md), [`docs/02-development/graphql-codegen.md`](docs/02-development/graphql-codegen.md) |
+| **Domain Services** | Kotlin services in `service/kotlin/` | Core business logic with clear service boundaries | [`docs/01-architecture/service-boundaries.md`](docs/01-architecture/service-boundaries.md), [`docs/04-decisions/0003-kotlin-micronaut-backend.md`](docs/04-decisions/0003-kotlin-micronaut-backend.md) |
+| **Async Workloads** | Go jobs/consumers in `workers/golang/` | Batch ingestion, enrichment, event-driven processing | [`docs/04-decisions/0018-nx-monorepo-tooling.md`](docs/04-decisions/0018-nx-monorepo-tooling.md), [`docs/02-development/backend-kotlin.md`](docs/02-development/backend-kotlin.md) |
+| **Data + Object Storage** | PostgreSQL, R2/MinIO | Transactional data + binary asset storage | [`docs/01-architecture/data-and-persistence.md`](docs/01-architecture/data-and-persistence.md), [`docs/04-decisions/0005-postgresql-database.md`](docs/04-decisions/0005-postgresql-database.md), [`docs/04-decisions/0007-asset-service-cloudflare-r2.md`](docs/04-decisions/0007-asset-service-cloudflare-r2.md) |
+| **Infrastructure** | Docker, K3S/Kubernetes, Vault, Flux | Repeatable, auditable operations from dev to prod | [`docs/01-architecture/infrastructure.md`](docs/01-architecture/infrastructure.md), [`docs/05-runbooks/kubernetes-operations.md`](docs/05-runbooks/kubernetes-operations.md) |
+| **Observability** | Prometheus, Grafana, Loki, Promtail | Health visibility, troubleshooting, SLO tracking | [`docs/01-architecture/observability.md`](docs/01-architecture/observability.md), [`docs/04-decisions/0013-observability-architecture.md`](docs/04-decisions/0013-observability-architecture.md) |
+| **Delivery** | GitHub Actions + Nx + Flux GitOps | Faster CI and controlled production changes | [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`docs/05-runbooks/deployment-web.md`](docs/05-runbooks/deployment-web.md), [`docs/04-decisions/0020-external-gitops-inventory-boundary.md`](docs/04-decisions/0020-external-gitops-inventory-boundary.md) |
 
 ## Topic Breakdown (Summary First, Deep Dives in Docs)
 
@@ -58,48 +58,50 @@ Invistus is implemented on top of NeoTool.
 
 | Topic | Why We Use It | Where to Read |
 | --- | --- | --- |
-| **Explicit runtime separation** (`service/` vs `workers/`) | Keeps sync APIs and async workloads isolated for clearer ownership and safer deployments | [`docs/92-adr/0003-nx-monorepo-tooling.md`](docs/92-adr/0003-nx-monorepo-tooling.md) |
-| **Monorepo boundaries with Nx tags/constraints** | Preserves architectural guardrails and prevents cross-layer coupling | [`docs/11-infrastructure/nx-configuration.md`](docs/11-infrastructure/nx-configuration.md), [`docs/92-adr/0003-nx-monorepo-tooling.md`](docs/92-adr/0003-nx-monorepo-tooling.md) |
-| **Batch and consumer standards** | Consistent pattern for ingestion jobs, retries, observability, and operations | [`docs/05-backend/patterns/batch-processing-pattern.md`](docs/05-backend/patterns/batch-processing-pattern.md), [`docs/05-backend/patterns/kafka-consumer-pattern.md`](docs/05-backend/patterns/kafka-consumer-pattern.md) |
+| **Explicit runtime separation** (`service/` vs `workers/`) | Keeps sync APIs and async workloads isolated for clearer ownership and safer deployments | [`docs/01-architecture/system.md`](docs/01-architecture/system.md), [`docs/04-decisions/0018-nx-monorepo-tooling.md`](docs/04-decisions/0018-nx-monorepo-tooling.md) |
+| **Monorepo boundaries with Nx tags/constraints** | Preserves architectural guardrails and prevents cross-layer coupling | [`docs/04-decisions/0001-monorepo-architecture.md`](docs/04-decisions/0001-monorepo-architecture.md), [`docs/04-decisions/0018-nx-monorepo-tooling.md`](docs/04-decisions/0018-nx-monorepo-tooling.md) |
+| **Batch and consumer standards** | Consistent pattern for ingestion jobs, retries, observability, and operations | [`docs/02-development/backend-kotlin.md`](docs/02-development/backend-kotlin.md), [`docs/05-runbooks/banking-pdf-import-retry-dlq.md`](docs/05-runbooks/banking-pdf-import-retry-dlq.md) |
 
 ### 2. Cloudflare (Edge + Storage)
 
 | Topic | What It Tackles | Where to Read |
 | --- | --- | --- |
-| **Cloudflare CDN/DNS/TLS** | Edge routing, HTTPS termination model, domain setup, cache behavior | [`docs/11-infrastructure/cloudflare-runbook.md`](docs/11-infrastructure/cloudflare-runbook.md), [`docs/11-infrastructure/web-deployment-runbook.md`](docs/11-infrastructure/web-deployment-runbook.md) |
-| **Cloudflare R2 for assets** | S3-compatible object storage with clear public/private bucket strategy | [`docs/11-infrastructure/cloudflare-r2-runbook.md`](docs/11-infrastructure/cloudflare-r2-runbook.md), [`docs/92-adr/0007-asset-service-cloudflare-r2.md`](docs/92-adr/0007-asset-service-cloudflare-r2.md), [`docs/03-features/assets/asset-service/README.md`](docs/03-features/assets/asset-service/README.md) |
-| **Future edge-worker paths** | On-demand image/asset handling and delivery hardening options | [`docs/03-features/assets/asset-service/DECISIONS.md`](docs/03-features/assets/asset-service/DECISIONS.md) |
+| **Cloudflare CDN/DNS/TLS** | Edge routing, HTTPS termination model, domain setup, cache behavior | [`docs/05-runbooks/cloudflare.md`](docs/05-runbooks/cloudflare.md), [`docs/05-runbooks/deployment-web.md`](docs/05-runbooks/deployment-web.md) |
+| **Cloudflare R2 for assets** | S3-compatible object storage with clear public/private bucket strategy | [`docs/05-runbooks/cloudflare-r2.md`](docs/05-runbooks/cloudflare-r2.md), [`docs/04-decisions/0007-asset-service-cloudflare-r2.md`](docs/04-decisions/0007-asset-service-cloudflare-r2.md) |
+| **Future edge-worker paths** | On-demand image/asset handling and delivery hardening options | [`docs/04-decisions/0007-asset-service-cloudflare-r2.md`](docs/04-decisions/0007-asset-service-cloudflare-r2.md) |
 
 ### 3. Security and Platform Reliability
 
 | Topic | What It Tackles | Where to Read |
 | --- | --- | --- |
-| **Authentication + Authorization** | User and service identity, permission enforcement, token flow | [`docs/09-security/authentication.md`](docs/09-security/authentication.md), [`docs/09-security/authorization.md`](docs/09-security/authorization.md) |
-| **Service-to-service security** | Secure internal calls across polyglot services | [`docs/09-security/service-to-service-auth.md`](docs/09-security/service-to-service-auth.md), [`docs/92-adr/0008-interservice-security.md`](docs/92-adr/0008-interservice-security.md) |
-| **Secrets management** | Vault-based secret lifecycle and Kubernetes integration | [`docs/09-security/vault-setup.md`](docs/09-security/vault-setup.md), [`docs/11-infrastructure/k8s-runbook.md`](docs/11-infrastructure/k8s-runbook.md) |
+| **Authentication + Authorization** | User and service identity, permission enforcement, token flow | [`docs/01-architecture/security.md`](docs/01-architecture/security.md), [`docs/04-decisions/0006-frontend-authorization-layer.md`](docs/04-decisions/0006-frontend-authorization-layer.md) |
+| **Service-to-service security** | Secure internal calls across polyglot services | [`docs/01-architecture/security.md`](docs/01-architecture/security.md), [`docs/04-decisions/0008-interservice-security.md`](docs/04-decisions/0008-interservice-security.md) |
+| **Secrets management** | Vault-based secret lifecycle and Kubernetes integration | [`docs/05-runbooks/vault.md`](docs/05-runbooks/vault.md), [`docs/05-runbooks/kubernetes-operations.md`](docs/05-runbooks/kubernetes-operations.md) |
 
 ### 4. CI/CD and GitOps with Flux
 
 | Topic | What It Tackles | Where to Read |
 | --- | --- | --- |
-| **Nx-optimized CI** | Runs checks only for affected projects to reduce cycle time | [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`docs/92-adr/0003-nx-monorepo-tooling.md`](docs/92-adr/0003-nx-monorepo-tooling.md) |
-| **GitOps control plane (Flux CD)** | Declarative cluster reconciliation and auditable operations | [`docs/11-infrastructure/k8s-runbook.md`](docs/11-infrastructure/k8s-runbook.md), [`docs/11-infrastructure/architecture.md`](docs/11-infrastructure/architecture.md) |
-| **Deployment gates and workflow** | Standardized progression from validation to release | [`docs/08-workflows/deployment-workflow.md`](docs/08-workflows/deployment-workflow.md), [`docs/11-infrastructure/web-deployment-runbook.md`](docs/11-infrastructure/web-deployment-runbook.md) |
+| **Nx-optimized CI** | Runs checks only for affected projects to reduce cycle time | [`.github/workflows/ci.yml`](.github/workflows/ci.yml), [`docs/04-decisions/0018-nx-monorepo-tooling.md`](docs/04-decisions/0018-nx-monorepo-tooling.md) |
+| **GitOps control plane (Flux CD)** | Declarative cluster reconciliation and auditable operations | [`docs/04-decisions/0020-external-gitops-inventory-boundary.md`](docs/04-decisions/0020-external-gitops-inventory-boundary.md), [`docs/01-architecture/infrastructure.md`](docs/01-architecture/infrastructure.md) |
+| **Deployment gates and workflow** | Standardized progression from validation to release | [`docs/05-runbooks/deployment-web.md`](docs/05-runbooks/deployment-web.md), [`docs/03-agent-workflow/review-and-closeout.md`](docs/03-agent-workflow/review-and-closeout.md) |
 
 ### 5. Domain Use Cases Implemented in Invistus
 
+Prefer `docs/` for engineering standards and the separate `spec/features` track for feature behavior memory.
+
 | Use Case | Scope | Where to Read |
 | --- | --- | --- |
-| **Financial data ingestion and normalization** | Institutional and macroeconomic datasets | [`docs/03-features/financial_data/bacen-ifdata-ingestion/bacen-ifdata-ingestion.md`](docs/03-features/financial_data/bacen-ifdata-ingestion/bacen-ifdata-ingestion.md), [`docs/03-features/financial_data/brazilian_economic_indicators/brazilian-economic-indicators.md`](docs/03-features/financial_data/brazilian_economic_indicators/brazilian-economic-indicators.md) |
-| **Institution enrichment and ratings workloads** | Data enrichment workers and rating pipelines | [`docs/03-features/financial_data/institution-enhancement/institution-enhancement.md`](docs/03-features/financial_data/institution-enhancement/institution-enhancement.md), [`docs/03-features/financial_data/ratings/financial-institution-ratings.md`](docs/03-features/financial_data/ratings/financial-institution-ratings.md) |
-| **Personal finance product direction** | Accounts/cards flows and user-centric finance features | [`docs/03-features/personal-finance/personal-finance-overview.md`](docs/03-features/personal-finance/personal-finance-overview.md), [`docs/03-features/personal-finance/phase-1-accounts-cards.md`](docs/03-features/personal-finance/phase-1-accounts-cards.md) |
+| **Financial data ingestion and normalization** | Institutional and macroeconomic datasets | [`docs/01-architecture/system.md`](docs/01-architecture/system.md) |
+| **Institution enrichment and ratings workloads** | Data enrichment workers and rating pipelines | [`docs/01-architecture/system.md`](docs/01-architecture/system.md) |
+| **Personal finance product direction** | Accounts/cards flows and user-centric finance features | [`docs/README.md`](docs/README.md) |
 
 ### 6. Agents, Skills, and Spec-Driven Development
 
 | Topic | What It Tackles | Where to Read |
 | --- | --- | --- |
-| **Specification-Driven Development (SDD)** | Docs are the source of truth — specs are written first, AI assistants implement from them, checklists validate compliance | [`docs/12-specification-driven-dev/README.md`](docs/12-specification-driven-dev/README.md), [`docs/01-overview/specification-driven-development.md`](docs/01-overview/specification-driven-development.md) |
-| **Agent Skills** | Portable, reusable knowledge packages (`SKILL.md`) that Claude Code, Codex, and Cursor all auto-discover from one canonical source | [`docs/specs/agent-skills/spec.md`](docs/specs/agent-skills/spec.md), [`.agents/skills/`](.agents/skills/) |
+| **Specification-Driven Development (SDD)** | Specs and durable docs guide delivery; agents implement and validate against them | [`docs/03-agent-workflow/context-contract.md`](docs/03-agent-workflow/context-contract.md), [`docs/03-agent-workflow/issue-delivery-flow.md`](docs/03-agent-workflow/issue-delivery-flow.md) |
+| **Agent Skills** | Portable, reusable knowledge packages (`SKILL.md`) that Claude Code, Codex, and Cursor all auto-discover from one canonical source | [`docs/03-agent-workflow/context-contract.md`](docs/03-agent-workflow/context-contract.md), [`.agents/skills/`](.agents/skills/) |
 | **neotool-dev-agent** | Slack-driven pipeline (issue → design → backlog → impl → review → validate → pr) that dispatches each stage to Claude, Codex, or Cursor | [`.devcontainer/README.md`](.devcontainer/README.md) |
 
 **How skills are discovered.** Invistus follows the [agentskills.io](https://agentskills.io) open standard. Skills live in one canonical place, `.agents/skills/`, and each agent finds them from there:
@@ -116,21 +118,21 @@ Always edit skills in `.agents/skills/` — `.claude/skills` just follows it, no
 
 | Service | Main Responsibility | Current Scope | Primary Docs |
 | --- | --- | --- | --- |
-| **security** (`service/kotlin/security`) | Identity, authentication, authorization, and cross-service trust | JWT-based auth flows, RBAC/authorization, service-to-service auth patterns, secret integration | [`docs/03-features/security/README.md`](docs/03-features/security/README.md), [`docs/09-security/authentication.md`](docs/09-security/authentication.md), [`docs/09-security/service-to-service-auth.md`](docs/09-security/service-to-service-auth.md) |
-| **assets** (`service/kotlin/assets`) | Asset upload, storage, and delivery pipeline | GraphQL-driven upload/confirm flow, metadata lifecycle, public/private delivery strategy over R2/MinIO | [`docs/03-features/assets/asset-service/README.md`](docs/03-features/assets/asset-service/README.md), [`docs/03-features/assets/asset-service/DECISIONS.md`](docs/03-features/assets/asset-service/DECISIONS.md), [`docs/92-adr/0007-asset-service-cloudflare-r2.md`](docs/92-adr/0007-asset-service-cloudflare-r2.md) |
-| **comms** (`service/kotlin/comms`) | Centralized communication layer (sync + async) | Current implementation prioritizes email orchestration via Kafka + DLQ and GraphQL API; chat/templates/channels are staged in roadmap | [`docs/03-features/comms/comms-module-requirements.md`](docs/03-features/comms/comms-module-requirements.md), [`docs/03-features/comms/comms-runbook.md`](docs/03-features/comms/comms-runbook.md), [`docs/03-features/comms/template-engine-requirements.md`](docs/03-features/comms/template-engine-requirements.md) |
-| **financialdata** (`service/kotlin/financialdata`) | Financial data ingestion and enrichment backbone for wealth features | BACEN IFData ingestion, institutional data search/restriction workflows, ratings/economic-indicator support with worker-assisted processing | [`docs/03-features/financial_data/bacen-ifdata-ingestion/bacen-ifdata-ingestion.md`](docs/03-features/financial_data/bacen-ifdata-ingestion/bacen-ifdata-ingestion.md), [`docs/03-features/financial_data/bacen-institution-data-report/institution-search-service.md`](docs/03-features/financial_data/bacen-institution-data-report/institution-search-service.md), [`docs/03-features/financial_data/ratings/financial-institution-ratings.md`](docs/03-features/financial_data/ratings/financial-institution-ratings.md), [`docs/03-features/financial_data/brazilian_economic_indicators/brazilian-economic-indicators.md`](docs/03-features/financial_data/brazilian_economic_indicators/brazilian-economic-indicators.md) |
+| **security** (`service/kotlin/security`) | Identity, authentication, authorization, and cross-service trust | JWT-based auth flows, RBAC/authorization, service-to-service auth patterns, secret integration | [`docs/01-architecture/security.md`](docs/01-architecture/security.md), [`docs/04-decisions/0008-interservice-security.md`](docs/04-decisions/0008-interservice-security.md) |
+| **assets** (`service/kotlin/assets`) | Asset upload, storage, and delivery pipeline | GraphQL-driven upload/confirm flow, metadata lifecycle, public/private delivery strategy over R2/MinIO | [`docs/04-decisions/0007-asset-service-cloudflare-r2.md`](docs/04-decisions/0007-asset-service-cloudflare-r2.md), [`docs/05-runbooks/cloudflare-r2.md`](docs/05-runbooks/cloudflare-r2.md) |
+| **comms** (`service/kotlin/comms`) | Centralized communication layer (sync + async) | Current implementation prioritizes email orchestration via Kafka + DLQ and GraphQL API; chat/templates/channels are staged in roadmap | [`docs/05-runbooks/comms-email-operations.md`](docs/05-runbooks/comms-email-operations.md), [`docs/01-architecture/system.md`](docs/01-architecture/system.md) |
+| **financialdata** (`service/kotlin/financialdata`) | Financial data ingestion and enrichment backbone for wealth features | BACEN IFData ingestion, institutional data search/restriction workflows, ratings/economic-indicator support with worker-assisted processing | [`docs/01-architecture/system.md`](docs/01-architecture/system.md), [`docs/01-architecture/service-boundaries.md`](docs/01-architecture/service-boundaries.md) |
 
 ## Patterns and Best Practices by Engineering Layer
 
 | Layer | Key Patterns and Practices | Docs |
 | --- | --- | --- |
-| **Backend** | Layer rules, service/repository/mapper/resolver patterns, pagination, Kafka patterns | [`docs/05-backend/standards/layer-rules.md`](docs/05-backend/standards/layer-rules.md), [`docs/05-backend/patterns/`](docs/05-backend/patterns/) |
-| **Frontend** | Query/mutation, management pages, shared UI, testing and E2E patterns | [`docs/07-frontend/patterns/`](docs/07-frontend/patterns/) |
-| **API Contracts** | GraphQL standards, query design, federation contract discipline | [`docs/06-contracts/`](docs/06-contracts/) |
-| **Security** | AuthN/AuthZ baseline, interservice trust, secret handling | [`docs/09-security/`](docs/09-security/) |
-| **Observability** | Golden signals, metrics/logging standards, alerting baseline | [`docs/10-observability/observability-overview.md`](docs/10-observability/observability-overview.md) |
-| **Operations** | K8S runbooks, Cloudflare/R2 setup, staging/prod operational flows | [`docs/11-infrastructure/`](docs/11-infrastructure/) |
+| **Backend** | Layer rules, service/repository/mapper/resolver patterns, pagination, Kafka patterns | [`docs/02-development/backend-kotlin.md`](docs/02-development/backend-kotlin.md), [`docs/01-architecture/service-boundaries.md`](docs/01-architecture/service-boundaries.md) |
+| **Frontend** | Query/mutation, management pages, shared UI, testing and E2E patterns | [`docs/02-development/frontend-web.md`](docs/02-development/frontend-web.md), [`docs/02-development/testing-strategy.md`](docs/02-development/testing-strategy.md) |
+| **API Contracts** | GraphQL standards, query design, federation contract discipline | [`docs/01-architecture/graphql-and-contracts.md`](docs/01-architecture/graphql-and-contracts.md), [`docs/02-development/graphql-codegen.md`](docs/02-development/graphql-codegen.md) |
+| **Security** | AuthN/AuthZ baseline, interservice trust, secret handling | [`docs/01-architecture/security.md`](docs/01-architecture/security.md), [`docs/05-runbooks/vault.md`](docs/05-runbooks/vault.md) |
+| **Observability** | Golden signals, metrics/logging standards, alerting baseline | [`docs/01-architecture/observability.md`](docs/01-architecture/observability.md) |
+| **Operations** | K8S runbooks, Cloudflare/R2 setup, staging/prod operational flows | [`docs/05-runbooks/README.md`](docs/05-runbooks/README.md) |
 
 
 ## Local Development
@@ -360,11 +362,12 @@ docker exec -e VAULT_ADDR=http://localhost:8200 -e VAULT_TOKEN=myroot \
 | [`workers/golang/`](workers/golang/) | Go async workloads (jobs/consumers) |
 | [`contracts/`](contracts/) | GraphQL/OpenAPI contracts |
 | [`infra/`](infra/) | Local infrastructure, Terraform, observability configs, scripts |
-| [`docs/`](docs/) | Architecture, ADRs, features, runbooks, standards |
+| [`docs/`](docs/) | Durable engineering docs (architecture, development, ADRs, runbooks) |
 
 ## Start Reading Here
 
-1. Architecture overview: [`docs/02-architecture/system-architecture.md`](docs/02-architecture/system-architecture.md)
-2. Why these decisions: [`docs/92-adr/README.md`](docs/92-adr/README.md)
-3. Infrastructure and GitOps: [`docs/11-infrastructure/README.md`](docs/11-infrastructure/README.md)
-4. Full docs index: [`docs/MANIFEST.md`](docs/MANIFEST.md)
+1. Engineering docs entry: [`docs/README.md`](docs/README.md)
+2. System architecture: [`docs/01-architecture/system.md`](docs/01-architecture/system.md)
+3. Why these decisions: [`docs/04-decisions/README.md`](docs/04-decisions/README.md)
+4. Runbooks: [`docs/05-runbooks/README.md`](docs/05-runbooks/README.md)
+5. Full catalog: [`docs/index.md`](docs/index.md)

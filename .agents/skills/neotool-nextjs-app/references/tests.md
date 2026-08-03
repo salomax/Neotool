@@ -24,7 +24,7 @@ describe('useTransactionSummary', () => {
 
 - Não mockar Apollo Client diretamente — usar `MockedProvider`
 - Para componentes com i18n, envolver em `NextIntlClientProvider` nos testes
-- Testes E2E ficam em `web/e2e/` — consultar `docs/07-frontend/patterns/` para padrões
+- Testes E2E ficam em `web/tests/e2e/` — consultar `docs/02-development/testing-strategy.md` para padrões
 
 ## Playwright local
 

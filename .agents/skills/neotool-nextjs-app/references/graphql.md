@@ -41,4 +41,4 @@ const cache = new InMemoryCache({
 
 ## Referência de padrões completos
 
-`docs/07-frontend/patterns/graphql-query-pattern.md`
+`docs/02-development/frontend-web.md`

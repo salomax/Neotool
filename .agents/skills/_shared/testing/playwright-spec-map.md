@@ -28,12 +28,12 @@ Start with the owning spec instead of creating another cross-cutting file.
 | merchants | `web/tests/e2e/personal-finance/merchants.e2e.spec.ts` |
 | tenant isolation and finance permissions | `web/tests/e2e/personal-finance/security.e2e.spec.ts` |
 
-Read these docs when the branch touches personal finance:
+Read these docs when the branch touches transactions or personal finance:
 
-- `docs/03-features/personal-finance/e2e-test-spec.md`
-- `docs/03-features/personal-finance/testing/finance-transactions-e2e-coverage-map.md`
+- `spec/features/transactions/README.md`
+- `docs/02-development/testing-strategy.md`
 
-Use the coverage map to avoid duplicating scenarios that already exist and to target documented gaps first.
+Use the spec index plus the existing Playwright specs to avoid duplicating scenarios and to target documented gaps first.
 
 ## Investments
 

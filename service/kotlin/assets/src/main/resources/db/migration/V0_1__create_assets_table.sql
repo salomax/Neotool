@@ -1,7 +1,7 @@
 -- Asset Service - Assets Table Migration
 -- Version: 1.1
 -- Description: Creates the assets table with audit fields and visibility column
--- Reference: docs/03-features/assets/asset-service/README.md, docs/asset-refactor-plan.md
+-- Reference: spec/features/assets/asset-service/README.md, docs/asset-refactor-plan.md
 
 -- Create assets schema if not exists
 CREATE SCHEMA IF NOT EXISTS assets;

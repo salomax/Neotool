@@ -20,9 +20,8 @@ If the worktree is dirty, include unstaged and staged diffs in the plan.
 - Playwright config: `web/playwright.config.ts`
 - E2E specs: `web/tests/e2e/**/*.e2e.spec.ts`
 - Shared E2E conventions: `web/tests/e2e/CONVENTIONS.md`
-- Personal-finance E2E plan: `docs/03-features/personal-finance/e2e-test-spec.md`
-- Personal-finance coverage map: `docs/03-features/personal-finance/testing/finance-transactions-e2e-coverage-map.md`
-- Broader E2E pattern docs: `docs/07-frontend/patterns/e2e-testing-pattern.md`
+- Product behavior memory: `spec/features/transactions/README.md`
+- E2E strategy and runner rules: `docs/02-development/testing-strategy.md`
 
 ## Execution commands
 

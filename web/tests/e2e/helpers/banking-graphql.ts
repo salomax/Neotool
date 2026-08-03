@@ -3,7 +3,7 @@
  * Mirrors the structure of graphql.ts — plain template strings, no Apollo client.
  *
  * Re-exports banking enums from app codegen — prefer `CreditDebitType.Debit` etc. over raw strings.
- * @see docs/03-features/personal-finance/requirements/02-transactions.md
+ * @see spec/features/personal-finance/requirements/02-transactions.md
  */
 
 import { executeGraphQL } from './graphql';

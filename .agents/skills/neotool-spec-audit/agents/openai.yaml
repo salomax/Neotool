@@ -1,0 +1,4 @@
+interface:
+  display_name: "Neotool Spec Audit"
+  short_description: "Confere se o spec fechado bate com a issue e o diff"
+  default_prompt: "Use $neotool-spec-audit para conferir a issue #123: leia o spec/features atualizado pelo neotool-close, compare com a issue e o PR, e me dê um veredito com gaps/invencoes."

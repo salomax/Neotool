@@ -353,14 +353,18 @@ start_kotlin() {
     local name="$1"
     local port; port=$(service_port "$name")
     log "▶ Starting $name..." "$BLUE"
+    local infra_env_file="$PROJECT_ROOT/infra/docker/.env.local"
+    local infra_env_cmd
+    infra_env_cmd=$(load_env_cmd "$infra_env_file")
     local env_file="$KOTLIN_ROOT/$name/.env.local"
     local env_cmd
     env_cmd=$(load_env_cmd "$env_file")
     # JAVA_HOME: detecta arch automaticamente
     local java_home_cmd="export JAVA_HOME=\$(ls -d /usr/lib/jvm/temurin-21-jdk-* 2>/dev/null | head -1) && "
     local server_host_cmd='export MICRONAUT_SERVER_HOST="${MICRONAUT_SERVER_HOST:-0.0.0.0}" && '
+    local runtime_defaults='export POSTGRES_HOST=localhost && export POSTGRES_PORT="${PGBOUNCER_PORT:-6432}" && export KAFKA_BROKERS="${KAFKA_BROKERS:-localhost:9094}" && export KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-localhost:9094}" && '
     # gradlew-dev serializes :classes with flock before :run to avoid fileHashes lock contention
-    new_window "$name" "bash -c '${java_home_cmd}${env_cmd}${server_host_cmd}\"$GRADLEW_DEV\" :${name}:run'"
+    new_window "$name" "bash -c '${java_home_cmd}${infra_env_cmd}${env_cmd}${server_host_cmd}${runtime_defaults}\"$GRADLEW_DEV\" :${name}:run'"
     log "  ✓ $name → tmux window '$name' (port $port)" "$GREEN"
 }
 

@@ -1,5 +1,5 @@
 -- Email verification for signup flow (OWASP-aligned: 8h expiry, rate limit, hashed code/token)
--- See docs/03-features/security/authentication/signup/email-verification-design.md
+-- See spec/features/security/authentication/signup/email-verification-design.md
 
 SET search_path TO security, public;
 

@@ -284,7 +284,7 @@ The mobile app shares code with the web application through:
 - **i18n**: Translation files
 - **Types**: TypeScript type definitions
 
-See [Mobile Architecture](../docs/02-architecture/mobile-architecture.md) for details.
+See [Mobile Expo standards](../docs/02-development/mobile-expo.md) for details.
 
 ## Building for Production
 
@@ -353,8 +353,8 @@ eas submit --platform all --profile production
 
 ## Documentation
 
-- [Mobile Architecture](../docs/02-architecture/mobile-architecture.md)
-- [ADR-0010: React Native + Expo](../docs/92-adr/0010-react-native-expo-mobile.md)
+- [Mobile Expo standards](../docs/02-development/mobile-expo.md)
+- [ADR-0010: React Native + Expo](../docs/04-decisions/0010-react-native-expo-mobile.md)
 - [Expo Documentation](https://docs.expo.dev/)
 - [React Native Paper](https://callstack.github.io/react-native-paper/)
 

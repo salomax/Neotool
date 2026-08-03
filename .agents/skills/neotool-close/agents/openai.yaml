@@ -1,0 +1,4 @@
+interface:
+  display_name: "Neotool Close"
+  short_description: "Fecha entrega, specs, docs e retro seletiva"
+  default_prompt: "Use $neotool-close para fechar a issue #123: validar entrega, atualizar spec/features e docs necessarios, rodar retro do workflow e publicar um resumo final."

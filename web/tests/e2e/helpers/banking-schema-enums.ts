@@ -3,7 +3,7 @@
  * transaction type, credit/debit, status, and category applicability so typos fail
  * at compile time and stay aligned with the schema.
  *
- * @see docs/03-features/personal-finance/requirements/02-transactions.md
+ * @see spec/features/personal-finance/requirements/02-transactions.md
  */
 export {
   CategoryApplicableTo,

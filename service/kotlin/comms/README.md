@@ -264,8 +264,6 @@ Prometheus metrics include:
 
 ## References
 
-- [Comms Module Requirements](../../../docs/03-features/comms/comms-module-requirements.md)
-- [Comms Runbook](../../../docs/03-features/comms/comms-runbook.md)
-- [Template Authoring Guide](../../../docs/03-features/comms/template-authoring-guide.md)
-- [Template Engine Requirements](../../../docs/03-features/comms/template-engine-requirements.md)
-- [Password Reset Template Implementation](../../../docs/03-features/comms/password-reset-template-implementation.md)
+- [Comms email operations runbook](../../../docs/05-runbooks/comms-email-operations.md)
+- [GraphQL contracts](../../../docs/01-architecture/graphql-and-contracts.md)
+- [Backend Kotlin standards](../../../docs/02-development/backend-kotlin.md)

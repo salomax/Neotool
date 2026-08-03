@@ -5,7 +5,7 @@
 Mobile is **not** a squeezed desktop. For every screen, re-decide information hierarchy, the single
 primary action, and the edit flow around touch and task priority. Reflowing the web layout is a defect.
 
-This is the P0 quality bar (see `docs/07-frontend/mobile/README.md`), not a later polish phase.
+This is the P0 quality bar (see `docs/02-development/mobile-expo.md`), not a later polish phase.
 
 ## Lists (dense, operational)
 

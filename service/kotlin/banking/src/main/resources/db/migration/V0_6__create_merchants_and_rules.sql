@@ -841,8 +841,8 @@ CREATE INDEX idx_category_rules_system
     WHERE is_system = true AND deleted_at IS NULL;
 
 -- V0_29__seed_category_rules.sql
--- Comprehensive system auto-categorization rules derived from:
---   docs/03-features/banking/transaction-enrichment/merchants-seed.csv
+-- Comprehensive system auto-categorization rules derived from the historical
+-- merchant seed used before this migration.
 --
 -- Replaces the sparse V0_26 seed which had two problems:
 --   1. Wrong category names ('Aplicativos (Uber)', 'Streaming') that don't exist

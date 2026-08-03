@@ -111,7 +111,7 @@ email:
   # Can be set via FRONTEND_URL environment variable
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   # Delivery: mock (default, logs to console) or comms (via Apollo Router to Comms service).
-  # For comms, also set graphql.router.url and security.service.id/secret (see docs/09-security/service-to-service-auth.md).
+  # For comms, also set graphql.router.url and security.service.id/secret (see docs/01-architecture/security.md).
   delivery: ${EMAIL_DELIVERY:mock}
   # Comms template key for account invitation emails (variables: inviterDisplayName, accountName, acceptLink, expiryDays, role).
   invitation-template: "account.invitation"

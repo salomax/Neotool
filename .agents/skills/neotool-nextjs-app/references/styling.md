@@ -41,4 +41,4 @@ const color = theme.palette.primary.main; // para uso fora do sx prop
 
 ## Referência completa
 
-`docs/07-frontend/patterns/styling-pattern.md`
+`docs/02-development/frontend-web.md`
