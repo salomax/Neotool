@@ -1,9 +1,0 @@
-{
-  "title": "Multi-Language Demo",
-  "welcome": "Welcome to our application!",
-  "description": "This page demonstrates dynamic language support",
-  "language": "Language",
-  "selectLanguage": "Select Language",
-  "currentLanguage": "Current Language",
-  "supportedLanguages": "Supported Languages"
-}
