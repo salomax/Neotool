@@ -1,32 +1,45 @@
 # Neotool Guideline
 
-Use this guide together with an AI agent to start a software initiative. Bring the problem in your own words. The agent leads the working session: it loads relevant context, asks questions that affect the direction, drafts the Spec with you, and helps turn the agreed scope into a first delivery.
+**Neotool is an AI-driven engineering framework for exploring, structuring, creating, and evolving an initiative.** An initiative can be a project, a product, a solution, or a change to something that already exists. Start where you are: a rough idea, a problem you have observed, or a proposal with research behind it.
 
-## Start the session
+## Start with a conversation
 
-Open your initiative workspace in a coding agent. Give it access to this guide, the [Spec template](../spec/templates/first-delivery.md), and the [Start Initiative skill](../.agents/skills/neotool-start-initiative/SKILL.md). You can point the agent to those files directly in a local checkout. If the workspace already has a context map or project instructions, point the agent there too.
+Open your existing repository or a workspace for the initiative. Give your coding agent access to the [Start Initiative skill](../.agents/skills/neotool-start-initiative/SKILL.md) in the Neotool checkout. Bring whatever you already have: notes, research, designs, existing code, or just an observation.
 
-> Use the Neotool Start Initiative skill and work through the Guideline with me. Here is the problem or opportunity I see: [describe it in your own words]. Here are the materials I already have: [links or paths, if any]. Help me decide what a useful first delivery would look like.
+> Use the Neotool Start Initiative skill. I want to start an initiative around [idea, problem, or opportunity]. The material I already have is [links or paths, if any]. Help me organize what we know and choose what to do next.
 
-A short description is enough to begin. For example: “People book our shared room by chat, and sometimes two people show up at the same time. Help me figure out what to build first.”
+The agent reads the relevant material, summarizes the situation in your terms, and separates sourced observations, assumptions, and proposed solutions. It asks about gaps that could change what you do next. You bring real examples, correct its reading, and decide which uncertainty is worth addressing.
 
-## Work together from problem to delivery
+Together, capture a short [Initiative Brief](../spec/templates/initiative-brief.md): what you know, what you still need to learn, and the next action you agree on. You can begin in the conversation and save the brief in your workspace when you need a durable handoff.
 
-| Moment | Person | Agent | What you leave with |
-| --- | --- | --- | --- |
-| **Understand the problem** | Share what happens today, who is affected, and what a better outcome would look like. | Read relevant materials, play back what you understood, and distinguish facts from assumptions. Ask only for missing information that changes the scope, a decision, or how success can be observed. | Shared context: audience, problem, outcome, constraints, and open questions. |
-| **Choose a first delivery** | Choose or adjust the proposed scope and trade-offs. | Propose the smallest useful change. Compare alternatives when the choice matters. If uncertainty prevents a decision, frame one question and the evidence needed to resolve it. | A recorded decision linking the chosen slice to the problem. |
-| **Write and agree on the Spec** | Review realistic scenarios and say what would make the first delivery acceptable. | Draft a versioned Spec with expected behavior, exclusions, and criteria with concrete checks. Bring any material disagreement back to the conversation. | An agreed Spec the agent can work from. |
-| **Build and examine the result** | Authorize implementation and review the result in the intended context. | Use the initiative's relevant skills and tools to make the agreed change. Capture what was checked against each criterion, which revision was examined, and what is still blocked or unverified. | Working software and evidence linked to the Spec, or an explicit handoff describing what remains. |
-| **Carry learning forward** | Decide whether to accept the delivery, gather more evidence, or change direction. | Record verified behavior and link its sources. Update the context with new findings and surface differences between intended and observed behavior. | A reliable starting point for the next session. |
+## Choose the next move
 
-The session can pause at any moment. To resume, start from the current context, the latest Spec and evidence, and decisions made since the last session. Keep links to authoritative sources so a new agent can resume without reconstructing the whole conversation.
+Choose based on the question that most affects the initiative. These are entry points you can revisit as you learn.
 
-## What the agent works with
+| Move | Use it when | Agree on what the work should produce |
+| --- | --- | --- |
+| **Explore the problem** | You are unsure who is affected, how they work today, or where the pain comes from. | A question about the current situation, who or what can answer it, and observations that would change your understanding. The agent can prepare interviews or analyze existing inputs; mark user evidence still to be collected. |
+| **Research** | You need to answer a focused question about feasibility, constraints, or available approaches. | A sourced answer with the strength and limits of the evidence, and the decision it informs. Identify what needs a local experiment or expert input. |
+| **Benchmark** | You need to compare existing options against a baseline or understand how others solve the same problem. | A comparison using agreed criteria, comparable conditions, and cited sources. Include the current workflow when relevant. Mark missing or incomparable data. |
+| **Design the solution** | The problem, intended outcome, and important constraints are clear enough to explore a solution. | Alternatives, key trade-offs, and a sketch, prototype, or model that can test an assumption. Agree on what would make you refine or reconsider the design. |
 
-- **Context** explains the problem, decisions, constraints, and where authoritative information lives. Start with a short map of relevant sources and expand it as the initiative grows.
-- **Spec** describes what the team intends to build and how it will check it. Once the implementation exists, record verified behavior separately with references to code, tests, contracts, or runtime observations. Keep unverified claims visible as such.
-- **Skills** provide procedures for particular moments. The bundled Start Initiative skill runs the collaborative kickoff through a draft and an agreed Spec. Use design exploration when the experience is still open and technical design when a consequential implementation choice needs analysis.
-- **Harness** provides the agent's execution environment: context loading, tool access, permissions, checkpoints, and capture of results. For the starting workflow, use your coding agent and its existing workspace tools; record decisions and handoffs in the workspace. A dedicated Neotool runner, CLI, and adapters can automate those same responsibilities as the framework evolves.
+For example, “We should build a room-booking app” could lead to **exploring the problem** if the team has no examples of scheduling failures, or to **benchmarking** if the problem is established and calendar tools are already available. Those are different next actions even though the initial idea is the same.
 
-Keep context, decisions, the Spec, and evidence linked. A small initiative can keep them in one document. As the product grows, split them where ownership or discovery calls for it. The [worked example](examples/first-delivery.md) shows how the four pieces fit together.
+## Give the agent context it can use
+
+Start from a short, discoverable map: the workspace instructions, the brief, and links to records needed for the current question. Load those records first and follow only the relevant links. Deep research, architecture references, and detailed specs can stay where they are until needed.
+
+- **One maintained record per topic.** Give each durable record a stable ID, kind, state, short summary, and an owner when responsibility needs to be explicit. Use a path or link alongside referenced IDs so the agent can resolve them. Records can be sections in one file.
+- **Name what a link means.** A brief *raises* a question; a finding *answers* or *partially answers* it; a decision *uses* a finding; a Spec *implements* an accepted decision; a check *verifies* a criterion. For example, a decision can reference the finding by ID and link to its section rather than copying the research.
+- **Keep evidence and intent distinguishable.** Cite a source at the point of claim, with the relevant locator, date or revision when useful, and limitations. Separate what the source says from what the agent infers. Distinguish an agreed Spec about intended behavior from a record of what the system does now.
+- **Resume from the latest state.** Load the current brief, the last relevant result, and decisions or evidence added since then. Recheck affected links when upstream assumptions or sources change. Keep open questions visible.
+
+## Continue through creation and implementation
+
+The brief links to the next activity. Use an available [skill](../.agents/skills/neotool-start-initiative/SKILL.md) to guide repeated procedures; when no specialized skill exists, give the agent the agreed question, inputs, expected output, and stopping condition. Each activity returns evidence, a decision, or a clearer question to the brief.
+
+When you have behavior worth defining, write a [Spec](../spec/templates/first-delivery.md) with observable criteria. The agent uses the Spec and relevant workspace conventions during implementation and links validation results back to the criteria. The [booking example](examples/first-delivery.md) shows those records at a later point in the initiative.
+
+The harness is the execution environment for context loading, tool access, permissions, checks, and handoffs. You can start with your current agent and workspace tools. Neotool currently provides this guide, the orientation skill, and templates; specialized skills and a dedicated harness can build on these records.
+
+See [the practice benchmark](research/initiative-orientation.md) for the evidence behind this design.

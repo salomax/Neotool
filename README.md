@@ -6,13 +6,13 @@
 
 **An AI-driven product engineering framework for creating and evolving projects, products, and software solutions with people and AI agents.**
 
-Neotool is intended for people and teams starting a new initiative. It provides a shared direction for moving from a problem and its context to a solution that can be built, validated, and evolved.
+Neotool helps people and agents explore, structure, create, and evolve an initiative. Start with a rough idea, an observed problem, or a proposal with research behind it.
 
 The framework is designed to be applied to your own needs. It establishes concepts, principles, and contracts that guide the work while leaving room for your team to choose how to implement them. Adapt its guidance when your context calls for a different approach, and make those decisions explicit.
 
 ## How to apply Neotool
 
-Start with the [Neotool Guideline](docs/guideline.md). Open it with your agent and work together from an initial problem to a first delivery Spec. The [Start Initiative skill](.agents/skills/neotool-start-initiative/SKILL.md) leads the kickoff, and the [worked example](docs/examples/first-delivery.md) shows how context, decisions, specification, and evidence connect.
+Start with the [Neotool Guideline](docs/guideline.md) and the [Start Initiative skill](.agents/skills/neotool-start-initiative/SKILL.md). Bring what you know, create a short [Initiative Brief](spec/templates/initiative-brief.md) with your agent, and agree whether to explore the problem, research, benchmark, or design a solution.
 
 1. **Understand your context.** Define the problem, the people involved, the intended outcomes, and the constraints of your initiative.
 2. **Use the framework as a guide.** Identify the principles, responsibilities, and contracts relevant to your work.
@@ -96,6 +96,8 @@ An initial project can fulfill these responsibilities with a small set of record
 
 ## Research informing the proposal
 
+The [initiative orientation benchmark](docs/research/initiative-orientation.md) compares discovery, context loading, and agent handoff practices and explains which patterns Neotool adopts.
+
 These references inform the proposed structure; their specific tools and architectures remain choices for each initiative.
 
 - [OpenAI — Harness engineering](https://openai.com/index/harness-engineering/) describes repository knowledge maps, mechanically enforced architecture boundaries, and agent access to application behavior and telemetry.
@@ -107,4 +109,4 @@ These references inform the proposed structure; their specific tools and archite
 
 ## Project status
 
-Neotool provides the Guideline, the Start Initiative skill, a Spec template, and a worked example. You can use them with your current coding agent. Additional skills, a CLI, and a dedicated execution harness are planned capabilities.
+Neotool provides the Guideline, the Start Initiative skill, an Initiative Brief template, a Spec template, and a worked example. You can use them with your current coding agent. Additional skills, a CLI, and a dedicated execution harness are planned capabilities.
