@@ -6,6 +6,7 @@ Keep this brief small enough to reload at the start of a session. Use links to t
 - **State:** Draft / agreed
 - **Owner:** Person or team responsible for initiative decisions
 - **Summary:** One or two sentences on the idea, problem, or opportunity
+- **Strategy link:** Objective ID and link this initiative advances, or the open strategy question if the direction is unresolved
 
 ## Situation and intended outcome
 

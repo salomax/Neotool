@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="733" viewBox="0 0 1080 733" role="img" aria-labelledby="title desc">
+<title id="title">Level 1 · Product Strategy</title>
+<desc id="desc">The person and agent use the Product Strategy skill to draft, review, and save a strategy. The Product Map opens the Product Strategy document, which defines an objective for fewer confirmed overlapping reservations. The level 2 Initiative Brief links directly to that objective.</desc>
+<rect width="1080" height="733" rx="18" fill="#fffdf9"/>
+<g font-family="Trebuchet MS, Verdana, sans-serif">
+<text x="28" y="52" font-size="34" font-weight="700" fill="#233047">Level 1 · Product Strategy</text>
+<text x="29" y="87" font-size="22" font-weight="400" fill="#4b5870">Where should we focus, and what should improve?</text>
+<rect x="28" y="115" width="1024" height="187" rx="15" fill="#edf8f7"/>
+<path d="M43 116 Q540.0 113 1037 116 Q1053 115 1052 131 L1051 287 Q1052 303 1036 302 Q540.0 304 44 301 Q27 302 28 286 L29 130 Q28 115 43 116 Z" fill="none" stroke="#22686b" stroke-width="1.8" stroke-dasharray="9 6"/>
+<path d="M43 116 Q540.0 113 1037 116 Q1053 115 1052 131 L1051 287 Q1052 303 1036 302 Q540.0 304 44 301 Q27 302 28 286 L29 130 Q28 115 43 116 Z" transform="translate(1 -1)" fill="none" stroke="#22686b" stroke-width=".8" opacity=".42" stroke-dasharray="9 6"/>
+<text x="46" y="148" font-size="23" font-weight="700" fill="#22686b">Agent session · Product strategy</text>
+<text x="48" y="192" font-size="18" font-weight="700" fill="#233047">Person</text>
+<text x="48" y="223" font-size="16" font-weight="400" fill="#233047">“Use the Product Strategy skill.”</text>
+<text x="48" y="251" font-size="16" font-weight="400" fill="#233047">Shares the idea and evidence.</text>
+<path d="M304 222 Q318.0 220 332 223 m-7 -6 l7 6 -8 5" fill="none" stroke="#345da7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="351" y="169" width="216" height="30" rx="15.0" fill="#f3eafd" stroke="#67448c" stroke-width="1.5"/>
+<text x="365" y="190" font-size="16" font-weight="700" fill="#67448c">Skill · Product Strategy</text>
+<text x="351" y="223" font-size="16" font-weight="400" fill="#233047">Asks about audience and focus.</text>
+<text x="351" y="251" font-size="16" font-weight="400" fill="#233047">Drafts the strategy from the template.</text>
+<path d="M661 222 Q675.0 220 689 223 m-7 -6 l7 6 -8 5" fill="none" stroke="#345da7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="710" y="192" font-size="18" font-weight="700" fill="#233047">Person + agent</text>
+<text x="710" y="223" font-size="16" font-weight="400" fill="#233047">Person reviews and confirms choices.</text>
+<text x="710" y="251" font-size="16" font-weight="400" fill="#233047">Agent saves the agreed strategy.</text>
+<path d="M540 307 Q542 331 541 358 m-6 -8 l6 8 6 -8" fill="none" stroke="#345da7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="554" y="339" font-size="15" font-weight="400" fill="#345da7">Creates or updates</text>
+<rect x="28" y="382" width="248" height="168" rx="15" fill="#f5f6fa"/>
+<path d="M43 383 Q152.0 380 261 383 Q277 382 276 398 L275 535 Q276 551 260 550 Q152.0 552 44 549 Q27 550 28 534 L29 397 Q28 382 43 383 Z" fill="none" stroke="#68758d" stroke-width="1.8"/>
+<path d="M43 383 Q152.0 380 261 383 Q277 382 276 398 L275 535 Q276 551 260 550 Q152.0 552 44 549 Q27 550 28 534 L29 397 Q28 382 43 383 Z" transform="translate(1 -1)" fill="none" stroke="#68758d" stroke-width=".8" opacity=".42"/>
+<text x="45" y="416" font-size="23" font-weight="700" fill="#233047">Product Map</text>
+<text x="45" y="449" font-size="16" font-weight="400" fill="#4b5870">An index document</text>
+<text x="45" y="470" font-size="15" font-weight="400" fill="#4b5870">e.g. product-map.md</text>
+<text x="45" y="501" font-size="18" font-weight="400" fill="#233047">Shared room booking</text>
+<text x="45" y="530" font-size="18" font-weight="400" fill="#345da7">↳ Strategy</text>
+<text x="282" y="494" font-size="14" font-weight="400" fill="#345da7">opens</text>
+<path d="M282 512 Q303.5 510 325 513 m-7 -6 l7 6 -8 5" fill="none" stroke="#345da7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="331" y="366" width="418" height="340" rx="15" fill="#edf3ff"/>
+<path d="M346 367 Q540.0 364 734 367 Q750 366 749 382 L748 691 Q749 707 733 706 Q540.0 708 347 705 Q330 706 331 690 L332 381 Q331 366 346 367 Z" fill="none" stroke="#345da7" stroke-width="1.8"/>
+<path d="M346 367 Q540.0 364 734 367 Q750 366 749 382 L748 691 Q749 707 733 706 Q540.0 708 347 705 Q330 706 331 690 L332 381 Q331 366 346 367 Z" transform="translate(1 -1)" fill="none" stroke="#345da7" stroke-width=".8" opacity=".42"/>
+<text x="352" y="403" font-size="24" font-weight="700" fill="#345da7">Product Strategy</text>
+<text x="352" y="433" font-size="17" font-weight="400" fill="#4b5870">A document · product-strategy.md</text>
+<text x="352" y="474" font-size="16" font-weight="400" fill="#233047">Vision: Reliable room booking for small teams</text>
+<text x="352" y="504" font-size="16" font-weight="400" fill="#233047">Focus: Start with one shared room</text>
+<rect x="349" y="531" width="382" height="155" rx="15" fill="#eef8f3"/>
+<path d="M364 532 Q540.0 529 716 532 Q732 531 731 547 L730 671 Q731 687 715 686 Q540.0 688 365 685 Q348 686 349 670 L350 546 Q349 531 364 532 Z" fill="none" stroke="#276459" stroke-width="1.8"/>
+<path d="M364 532 Q540.0 529 716 532 Q732 531 731 547 L730 671 Q731 687 715 686 Q540.0 688 365 685 Q348 686 349 670 L350 546 Q349 531 364 532 Z" transform="translate(1 -1)" fill="none" stroke="#276459" stroke-width=".8" opacity=".42"/>
+<text x="365" y="563" font-size="19" font-weight="700" fill="#276459">OBJ-01 · Reduce booking conflicts</text>
+<text x="365" y="599" font-size="16" font-weight="400" fill="#233047">Desired outcome: Fewer confirmed overlaps</text>
+<text x="365" y="632" font-size="16" font-weight="400" fill="#233047">Measure: Share of reservations that overlap,</text>
+<text x="365" y="657" font-size="16" font-weight="400" fill="#233047">before vs. during the pilot</text>
+<rect x="805" y="554" width="247" height="150" rx="15" fill="#fff8e9"/>
+<path d="M820 555 Q928.5 552 1037 555 Q1053 554 1052 570 L1051 689 Q1052 705 1036 704 Q928.5 706 821 703 Q804 704 805 688 L806 569 Q805 554 820 555 Z" fill="none" stroke="#896522" stroke-width="1.8"/>
+<path d="M820 555 Q928.5 552 1037 555 Q1053 554 1052 570 L1051 689 Q1052 705 1036 704 Q928.5 706 821 703 Q804 704 805 688 L806 569 Q805 554 820 555 Z" transform="translate(1 -1)" fill="none" stroke="#896522" stroke-width=".8" opacity=".42"/>
+<text x="820" y="589" font-size="22" font-weight="700" fill="#735019">Initiative Brief</text>
+<text x="820" y="620" font-size="16" font-weight="400" fill="#4b5870">A level 2 document</text>
+<text x="820" y="651" font-size="17" font-weight="400" fill="#233047">INIT-01 · Pilot one room</text>
+<text x="820" y="680" font-size="17" font-weight="400" fill="#345da7">Strategy link: OBJ-01</text>
+<text x="750" y="639" font-size="11" font-weight="400" fill="#276459">advances</text>
+<path d="M799 657 Q767.5 655 736 658 m7 -6 l-7 6 8 5" fill="none" stroke="#276459" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>
