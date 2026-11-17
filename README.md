@@ -12,7 +12,7 @@ The framework is designed to be applied to your own needs. It establishes concep
 
 ## How to apply Neotool
 
-Start with the [Neotool Guideline](docs/guideline.md) and the [Start Initiative skill](.agents/skills/neotool-start-initiative/SKILL.md). Bring what you know, create a short [Initiative Brief](spec/templates/initiative-brief.md) with your agent, and agree whether to explore the problem, research, benchmark, or design a solution.
+Use the [Product Strategy skill](.agents/skills/neotool-product-strategy/SKILL.md) with your agent to define or review the product's vision, strategic choices, and objectives. The [Neotool Guideline](docs/guideline.md) walks you through the session. When an initiative advances an agreed objective, record the objective ID and link in the [Initiative Brief](spec/templates/initiative-brief.md).
 
 1. **Understand your context.** Define the problem, the people involved, the intended outcomes, and the constraints of your initiative.
 2. **Use the framework as a guide.** Identify the principles, responsibilities, and contracts relevant to your work.
@@ -32,7 +32,9 @@ Start with the [Neotool Guideline](docs/guideline.md) and the [Start Initiative 
 
 ## Proposed structure
 
-Neotool's proposed structure defines logical responsibilities and the relationships between them. These responsibilities can coexist in a single repository. Folder names, repository boundaries, and deployment units are implementation choices.
+The [Product knowledge and traceability contract](docs/product-knowledge.md) organizes records into six levels: strategy, opportunity and initiative, product definition, experience and technical design, delivery and implementation, and verification and operation. These levels distinguish the questions records answer and connect intent to outcomes. The Product Map is a navigation view; typed links make records traceable in both directions.
+
+Neotool organizes product knowledge and the capabilities that support it. These can coexist in a single repository. Folder names, repository boundaries, and deployment units are implementation choices.
 
 ### Canonical, abstract, and concrete
 
@@ -44,35 +46,63 @@ Canonical describes what the framework treats as an authoritative contract. Abst
 | **Abstract elements** | Responsibilities and extension points that require decisions in the context of your initiative. | Defines domain boundaries, quality targets, roles, workflows, technology, and integration choices. |
 | **Concrete elements** | Reusable artifacts and executable mechanisms that fulfill part of a contract, as they become available. | Adopts, configures, extends, or replaces templates, skills, validators, CLI commands, and adapters. |
 
-For example, a delivery stage may have a canonical result contract, an abstract execution mechanism, and a concrete adapter for a particular coding agent. A product decision may have a canonical record format while its content belongs entirely to your initiative.
+For example, a delivery stage may have a canonical result contract, an abstract execution mechanism, and a concrete adapter for a particular coding agent. A product decision has a canonical minimum for an addressable record while its content and representation belong to your initiative.
 
-### Logical layers
+### Product Knowledge levels
 
-The following layers are a working proposal. They organize responsibilities across the product lifecycle; several can participate in the same task.
+The six levels organize records by the questions they answer. A level is a role in the knowledge model, not a required folder or workflow stage. A document can contain records from multiple levels, and links can cross levels.
 
-![Seven logical layers, from product strategy and context through validation and operation, with evidence feeding earlier decisions and shared concerns spanning all layers](docs/images/logical-layers.png)
-
-The arrows illustrate a main information flow and its feedback. Layers can collaborate throughout a change; their numbering does not prescribe a fixed delivery sequence.
-
-| Layer | Responsibility | Main elements |
+| Level | Question | Example records |
 | --- | --- | --- |
-| **1. Product strategy and context** | Establish why the initiative exists, whom it serves, and which outcomes matter. | Problem statements, research evidence, hypotheses, product decisions, initiatives, and success measures. |
-| **2. Experience and design** | Define how people interact with the solution and how the experience stays coherent. | Journeys, interaction states, accessibility criteria, design decisions, tokens, component contracts, and prototypes. |
-| **3. Solution architecture** | Define the system's boundaries, constraints, and permitted relationships. | Domain maps, modules, dependency rules, data and API contracts, invariants, quality attributes, and architectural decisions. |
-| **4. Delivery** | Turn an intended change into bounded, verifiable work. | Specifications, acceptance criteria, technical plans, work items, dependencies, review criteria, and delivery evidence. |
-| **5. Agent execution** | Give people and agents a repeatable way to perform and resume work. | Context loading, skills, workflow execution, structured results, checkpoints, tool access, CLI commands, integration adapters, and development environments. |
-| **6. Product implementation** | Realize the solution's behavior through working software. | Applications, domain modules, services, schemas, migrations, integrations, and infrastructure definitions. |
-| **7. Validation and operation** | Establish whether the solution meets expectations and preserve its health over time. | Automated checks, architectural fitness checks, release gates, deployments, telemetry, runbooks, incident records, and regression evidence. |
+| **1. Strategy** | Where are we going, for whom, and how will we judge progress? | Vision, strategic choices, objectives, and expected outcomes. |
+| **2. Opportunity and initiative** | What problem merits work now, and what supports that choice? | Initiative briefs, needs, research findings, hypotheses, and product decisions. |
+| **3. Product definition** | What must the product do, and what counts as acceptable? | PRDs, requirements, product rules, constraints, and acceptance criteria. |
+| **4. Experience and technical design** | How will the experience and system realize the agreed behavior? | UX flows, prototypes, technical designs, interface contracts, and architecture decisions. |
+| **5. Delivery and implementation** | What work is planned, what changed, and where did it ship? | Work items, plans, pull requests, implementation, and releases. |
+| **6. Verification and operation** | What was observed, against which version, and did the outcome improve? | Test cases, execution results, operational observations, and outcome measurements. |
 
-Product intent informs design and architecture. A delivery selects a bounded change, agent execution supports the work, implementation realizes it, and validation supplies evidence. Operational findings feed future product, design, and architecture decisions.
+A short Product Map helps people and agents navigate from broad topics to relevant records. Typed links connect an objective to an initiative, a need to a requirement, and a criterion to a test result and the implementation revision examined. The [contract](docs/product-knowledge.md) defines the relationships and shows a complete example.
 
-SDD connects specifications to planning, implementation, and verification across these layers. Skills package procedures; a CLI exposes operations; tools and adapters connect execution to the chosen environment. The harness coordinates agent execution and its feedback mechanisms.
+Both diagrams use the same visual key. A **teal dashed frame** groups the conversation with the agent, and a **purple pill** names a skill the agent uses within it. **Blue cards** show strategy documents, **green cards** show objectives (`OBJ-*`), **yellow cards** show Initiative Briefs (`INIT-*`), and **gray cards** show navigation indexes such as the Product Map.
+
+#### Level 1 · Product Strategy
+
+![A person and an agent use the Product Strategy skill to draft and review a strategy. The Product Map opens the Product Strategy document. The strategy defines objective OBJ-01 and its desired outcome of fewer booking conflicts. The level 2 Initiative Brief links directly to OBJ-01.](docs/images/level-1-strategy.svg)
+
+Start a conversation with your agent and ask it to use the [Product Strategy skill](.agents/skills/neotool-product-strategy/SKILL.md). Share your idea and any existing material. The skill guides the agent to ask about the audience, focus, and desired outcome, then draft the strategy using the template. You review and confirm the choices, and the agent saves the agreed strategy and records any open questions.
+
+The **Product Strategy** is the document a person and an agent create together. In this example it is a Markdown file. It records who the product serves, where to focus, and what should improve. **Fewer confirmed overlapping reservations** is the desired outcome. **OBJ-01** is the objective recorded in the document. It gives that outcome a stable reference and defines how to measure it.
+
+The **Product Map** is a short index of links that people and agents can consult later. It can be a Markdown file such as `product-map.md` or part of an existing workspace index. In the example, **Shared room booking** is the topic for a product that helps staff reserve a physical meeting room. Its **Strategy** link opens the strategy document. The **Initiative Brief** describes the proposed pilot and links directly to `OBJ-01`, so anyone reviewing the pilot can see which objective it advances.
+
+[Product Strategy template](spec/templates/product-strategy.md) · [Worked example](docs/examples/product-strategy.md) · [Editable Excalidraw diagram](docs/images/level-1-strategy.excalidraw)
+
+#### Level 2 · Opportunity and initiative
+
+![A person and an AI agent review objective OBJ-01, explore the reported booking conflicts, and agree on what to investigate. The agent saves Initiative Brief INIT-01 with a direct link to OBJ-01.](docs/images/level-2-opportunity.svg)
+
+Open the relevant objective and ask your agent to explore the opportunity with you using the Initiative Brief template. Bring what you've seen and any sources. The agent asks who is affected and what happens today, then records observations, hypotheses, and open questions. Together you decide whether to explore the problem, research, benchmark, or start designing. In this example, you agree to check whether five days of chat confirmations give you a usable baseline.
+
+The **Initiative Brief** is the document the agent drafts and you review. It captures the scope and agreed next step. Its **Strategy link** points directly to `OBJ-01` inside the strategy document, so a person or agent can recover why `INIT-01` exists and how progress will be measured.
+
+[Initiative Brief template](spec/templates/initiative-brief.md) · [Worked example](docs/examples/initiative-brief.md) · [Editable Excalidraw diagram](docs/images/level-2-opportunity.excalidraw)
+
+### Capabilities across the levels
+
+These capabilities support work throughout the knowledge model; they are introduced as the initiative needs them:
+
+- **AI collaboration and context management:** agents find authoritative records through the Product Map, load relevant context progressively, distinguish assumptions from evidence, and preserve handoffs.
+- **Skills and guidance:** reusable procedures help people and agents conduct discovery, shape product definitions, design, deliver, and evaluate outcomes. The Product Strategy skill is available today.
+- **Harness, CLI, tools, and adapters:** the agent's execution environment provides tool access, permissions, feedback, and continuity. Neotool-specific automation and a dedicated harness are planned; existing agent tools can support the initial workflow.
+- **Design and architecture:** experience design, system boundaries, contracts, and architecture decisions connect product intent to a workable solution.
+- **Quality, security, and governance:** appropriate controls apply across the work, including review, access, verification, and clear decision authority.
+- **Traceability and learning:** stable references link intent, decisions, changes, and evidence; findings and operational measurements inform subsequent decisions.
 
 ### Shared knowledge and governance
 
-Every layer needs discoverable knowledge and explicit authority. Security, quality, and governance apply across the layers, with controls appropriate to the initiative.
+Every level needs discoverable knowledge and explicit authority. Security, quality, and governance apply throughout, with controls appropriate to the initiative.
 
-- **Name the authoritative record.** Keep one maintained record per concept and link to it. Give linked artifacts stable identifiers and a clear owner.
+- **Name the authoritative record.** Keep one maintained record per concept and link to it. Give durable records a stable ID, kind, concise statement, state, and resolvable location; keep ownership discoverable when needed.
 - **Separate intent from observed behavior.** Specifications for a proposed change define the target. Behavioral records describe what currently exists and cite implementation or validation evidence. Track discrepancies explicitly.
 - **Load context progressively.** Provide a small entry point that directs people and agents to the relevant records, skills, and implementation paths. Include summaries, status, and conditions for loading deeper material.
 - **Keep knowledge current.** Define when an artifact must be updated, how it is verified, and how superseded records are identified. Keep generated views tied to their authoritative sources.
@@ -80,7 +110,7 @@ Every layer needs discoverable knowledge and explicit authority. Security, quali
 
 ### What stays canonical and what varies
 
-The table below maps the proposed framework capabilities. The [first delivery Spec template](spec/templates/first-delivery.md) shows how to record context, decisions, specification, and evidence. The concrete examples below show how those contracts and related capabilities could be implemented.
+The [product knowledge contract](docs/product-knowledge.md) defines the current record and traceability foundations. The table below proposes additional contracts and capabilities. The [Spec template](spec/templates/first-delivery.md) illustrates how context, decisions, intended behavior, and evidence can be recorded; the remaining concrete examples are possible implementations.
 
 | Element | Candidate canonical contract | Abstract choices for your initiative | Possible concrete support |
 | --- | --- | --- | --- |
@@ -109,4 +139,4 @@ These references inform the proposed structure; their specific tools and archite
 
 ## Project status
 
-Neotool provides the Guideline, the Start Initiative skill, an Initiative Brief template, a Spec template, and a worked example. You can use them with your current coding agent. Additional skills, a CLI, and a dedicated execution harness are planned capabilities.
+Neotool provides the Guideline, the product knowledge and traceability contract, the Product Strategy skill, a strategy template and worked example, an Initiative Brief template, and a Spec template and worked example. You can use them with your current coding agent. Additional skills, a CLI, and a dedicated execution harness are planned capabilities.
